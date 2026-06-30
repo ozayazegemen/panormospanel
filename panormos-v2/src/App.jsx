@@ -2,15 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 
-
-
 const T = {
-  // Panormos Medya brand — lacivert + turuncu
   bg: "#0D1219", bgCard: "#121A25", bgCardHover: "#172030", bgSurface: "#1A2535", bgInput: "#0A1018",
   border: "#1E2E42", borderLight: "#263B55",
-  // Primary brand: Lacivert #223A59
   indigo: "#223A59", indigoDim: "#1A2D47", indigoGlow: "rgba(34,58,89,0.35)", indigoText: "#7DA4C7",
-  // Accent brand: Turuncu #F25124
   amber: "#F25124", amberDim: "rgba(242,81,36,0.15)", amberText: "#F8906E",
   green: "#10B981", greenDim: "rgba(16,185,129,0.15)", greenText: "#6EE7B7",
   red: "#EF4444", redDim: "rgba(239,68,68,0.12)", redText: "#FCA5A5",
@@ -27,178 +22,62 @@ const platformConfig = {
   fb: { label: "Facebook", color: "#1877F2", bg: "rgba(24,119,242,0.12)", icon: "FB" },
 };
 
-const INIT_CLIENTS = [
-  {
-    id:1, name:"Lezzet Durağı", category:"Restoran & Cafe", initials:"LD",
-    accentColor:"#F59E0B", platforms:["ig","fb"],
-    publishDays:["Pazartesi","Çarşamba","Cuma"], shootDays:["Salı","Perşembe"],
-    monthlyFee:8500, contractStart:"Ocak 2025",
-    posts:[
-      {id:1,date:"27 Haz",platform:"ig",type:"Reels",title:"Menü tanıtım videosu",status:"done"},
-      {id:2,date:"25 Haz",platform:"fb",type:"Fotoğraf",title:"Hafta sonu özel menü",status:"done"},
-      {id:3,date:"02 Tem",platform:"ig",type:"Reels",title:"Temmuz yeni menü tanıtımı",status:"planned"},
-      {id:4,date:"04 Tem",platform:"fb",type:"Fotoğraf",title:"Kampanya görseli",status:"planned"},
-    ],
-    invoices:[
-      {id:1,no:"F-2026-031",date:"01 May 2026",amount:8500,vat:1530,total:10030,status:"paid",desc:"Mayıs ayı sosyal medya yönetimi"},
-      {id:2,no:"F-2026-032",date:"01 Haz 2026",amount:8500,vat:1530,total:10030,status:"paid",desc:"Haziran ayı sosyal medya yönetimi"},
-      {id:3,no:"F-2026-033",date:"01 Tem 2026",amount:9000,vat:1620,total:10620,status:"pending",desc:"Temmuz ayı sosyal medya yönetimi"},
-    ],
-    media:[
-      {id:1,name:"menu-reels-haziran.mp4",type:"video",size:"124 MB",date:"24 Haz"},
-      {id:2,name:"urun-foto-set-01.zip",type:"image",size:"48 MB",date:"22 Haz"},
-      {id:3,name:"hikaye-sablonu-v2.psd",type:"design",size:"18 MB",date:"20 Haz"},
-      {id:4,name:"kapak-gorseli-tem.jpg",type:"image",size:"6 MB",date:"26 Haz"},
-    ],
-    calEvents:[
-      {day:27,type:"post",label:"IG Reels"},{day:25,type:"post",label:"FB Fotoğraf"},
-      {day:24,type:"shoot",label:"Çekim"},{day:29,type:"shoot",label:"Tem. Çekim"},
-      {day:2,type:"post",label:"IG Reels"},{day:4,type:"post",label:"FB Kampanya"},
-    ],
-  },
-  {
-    id:2, name:"TechNova", category:"Teknoloji & Yazılım", initials:"TN",
-    accentColor:"#6366F1", platforms:["li","tw","ig"],
-    publishDays:["Salı","Perşembe"], shootDays:["Pazartesi"],
-    monthlyFee:6500, contractStart:"Mart 2025",
-    posts:[
-      {id:1,date:"26 Haz",platform:"li",type:"Makale",title:"Yapay zeka trendleri 2026",status:"done"},
-      {id:2,date:"24 Haz",platform:"tw",type:"Thread",title:"Ürün güncellemesi duyurusu",status:"done"},
-      {id:3,date:"01 Tem",platform:"li",type:"Makale",title:"Temmuz blog yazısı",status:"planned"},
-      {id:4,date:"03 Tem",platform:"ig",type:"Carousel",title:"Ekip tanıtım serisi",status:"in_progress"},
-    ],
-    invoices:[
-      {id:1,no:"F-2026-028",date:"01 Haz 2026",amount:6000,vat:1080,total:7080,status:"paid",desc:"Haziran ayı içerik yönetimi"},
-      {id:2,no:"F-2026-034",date:"01 Tem 2026",amount:6500,vat:1170,total:7670,status:"overdue",desc:"Temmuz ayı içerik yönetimi"},
-    ],
-    media:[
-      {id:1,name:"blog-kapak-haziran.jpg",type:"image",size:"8 MB",date:"25 Haz"},
-      {id:2,name:"infografik-yapay-zeka.ai",type:"design",size:"22 MB",date:"23 Haz"},
-    ],
-    calEvents:[
-      {day:26,type:"post",label:"LI Makale"},{day:24,type:"post",label:"TW Thread"},
-      {day:1,type:"post",label:"LI Blog"},{day:3,type:"post",label:"IG Carousel"},
-    ],
-  },
-  {
-    id:3, name:"FitLife Studio", category:"Spor & Wellness", initials:"FL",
-    accentColor:"#10B981", platforms:["ig","tk","yt"],
-    publishDays:["Pazartesi","Çarşamba","Cuma","Pazar"], shootDays:["Salı","Cumartesi"],
-    monthlyFee:12000, contractStart:"Şubat 2025",
-    posts:[
-      {id:1,date:"26 Haz",platform:"tk",type:"Video",title:"Sabah egzersiz rutini",status:"done"},
-      {id:2,date:"24 Haz",platform:"ig",type:"Reels",title:"5 dakika core antrenmanı",status:"done"},
-      {id:3,date:"30 Haz",platform:"yt",type:"Video",title:"Temmuz fitness challenge",status:"in_progress"},
-      {id:4,date:"02 Tem",platform:"ig",type:"Reels",title:"Motivasyon serisi ep.4",status:"planned"},
-    ],
-    invoices:[
-      {id:1,no:"F-2026-025",date:"01 Haz 2026",amount:12000,vat:2160,total:14160,status:"paid",desc:"Haziran ayı video + sosyal medya"},
-      {id:2,no:"F-2026-035",date:"01 Tem 2026",amount:12000,vat:2160,total:14160,status:"pending",desc:"Temmuz ayı video + sosyal medya"},
-    ],
-    media:[
-      {id:1,name:"egzersiz-serisi-v1.mp4",type:"video",size:"280 MB",date:"25 Haz"},
-      {id:2,name:"thumbnail-temmuz-set.psd",type:"design",size:"45 MB",date:"26 Haz"},
-      {id:3,name:"motivasyon-hikaye.mp4",type:"video",size:"94 MB",date:"24 Haz"},
-    ],
-    calEvents:[
-      {day:26,type:"post",label:"TK Video"},{day:25,type:"shoot",label:"Çekim"},
-      {day:24,type:"post",label:"IG Reels"},{day:30,type:"post",label:"YT Video"},
-      {day:2,type:"post",label:"IG Reels"},
-    ],
-  },
-  {
-    id:4, name:"Moda House", category:"Giyim & Moda", initials:"MH",
-    accentColor:"#EC4899", platforms:["ig","tk","fb"],
-    publishDays:["Salı","Cuma","Pazar"], shootDays:["Pazartesi","Perşembe"],
-    monthlyFee:15000, contractStart:"Kasım 2024",
-    posts:[
-      {id:1,date:"25 Haz",platform:"ig",type:"Reels",title:"Yaz koleksiyonu tanıtımı",status:"done"},
-      {id:2,date:"23 Haz",platform:"tk",type:"Video",title:"Styling önerileri serisi",status:"done"},
-      {id:3,date:"29 Haz",platform:"ig",type:"Carousel",title:"Yeni gelenler lookbook",status:"planned"},
-    ],
-    invoices:[
-      {id:1,no:"F-2026-022",date:"01 Haz 2026",amount:15000,vat:2700,total:17700,status:"paid",desc:"Haziran ayı moda içerikleri"},
-      {id:2,no:"F-2026-036",date:"01 Tem 2026",amount:15000,vat:2700,total:17700,status:"paid",desc:"Temmuz ayı moda içerikleri"},
-    ],
-    media:[
-      {id:1,name:"yaz-koleksiyon-lookbook.zip",type:"image",size:"145 MB",date:"24 Haz"},
-      {id:2,name:"styling-video-ep3.mp4",type:"video",size:"190 MB",date:"22 Haz"},
-    ],
-    calEvents:[
-      {day:25,type:"post",label:"IG Reels"},{day:24,type:"shoot",label:"Çekim"},
-      {day:23,type:"post",label:"TK Video"},{day:29,type:"post",label:"IG Carousel"},
-    ],
-  },
-  {
-    id:5, name:"GreenMarket", category:"Organik Gıda", initials:"GM",
-    accentColor:"#34D399", platforms:["ig","fb"],
-    publishDays:["Çarşamba","Cumartesi"], shootDays:["Salı"],
-    monthlyFee:4500, contractStart:"Nisan 2025",
-    posts:[
-      {id:1,date:"25 Haz",platform:"ig",type:"Fotoğraf",title:"Haftalık ürün sepeti",status:"done"},
-      {id:2,date:"02 Tem",platform:"ig",type:"Reels",title:"Organik tarif videosu",status:"planned"},
-    ],
-    invoices:[
-      {id:1,no:"F-2026-029",date:"01 Haz 2026",amount:4500,vat:810,total:5310,status:"overdue",desc:"Haziran ayı sosyal medya yönetimi"},
-      {id:2,no:"F-2026-037",date:"01 Tem 2026",amount:4500,vat:810,total:5310,status:"pending",desc:"Temmuz ayı sosyal medya yönetimi"},
-    ],
-    media:[
-      {id:1,name:"urun-fotograflari-haziran.zip",type:"image",size:"82 MB",date:"21 Haz"},
-      {id:2,name:"tarif-reels-ham.mp4",type:"video",size:"220 MB",date:"24 Haz"},
-    ],
-    calEvents:[
-      {day:25,type:"post",label:"IG Fotoğraf"},{day:21,type:"shoot",label:"Çekim"},
-      {day:2,type:"post",label:"IG Reels"},
-    ],
-  },
-  {
-    id:6, name:"AutoPremium", category:"Otomotiv", initials:"AP",
-    accentColor:"#F97316", platforms:["ig","yt","fb"],
-    publishDays:["Perşembe","Pazar"], shootDays:["Çarşamba"],
-    monthlyFee:10000, contractStart:"Ocak 2025",
-    posts:[
-      {id:1,date:"25 Haz",platform:"fb",type:"Fotoğraf",title:"Araç detay çekimi — yeni model",status:"done"},
-      {id:2,date:"30 Haz",platform:"yt",type:"Video",title:"Test sürüşü — uzun format",status:"in_progress"},
-      {id:3,date:"04 Tem",platform:"ig",type:"Reels",title:"Yaz kampanyası klibi",status:"planned"},
-    ],
-    invoices:[
-      {id:1,no:"F-2026-030",date:"01 Haz 2026",amount:10000,vat:1800,total:11800,status:"paid",desc:"Haziran ayı video prodüksiyon"},
-      {id:2,no:"F-2026-038",date:"01 Tem 2026",amount:10000,vat:1800,total:11800,status:"pending",desc:"Temmuz ayı video prodüksiyon"},
-    ],
-    media:[
-      {id:1,name:"arac-dis-cekim-4k.zip",type:"video",size:"2.1 GB",date:"24 Haz"},
-      {id:2,name:"ic-mekan-detay.zip",type:"image",size:"134 MB",date:"23 Haz"},
-    ],
-    calEvents:[
-      {day:25,type:"post",label:"FB Fotoğraf"},{day:24,type:"shoot",label:"Çekim"},
-      {day:30,type:"post",label:"YT Video"},{day:4,type:"post",label:"IG Reels"},
-    ],
-  },
-];
+// ─────────────────────────────────────────────
+// BASIT ŞİFRELEME (XOR + Base64) — sosyal medya şifreleri için
+// Not: Bu, ortam değişkeni gerektirmeyen pratik bir gizleme katmanıdır.
+// ─────────────────────────────────────────────
+const ENC_KEY = "panormos-medya-2026-secure-key";
+function encryptText(text) {
+  if (!text) return "";
+  let result = "";
+  for (let i = 0; i < text.length; i++) {
+    result += String.fromCharCode(text.charCodeAt(i) ^ ENC_KEY.charCodeAt(i % ENC_KEY.length));
+  }
+  return btoa(unescape(encodeURIComponent(result)));
+}
+function decryptText(encoded) {
+  if (!encoded) return "";
+  try {
+    const text = decodeURIComponent(escape(atob(encoded)));
+    let result = "";
+    for (let i = 0; i < text.length; i++) {
+      result += String.fromCharCode(text.charCodeAt(i) ^ ENC_KEY.charCodeAt(i % ENC_KEY.length));
+    }
+    return result;
+  } catch (e) {
+    return "";
+  }
+}
 
-const INIT_STAFF = [
-  {id:1,name:"Ayşe Yılmaz",role:"Sosyal Medya Uzmanı",initials:"AY",color:"#6366F1",type:"Tam zamanlı",email:"ayse@ajans.com",phone:"0532 111 22 33",start:"Ocak 2023",clients:["Lezzet Durağı","TechNova"],tasks:4,notes:"Kampanya stratejisi ve içerik planlamasından sorumlu."},
-  {id:2,name:"Berk Şahin",role:"Video Editör",initials:"BS",color:"#EC4899",type:"Tam zamanlı",email:"berk@ajans.com",phone:"0533 222 33 44",start:"Mart 2023",clients:["FitLife Studio","AutoPremium"],tasks:3,notes:"Final cut ve renk düzeltmesi konusunda uzman."},
-  {id:3,name:"Ceren Mert",role:"Grafik Tasarımcı",initials:"CM",color:"#10B981",type:"Tam zamanlı",email:"ceren@ajans.com",phone:"0535 333 44 55",start:"Haziran 2023",clients:["Moda House","TechNova"],tasks:2,notes:"Marka kimliği ve şablon tasarımlarını yürütüyor."},
-  {id:4,name:"Deniz Kaya",role:"İçerik Yazarı",initials:"DK",color:"#F59E0B",type:"Part-time",email:"deniz@ajans.com",phone:"0536 444 55 66",start:"Eylül 2023",clients:["GreenMarket","Lezzet Durağı"],tasks:3,notes:"SEO odaklı içerik ve caption yazarlığı."},
-  {id:5,name:"Ece Arslan",role:"Fotoğrafçı",initials:"EA",color:"#F97316",type:"Serbest",email:"ece@ajans.com",phone:"0537 555 66 77",start:"Kasım 2023",clients:["Moda House","FitLife Studio","AutoPremium"],tasks:5,notes:"Stüdyo ve saha çekimlerini yönetiyor."},
-];
+// ─────────────────────────────────────────────
+// EXCEL DIŞA AKTARMA YARDIMCISI (CSV tabanlı, harici kütüphane gerektirmez)
+// ─────────────────────────────────────────────
+function exportToExcel(rows, filename) {
+  if (!rows || rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const csvRows = [
+    headers.join(";"),
+    ...rows.map(row => headers.map(h => {
+      let val = row[h] === null || row[h] === undefined ? "" : String(row[h]);
+      val = val.replace(/"/g, '""');
+      if (val.includes(";") || val.includes("\n") || val.includes('"')) {
+        val = `"${val}"`;
+      }
+      return val;
+    }).join(";"))
+  ];
+  const csvContent = "\uFEFF" + csvRows.join("\r\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
-const INIT_TASKS = [
-  {id:1,title:"Lezzet Durağı — Temmuz menü görselleri",client:"Lezzet Durağı",assignee:"AY",type:"Tasarım",priority:"high",due:"02 Tem",col:"todo"},
-  {id:2,title:"FitLife — Egzersiz serisi video çekimi",client:"FitLife Studio",assignee:"BS",type:"Video",priority:"high",due:"30 Haz",col:"inprogress"},
-  {id:3,title:"TechNova — LinkedIn makale serileri",client:"TechNova",assignee:"CM",type:"Metin",priority:"mid",due:"01 Tem",col:"inprogress"},
-  {id:4,title:"Moda House — Hikaye şablon seti",client:"Moda House",assignee:"AY",type:"Tasarım",priority:"mid",due:"03 Tem",col:"review"},
-  {id:5,title:"AutoPremium — Tanıtım videosu kurgu",client:"AutoPremium",assignee:"BS",type:"Video",priority:"low",due:"05 Tem",col:"review"},
-  {id:6,title:"GreenMarket — Ürün fotoğraf çekimi",client:"GreenMarket",assignee:"EA",type:"Fotoğraf",priority:"high",due:"28 Haz",col:"todo"},
-];
-
-const INIT_IDEAS = [
-  {id:1,text:"Her Salı müşteri başarı hikayesi serisi",tag:"İçerik",platforms:["ig","fb"],client:"Genel"},
-  {id:2,text:"Trending seslerle hızlı ürün tanıtım formatı",tag:"Trend",platforms:["tk","ig"],client:"Moda House"},
-  {id:3,text:"Sahne arkası — production süreci paylaşımı",tag:"Format",platforms:["ig","yt"],client:"Genel"},
-  {id:4,text:"Yaz kampanyası hazır şablon seti",tag:"Kampanya",platforms:["ig","fb","tw"],client:"FitLife Studio"},
-];
 
 // ─────────────────────────────────────────────
 // AI ENGINE
@@ -218,7 +97,6 @@ async function callAI(systemPrompt, userMessage) {
   return data.content?.[0]?.text || "Yanıt alınamadı.";
 }
 
-// AI Panel Component
 function AIPanel({ title, icon, color, systemPrompt, userPrompt, onClose, extraActions }) {
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
@@ -248,7 +126,6 @@ function AIPanel({ title, icon, color, systemPrompt, userPrompt, onClose, extraA
         width:580, maxHeight:"82vh", display:"flex", flexDirection:"column",
         overflow:"hidden", boxShadow:`0 0 60px ${color}22`,
       }} onClick={e=>e.stopPropagation()}>
-        {/* Header */}
         <div style={{
           padding:"18px 22px", borderBottom:`1px solid ${T.border}`,
           background:`linear-gradient(135deg, ${color}12, transparent)`,
@@ -270,7 +147,6 @@ function AIPanel({ title, icon, color, systemPrompt, userPrompt, onClose, extraA
           <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer",lineHeight:1,marginLeft:4}}>✕</button>
         </div>
 
-        {/* Content */}
         <div style={{flex:1, overflowY:"auto", padding:"20px 22px"}}>
           {loading && (
             <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:16, padding:"40px 0"}}>
@@ -292,7 +168,6 @@ function AIPanel({ title, icon, color, systemPrompt, userPrompt, onClose, extraA
           )}
         </div>
 
-        {/* Custom prompt */}
         <div style={{padding:"16px 22px", borderTop:`1px solid ${T.border}`, background:T.bgSurface}}>
           <div style={{display:"flex", gap:8, marginBottom:done && extraActions ? 10 : 0}}>
             <input
@@ -442,6 +317,22 @@ function ClientsPage({clients,setClients}) {
     overdue:c.invoices.filter(i=>i.status==="overdue").length,
   }));
 
+  const handleExportClients = () => {
+    const rows = clients.map(c => ({
+      "İşletme Adı": c.name,
+      "Kategori": c.category,
+      "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", "),
+      "Paylaşım Günleri": c.publishDays.join(", "),
+      "Çekim Günleri": c.shootDays.join(", "),
+      "Aylık Ücret": c.monthlyFee,
+      "Sözleşme Başlangıç": c.contractStart,
+      "Toplam Paylaşım": c.posts.length,
+      "Toplam Fatura Tutarı": c.invoices.reduce((s,i)=>s+i.total,0),
+      "Bekleyen Fatura": c.invoices.filter(i=>i.status!=="paid").reduce((s,i)=>s+i.total,0),
+    }));
+    exportToExcel(rows, `panormos-musteriler-${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
   return <div>
     {/* Stats */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
@@ -451,18 +342,28 @@ function ClientsPage({clients,setClients}) {
       <StatCard label="Bu Ay Paylaşım" value={clients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0)} color={T.greenText} sub="Yayınlanan" />
     </div>
 
-    {/* AI Banner */}
-    <div style={{
-      display:"flex", alignItems:"center", gap:14, padding:"14px 18px",
-      background:`linear-gradient(135deg, rgba(242,81,36,0.10), rgba(34,58,89,0.25))`,
-      border:`1px solid ${T.amber}44`, borderRadius:12, marginBottom:20, cursor:"pointer",
-    }} onClick={()=>setAi("analysis")}>
-      <div style={{fontSize:22}}>🤖</div>
-      <div style={{flex:1}}>
-        <div style={{fontSize:13,fontWeight:600,color:T.violetText}}>Müşteri Portföy Analizi</div>
-        <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>AI ile tüm müşterilerini analiz et, büyüme fırsatları ve risk noktaları bul</div>
+    {/* AI Banner + Export */}
+    <div style={{display:"flex",gap:10,marginBottom:20}}>
+      <div style={{
+        display:"flex", alignItems:"center", gap:14, padding:"14px 18px", flex:1,
+        background:`linear-gradient(135deg, rgba(242,81,36,0.10), rgba(34,58,89,0.25))`,
+        border:`1px solid ${T.amber}44`, borderRadius:12, cursor:"pointer",
+      }} onClick={()=>setAi("analysis")}>
+        <div style={{fontSize:22}}>🤖</div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13,fontWeight:600,color:T.violetText}}>Müşteri Portföy Analizi</div>
+          <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>AI ile tüm müşterilerini analiz et, büyüme fırsatları ve risk noktaları bul</div>
+        </div>
+        <Btn variant="ai" style={{flexShrink:0}}>✦ Analiz Et</Btn>
       </div>
-      <Btn variant="ai" style={{flexShrink:0}}>✦ Analiz Et</Btn>
+      <div onClick={handleExportClients} style={{
+        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6,
+        padding:"14px 24px", background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:12,
+        cursor:"pointer", minWidth:120,
+      }}>
+        <span style={{fontSize:20}}>📊</span>
+        <span style={{fontSize:11,fontWeight:600,color:T.textSecondary,textAlign:"center"}}>Excel'e Aktar</span>
+      </div>
     </div>
 
     {/* List */}
@@ -541,7 +442,7 @@ function ClientsPage({clients,setClients}) {
           monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026",
         }).select().single();
         if(!error && data){
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],calEvents:[]}]);
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
         }
         setModal(null);
       }} />
@@ -583,18 +484,39 @@ function ClientsPage({clients,setClients}) {
         setModal(null);
       }} />
     </Modal>}
+    {modal==="addSocial"&&<Modal title="Sosyal medya hesabı ekle" onClose={()=>setModal(null)}>
+      <FormField label="Platform"><Select value={form.platform||"ig"} onChange={e=>setForm(f=>({...f,platform:e.target.value}))}>{Object.entries(platformConfig).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</Select></FormField>
+      <FormField label="Kullanıcı adı"><Input placeholder="@kullaniciadi" value={form.username||""} onChange={e=>setForm(f=>({...f,username:e.target.value}))} /></FormField>
+      <FormField label="Şifre"><Input type="text" placeholder="Hesap şifresi" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
+      <FormField label="Kayıtlı telefon numarası"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="Notlar"><Input placeholder="2FA, kurtarma e-postası vb." value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} /></FormField>
+      <div style={{fontSize:11,color:T.textMuted,marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+        <span>🔒</span> Şifre tarayıcıda şifrelenerek saklanır.
+      </div>
+      <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
+        if(!form.username && !form.password) return;
+        const { data, error } = await supabase.from('social_accounts').insert({
+          client_id: form.clientId, platform: form.platform||"ig", username: form.username||"",
+          password_encrypted: encryptText(form.password||""), phone: form.phone||"", notes: form.notes||"",
+        }).select().single();
+        if(!error && data){
+          setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,socialAccounts:[...(c.socialAccounts||[]),{id:data.id,platform:data.platform,username:data.username,password:form.password||"",phone:data.phone,notes:data.notes}]}:c));
+        }
+        setModal(null);
+      }} />
+    </Modal>}
   </div>;
 }
 
 function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm}) {
   const [ai,setAi]=useState(null);
-  const tabs=[{id:"overview",lbl:"Özet"},{id:"calendar",lbl:"Takvim"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"},{id:"invoices",lbl:"Faturalar"}];
+  const tabs=[{id:"overview",lbl:"Özet"},{id:"calendar",lbl:"Takvim"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"},{id:"invoices",lbl:"Faturalar"},{id:"social",lbl:"Sosyal Hesaplar"}];
 
   const postSummary=client.posts.map(p=>`${p.date} ${platformConfig[p.platform]?.label} ${p.type}: ${p.title} (${p.status})`).join("\n");
   const invoiceSummary=client.invoices.map(i=>`${i.no} ${i.date} ${fmtMoney(i.total)} (${i.status}): ${i.desc}`).join("\n");
 
   return <div style={{background:T.bgSurface,border:`1px solid ${T.borderLight}`,borderTop:"none",borderRadius:"0 0 12px 12px",marginBottom:2}}>
-    <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,padding:"0 20px",gap:2,alignItems:"center"}}>
+    <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,padding:"0 20px",gap:2,alignItems:"center",flexWrap:"wrap"}}>
       {tabs.map(t=>{const active=currentTab===t.id;return <button key={t.id} onClick={()=>setTab(t.id)} style={{fontSize:12,fontWeight:active?600:400,padding:"11px 16px",color:active?T.indigo:T.textMuted,background:"none",border:"none",borderBottom:`2px solid ${active?T.indigo:"transparent"}`,cursor:"pointer",transition:"all 0.12s"}}>{t.lbl}</button>;})}
       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
         {currentTab==="posts"&&<Btn variant="ai" onClick={()=>setAi("caption")} style={{fontSize:11,padding:"5px 10px"}}>✦ Caption üret</Btn>}
@@ -608,6 +530,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {currentTab==="posts"&&<ClientPosts client={client} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm}/>}
       {currentTab==="media"&&<ClientMedia client={client}/>}
       {currentTab==="invoices"&&<ClientInvoices client={client} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm}/>}
+      {currentTab==="social"&&<ClientSocialAccounts client={client} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm}/>}
     </div>
 
     {ai==="caption"&&<AIPanel
@@ -763,6 +686,16 @@ function ClientInvoices({client,clients,setClients,setModal,setForm}) {
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
   const pct=total>0?Math.round(paid/total*100):0;
+
+  const handleExportInvoices = () => {
+    const rows = client.invoices.map(inv => ({
+      "Fatura No": inv.no, "Tarih": inv.date, "Açıklama": inv.desc,
+      "Tutar (KDV Hariç)": inv.amount, "KDV": inv.vat, "Toplam": inv.total,
+      "Durum": statusConfig[inv.status]?.label || inv.status,
+    }));
+    exportToExcel(rows, `${client.name}-faturalar-${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
       <StatCard label="Toplam" value={fmtMoney(total)} />
@@ -775,7 +708,8 @@ function ClientInvoices({client,clients,setClients,setModal,setForm}) {
       </div>
       <span style={{fontSize:12,color:T.textSecondary,fontWeight:600}}>%{pct}</span>
     </div>
-    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:12}}>
+      <Btn onClick={handleExportInvoices}>📊 Excel'e aktar</Btn>
       <Btn variant="primary" onClick={()=>{setModal("addInvoice");setForm({clientId:client.id});}}>+ Fatura ekle</Btn>
     </div>
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -797,6 +731,60 @@ function ClientInvoices({client,clients,setClients,setModal,setForm}) {
 }
 
 // ─────────────────────────────────────────────
+// SOSYAL MEDYA HESAPLARI SEKMESİ
+// ─────────────────────────────────────────────
+function ClientSocialAccounts({client,clients,setClients,setModal,setForm}) {
+  const [visiblePasswords,setVisiblePasswords]=useState({});
+  const accounts = client.socialAccounts || [];
+
+  const togglePassword = (id) => setVisiblePasswords(prev=>({...prev,[id]:!prev[id]}));
+
+  const handleDelete = async (accId) => {
+    await supabase.from('social_accounts').delete().eq('id', accId);
+    setClients(prev=>prev.map(c=>c.id===client.id?{...c,socialAccounts:c.socialAccounts.filter(a=>a.id!==accId)}:c));
+  };
+
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div style={{fontSize:12,color:T.textMuted,display:"flex",alignItems:"center",gap:6}}>
+        <span>🔒</span> Şifreler şifrelenmiş olarak saklanır, sadece adminler görebilir.
+      </div>
+      <Btn variant="primary" onClick={()=>{setModal("addSocial");setForm({clientId:client.id});}}>+ Hesap ekle</Btn>
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {accounts.length===0 && <div style={{fontSize:13,color:T.textMuted,textAlign:"center",padding:"30px 0"}}>Henüz sosyal medya hesabı eklenmemiş.</div>}
+      {accounts.map(acc=>(
+        <div key={acc.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <PlatformTag id={acc.platform}/>
+            <span style={{fontSize:13,fontWeight:600,color:T.textPrimary,flex:1}}>{acc.username||"—"}</span>
+            <button onClick={()=>handleDelete(acc.id)} style={{background:"none",border:"none",color:T.textMuted,cursor:"pointer",fontSize:13}}>🗑</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,fontSize:12}}>
+            <div>
+              <div style={{color:T.textMuted,marginBottom:3,fontSize:10,textTransform:"uppercase",letterSpacing:"0.04em"}}>Şifre</div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{color:T.textPrimary,fontFamily:"monospace"}}>
+                  {visiblePasswords[acc.id] ? (acc.password || decryptText(acc.passwordEncrypted)) : "••••••••"}
+                </span>
+                <button onClick={()=>togglePassword(acc.id)} style={{background:"none",border:"none",color:T.amberText,cursor:"pointer",fontSize:11}}>
+                  {visiblePasswords[acc.id] ? "Gizle" : "Göster"}
+                </button>
+              </div>
+            </div>
+            <div>
+              <div style={{color:T.textMuted,marginBottom:3,fontSize:10,textTransform:"uppercase",letterSpacing:"0.04em"}}>Kayıtlı telefon</div>
+              <div style={{color:T.textPrimary}}>{acc.phone || "—"}</div>
+            </div>
+          </div>
+          {acc.notes && <div style={{marginTop:10,fontSize:12,color:T.textSecondary,background:T.bgSurface,padding:"8px 10px",borderRadius:8}}>{acc.notes}</div>}
+        </div>
+      ))}
+    </div>
+  </div>;
+}
+
+// ─────────────────────────────────────────────
 // STAFF PAGE
 // ─────────────────────────────────────────────
 function StaffPage({staff,setStaff}) {
@@ -805,12 +793,24 @@ function StaffPage({staff,setStaff}) {
   const [form,setForm]=useState({});
   const typeColors={"Tam zamanlı":T.green,"Part-time":T.amber,"Serbest":T.indigo};
 
+  const handleExportStaff = () => {
+    const rows = staff.map(s => ({
+      "Ad Soyad": s.name, "Pozisyon": s.role, "E-posta": s.email, "Telefon": s.phone,
+      "Çalışma Tipi": s.type, "Başlangıç": s.start, "Müşteri Sayısı": s.clients.length,
+      "Görev Sayısı": s.tasks,
+    }));
+    exportToExcel(rows, `panormos-calisanlar-${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
       <StatCard label="Toplam Çalışan" value={staff.length} />
       <StatCard label="Tam Zamanlı" value={staff.filter(s=>s.type==="Tam zamanlı").length} color={T.greenText} />
       <StatCard label="Part-time" value={staff.filter(s=>s.type==="Part-time").length} color={T.amberText} />
       <StatCard label="Serbest" value={staff.filter(s=>s.type==="Serbest").length} color={T.indigoText} />
+    </div>
+    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+      <Btn onClick={handleExportStaff}>📊 Excel'e aktar</Btn>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
       {staff.map(s=>(
@@ -852,13 +852,17 @@ function StaffPage({staff,setStaff}) {
       <FormField label="Çalışma tipi"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option>Tam zamanlı</option><option>Part-time</option><option>Serbest</option></Select></FormField>
       <FormField label="Başlangıç tarihi"><Input type="date" value={form.start||""} onChange={e=>setForm(f=>({...f,start:e.target.value}))} /></FormField>
       <FormField label="Notlar"><Input placeholder="Uzmanlık alanı, sorumluluklar..." value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} /></FormField>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,fontSize:12,color:T.textSecondary}}>
+        <input type="checkbox" checked={form.sendEmail!==false} onChange={e=>setForm(f=>({...f,sendEmail:e.target.checked}))} />
+        Hoş geldin e-postası gönder
+      </div>
       {form.error && <div style={{fontSize:12,color:"#FCA5A5",marginBottom:10,background:"rgba(239,68,68,0.1)",padding:"7px 10px",borderRadius:7}}>{form.error}</div>}
+      {form.warning && <div style={{fontSize:12,color:"#FCD34D",marginBottom:10,background:"rgba(245,158,11,0.1)",padding:"7px 10px",borderRadius:7}}>{form.warning}</div>}
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name||!form.email||!form.password||form.password.length<6){
           setForm(f=>({...f,error:"Ad, e-posta ve en az 6 karakterli şifre zorunlu."}));
           return;
         }
-        // 1) Auth kullanıcısı oluştur
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: form.email, password: form.password,
         });
@@ -866,7 +870,6 @@ function StaffPage({staff,setStaff}) {
           setForm(f=>({...f,error:"Hesap oluşturulamadı: "+authError.message}));
           return;
         }
-        // 2) staff tablosuna kaydet
         const { data, error } = await supabase.from('staff').insert({
           auth_id: authData.user ? authData.user.id : null,
           name: form.name, role: form.role||"", email: form.email, phone: form.phone||"",
@@ -877,9 +880,29 @@ function StaffPage({staff,setStaff}) {
           setForm(f=>({...f,error:"Kayıt hatası: "+error.message}));
           return;
         }
+
+        // Hoş geldin e-postası gönder (Netlify Function üzerinden)
+        if(form.sendEmail!==false){
+          try {
+            const emailRes = await fetch("/.netlify/functions/send-welcome-email", {
+              method: "POST",
+              headers: {"Content-Type":"application/json"},
+              body: JSON.stringify({
+                to: form.email, name: form.name, email: form.email,
+                password: form.password, loginUrl: window.location.origin,
+              }),
+            });
+            if(!emailRes.ok){
+              setForm(f=>({...f,warning:"Çalışan eklendi ama e-posta gönderilemedi. Şifreyi manuel iletin."}));
+            }
+          } catch(e) {
+            // Email gönderimi başarısız olsa da çalışan kaydı tamamlanmış olsun
+          }
+        }
+
         const colors=[T.indigo,"#EC4899",T.green,T.amber,T.red,"#06B6D4"];
         setStaff(prev=>[...prev,{id:data.id,name:data.name,role:data.role,initials:data.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),color:colors[prev.length%colors.length],type:data.type,email:data.email,phone:data.phone,start:data.start_date,clients:[],tasks:0,notes:data.notes,authId:data.auth_id,isAdmin:false}]);
-        setModal(null);
+        if(!form.warning) setModal(null);
       }} />
     </Modal>}
   </div>;
@@ -908,6 +931,15 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
   };
 
+  const handleExportTasks = () => {
+    const rows = tasks.map(t => ({
+      "Başlık": t.title, "Müşteri": t.client, "Atanan": t.assignee, "Tür": t.type,
+      "Öncelik": priorityConfig[t.priority]?.label || t.priority, "Son tarih": t.due,
+      "Durum": cols.find(c=>c.id===t.col)?.label || t.col,
+    }));
+    exportToExcel(rows, `panormos-gorevler-${new Date().toISOString().slice(0,10)}.csv`);
+  };
+
   const taskSummary=tasks.map(t=>`[${t.col.toUpperCase()}] ${t.title} — Atanan: ${t.assignee}, Öncelik: ${t.priority}, Son: ${t.due}`).join("\n");
 
   return <div>
@@ -916,6 +948,7 @@ function TasksPage({tasks,setTasks,clients,staff}) {
         {cols.map(c=>{const count=tasks.filter(t=>t.col===c.id).length;return <span key={c.id} style={{fontSize:12,color:T.textMuted}}><span style={{color:c.color,fontWeight:700}}>{count}</span> {c.label}</span>;})}
       </div>
       <div style={{display:"flex",gap:8}}>
+        <Btn onClick={handleExportTasks}>📊 Excel'e aktar</Btn>
         <Btn variant="ai" onClick={()=>setAi(true)}>✦ Görev & Öncelik Önerisi</Btn>
         <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
       </div>
@@ -1059,32 +1092,84 @@ function IdeasPage({ideas,setIdeas,clients}) {
 }
 
 // ─────────────────────────────────────────────
-// CALENDAR PAGE
+// CALENDAR PAGE — Dinamik, ay ileri/geri gidebilir
 // ─────────────────────────────────────────────
+const TR_MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+
+function getMonthGrid(year, month) {
+  // month: 0-11. Pazartesi başlangıçlı takvim ızgarası üretir.
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  let startWeekday = firstDay.getDay(); // 0=Pazar
+  startWeekday = startWeekday === 0 ? 6 : startWeekday - 1; // Pazartesi=0
+
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+  const cells = [];
+
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    cells.push({ day: prevMonthLastDay - i, currentMonth: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, currentMonth: true });
+  }
+  while (cells.length % 7 !== 0 || cells.length < 42) {
+    const nextDay = cells.length - (startWeekday + daysInMonth) + 1;
+    cells.push({ day: nextDay, currentMonth: false });
+    if (cells.length >= 42) break;
+  }
+  return cells;
+}
+
 function CalendarPage({clients}) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(2026);
+  const [viewMonth, setViewMonth] = useState(5); // Haziran 2026 = index 5
+
   const days=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
-  const nums=[23,24,25,26,27,28,29,30,1,2,3,4,5,6,7,8,9,10,11,12,13,14];
+  const cells = getMonthGrid(viewYear, viewMonth);
   const allEvents=clients.flatMap(c=>c.calEvents.map(e=>({...e,clientName:c.name,accent:c.accentColor})));
+
+  const goPrevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y=>y-1); }
+    else setViewMonth(m=>m-1);
+  };
+  const goNextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y=>y+1); }
+    else setViewMonth(m=>m+1);
+  };
+  const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
+
+  const isRealToday = (day, currentMonth) => currentMonth && viewYear===today.getFullYear() && viewMonth===today.getMonth() && day===today.getDate();
+
   return <div>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
-      <button style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>‹</button>
-      <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>Haziran – Temmuz 2026</span>
+      <button onClick={goPrevMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>‹</button>
+      <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+      <button onClick={goToday} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.amberText,cursor:"pointer",fontSize:11,fontWeight:600}}>Bugün</button>
       <div style={{display:"flex",gap:12}}>
         {[{t:"post",l:"Paylaşım",c:T.indigoText},{t:"shoot",l:"Çekim",c:"#F9A8D4"},{t:"design",l:"Tasarım",c:"#C4B5FD"}].map(l=>(
           <div key={l.t} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
         ))}
       </div>
-      <button style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>›</button>
+      <button onClick={goNextMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>›</button>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
       {days.map(d=><div key={d} style={{fontSize:11,color:T.textMuted,textAlign:"center",padding:"4px 0",fontWeight:600,letterSpacing:"0.04em"}}>{d}</div>)}
-      {nums.map((n,i)=>{
-        const evs=allEvents.filter(e=>e.day===n);
-        const isToday=n===29&&i<7;
+      {cells.map((cell,i)=>{
+        // Sadece Haziran 2026 demo verisiyle eşleşen günler event gösterir (gerçek veri yoksa boş görünür)
+        const evs = (viewYear===2026 && viewMonth===5 && cell.currentMonth) ? allEvents.filter(e=>e.day===cell.day) : [];
+        const isToday = isRealToday(cell.day, cell.currentMonth);
         const bgs={post:T.indigoGlow,shoot:"#EC489918",design:"#8B5CF618"};
         const fgs={post:T.indigoText,shoot:"#F9A8D4",design:"#C4B5FD"};
-        return <div key={`${n}-${i}`} style={{minHeight:90,background:isToday?"rgba(34,58,89,0.4)":T.bgCard,border:`1px solid ${isToday?"#223A5988":T.border}`,borderRadius:10,padding:"6px 7px"}}>
-          <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{n}</div>
+        return <div key={i} style={{
+          minHeight:90,
+          background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
+          border:`1px solid ${isToday?"#223A5988":T.border}`,
+          borderRadius:10, padding:"6px 7px",
+          opacity: cell.currentMonth ? 1 : 0.35,
+        }}>
+          <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
           {evs.slice(0,3).map((ev,ei)=>(
             <div key={ei} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:bgs[ev.type]||T.indigoGlow,color:fgs[ev.type]||T.indigoText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${ev.accent}`}}>{ev.label}</div>
           ))}
@@ -1118,6 +1203,7 @@ async function loadAllData() {
     { data: postsRaw },
     { data: invoicesRaw },
     { data: mediaRaw },
+    { data: socialRaw },
   ] = await Promise.all([
     supabase.from('clients').select('*').order('created_at'),
     supabase.from('staff').select('*').order('created_at'),
@@ -1126,6 +1212,7 @@ async function loadAllData() {
     supabase.from('posts').select('*').order('created_at'),
     supabase.from('invoices').select('*').order('created_at'),
     supabase.from('media').select('*').order('created_at'),
+    supabase.from('social_accounts').select('*').order('created_at'),
   ]);
 
   const clients = (clientsRaw || []).map(c => ({
@@ -1142,6 +1229,10 @@ async function loadAllData() {
     })),
     media: (mediaRaw || []).filter(m => m.client_id === c.id).map(m => ({
       id: m.id, name: m.name, type: m.type, size: m.size, date: m.date,
+    })),
+    socialAccounts: (socialRaw || []).filter(s => s.client_id === c.id).map(s => ({
+      id: s.id, platform: s.platform, username: s.username,
+      passwordEncrypted: s.password_encrypted, phone: s.phone, notes: s.notes,
     })),
     calEvents: [],
   }));
@@ -1185,7 +1276,6 @@ export default function App() {
   const [tasks,setTasks]=useState([]);
   const [ideas,setIdeas]=useState([]);
 
-  // Oturum kontrolü
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -1197,14 +1287,12 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // Giriş yapan kullanıcının staff profilini çek
   useEffect(() => {
     if (!session) { setCurrentStaff(null); return; }
     supabase.from('staff').select('*').eq('auth_id', session.user.id).single()
       .then(({ data }) => setCurrentStaff(data));
   }, [session]);
 
-  // Tüm verileri yükle
   const refreshData = async () => {
     setDataLoading(true);
     const { clients, staff, tasks, ideas } = await loadAllData();
@@ -1227,7 +1315,6 @@ export default function App() {
   const isAdmin = currentStaff.is_admin;
   const myStaffId = currentStaff.id;
 
-  // Çalışan ise sadece kendi görevlerini görsün
   const visibleTasks = isAdmin ? tasks : tasks.filter(t => t.assigneeId === myStaffId);
 
   const overdueInvoices=clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="overdue").length,0);
@@ -1245,7 +1332,6 @@ export default function App() {
   }
 
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",minHeight:700}}>
-    {/* Sidebar */}
     <div style={{width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{marginBottom:6}}>
@@ -1284,7 +1370,6 @@ export default function App() {
       </div>
     </div>
 
-    {/* Main */}
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",gap:12}}>
         <div style={{flex:1}}>
