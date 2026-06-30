@@ -599,7 +599,6 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
 }
 
 function ClientOverview({client}) {
-  const dayLabels={Pazartesi:T.indigo,Salı:"#EC4899",Çarşamba:T.green,Perşembe:"#8B5CF6",Cuma:T.amber,Cumartesi:T.red,Pazar:"#06B6D4"};
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
   const pct=total>0?Math.round(paid/total*100):0;
@@ -613,11 +612,11 @@ function ClientOverview({client}) {
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:16}}>
       <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
         <div style={{fontSize:11,color:T.textMuted,marginBottom:10,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>Paylaşım günleri</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{client.publishDays.map(d=><span key={d} style={{fontSize:12,fontWeight:500,padding:"5px 10px",borderRadius:6,background:`${dayLabels[d]||T.indigo}18`,color:dayLabels[d]||T.indigo,border:`1px solid ${dayLabels[d]||T.indigo}33`}}>{d}</span>)}</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{client.publishDays.map(d=><span key={d} style={{fontSize:12,fontWeight:600,padding:"5px 10px",borderRadius:6,background:"rgba(242,81,36,0.16)",color:T.amberText,border:`1px solid ${T.amber}44`}}>{normalizeDayName(d)}</span>)}</div>
       </div>
       <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
         <div style={{fontSize:11,color:T.textMuted,marginBottom:10,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>Çekim günleri</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{client.shootDays.map(d=><span key={d} style={{fontSize:12,fontWeight:500,padding:"5px 10px",borderRadius:6,background:"#EC489918",color:"#EC4899",border:"1px solid #EC489933"}}>{d}</span>)}</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{client.shootDays.map(d=><span key={d} style={{fontSize:12,fontWeight:600,padding:"5px 10px",borderRadius:6,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",border:"1px solid #EC489955"}}>{normalizeDayName(d)}</span>)}</div>
       </div>
       <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
         <div style={{fontSize:11,color:T.textMuted,marginBottom:10,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>Platformlar</div>
@@ -643,6 +642,24 @@ function ClientOverview({client}) {
 
 const TR_WEEKDAY_INDEX = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
 
+// Türkçe gün adlarını normalize eder (büyük/küçük harf, baştaki/sondaki boşluk farklarını giderir)
+function normalizeDayName(d) {
+  if (!d) return "";
+  const trimmed = d.trim();
+  const map = {
+    "pazartesi":"Pazartesi", "salı":"Salı", "sali":"Salı",
+    "çarşamba":"Çarşamba", "carsamba":"Çarşamba",
+    "perşembe":"Perşembe", "persembe":"Perşembe",
+    "cuma":"Cuma", "cumartesi":"Cumartesi",
+    "pazar":"Pazar",
+  };
+  const lower = trimmed.toLocaleLowerCase("tr-TR");
+  return map[lower] || trimmed;
+}
+function getWeekdayIndex(dayName) {
+  return TR_WEEKDAY_INDEX[normalizeDayName(dayName)];
+}
+
 function ClientCalendar({client}) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -657,8 +674,8 @@ function ClientCalendar({client}) {
   // Bir hücrenin haftanın hangi gününe denk geldiğini bul (0=Pazartesi...6=Pazar)
   const getWeekday = (cellIndex) => cellIndex % 7;
 
-  const isPublishDay = (weekday) => client.publishDays.some(d => TR_WEEKDAY_INDEX[d] === weekday);
-  const isShootDay = (weekday) => client.shootDays.some(d => TR_WEEKDAY_INDEX[d] === weekday);
+  const isPublishDay = (weekday) => client.publishDays.some(d => getWeekdayIndex(d) === weekday);
+  const isShootDay = (weekday) => client.shootDays.some(d => getWeekdayIndex(d) === weekday);
 
   return <div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
@@ -1186,8 +1203,8 @@ function CalendarPage({clients}) {
       {cells.map((cell,i)=>{
         const weekday = getWeekday(i);
         const isToday = isRealToday(cell.day, cell.currentMonth);
-        const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => TR_WEEKDAY_INDEX[d] === weekday)) : [];
-        const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => TR_WEEKDAY_INDEX[d] === weekday)) : [];
+        const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => getWeekdayIndex(d) === weekday)) : [];
+        const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => getWeekdayIndex(d) === weekday)) : [];
         return <div key={i} style={{
           minHeight:90,
           background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
