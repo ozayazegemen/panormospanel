@@ -517,7 +517,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
 
   return <div style={{background:T.bgSurface,border:`1px solid ${T.borderLight}`,borderTop:"none",borderRadius:"0 0 12px 12px",marginBottom:2}}>
     <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,padding:"0 20px",gap:2,alignItems:"center",flexWrap:"wrap"}}>
-      {tabs.map(t=>{const active=currentTab===t.id;return <button key={t.id} onClick={()=>setTab(t.id)} style={{fontSize:12,fontWeight:active?600:400,padding:"11px 16px",color:active?T.indigo:T.textMuted,background:"none",border:"none",borderBottom:`2px solid ${active?T.indigo:"transparent"}`,cursor:"pointer",transition:"all 0.12s"}}>{t.lbl}</button>;})}
+      {tabs.map(t=>{const active=currentTab===t.id;return <button key={t.id} onClick={()=>setTab(t.id)} style={{fontSize:12,fontWeight:active?600:400,padding:"11px 16px",color:active?T.amberText:T.textMuted,background:"none",border:"none",borderBottom:`2px solid ${active?T.amber:"transparent"}`,cursor:"pointer",transition:"all 0.12s",whiteSpace:"nowrap"}}>{t.lbl}</button>;})}
       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
         {currentTab==="posts"&&<Btn variant="ai" onClick={()=>setAi("caption")} style={{fontSize:11,padding:"5px 10px"}}>✦ Caption üret</Btn>}
         {currentTab==="invoices"&&<Btn variant="ai" onClick={()=>setAi("invoice")} style={{fontSize:11,padding:"5px 10px"}}>✦ Rapor oluştur</Btn>}
