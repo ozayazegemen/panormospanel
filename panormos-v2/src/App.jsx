@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { supabase } from "./supabaseClient";
+import Login from "./Login";
 
 
 
@@ -526,10 +528,21 @@ function ClientsPage({clients,setClients}) {
           {Object.entries(platformConfig).map(([id,p])=>{const sel=(form.platforms||[]).includes(id);return <span key={id} onClick={()=>setForm(f=>({...f,platforms:sel?f.platforms.filter(x=>x!==id):[...(f.platforms||[]),id]}))} style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:6,cursor:"pointer",background:sel?p.bg:T.bgInput,color:sel?p.color:T.textMuted,border:`1px solid ${sel?p.color+"44":T.border}`}}>{p.label}</span>;})}
         </div>
       </FormField>
-      <ModalActions onClose={()=>setModal(null)} onSave={()=>{
+      <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
         const colors=["#6366F1","#EC4899","#10B981","#F59E0B","#F97316","#34D399"];
-        setClients(prev=>[...prev,{id:Date.now(),name:form.name,category:form.category||"",initials:form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),accentColor:colors[clients.length%colors.length],platforms:form.platforms||[],publishDays:form.publishDays?form.publishDays.split(",").map(s=>s.trim()):[],shootDays:form.shootDays?form.shootDays.split(",").map(s=>s.trim()):[],monthlyFee:parseInt(form.monthlyFee)||0,contractStart:"Temmuz 2026",posts:[],invoices:[],media:[],calEvents:[]}]);
+        const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+        const accentColor = colors[clients.length%colors.length];
+        const publishDays = form.publishDays?form.publishDays.split(",").map(s=>s.trim()):[];
+        const shootDays = form.shootDays?form.shootDays.split(",").map(s=>s.trim()):[];
+        const { data, error } = await supabase.from('clients').insert({
+          name: form.name, category: form.category||"", initials, accent_color: accentColor,
+          platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays,
+          monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026",
+        }).select().single();
+        if(!error && data){
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],calEvents:[]}]);
+        }
         setModal(null);
       }} />
     </Modal>}
@@ -539,9 +552,15 @@ function ClientsPage({clients,setClients}) {
       <FormField label="İçerik türü"><Select value={form.type||"Reels"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Reels","Fotoğraf","Video","Carousel","Hikaye","Makale","Thread"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Başlık"><Input placeholder="İçerik başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Hazırlanıyor</option><option value="done">Yayınlandı</option></Select></FormField>
-      <ModalActions onClose={()=>setModal(null)} onSave={()=>{
+      <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.title||!form.clientId)return;
-        setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,posts:[...c.posts,{id:Date.now(),date:form.date||"—",platform:form.platform||"ig",type:form.type||"Reels",title:form.title,status:form.status||"planned"}]}:c));
+        const { data, error } = await supabase.from('posts').insert({
+          client_id: form.clientId, date: form.date||"—", platform: form.platform||"ig",
+          type: form.type||"Reels", title: form.title, status: form.status||"planned",
+        }).select().single();
+        if(!error && data){
+          setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,posts:[...c.posts,{id:data.id,date:data.date,platform:data.platform,type:data.type,title:data.title,status:data.status}]}:c));
+        }
         setModal(null);
       }} />
     </Modal>}
@@ -551,9 +570,16 @@ function ClientsPage({clients,setClients}) {
       <FormField label="Tutar (KDV hariç ₺)"><Input type="number" placeholder="0" value={form.amount||""} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} /></FormField>
       <FormField label="Fatura tarihi"><Input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"pending"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="pending">Bekliyor</option><option value="paid">Ödendi</option><option value="overdue">Gecikti</option></Select></FormField>
-      <ModalActions onClose={()=>setModal(null)} onSave={()=>{
+      <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         const amt=parseInt(form.amount)||0;
-        setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,invoices:[...c.invoices,{id:Date.now(),no:form.no||`F-${Date.now()}`,date:form.date||"—",amount:amt,vat:Math.round(amt*0.18),total:amt+Math.round(amt*0.18),status:form.status||"pending",desc:form.desc||""}]}:c));
+        const vat=Math.round(amt*0.18);
+        const { data, error } = await supabase.from('invoices').insert({
+          client_id: form.clientId, no: form.no||`F-${Date.now()}`, date: form.date||"—",
+          amount: amt, vat, total: amt+vat, status: form.status||"pending", description: form.desc||"",
+        }).select().single();
+        if(!error && data){
+          setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,invoices:[...c.invoices,{id:data.id,no:data.no,date:data.date,amount:data.amount,vat:data.vat,total:data.total,status:data.status,desc:data.description}]}:c));
+        }
         setModal(null);
       }} />
     </Modal>}
@@ -820,15 +846,39 @@ function StaffPage({staff,setStaff}) {
     {modal==="addStaff"&&<Modal title="Yeni çalışan" onClose={()=>setModal(null)}>
       <FormField label="Ad soyad"><Input placeholder="Örn: Ali Veli" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Pozisyon"><Input placeholder="Örn: Grafik Tasarımcı" value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} /></FormField>
-      <FormField label="E-posta"><Input type="email" placeholder="ali@ajans.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="E-posta (giriş için kullanılacak)"><Input type="email" placeholder="ali@panormosmedya.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="Geçici şifre (çalışana iletin)"><Input type="text" placeholder="En az 6 karakter" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Çalışma tipi"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option>Tam zamanlı</option><option>Part-time</option><option>Serbest</option></Select></FormField>
       <FormField label="Başlangıç tarihi"><Input type="date" value={form.start||""} onChange={e=>setForm(f=>({...f,start:e.target.value}))} /></FormField>
       <FormField label="Notlar"><Input placeholder="Uzmanlık alanı, sorumluluklar..." value={form.notes||""} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} /></FormField>
-      <ModalActions onClose={()=>setModal(null)} onSave={()=>{
-        if(!form.name)return;
+      {form.error && <div style={{fontSize:12,color:"#FCA5A5",marginBottom:10,background:"rgba(239,68,68,0.1)",padding:"7px 10px",borderRadius:7}}>{form.error}</div>}
+      <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
+        if(!form.name||!form.email||!form.password||form.password.length<6){
+          setForm(f=>({...f,error:"Ad, e-posta ve en az 6 karakterli şifre zorunlu."}));
+          return;
+        }
+        // 1) Auth kullanıcısı oluştur
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: form.email, password: form.password,
+        });
+        if(authError){
+          setForm(f=>({...f,error:"Hesap oluşturulamadı: "+authError.message}));
+          return;
+        }
+        // 2) staff tablosuna kaydet
+        const { data, error } = await supabase.from('staff').insert({
+          auth_id: authData.user ? authData.user.id : null,
+          name: form.name, role: form.role||"", email: form.email, phone: form.phone||"",
+          type: form.type||"Tam zamanlı", start_date: form.start||"Temmuz 2026",
+          notes: form.notes||"", is_admin: false,
+        }).select().single();
+        if(error){
+          setForm(f=>({...f,error:"Kayıt hatası: "+error.message}));
+          return;
+        }
         const colors=[T.indigo,"#EC4899",T.green,T.amber,T.red,"#06B6D4"];
-        setStaff(prev=>[...prev,{id:Date.now(),name:form.name,role:form.role||"",initials:form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),color:colors[prev.length%colors.length],type:form.type||"Tam zamanlı",email:form.email||"",phone:form.phone||"",start:form.start||"Temmuz 2026",clients:[],tasks:0,notes:form.notes||""}]);
+        setStaff(prev=>[...prev,{id:data.id,name:data.name,role:data.role,initials:data.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(),color:colors[prev.length%colors.length],type:data.type,email:data.email,phone:data.phone,start:data.start_date,clients:[],tasks:0,notes:data.notes,authId:data.auth_id,isAdmin:false}]);
         setModal(null);
       }} />
     </Modal>}
@@ -850,9 +900,12 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     {id:"done",label:"Tamamlandı",color:T.green},
   ];
 
-  const moveTask=id=>{
+  const moveTask=async id=>{
     const order=cols.map(c=>c.id);
-    setTasks(prev=>prev.map(t=>t.id===id?{...t,col:order[(order.indexOf(t.col)+1)%order.length]}:t));
+    const task = tasks.find(t=>t.id===id);
+    const newCol = order[(order.indexOf(task.col)+1)%order.length];
+    setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol}:t));
+    await supabase.from('tasks').update({ col: newCol }).eq('id', id);
   };
 
   const taskSummary=tasks.map(t=>`[${t.col.toUpperCase()}] ${t.title} — Atanan: ${t.assignee}, Öncelik: ${t.priority}, Son: ${t.due}`).join("\n");
@@ -914,9 +967,20 @@ function TasksPage({tasks,setTasks,clients,staff}) {
       <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf","Onay"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
       <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
-      <ModalActions onClose={()=>setModal(false)} onSave={()=>{
+      <ModalActions onClose={()=>setModal(false)} onSave={async()=>{
         if(!form.title)return;
-        setTasks(prev=>[...prev,{id:Date.now(),title:form.title,client:form.client||"",assignee:form.assignee||"",type:form.type||"Tasarım",priority:form.priority||"mid",due:form.due||"—",col:form.col||"todo"}]);
+        const selectedClient = clients.find(c=>c.name===form.client);
+        const selectedStaff = staff.find(s=>s.initials===form.assignee);
+        const { data, error } = await supabase.from('tasks').insert({
+          title: form.title,
+          client_id: selectedClient ? selectedClient.id : null,
+          assignee_id: selectedStaff ? selectedStaff.id : null,
+          type: form.type||"Tasarım", priority: form.priority||"mid",
+          due_date: form.due||"—", col: form.col||"todo",
+        }).select().single();
+        if(!error && data){
+          setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",clientId:data.client_id,assignee:form.assignee||"",assigneeId:data.assignee_id,type:data.type,priority:data.priority,due:data.due_date,col:data.col}]);
+        }
         setModal(false);
       }} />
     </Modal>}
@@ -979,9 +1043,15 @@ function IdeasPage({ideas,setIdeas,clients}) {
           {Object.entries(platformConfig).map(([id,p])=>{const sel=(form.platforms||[]).includes(id);return <span key={id} onClick={()=>setForm(f=>({...f,platforms:sel?f.platforms.filter(x=>x!==id):[...(f.platforms||[]),id]}))} style={{fontSize:11,fontWeight:700,padding:"4px 9px",borderRadius:5,cursor:"pointer",background:sel?p.bg:T.bgInput,color:sel?p.color:T.textMuted,border:`1px solid ${sel?p.color+"44":T.border}`}}>{p.label}</span>;})}
         </div>
       </FormField>
-      <ModalActions onClose={()=>setModal(false)} onSave={()=>{
+      <ModalActions onClose={()=>setModal(false)} onSave={async()=>{
         if(!form.text)return;
-        setIdeas(prev=>[...prev,{id:Date.now(),text:form.text,tag:form.tag||"İçerik",client:form.client||"Genel",platforms:form.platforms||[]}]);
+        const { data, error } = await supabase.from('ideas').insert({
+          text: form.text, tag: form.tag||"İçerik", client_name: form.client||"Genel",
+          platforms: form.platforms||[],
+        }).select().single();
+        if(!error && data){
+          setIdeas(prev=>[...prev,{id:data.id,text:data.text,tag:data.tag,client:data.client_name,platforms:data.platforms||[]}]);
+        }
         setModal(false);
       }} />
     </Modal>}
@@ -1036,16 +1106,143 @@ const NAV=[
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
 
+// ─────────────────────────────────────────────
+// VERİTABANI YÜKLEME VE DÖNÜŞTÜRME YARDIMCILARI
+// ─────────────────────────────────────────────
+async function loadAllData() {
+  const [
+    { data: clientsRaw },
+    { data: staffRaw },
+    { data: tasksRaw },
+    { data: ideasRaw },
+    { data: postsRaw },
+    { data: invoicesRaw },
+    { data: mediaRaw },
+  ] = await Promise.all([
+    supabase.from('clients').select('*').order('created_at'),
+    supabase.from('staff').select('*').order('created_at'),
+    supabase.from('tasks').select('*').order('created_at'),
+    supabase.from('ideas').select('*').order('created_at'),
+    supabase.from('posts').select('*').order('created_at'),
+    supabase.from('invoices').select('*').order('created_at'),
+    supabase.from('media').select('*').order('created_at'),
+  ]);
+
+  const clients = (clientsRaw || []).map(c => ({
+    id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
+    accentColor: c.accent_color || "#6366F1", platforms: c.platforms || [],
+    publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
+    monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
+    posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
+      id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status,
+    })),
+    invoices: (invoicesRaw || []).filter(i => i.client_id === c.id).map(i => ({
+      id: i.id, no: i.no, date: i.date, amount: i.amount, vat: i.vat, total: i.total,
+      status: i.status, desc: i.description,
+    })),
+    media: (mediaRaw || []).filter(m => m.client_id === c.id).map(m => ({
+      id: m.id, name: m.name, type: m.type, size: m.size, date: m.date,
+    })),
+    calEvents: [],
+  }));
+
+  const staff = (staffRaw || []).map(s => ({
+    id: s.id, name: s.name, role: s.role || "", initials: s.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
+    color: ["#6366F1", "#EC4899", "#10B981", "#F59E0B", "#F97316", "#06B6D4"][Math.abs(s.name.charCodeAt(0)) % 6],
+    type: s.type || "Tam zamanlı", email: s.email, phone: s.phone || "",
+    start: s.start_date || "", clients: [], tasks: 0, notes: s.notes || "",
+    authId: s.auth_id, isAdmin: s.is_admin,
+  }));
+
+  const tasks = (tasksRaw || []).map(t => {
+    const assignedStaff = staff.find(s => s.id === t.assignee_id);
+    const clientObj = clients.find(c => c.id === t.client_id);
+    return {
+      id: t.id, title: t.title, client: clientObj ? clientObj.name : "",
+      clientId: t.client_id, assignee: assignedStaff ? assignedStaff.initials : "",
+      assigneeId: t.assignee_id, type: t.type || "", priority: t.priority || "mid",
+      due: t.due_date || "", col: t.col || "todo",
+    };
+  });
+
+  const ideas = (ideasRaw || []).map(i => ({
+    id: i.id, text: i.text, tag: i.tag || "İçerik", client: i.client_name || "Genel",
+    platforms: i.platforms || [],
+  }));
+
+  return { clients, staff, tasks, ideas };
+}
+
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [currentStaff, setCurrentStaff] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+
   const [page,setPage]=useState("clients");
-  const [clients,setClients]=useState(INIT_CLIENTS);
-  const [staff,setStaff]=useState(INIT_STAFF);
-  const [tasks,setTasks]=useState(INIT_TASKS);
-  const [ideas,setIdeas]=useState(INIT_IDEAS);
+  const [clients,setClients]=useState([]);
+  const [staff,setStaff]=useState([]);
+  const [tasks,setTasks]=useState([]);
+  const [ideas,setIdeas]=useState([]);
+
+  // Oturum kontrolü
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // Giriş yapan kullanıcının staff profilini çek
+  useEffect(() => {
+    if (!session) { setCurrentStaff(null); return; }
+    supabase.from('staff').select('*').eq('auth_id', session.user.id).single()
+      .then(({ data }) => setCurrentStaff(data));
+  }, [session]);
+
+  // Tüm verileri yükle
+  const refreshData = async () => {
+    setDataLoading(true);
+    const { clients, staff, tasks, ideas } = await loadAllData();
+    setClients(clients); setStaff(staff); setTasks(tasks); setIdeas(ideas);
+    setDataLoading(false);
+  };
+
+  useEffect(() => {
+    if (session && currentStaff) refreshData();
+  }, [session, currentStaff]);
+
+  if (authLoading) {
+    return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted,fontFamily:"'Inter',sans-serif"}}>Yükleniyor...</div>;
+  }
+
+  if (!session || !currentStaff) {
+    return <Login onLogin={() => {}} />;
+  }
+
+  const isAdmin = currentStaff.is_admin;
+  const myStaffId = currentStaff.id;
+
+  // Çalışan ise sadece kendi görevlerini görsün
+  const visibleTasks = isAdmin ? tasks : tasks.filter(t => t.assigneeId === myStaffId);
 
   const overdueInvoices=clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="overdue").length,0);
-  const pendingTasks=tasks.filter(t=>t.col!=="done").length;
+  const pendingTasks=visibleTasks.filter(t=>t.col!=="done").length;
   const pageTitle={clients:"Müşteriler",calendar:"İçerik Takvimi",tasks:"Görev Takibi",ideas:"Fikir Havuzu",staff:"Çalışanlar"};
+
+  const navItems = isAdmin ? NAV : NAV.filter(n => n.id === "tasks" || n.id === "calendar");
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (dataLoading) {
+    return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted,fontFamily:"'Inter',sans-serif"}}>Veriler yükleniyor...</div>;
+  }
 
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",minHeight:700}}>
     {/* Sidebar */}
@@ -1059,11 +1256,11 @@ export default function App() {
         </div>
         <div style={{fontSize:9,color:T.textMuted,letterSpacing:"0.02em"}}>San. ve Tic. Ltd. Şti.</div>
         <div style={{marginTop:8,display:"flex",alignItems:"center",gap:5,fontSize:10,padding:"4px 8px",borderRadius:6,background:T.amberDim,border:`1px solid ${T.amber}44`,color:T.amberText,width:"fit-content"}}>
-          <span>✦</span> AI destekli
+          <span>✦</span> {isAdmin ? "Yönetici" : "Çalışan"}
         </div>
       </div>
       <div style={{padding:"12px 8px",flex:1}}>
-        {NAV.map(item=>{
+        {navItems.map(item=>{
           const active=page===item.id;
           const badge=item.id==="tasks"?pendingTasks:item.id==="clients"?overdueInvoices:0;
           return <div key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,background:active?"rgba(34,58,89,0.45)":"transparent",border:`1px solid ${active?T.indigo+"88":"transparent"}`,color:active?"#A8C4DC":T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:active?600:400,transition:"all 0.12s"}}>
@@ -1074,10 +1271,16 @@ export default function App() {
         })}
       </div>
       <div style={{padding:"14px 16px",borderTop:`1px solid ${T.border}`}}>
-        <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,letterSpacing:"0.06em"}}>BU AY</div>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,color:T.textMuted}}>Paylaşım</span><span style={{fontSize:11,fontWeight:600,color:T.greenText}}>47</span></div>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,color:T.textMuted}}>Müşteri</span><span style={{fontSize:11,fontWeight:600,color:T.textPrimary}}>{clients.length}</span></div>
-        <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:11,color:T.textMuted}}>Ekip</span><span style={{fontSize:11,fontWeight:600,color:T.textPrimary}}>{staff.length}</span></div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+          <div style={{width:28,height:28,borderRadius:"50%",background:`${T.amber}22`,border:`1.5px solid ${T.amber}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.amberText}}>
+            {currentStaff.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentStaff.name}</div>
+            <div style={{fontSize:10,color:T.textMuted}}>{currentStaff.role}</div>
+          </div>
+        </div>
+        <button onClick={handleLogout} style={{width:"100%",fontSize:11,padding:"6px",borderRadius:7,background:"transparent",border:`1px solid ${T.border}`,color:T.textMuted,cursor:"pointer"}}>Çıkış Yap</button>
       </div>
     </div>
 
@@ -1087,17 +1290,17 @@ export default function App() {
         <div style={{flex:1}}>
           <div style={{fontSize:18,fontWeight:700,color:T.textPrimary,letterSpacing:"-0.02em"}}>{pageTitle[page]}</div>
         </div>
-        {overdueInvoices>0&&<div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,padding:"6px 12px",borderRadius:8,background:T.redDim,color:T.redText,border:`1px solid ${T.red}33`}}>⚠ {overdueInvoices} gecikmiş fatura</div>}
+        {isAdmin && overdueInvoices>0&&<div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,padding:"6px 12px",borderRadius:8,background:T.redDim,color:T.redText,border:`1px solid ${T.red}33`}}>⚠ {overdueInvoices} gecikmiş fatura</div>}
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {staff.slice(0,4).map(s=><div key={s.id} title={s.name} style={{width:30,height:30,borderRadius:"50%",background:`${s.color}22`,border:`1.5px solid ${s.color}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:s.color}}>{s.initials}</div>)}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
-        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients}/>}
+        {page==="clients"&&isAdmin&&<ClientsPage clients={clients} setClients={setClients}/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
-        {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
-        {page==="ideas"&&<IdeasPage ideas={ideas} setIdeas={setIdeas} clients={clients}/>}
-        {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff}/>}
+        {page==="tasks"&&<TasksPage tasks={visibleTasks} setTasks={setTasks} clients={clients} staff={staff}/>}
+        {page==="ideas"&&isAdmin&&<IdeasPage ideas={ideas} setIdeas={setIdeas} clients={clients}/>}
+        {page==="staff"&&isAdmin&&<StaffPage staff={staff} setStaff={setStaff}/>}
       </div>
     </div>
   </div>;
