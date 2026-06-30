@@ -22,6 +22,32 @@ const platformConfig = {
   fb: { label: "Facebook", color: "#1877F2", bg: "rgba(24,119,242,0.12)", icon: "FB" },
 };
 
+const TR_MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+
+function getMonthGrid(year, month) {
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  let startWeekday = firstDay.getDay();
+  startWeekday = startWeekday === 0 ? 6 : startWeekday - 1;
+
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+  const cells = [];
+
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    cells.push({ day: prevMonthLastDay - i, currentMonth: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, currentMonth: true });
+  }
+  while (cells.length % 7 !== 0 || cells.length < 42) {
+    const nextDay = cells.length - (startWeekday + daysInMonth) + 1;
+    cells.push({ day: nextDay, currentMonth: false });
+    if (cells.length >= 42) break;
+  }
+  return cells;
+}
+
 // ─────────────────────────────────────────────
 // BASIT ŞİFRELEME (XOR + Base64) — sosyal medya şifreleri için
 // Not: Bu, ortam değişkeni gerektirmeyen pratik bir gizleme katmanıdır.
@@ -615,26 +641,55 @@ function ClientOverview({client}) {
   </div>;
 }
 
+const TR_WEEKDAY_INDEX = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
+
 function ClientCalendar({client}) {
-  const days=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
-  const nums=[23,24,25,26,27,28,29,30,1,2,3,4,5,6,7,8,9,10,11,12,13];
-  const typeColors={post:{bg:T.indigoGlow,color:T.indigoText},shoot:{bg:"#EC489918",color:"#F9A8D4"},design:{bg:"#8B5CF618",color:"#C4B5FD"}};
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const cells = getMonthGrid(viewYear, viewMonth);
+  const typeColors={post:{bg:"rgba(242,81,36,0.16)",color:T.amberText},shoot:{bg:"rgba(236,72,153,0.16)",color:"#F9A8D4"}};
+
+  const goPrevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y=>y-1); } else setViewMonth(m=>m-1); };
+  const goNextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y=>y+1); } else setViewMonth(m=>m+1); };
+
+  // Bir hücrenin haftanın hangi gününe denk geldiğini bul (0=Pazartesi...6=Pazar)
+  const getWeekday = (cellIndex) => cellIndex % 7;
+
+  const isPublishDay = (weekday) => client.publishDays.some(d => TR_WEEKDAY_INDEX[d] === weekday);
+  const isShootDay = (weekday) => client.shootDays.some(d => TR_WEEKDAY_INDEX[d] === weekday);
+
   return <div>
-    <div style={{display:"flex",gap:12,marginBottom:14}}>
-      {[{t:"post",l:"Paylaşım",c:T.indigoText},{t:"shoot",l:"Çekim",c:"#F9A8D4"},{t:"design",l:"Tasarım",c:"#C4B5FD"}].map(x=>(
-        <div key={x.t} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}>
-          <div style={{width:10,height:10,borderRadius:2,background:x.c}} />{x.l}
-        </div>
-      ))}
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+      <button onClick={goPrevMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:7,padding:"3px 10px",color:T.textSecondary,cursor:"pointer",fontSize:13}}>‹</button>
+      <span style={{fontSize:13,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+      <div style={{display:"flex",gap:12}}>
+        {[{t:"post",l:"Paylaşım günü",c:T.amberText},{t:"shoot",l:"Çekim günü",c:"#F9A8D4"}].map(x=>(
+          <div key={x.t} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}>
+            <div style={{width:10,height:10,borderRadius:2,background:x.c}} />{x.l}
+          </div>
+        ))}
+      </div>
+      <button onClick={goNextMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:7,padding:"3px 10px",color:T.textSecondary,cursor:"pointer",fontSize:13}}>›</button>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-      {days.map(d=><div key={d} style={{fontSize:10,color:T.textMuted,textAlign:"center",padding:"3px 0",fontWeight:500}}>{d}</div>)}
-      {nums.map((n,i)=>{
-        const evs=client.calEvents.filter(e=>e.day===n);
-        const isToday=n===29&&i<7;
-        return <div key={`${n}-${i}`} style={{minHeight:64,background:isToday?T.indigoGlow:T.bgCard,border:`1px solid ${isToday?T.indigo+"55":T.border}`,borderRadius:8,padding:"5px 6px"}}>
-          <div style={{fontSize:11,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:4}}>{n}</div>
-          {evs.map((ev,ei)=>{const ts=typeColors[ev.type]||typeColors.post;return <div key={ei} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:ts.bg,color:ts.color,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.label}</div>;})}
+      {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(d=><div key={d} style={{fontSize:10,color:T.textMuted,textAlign:"center",padding:"3px 0",fontWeight:500}}>{d}</div>)}
+      {cells.map((cell,i)=>{
+        const weekday = getWeekday(i);
+        const isToday = cell.currentMonth && viewYear===today.getFullYear() && viewMonth===today.getMonth() && cell.day===today.getDate();
+        const pub = cell.currentMonth && isPublishDay(weekday);
+        const shoot = cell.currentMonth && isShootDay(weekday);
+        return <div key={i} style={{
+          minHeight:60,
+          background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
+          border:`1px solid ${isToday?"#223A5988":T.border}`,
+          borderRadius:8, padding:"5px 6px",
+          opacity: cell.currentMonth ? 1 : 0.3,
+        }}>
+          <div style={{fontSize:11,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:4}}>{cell.day}</div>
+          {pub && <div style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:typeColors.post.bg,color:typeColors.post.color,fontWeight:600}}>Paylaşım</div>}
+          {shoot && <div style={{fontSize:9,padding:"2px 5px",borderRadius:3,background:typeColors.shoot.bg,color:typeColors.shoot.color,fontWeight:600}}>Çekim</div>}
         </div>;
       })}
     </div>
@@ -1094,41 +1149,12 @@ function IdeasPage({ideas,setIdeas,clients}) {
 // ─────────────────────────────────────────────
 // CALENDAR PAGE — Dinamik, ay ileri/geri gidebilir
 // ─────────────────────────────────────────────
-const TR_MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
-
-function getMonthGrid(year, month) {
-  // month: 0-11. Pazartesi başlangıçlı takvim ızgarası üretir.
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const daysInMonth = lastDay.getDate();
-  let startWeekday = firstDay.getDay(); // 0=Pazar
-  startWeekday = startWeekday === 0 ? 6 : startWeekday - 1; // Pazartesi=0
-
-  const prevMonthLastDay = new Date(year, month, 0).getDate();
-  const cells = [];
-
-  for (let i = startWeekday - 1; i >= 0; i--) {
-    cells.push({ day: prevMonthLastDay - i, currentMonth: false });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, currentMonth: true });
-  }
-  while (cells.length % 7 !== 0 || cells.length < 42) {
-    const nextDay = cells.length - (startWeekday + daysInMonth) + 1;
-    cells.push({ day: nextDay, currentMonth: false });
-    if (cells.length >= 42) break;
-  }
-  return cells;
-}
-
 function CalendarPage({clients}) {
   const today = new Date();
-  const [viewYear, setViewYear] = useState(2026);
-  const [viewMonth, setViewMonth] = useState(5); // Haziran 2026 = index 5
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
 
-  const days=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
   const cells = getMonthGrid(viewYear, viewMonth);
-  const allEvents=clients.flatMap(c=>c.calEvents.map(e=>({...e,clientName:c.name,accent:c.accentColor})));
 
   const goPrevMonth = () => {
     if (viewMonth === 0) { setViewMonth(11); setViewYear(y=>y-1); }
@@ -1141,6 +1167,7 @@ function CalendarPage({clients}) {
   const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
 
   const isRealToday = (day, currentMonth) => currentMonth && viewYear===today.getFullYear() && viewMonth===today.getMonth() && day===today.getDate();
+  const getWeekday = (cellIndex) => cellIndex % 7;
 
   return <div>
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
@@ -1148,20 +1175,19 @@ function CalendarPage({clients}) {
       <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
       <button onClick={goToday} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.amberText,cursor:"pointer",fontSize:11,fontWeight:600}}>Bugün</button>
       <div style={{display:"flex",gap:12}}>
-        {[{t:"post",l:"Paylaşım",c:T.indigoText},{t:"shoot",l:"Çekim",c:"#F9A8D4"},{t:"design",l:"Tasarım",c:"#C4B5FD"}].map(l=>(
-          <div key={l.t} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
+        {[{l:"Paylaşım",c:T.amberText},{l:"Çekim",c:"#F9A8D4"}].map(l=>(
+          <div key={l.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
         ))}
       </div>
       <button onClick={goNextMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>›</button>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
-      {days.map(d=><div key={d} style={{fontSize:11,color:T.textMuted,textAlign:"center",padding:"4px 0",fontWeight:600,letterSpacing:"0.04em"}}>{d}</div>)}
+      {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(d=><div key={d} style={{fontSize:11,color:T.textMuted,textAlign:"center",padding:"4px 0",fontWeight:600,letterSpacing:"0.04em"}}>{d}</div>)}
       {cells.map((cell,i)=>{
-        // Sadece Haziran 2026 demo verisiyle eşleşen günler event gösterir (gerçek veri yoksa boş görünür)
-        const evs = (viewYear===2026 && viewMonth===5 && cell.currentMonth) ? allEvents.filter(e=>e.day===cell.day) : [];
+        const weekday = getWeekday(i);
         const isToday = isRealToday(cell.day, cell.currentMonth);
-        const bgs={post:T.indigoGlow,shoot:"#EC489918",design:"#8B5CF618"};
-        const fgs={post:T.indigoText,shoot:"#F9A8D4",design:"#C4B5FD"};
+        const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => TR_WEEKDAY_INDEX[d] === weekday)) : [];
+        const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => TR_WEEKDAY_INDEX[d] === weekday)) : [];
         return <div key={i} style={{
           minHeight:90,
           background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
@@ -1170,10 +1196,13 @@ function CalendarPage({clients}) {
           opacity: cell.currentMonth ? 1 : 0.35,
         }}>
           <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
-          {evs.slice(0,3).map((ev,ei)=>(
-            <div key={ei} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:bgs[ev.type]||T.indigoGlow,color:fgs[ev.type]||T.indigoText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${ev.accent}`}}>{ev.label}</div>
+          {publishClients.slice(0,2).map((c,ci)=>(
+            <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{c.name}</div>
           ))}
-          {evs.length>3&&<div style={{fontSize:9,color:T.textMuted}}>+{evs.length-3}</div>}
+          {shootClients.slice(0,2).map((c,ci)=>(
+            <div key={"s"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>📷 {c.name}</div>
+          ))}
+          {(publishClients.length+shootClients.length)>4 && <div style={{fontSize:9,color:T.textMuted}}>+{publishClients.length+shootClients.length-4}</div>}
         </div>;
       })}
     </div>
