@@ -1082,9 +1082,9 @@ function TasksPage({tasks,setTasks,clients,staff}) {
                 {cols.map(c=>(
                   <button key={c.id} onClick={()=>moveTask(selectedTask.id)} style={{
                     padding:"8px 12px",fontSize:11,fontWeight:600,borderRadius:8,
-                    background:selectedTask.col===c.id?c.color+"22":T.bgSurface,
-                    color:selectedTask.col===c.id?c.color:T.textMuted,
-                    border:`1px solid ${selectedTask.col===c.id?c.color+"44":T.border}`,
+                    background:selectedTask.col===c.id?T.amber:T.bgSurface,
+                    color:selectedTask.col===c.id?T.white:T.textMuted,
+                    border:`1px solid ${selectedTask.col===c.id?T.amber:T.border}`,
                     cursor:"pointer",transition:"all 0.12s"
                   }}>
                     {c.label}
