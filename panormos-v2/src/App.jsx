@@ -317,6 +317,7 @@ function ClientCalendar({ client }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const cells = getMonthGrid(viewYear, viewMonth);
   const publishIdx = (client.publishDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
@@ -379,9 +380,10 @@ function ClientCalendar({ client }) {
           else if (isShoot) { bg = "rgba(236,72,153,0.12)"; borderCol = "#EC489966"; }
 
           return (
-            <div key={i} style={{
+            <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, isPublish, isShoot, dayPosts, dateStr}); }} style={{
               minHeight: 66, borderRadius: 8, padding: "6px 7px", background: cell.currentMonth ? bg : "transparent",
               border: `1px solid ${isToday ? T.amber : (cell.currentMonth ? borderCol : "transparent")}`, opacity: cell.currentMonth ? 1 : 0.3,
+              cursor: cell.currentMonth ? "pointer" : "default",
             }}>
               <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? T.amberText : T.textSecondary, marginBottom: 3 }}>{cell.day}</div>
               {isPublish && <div style={{ fontSize: 8, fontWeight: 700, color: T.amberText, marginBottom: 1 }}>📅 Paylaşım</div>}
@@ -400,6 +402,49 @@ function ClientCalendar({ client }) {
         <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "rgba(236,72,153,0.4)", marginRight: 5, verticalAlign: "middle" }} />Çekim günü</span>
         <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "rgba(168,85,247,0.4)", marginRight: 5, verticalAlign: "middle" }} />İkisi birden</span>
       </div>
+
+      {/* Gün Detay Modalı */}
+      {selectedDay && (
+        <Modal title={`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} — ${client.name}`} onClose={() => setSelectedDay(null)} width={520}>
+          {!selectedDay.isPublish && !selectedDay.isShoot && selectedDay.dayPosts.length === 0 ? (
+            <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "30px 0" }}>Bu gün için plan yok 📭</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {selectedDay.isPublish && (
+                <div style={{ padding: "14px 16px", background: "rgba(242,81,36,0.1)", borderRadius: 10, borderLeft: `3px solid ${T.amber}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.amberText, marginBottom: 6 }}>📅 Paylaşım Günü</div>
+                  {client.publishTimes && client.publishTimes.length > 0 ? (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {client.publishTimes.map(t => <span key={t} style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: T.amberDim, color: T.amberText }}>🕐 {t}</span>)}
+                    </div>
+                  ) : <div style={{ fontSize: 12, color: T.textMuted }}>Saat belirtilmemiş</div>}
+                  {client.platforms.length > 0 && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 8 }}>Platformlar: {client.platforms.map(p => platformConfig[p]?.label).join(", ")}</div>}
+                </div>
+              )}
+              {selectedDay.isShoot && (
+                <div style={{ padding: "14px 16px", background: "rgba(236,72,153,0.1)", borderRadius: 10, borderLeft: "3px solid #EC4899" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#F9A8D4", marginBottom: 4 }}>📷 Çekim Günü</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>Bu gün {client.name} için çekim planlanmış</div>
+                </div>
+              )}
+              {selectedDay.dayPosts.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary, marginBottom: 8 }}>📱 Bu Güne Planlanan Paylaşımlar</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {selectedDay.dayPosts.map((p, pi) => (
+                      <div key={pi} style={{ padding: "10px 12px", background: T.bgInput, borderRadius: 8, border: `1px solid ${T.border}` }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{platformConfig[p.platform]?.label || p.platform} · {p.type}</div>
+                        <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 2 }}>{p.title}</div>
+                        {p.description && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>{p.description}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1838,6 +1883,7 @@ function CalendarPage({clients}) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState(null); // Tıklanan günün detayı
 
   const cells = getMonthGrid(viewYear, viewMonth);
 
@@ -1906,13 +1952,18 @@ function CalendarPage({clients}) {
         const isToday = isRealToday(cell.day, cell.currentMonth);
         const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => getWeekdayIndex(d) === weekday)) : [];
         const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => getWeekdayIndex(d) === weekday)) : [];
-        return <div key={i} style={{
+        const hasContent = publishClients.length > 0 || shootClients.length > 0;
+        return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, weekday, publishClients, shootClients}); }} style={{
           minHeight:90,
           background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
           border:`1px solid ${isToday?"#223A5988":T.border}`,
           borderRadius:10, padding:"6px 7px",
           opacity: cell.currentMonth ? 1 : 0.35,
-        }}>
+          cursor: cell.currentMonth ? "pointer" : "default",
+          transition:"all 0.12s",
+        }}
+        onMouseEnter={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=T.borderLight; }}
+        onMouseLeave={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=isToday?"#223A5988":T.border; }}>
           <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
           {publishClients.slice(0,2).map((c,ci)=>(
             <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{(c.publishTimes&&c.publishTimes.length>0)?c.publishTimes[0]+" ":""}{c.name}</div>
@@ -1924,6 +1975,68 @@ function CalendarPage({clients}) {
         </div>;
       })}
     </div>
+
+    {/* Gün Detay Modalı */}
+    {selectedDay && (
+      <Modal title={`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} — ${["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][selectedDay.weekday]}`} onClose={()=>setSelectedDay(null)} width={560}>
+        {selectedDay.publishClients.length === 0 && selectedDay.shootClients.length === 0 ? (
+          <div style={{textAlign:"center",color:T.textMuted,fontSize:13,padding:"30px 0"}}>Bu gün için planlanmış paylaşım veya çekim yok 📭</div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {/* Paylaşımlar */}
+            {selectedDay.publishClients.length > 0 && (
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:T.amberText,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📅 Paylaşım Günü ({selectedDay.publishClients.length})</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {selectedDay.publishClients.map(c=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(242,81,36,0.1)",borderRadius:10,borderLeft:`3px solid ${c.accentColor}`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{c.category||"—"}{c.platforms.length>0?" · "+c.platforms.map(p=>platformConfig[p]?.label).join(", "):""}</div>
+                      </div>
+                      {c.publishTimes && c.publishTimes.length > 0 && (
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                          {c.publishTimes.map(t=><span key={t} style={{fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:6,background:T.amberDim,color:T.amberText}}>🕐 {t}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Çekimler */}
+            {selectedDay.shootClients.length > 0 && (
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#F9A8D4",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📷 Çekim Günü ({selectedDay.shootClients.length})</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {selectedDay.shootClients.map(c=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(236,72,153,0.1)",borderRadius:10,borderLeft:`3px solid ${c.accentColor}`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{c.category||"—"}{c.phone?" · "+c.phone:""}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Yazdır butonu */}
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+              <Btn onClick={()=>{
+                const rows=[];
+                selectedDay.publishClients.forEach(c=>rows.push({"Tür":"📅 Paylaşım","Müşteri":c.name,"Kategori":c.category||"—","Saat":(c.publishTimes||[]).join(", ")||"—","Platform":c.platforms.map(p=>platformConfig[p]?.label).join(", ")||"—"}));
+                selectedDay.shootClients.forEach(c=>rows.push({"Tür":"📷 Çekim","Müşteri":c.name,"Kategori":c.category||"—","Saat":"—","Platform":"—"}));
+                printData(`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} Günü Planı`, rows);
+              }} style={{fontSize:12,padding:"7px 14px"}}>🖨️ Bu Günü Yazdır</Btn>
+            </div>
+          </div>
+        )}
+      </Modal>
+    )}
   </div>;
 }
 
@@ -2288,9 +2401,28 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
 
   return <div>
     {/* Karşılama */}
-    <div style={{marginBottom:24}}>
-      <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>Hoş geldin 👋</div>
-      <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+    <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+      <div>
+        <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>Hoş geldin 👋</div>
+        <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+      </div>
+      <Btn onClick={()=>{
+        const rows=[];
+        if(perms.finance){
+          rows.push({"Bölüm":"Finansal","Bilgi":"Toplam Ciro","Değer":fmtMoney(totalRevenue)});
+          rows.push({"Bölüm":"Finansal","Bilgi":"Tahsil Edilen","Değer":fmtMoney(paidRevenue)});
+          rows.push({"Bölüm":"Finansal","Bilgi":"Bekleyen Tahsilat","Değer":fmtMoney(pendingRevenue)});
+          rows.push({"Bölüm":"Finansal","Bilgi":"Aylık Gelir","Değer":fmtMoney(monthlyTotal)});
+        }
+        rows.push({"Bölüm":"Genel","Bilgi":"Aktif Müşteri","Değer":clients.length});
+        rows.push({"Bölüm":"Genel","Bilgi":"Çalışan Sayısı","Değer":staff.length});
+        rows.push({"Bölüm":"Görev","Bilgi":"Tamamlanan","Değer":doneTasks});
+        rows.push({"Bölüm":"Görev","Bilgi":"Devam Eden","Değer":activeTasks});
+        rows.push({"Bölüm":"Görev","Bilgi":"İlerleme","Değer":"%"+taskProgress});
+        todayPublish.forEach(c=>rows.push({"Bölüm":"Bugün ("+todayName+")","Bilgi":"📅 Paylaşım","Değer":c.name+((c.publishTimes&&c.publishTimes.length)?" ("+c.publishTimes.join(", ")+")":"")}));
+        todayShoot.forEach(c=>rows.push({"Bölüm":"Bugün ("+todayName+")","Bilgi":"📷 Çekim","Değer":c.name}));
+        printData("Ana Sayfa Özeti", rows);
+      }} style={{fontSize:12,padding:"7px 14px",whiteSpace:"nowrap"}}>🖨️ Yazdır</Btn>
     </div>
 
     {/* Finansal Özet - sadece yetkili görür */}
@@ -2658,10 +2790,19 @@ function MessagesPage({ currentStaff, staff }) {
               <div style={{ width: 40, height: 40, borderRadius: "50%", background: activeConv.isGroup ? T.indigo : T.amber, display: "flex", alignItems: "center", justifyContent: "center", fontSize: activeConv.isGroup ? 18 : 14, fontWeight: 700, color: T.white }}>
                 {activeConv.isGroup ? "👥" : activeConv.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>{activeConv.name}</div>
                 <div style={{ fontSize: 11, color: T.textMuted }}>{activeConv.isGroup ? activeConv.memberNames.join(", ") : "Özel sohbet"}</div>
               </div>
+              <Btn onClick={()=>{
+                if(messages.length===0){ alert("Yazdırılacak mesaj yok"); return; }
+                const rows = messages.map(m=>({
+                  "Tarih/Saat": new Date(m.created_at).toLocaleString("tr-TR"),
+                  "Gönderen": staff.find(s=>s.id===m.sender_id)?.name || "?",
+                  "Mesaj": m.text,
+                }));
+                printData(`Mesaj Geçmişi - ${activeConv.name}`, rows);
+              }} style={{fontSize:11,padding:"6px 12px"}}>🖨️ Yazdır</Btn>
             </div>
 
             {/* Mesajlar */}
