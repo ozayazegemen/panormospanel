@@ -1109,23 +1109,194 @@ function CalendarPage({clients}) {
 // ─────────────────────────────────────────────
 // STAFF PAGE
 // ─────────────────────────────────────────────
-function StaffPage({staff,setStaff}) {
+
+const DEPARTURE_REASONS = [
+  { id: "resignation", label: "İstifa" },
+  { id: "termination", label: "Fesih" },
+  { id: "retirement", label: "Emekli" },
+  { id: "contract_end", label: "Sözleşme Süresi Sona Erdi" },
+  { id: "other", label: "Diğer" },
+];
+
+function StaffPage({staff,setStaff,allStaff}) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [selectedStaff, setSelectedStaff] = useState(null);
+  const [departureModal, setDepartureModal] = useState(null);
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+  const fileInputRef = useRef(null);
+
+  const handleAddStaff = async () => {
+    if (!form.name || !form.role) {
+      alert("Lütfen isim ve pozisyon seçin");
+      return;
+    }
+
+    const colors = ["#6366F1", "#EC4899", "#10B981"];
+    const initials = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const color = colors[staff.length % colors.length];
+
+    const { data, error } = await supabase.from('staff').insert({
+      name: form.name,
+      role: form.role,
+      type: form.type || "Tam zamanlı",
+      email: form.email || "",
+      phone: form.phone || "",
+      start_date: form.startDate || new Date().toLocaleDateString("tr-TR"),
+    }).select().single();
+
+    if (!error && data) {
+      setStaff(prev => [...prev, {
+        id: data.id,
+        name: data.name,
+        role: data.role,
+        initials,
+        color,
+        type: data.type || "Tam zamanlı",
+        email: data.email,
+        phone: data.phone,
+        start: data.start_date,
+      }]);
+    }
+
+    setModal(false);
+    setForm({});
+  };
+
+  const handleDeparture = async () => {
+    if (!departureModal.reason || !departureModal.date) {
+      alert("Lütfen ayrılış nedenini ve tarihini seçin");
+      return;
+    }
+
+    await supabase.from('staff').update({
+      deleted_at: new Date().toISOString(),
+      departure_reason: departureModal.reason,
+      departure_date: departureModal.date,
+    }).eq('id', departureModal.staffId);
+
+    setStaff(staff.filter(s => s.id !== departureModal.staffId));
+    setSelectedStaff(null);
+    setDepartureModal(null);
+    setUploadedDocs([]);
+  };
+
+  const handleDocUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    setUploadedDocs(prev => [...prev, ...files.map(f => ({
+      name: f.name,
+      size: (f.size / 1024 / 1024).toFixed(2) + ' MB',
+      file: f,
+    }))]);
+  };
+
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
       <StatCard label="Toplam Çalışan" value={staff.length} />
       <StatCard label="Tam Zamanlı" value={staff.filter(s=>s.type==="Tam zamanlı").length} color={T.greenText} />
       <StatCard label="Part-time" value={staff.filter(s=>s.type==="Part-time").length} color={T.amberText} />
       <StatCard label="Serbest" value={staff.filter(s=>s.type==="Serbest").length} color={T.indigoText} />
     </div>
+
+    <Btn variant="primary" onClick={()=>{setModal(true);setForm({name:"",role:"",type:"Tam zamanlı",email:"",phone:"",startDate:""});}} style={{marginBottom:20}}>+ Çalışan Ekle</Btn>
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
       {staff.map(s=>(
-        <Card key={s.id} style={{padding:20}}>
+        <Card key={s.id} style={{padding:20}} onClick={()=>setSelectedStaff(s)} hover={true}>
           <Avatar initials={s.initials} color={s.color} size={46}/>
           <div style={{fontSize:14,fontWeight:600,color:T.textPrimary,marginTop:12}}>{s.name}</div>
           <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>{s.role}</div>
+          <div style={{fontSize:10,color:T.textMuted,marginTop:6,padding:"6px 8px",background:T.bgSurface,borderRadius:4,textAlign:"center"}}>{s.type}</div>
         </Card>
       ))}
     </div>
+
+    {modal && <Modal title="Yeni Çalışan Ekle" onClose={()=>setModal(false)}>
+      <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
+      <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} /></FormField>
+      <FormField label="Çalışan Türü"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
+      <FormField label="E-mail"><Input placeholder="mail@example.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="Başlangıç Tarihi"><Input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+      <ModalActions onClose={()=>setModal(false)} onSave={handleAddStaff} />
+    </Modal>}
+
+    {selectedStaff && <Modal title={selectedStaff.name} onClose={()=>setSelectedStaff(null)}>
+      <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+        <Avatar initials={selectedStaff.initials} color={selectedStaff.color} size={60}/>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
+        <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Pozisyon</div><div style={{fontSize:13,color:T.textPrimary,fontWeight:600}}>{selectedStaff.role}</div></div>
+        <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Çalışan Türü</div><div style={{fontSize:13,color:T.textPrimary,fontWeight:600}}>{selectedStaff.type}</div></div>
+        {selectedStaff.email && <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>E-mail</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedStaff.email}</div></div>}
+        {selectedStaff.phone && <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Telefon</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedStaff.phone}</div></div>}
+        {selectedStaff.start && <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Başlangıç Tarihi</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedStaff.start}</div></div>}
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={()=>setSelectedStaff(null)}>Kapat</Btn>
+        <Btn onClick={()=>setDepartureModal({staffId:selectedStaff.id,reason:"",date:""})} style={{background:T.redDim,color:T.redText}}>🗑 Ayrılış İşlemi</Btn>
+      </div>
+    </Modal>}
+
+    {departureModal && <Modal title="Çalışan Ayrılış İşlemi" onClose={()=>setDepartureModal(null)}>
+      <FormField label="Ayrılış Nedeni">
+        <Select value={departureModal.reason} onChange={e=>setDepartureModal({...departureModal,reason:e.target.value})}>
+          <option value="">Seç...</option>
+          {DEPARTURE_REASONS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Çıkış Tarihi">
+        <Input type="date" value={departureModal.date||""} onChange={e=>setDepartureModal({...departureModal,date:e.target.value})} />
+      </FormField>
+      <FormField label="İşten Çıkış Evrakları">
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={e=>e.preventDefault()}
+          onDrop={e=>{e.preventDefault();handleDocUpload({target:{files:e.dataTransfer.files}});}}
+          style={{
+            border:`2px dashed ${T.amber}`,
+            borderRadius:10,
+            padding:"20px",
+            textAlign:"center",
+            cursor:"pointer",
+            background:`${T.amber}12`,
+            marginBottom:10,
+          }}
+        >
+          <div style={{fontSize:28,marginBottom:8}}>📄</div>
+          <div style={{fontSize:12,color:T.textPrimary,fontWeight:600}}>Evrakları sürükle ve bırak</div>
+          <div style={{fontSize:10,color:T.textMuted}}>veya tıklayarak dosya seç (PDF, JPG, PNG)</div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleDocUpload}
+            style={{display:"none"}}
+            accept=".pdf,.jpg,.jpeg,.png"
+          />
+        </div>
+        {uploadedDocs.length > 0 && (
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {uploadedDocs.map((doc,idx) => (
+              <div key={idx} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:T.bgSurface,borderRadius:8,border:`1px solid ${T.border}`}}>
+                <span style={{fontSize:14}}>📄</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:11,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                  <div style={{fontSize:10,color:T.textMuted}}>{doc.size}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </FormField>
+      <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"12px",marginBottom:16,fontSize:11,color:T.textMuted}}>
+        ⚠️ Bu çalışan silindi olarak işaretlenecektir. Ayrılış bilgileri ve evraklar kaydedilecektir.
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={()=>setDepartureModal(null)}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={handleDeparture}>Ayrılış İşlemini Tamamla</Btn>
+      </div>
+    </Modal>}
   </div>;
 }
 
@@ -1171,7 +1342,7 @@ async function loadAllData() {
     })),
   }));
 
-  const staff = (staffRaw || []).map(s => ({
+  const staff = (staffRaw || []).filter(s => !s.deleted_at).map(s => ({
     id: s.id, name: s.name, role: s.role || "", initials: s.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase(),
     color: ["#6366F1", "#EC4899", "#10B981"][s.id % 3], type: s.type || "Tam zamanlı",
     email: s.email, phone: s.phone || "", start: s.start_date || "",
@@ -1182,7 +1353,7 @@ async function loadAllData() {
     type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo",
   }));
 
-  return { clients, staff, tasks, allClients: clientsRaw || [] };
+  return { clients, staff, tasks, allClients: clientsRaw || [], allStaff: staffRaw || [] };
 }
 
 export default function App() {
@@ -1195,6 +1366,7 @@ export default function App() {
   const [staff, setStaff] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [allClients, setAllClients] = useState([]);
+  const [allStaff, setAllStaff] = useState([]);
 
   useEffect(() => {
     localStorage.setItem('currentPage', page);
@@ -1219,11 +1391,12 @@ export default function App() {
 
   const refreshData = async () => {
     setDataLoading(true);
-    const { clients, staff, tasks, allClients } = await loadAllData();
+    const { clients, staff, tasks, allClients, allStaff } = await loadAllData();
     setClients(clients);
     setStaff(staff);
     setTasks(tasks);
     setAllClients(allClients);
+    setAllStaff(allStaff);
     setDataLoading(false);
   };
 
@@ -1270,7 +1443,7 @@ export default function App() {
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
-        {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff}/>}
+        {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff}/>}
       </div>
     </div>
   </div>;
