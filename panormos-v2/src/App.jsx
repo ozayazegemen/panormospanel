@@ -510,9 +510,9 @@ function Btn({children,onClick,variant="ghost",style={}}) {
   return <button onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12,fontWeight:500,padding:"6px 14px",borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
 }
 
-function Modal({title,onClose,children}) {
+function Modal({title,onClose,children,width=500}) {
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={onClose}>
-    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,maxWidth:500,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{title}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
@@ -533,8 +533,8 @@ function Input({value,onChange,placeholder,type="text"}) {
   return <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />;
 }
 
-function Textarea({value,onChange,placeholder}) {
-  return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box",minHeight:80,fontFamily:"inherit",resize:"vertical"}} />;
+function Textarea({value,onChange,placeholder,minHeight=80}) {
+  return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box",minHeight,fontFamily:"inherit",resize:"vertical"}} />;
 }
 
 function Select({value,onChange,children}) {
@@ -932,11 +932,7 @@ function ClientInvoices({client}) {
 // IDEAS PAGE (YENİ)
 // ─────────────────────────────────────────────
 function IdeasPage() {
-  const [ideas, setIdeas] = useState([
-    { id: 1, title: "İnstagram Reel Series", description: "Haftalık tutorial reelleri", status: "in_progress", category: "Video" },
-    { id: 2, title: "TikTok Challenge", description: "Viral challenge kampanyası", status: "planned", category: "Social" },
-    { id: 3, title: "Podcast Series", description: "Aylık podcast yayınları", status: "completed", category: "Audio" },
-  ]);
+  const [ideas, setIdeas] = useState([]);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
 
@@ -976,9 +972,9 @@ function IdeasPage() {
       ))}
     </div>
 
-    {modal && <Modal title="Yeni Fikir Ekle" onClose={()=>setModal(false)}>
+    {modal && <Modal title="Yeni Fikir Ekle" onClose={()=>setModal(false)} width={700}>
       <FormField label="Başlık"><Input placeholder="Fikrin başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
-      <FormField label="Açıklama"><Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} /></FormField>
+      <FormField label="Açıklama"><Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={200} /></FormField>
       <FormField label="Kategori"><Input placeholder="Video, Social, Audio, vb." value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Devam Ediyor</option><option value="completed">Tamamlandı</option></Select></FormField>
       <ModalActions onClose={()=>setModal(false)} onSave={()=>{
