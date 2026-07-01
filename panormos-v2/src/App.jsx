@@ -533,11 +533,16 @@ function ClientsPage({clients,setClients,allClients}) {
       return;
     }
 
-    await supabase.from('clients').update({
+    const { error } = await supabase.from('clients').update({
       deleted_at: new Date().toISOString(),
       delete_reason: deleteModal.reason,
       deletion_date: deleteModal.date,
     }).eq('id', clientId);
+
+    if (error) {
+      alert("HATA: Müşteri silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      return;
+    }
 
     setClients(clients.filter(c => c.id !== clientId));
     setDeleteModal(null);
@@ -905,11 +910,16 @@ function TasksPage({tasks,setTasks,clients,staff}) {
       return;
     }
 
-    await supabase.from('tasks').update({
+    const { error } = await supabase.from('tasks').update({
       deleted_at: new Date().toISOString(),
       delete_reason: deleteModal.reason,
       delete_note: deleteModal.note,
     }).eq('id', taskId);
+
+    if (error) {
+      alert("HATA: Görev silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      return;
+    }
 
     setTasks(tasks.filter(t => t.id !== taskId));
     setDeleteModal(null);
@@ -1121,7 +1131,6 @@ const DEPARTURE_REASONS = [
 function StaffPage({staff,setStaff,allStaff}) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
-  const [selectedStaff, setSelectedStaff] = useState(null);
   const [departureModal, setDepartureModal] = useState(null);
   const [uploadedDocs, setUploadedDocs] = useState([]);
   const fileInputRef = useRef(null);
@@ -1169,14 +1178,18 @@ function StaffPage({staff,setStaff,allStaff}) {
       return;
     }
 
-    await supabase.from('staff').update({
+    const { error } = await supabase.from('staff').update({
       deleted_at: new Date().toISOString(),
       departure_reason: departureModal.reason,
       departure_date: departureModal.date,
     }).eq('id', departureModal.staffId);
 
+    if (error) {
+      alert("HATA: Çalışan ayrılış işlemi yapılamadı!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      return;
+    }
+
     setStaff(staff.filter(s => s.id !== departureModal.staffId));
-    setSelectedStaff(null);
     setDepartureModal(null);
     setUploadedDocs([]);
   };
