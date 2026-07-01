@@ -1222,56 +1222,53 @@ function StaffPage({staff,setStaff,allStaff}) {
     </Modal>}
 
     {selectedStaff && <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={()=>setSelectedStaff(null)}>
-    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:0,maxWidth:600,width:"90%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-      {/* Header */}
-      <div style={{padding:"24px 24px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
-        <div style={{flex:1}}>
-          <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>{selectedStaff.name}</div>
-          <div style={{fontSize:13,color:T.amberText,fontWeight:600,marginTop:6}}>{selectedStaff.role}</div>
-        </div>
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:0,maxWidth:550,width:"90%",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+      {/* Header Close */}
+      <div style={{padding:"16px 20px",display:"flex",justifyContent:"flex-end",borderBottom:`1px solid ${T.border}`}}>
         <button onClick={()=>setSelectedStaff(null)} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer",lineHeight:1}}>✕</button>
       </div>
 
-      {/* Avatar */}
-      <div style={{padding:"0 24px",display:"flex",justifyContent:"center",marginBottom:24}}>
-        <Avatar initials={selectedStaff.initials} color={selectedStaff.color} size={80}/>
+      {/* Card Section - Kartla Aynı Style */}
+      <div style={{padding:"24px",textAlign:"center"}}>
+        <Avatar initials={selectedStaff.initials} color={selectedStaff.color} size={70}/>
+        <div style={{fontSize:18,fontWeight:600,color:T.textPrimary,marginTop:16}}>{selectedStaff.name}</div>
+        <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{selectedStaff.role}</div>
+        <div style={{display:"inline-block",fontSize:11,color:T.textMuted,marginTop:12,padding:"6px 12px",background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:6}}>{selectedStaff.type}</div>
       </div>
 
-      {/* Info Grid */}
-      <div style={{padding:"0 24px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
-        {/* Pozisyon */}
-        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
-          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Pozisyon</div>
-          <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{selectedStaff.role}</div>
-        </div>
+      {/* Divider */}
+      <div style={{height:"1px",background:T.border,margin:"0 20px"}}></div>
 
-        {/* Çalışan Türü */}
-        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
-          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Çalışan Türü</div>
-          <div style={{fontSize:14,fontWeight:600,color:T.amberText}}>{selectedStaff.type}</div>
-        </div>
-
+      {/* Details Section */}
+      <div style={{padding:"24px",display:"flex",flexDirection:"column",gap:16}}>
+        
         {/* Email */}
-        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16,gridColumn:"1 / -1"}}>
-          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>✉️ E-mail Adresi</div>
-          <div style={{fontSize:13,color:T.textPrimary,fontWeight:500,wordBreak:"break-all"}}>{selectedStaff.email || "—"}</div>
-        </div>
+        {selectedStaff.email && (
+          <div>
+            <div style={{fontSize:10,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>✉️ E-mail</div>
+            <div style={{fontSize:13,color:T.textPrimary,fontWeight:500,wordBreak:"break-all"}}>{selectedStaff.email}</div>
+          </div>
+        )}
 
         {/* Telefon */}
-        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
-          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>📱 Telefon</div>
-          <div style={{fontSize:13,color:T.textPrimary,fontWeight:500}}>{selectedStaff.phone || "—"}</div>
-        </div>
+        {selectedStaff.phone && (
+          <div>
+            <div style={{fontSize:10,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>📱 Telefon</div>
+            <div style={{fontSize:13,color:T.textPrimary,fontWeight:500}}>{selectedStaff.phone}</div>
+          </div>
+        )}
 
         {/* Başlangıç Tarihi */}
-        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
-          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>📅 Başlangıç Tarihi</div>
-          <div style={{fontSize:13,color:T.textPrimary,fontWeight:500}}>{selectedStaff.start || "—"}</div>
-        </div>
+        {selectedStaff.start && (
+          <div>
+            <div style={{fontSize:10,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>📅 Başlangıç Tarihi</div>
+            <div style={{fontSize:13,color:T.textPrimary,fontWeight:500}}>{selectedStaff.start}</div>
+          </div>
+        )}
       </div>
 
-      {/* Actions */}
-      <div style={{padding:"24px",borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
+      {/* Actions Footer */}
+      <div style={{padding:"20px",borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={()=>setSelectedStaff(null)}>Kapat</Btn>
         <Btn onClick={()=>setDepartureModal({staffId:selectedStaff.id,reason:"",date:""})} style={{background:T.redDim,color:T.redText}}>🗑 Ayrılış İşlemi</Btn>
       </div>
