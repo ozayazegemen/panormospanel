@@ -48,10 +48,6 @@ function getMonthGrid(year, month) {
   return cells;
 }
 
-// ─────────────────────────────────────────────
-// BASIT ŞİFRELEME (XOR + Base64) — sosyal medya şifreleri için
-// Not: Bu, ortam değişkeni gerektirmeyen pratik bir gizleme katmanıdır.
-// ─────────────────────────────────────────────
 const ENC_KEY = "panormos-medya-2026-secure-key";
 function encryptText(text) {
   if (!text) return "";
@@ -75,9 +71,6 @@ function decryptText(encoded) {
   }
 }
 
-// ─────────────────────────────────────────────
-// EXCEL DIŞA AKTARMA YARDIMCISI (CSV tabanlı, harici kütüphane gerektirmez)
-// ─────────────────────────────────────────────
 function exportToExcel(rows, filename) {
   if (!rows || rows.length === 0) return;
   const headers = Object.keys(rows[0]);
@@ -104,10 +97,6 @@ function exportToExcel(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-
-// ─────────────────────────────────────────────
-// AI ENGINE
-// ─────────────────────────────────────────────
 async function callAI(systemPrompt, userMessage) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -231,9 +220,6 @@ function AIPanel({ title, icon, color, systemPrompt, userPrompt, onClose, extraA
   );
 }
 
-// ─────────────────────────────────────────────
-// SHARED UI
-// ─────────────────────────────────────────────
 const fmtMoney = n => n.toLocaleString("tr-TR") + " ₺";
 
 const statusConfig = {
@@ -323,7 +309,7 @@ function ModalActions({onClose,onSave}) {
 }
 
 // ─────────────────────────────────────────────
-// CLIENTS PAGE
+// CLIENTS PAGE - GELİŞTİRİLMİŞ VERSİYON
 // ─────────────────────────────────────────────
 function ClientsPage({clients,setClients}) {
   const [open,setOpen]=useState(null);
@@ -331,10 +317,22 @@ function ClientsPage({clients,setClients}) {
   const [modal,setModal]=useState(null);
   const [form,setForm]=useState({});
   const [ai,setAi]=useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("Tümü");
+  const [filterPlatform, setFilterPlatform] = useState("Tümü");
 
   const totalRevenue=clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const pendingRevenue=clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status!=="paid").reduce((ss,i)=>ss+i.total,0),0);
   const overdueCount=clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="overdue").length,0);
+
+  // Filtreleme
+  const categories = [...new Set(clients.map(c => c.category).filter(Boolean))];
+  const filteredClients = clients.filter(c => {
+    const matchSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCategory = filterCategory === "Tümü" || c.category === filterCategory;
+    const matchPlatform = filterPlatform === "Tümü" || c.platforms.includes(filterPlatform);
+    return matchSearch && matchCategory && matchPlatform;
+  });
 
   const clientSummary = clients.map(c=>({
     name:c.name, category:c.category, platforms:c.platforms.map(p=>platformConfig[p]?.label).join(", "),
@@ -344,7 +342,7 @@ function ClientsPage({clients,setClients}) {
   }));
 
   const handleExportClients = () => {
-    const rows = clients.map(c => ({
+    const rows = filteredClients.map(c => ({
       "İşletme Adı": c.name,
       "Kategori": c.category,
       "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", "),
@@ -360,12 +358,38 @@ function ClientsPage({clients,setClients}) {
   };
 
   return <div>
-    {/* Stats */}
+    {/* Dashboard Metrikleri */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
-      <StatCard label="Aktif Müşteri" value={clients.length} sub="Bu ay" />
+      <StatCard label="Aktif Müşteri" value={filteredClients.length} sub={`Toplam: ${clients.length}`} />
       <StatCard label="Toplam Ciro" value={fmtMoney(totalRevenue)} color={T.indigoText} sub="Tüm zamanlar" />
-      <StatCard label="Tahsilat Bekleyen" value={fmtMoney(pendingRevenue)} color={T.amberText} sub="Bekleyen fatura" />
-      <StatCard label="Bu Ay Paylaşım" value={clients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0)} color={T.greenText} sub="Yayınlanan" />
+      <StatCard label="Tahsilat Bekleyen" value={fmtMoney(pendingRevenue)} color={T.amberText} sub={`${overdueCount} gecikmiş`} />
+      <StatCard label="Bu Ay Paylaşım" value={filteredClients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0)} color={T.greenText} sub="Yayınlanan" />
+    </div>
+
+    {/* Filtreleme */}
+    <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+      <div style={{flex:1,minWidth:200}}>
+        <label style={{fontSize:11,color:T.textMuted,display:"block",marginBottom:6,fontWeight:500,textTransform:"uppercase"}}>🔍 Ara</label>
+        <Input 
+          placeholder="Müşteri adı ara..." 
+          value={searchTerm} 
+          onChange={e=>setSearchTerm(e.target.value)}
+        />
+      </div>
+      <div style={{minWidth:150}}>
+        <label style={{fontSize:11,color:T.textMuted,display:"block",marginBottom:6,fontWeight:500,textTransform:"uppercase"}}>Kategori</label>
+        <Select value={filterCategory} onChange={e=>setFilterCategory(e.target.value)}>
+          <option>Tümü</option>
+          {categories.map(cat => <option key={cat}>{cat}</option>)}
+        </Select>
+      </div>
+      <div style={{minWidth:150}}>
+        <label style={{fontSize:11,color:T.textMuted,display:"block",marginBottom:6,fontWeight:500,textTransform:"uppercase"}}>Platform</label>
+        <Select value={filterPlatform} onChange={e=>setFilterPlatform(e.target.value)}>
+          <option>Tümü</option>
+          {Object.entries(platformConfig).map(([id,p]) => <option key={id} value={id}>{p.label}</option>)}
+        </Select>
+      </div>
     </div>
 
     {/* AI Banner + Export */}
@@ -378,7 +402,7 @@ function ClientsPage({clients,setClients}) {
         <div style={{fontSize:22}}>🤖</div>
         <div style={{flex:1}}>
           <div style={{fontSize:13,fontWeight:600,color:T.violetText}}>Müşteri Portföy Analizi</div>
-          <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>AI ile tüm müşterilerini analiz et, büyüme fırsatları ve risk noktaları bul</div>
+          <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>AI ile müşterilerini analiz et, büyüme fırsatları bul</div>
         </div>
         <Btn variant="ai" style={{flexShrink:0}}>✦ Analiz Et</Btn>
       </div>
@@ -394,7 +418,12 @@ function ClientsPage({clients,setClients}) {
 
     {/* List */}
     <div style={{display:"flex",flexDirection:"column",gap:2}}>
-      {clients.map(client=>{
+      {filteredClients.length === 0 && (
+        <div style={{textAlign:"center",padding:"40px 20px",color:T.textMuted,fontSize:13}}>
+          Filtrelere uygun müşteri bulunamadı
+        </div>
+      )}
+      {filteredClients.map(client=>{
         const isOpen=open===client.id;
         const currentTab=tab[client.id]||"overview";
         const od=client.invoices.filter(i=>i.status==="overdue").length;
@@ -410,7 +439,7 @@ function ClientsPage({clients,setClients}) {
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{client.name}</span>
-                {od>0&&<span style={{fontSize:10,fontWeight:600,background:T.redDim,color:T.redText,padding:"2px 7px",borderRadius:20,border:`1px solid ${T.red}33`}}>{od} gecikmiş fatura</span>}
+                {od>0&&<span style={{fontSize:10,fontWeight:600,background:T.redDim,color:T.redText,padding:"2px 7px",borderRadius:20,border:`1px solid ${T.red}33`}}>{od} gecikmiş</span>}
               </div>
               <div style={{fontSize:12,color:T.textMuted,marginTop:2}}>{client.category}</div>
             </div>
@@ -473,20 +502,21 @@ function ClientsPage({clients,setClients}) {
         setModal(null);
       }} />
     </Modal>}
-    {modal==="addPost"&&<Modal title="Paylaşım ekle" onClose={()=>setModal(null)}>
+    {modal==="addPost"&&<Modal title="Yeni paylaşım ekle" onClose={()=>setModal(null)}>
       <FormField label="Tarih"><Input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} /></FormField>
       <FormField label="Platform"><Select value={form.platform||"ig"} onChange={e=>setForm(f=>({...f,platform:e.target.value}))}>{Object.entries(platformConfig).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</Select></FormField>
       <FormField label="İçerik türü"><Select value={form.type||"Reels"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Reels","Fotoğraf","Video","Carousel","Hikaye","Makale","Thread"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Başlık"><Input placeholder="İçerik başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
+      <FormField label="Açıklama"><Input placeholder="İçerik açıklaması (isteğe bağlı)" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Hazırlanıyor</option><option value="done">Yayınlandı</option></Select></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.title||!form.clientId)return;
         const { data, error } = await supabase.from('posts').insert({
           client_id: form.clientId, date: form.date||"—", platform: form.platform||"ig",
-          type: form.type||"Reels", title: form.title, status: form.status||"planned",
+          type: form.type||"Reels", title: form.title, status: form.status||"planned", description: form.description||"",
         }).select().single();
         if(!error && data){
-          setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,posts:[...c.posts,{id:data.id,date:data.date,platform:data.platform,type:data.type,title:data.title,status:data.status}]}:c));
+          setClients(prev=>prev.map(c=>c.id===form.clientId?{...c,posts:[...c.posts,{id:data.id,date:data.date,platform:data.platform,type:data.type,title:data.title,status:data.status,description:data.description}]}:c));
         }
         setModal(null);
       }} />
@@ -642,7 +672,6 @@ function ClientOverview({client}) {
 
 const TR_WEEKDAY_INDEX = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
 
-// Türkçe gün adlarını normalize eder (büyük/küçük harf, baştaki/sondaki boşluk farklarını giderir)
 function normalizeDayName(d) {
   if (!d) return "";
   const trimmed = d.trim();
@@ -671,7 +700,6 @@ function ClientCalendar({client}) {
   const goPrevMonth = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y=>y-1); } else setViewMonth(m=>m-1); };
   const goNextMonth = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y=>y+1); } else setViewMonth(m=>m+1); };
 
-  // Bir hücrenin haftanın hangi gününe denk geldiğini bul (0=Pazartesi...6=Pazar)
   const getWeekday = (cellIndex) => cellIndex % 7;
 
   const isPublishDay = (weekday) => client.publishDays.some(d => getWeekdayIndex(d) === weekday);
@@ -719,12 +747,18 @@ function ClientPosts({client,clients,setClients,setModal,setForm}) {
       <Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}}>+ Paylaşım ekle</Btn>
     </div>
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {client.posts.length === 0 && (
+        <div style={{textAlign:"center",padding:"30px 0",color:T.textMuted,fontSize:13}}>
+          Henüz paylaşım eklenmemiş
+        </div>
+      )}
       {client.posts.map(p=>(
-        <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10}}>
+        <div key={p.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10}}>
           <PlatformTag id={p.platform}/>
-          <span style={{fontSize:11,color:T.textMuted,minWidth:64}}>{p.date}</span>
+          <span style={{fontSize:11,color:T.textMuted,minWidth:80}}>{p.date}</span>
           <span style={{fontSize:11,padding:"2px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{p.type}</span>
           <span style={{fontSize:13,color:T.textPrimary,flex:1}}>{p.title}</span>
+          {p.description && <span title={p.description} style={{fontSize:10,color:T.textMuted}}>📝</span>}
           <Badge status={p.status}/>
         </div>
       ))}
@@ -785,6 +819,11 @@ function ClientInvoices({client,clients,setClients,setModal,setForm}) {
       <Btn variant="primary" onClick={()=>{setModal("addInvoice");setForm({clientId:client.id});}}>+ Fatura ekle</Btn>
     </div>
     <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {client.invoices.length === 0 && (
+        <div style={{textAlign:"center",padding:"30px 0",color:T.textMuted,fontSize:13}}>
+          Henüz fatura eklenmemiş
+        </div>
+      )}
       {client.invoices.map(inv=>(
         <div key={inv.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.bgCard,border:`1px solid ${inv.status==="overdue"?T.red+"44":T.border}`,borderRadius:10}}>
           <div style={{flex:1,minWidth:0}}>
@@ -802,9 +841,6 @@ function ClientInvoices({client,clients,setClients,setModal,setForm}) {
   </div>;
 }
 
-// ─────────────────────────────────────────────
-// SOSYAL MEDYA HESAPLARI SEKMESİ
-// ─────────────────────────────────────────────
 function ClientSocialAccounts({client,clients,setClients,setModal,setForm}) {
   const [visiblePasswords,setVisiblePasswords]=useState({});
   const accounts = client.socialAccounts || [];
@@ -953,7 +989,6 @@ function StaffPage({staff,setStaff}) {
           return;
         }
 
-        // Hoş geldin e-postası gönder (Netlify Function üzerinden)
         if(form.sendEmail!==false){
           try {
             const emailRes = await fetch("/.netlify/functions/send-welcome-email", {
@@ -968,7 +1003,6 @@ function StaffPage({staff,setStaff}) {
               setForm(f=>({...f,warning:"Çalışan eklendi ama e-posta gönderilemedi. Şifreyi manuel iletin."}));
             }
           } catch(e) {
-            // Email gönderimi başarısız olsa da çalışan kaydı tamamlanmış olsun
           }
         }
 
@@ -981,7 +1015,7 @@ function StaffPage({staff,setStaff}) {
 }
 
 // ─────────────────────────────────────────────
-// TASKS PAGE — DÜZELTILMIŞ VERSİYON
+// TASKS PAGE — GELİŞTİRİLMİŞ VERSİYON (PROGRESS BAR)
 // ─────────────────────────────────────────────
 function TasksPage({tasks,setTasks,clients,staff}) {
   const [modal,setModal]=useState(false);
@@ -1015,7 +1049,36 @@ function TasksPage({tasks,setTasks,clients,staff}) {
 
   const taskSummary=tasks.map(t=>`[${t.col.toUpperCase()}] ${t.title} — Atanan: ${t.assignee}, Öncelik: ${t.priority}, Son: ${t.due}`).join("\n");
 
+  // Progress Bar Hesaplaması
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.col === "done").length;
+  const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
   return <div>
+    {/* Progress Bar */}
+    <div style={{marginBottom:20,padding:"16px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>Toplam Tamamlanma Oranı</span>
+        <span style={{fontSize:14,fontWeight:700,color:T.amber}}>{progressPercent}%</span>
+      </div>
+      <div style={{height:12,background:T.bgSurface,borderRadius:6,overflow:"hidden",border:`1px solid ${T.border}`}}>
+        <div style={{
+          height:"100%",
+          width:`${progressPercent}%`,
+          background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,
+          borderRadius:6,
+          transition:"width 0.6s ease",
+          boxShadow:`0 0 20px ${T.amber}66`,
+        }} />
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:T.textMuted}}>
+        <span>✓ {doneTasks} Tamamlandı</span>
+        <span>→ {tasks.filter(t => t.col === "inprogress").length} Devam Ediyor</span>
+        <span>◐ {tasks.filter(t => t.col === "review").length} İncelemede</span>
+        <span>○ {tasks.filter(t => t.col === "todo").length} Yapılacak</span>
+      </div>
+    </div>
+
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
       <div style={{display:"flex",gap:14}}>
         {cols.map(c=>{const count=tasks.filter(t=>t.col===c.id).length;return <span key={c.id} style={{fontSize:12,color:T.textMuted}}><span style={{color:c.color,fontWeight:700}}>{count}</span> {c.label}</span>;})}
@@ -1226,7 +1289,7 @@ function IdeasPage({ideas,setIdeas,clients}) {
 }
 
 // ─────────────────────────────────────────────
-// CALENDAR PAGE — Dinamik, ay ileri/geri gidebilir
+// CALENDAR PAGE
 // ─────────────────────────────────────────────
 function CalendarPage({clients}) {
   const today = new Date();
@@ -1288,9 +1351,6 @@ function CalendarPage({clients}) {
   </div>;
 }
 
-// ─────────────────────────────────────────────
-// APP SHELL
-// ─────────────────────────────────────────────
 const NAV=[
   {id:"clients",label:"Müşteriler",icon:"🏢"},
   {id:"calendar",label:"Takvim",icon:"📅"},
@@ -1299,9 +1359,6 @@ const NAV=[
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
 
-// ─────────────────────────────────────────────
-// VERİTABANI YÜKLEME VE DÖNÜŞTÜRME YARDIMCILARI
-// ─────────────────────────────────────────────
 async function loadAllData() {
   const [
     { data: clientsRaw },
@@ -1329,7 +1386,7 @@ async function loadAllData() {
     publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
     posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
-      id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status,
+      id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description,
     })),
     invoices: (invoicesRaw || []).filter(i => i.client_id === c.id).map(i => ({
       id: i.id, no: i.no, date: i.date, amount: i.amount, vat: i.vat, total: i.total,
