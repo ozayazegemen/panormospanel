@@ -2082,6 +2082,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_finance: form.perm_finance || false,
       perm_manage_clients: form.perm_manage_clients || false,
       perm_manage_staff: form.perm_manage_staff || false,
+      perm_accounting: form.perm_accounting || false,
     }).select().single();
 
     if (error) {
@@ -2104,6 +2105,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
         perm_finance: data.perm_finance,
         perm_manage_clients: data.perm_manage_clients,
         perm_manage_staff: data.perm_manage_staff,
+        perm_accounting: data.perm_accounting,
       }]);
     }
 
@@ -2130,6 +2132,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_finance: editForm.perm_finance || false,
       perm_manage_clients: editForm.perm_manage_clients || false,
       perm_manage_staff: editForm.perm_manage_staff || false,
+      perm_accounting: editForm.perm_accounting || false,
     }).eq('id', editModal.id);
 
     if (error) {
@@ -2150,6 +2153,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_finance: editForm.perm_finance,
       perm_manage_clients: editForm.perm_manage_clients,
       perm_manage_staff: editForm.perm_manage_staff,
+      perm_accounting: editForm.perm_accounting,
     } : s));
 
     setEditModal(null);
@@ -2241,7 +2245,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
           {/* Butonlar */}
           <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
             <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
           </div>
         </Card>
@@ -2265,6 +2269,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={form.perm_finance} onChange={()=>setForm(f=>({...f,perm_finance:!f.perm_finance}))} />
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={form.perm_manage_clients} onChange={()=>setForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={form.perm_manage_staff} onChange={()=>setForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
+            <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={form.perm_accounting} onChange={()=>setForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
           </>}
         </div>
       </div>
@@ -2289,6 +2294,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={editForm.perm_finance} onChange={()=>setEditForm(f=>({...f,perm_finance:!f.perm_finance}))} />
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={editForm.perm_manage_clients} onChange={()=>setEditForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={editForm.perm_manage_staff} onChange={()=>setEditForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
+            <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={editForm.perm_accounting} onChange={()=>setEditForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
           </>}
         </div>
       </div>
@@ -2593,8 +2599,717 @@ const NAV=[
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
+  {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
+
+// ─────────────────────────────────────────────
+// MUHASEBE YARDIMCILARI
+// ─────────────────────────────────────────────
+function monthRefLabel(ref) {
+  if (!ref) return "—";
+  const [y, m] = String(ref).split("-");
+  const mi = parseInt(m) - 1;
+  return `${TR_MONTHS[mi] || m} ${y}`;
+}
+function currentMonthRef() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function parseContractStartToRef(cs) {
+  if (!cs) return null;
+  if (/^\d{4}-\d{2}$/.test(cs)) return cs;
+  const parts = String(cs).trim().split(/\s+/);
+  if (parts.length === 2) {
+    const mi = TR_MONTHS.indexOf(parts[0]);
+    const y = parseInt(parts[1]);
+    if (mi >= 0 && !isNaN(y)) return `${y}-${String(mi + 1).padStart(2, "0")}`;
+  }
+  return null;
+}
+function generateMonthRange(startRef, endRef) {
+  const result = [];
+  let [y, m] = startRef.split("-").map(Number);
+  const [ey, em] = endRef.split("-").map(Number);
+  let guard = 0;
+  while ((y < ey || (y === ey && m <= em)) && guard < 240) {
+    result.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++; if (m > 12) { m = 1; y++; }
+    guard++;
+  }
+  return result;
+}
+function monthRefOptions() {
+  const opts = [];
+  const d = new Date();
+  d.setMonth(d.getMonth() + 3);
+  for (let i = 0; i < 30; i++) {
+    opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    d.setMonth(d.getMonth() - 1);
+  }
+  return opts;
+}
+
+// ═══════════════ MUHASEBE ANA SAYFA ═══════════════
+function AccountingPage({ clients, staff, perms }) {
+  const [tab, setTab] = useState("cari");
+  const tabs = [
+    { id: "cari", lbl: "💳 Müşteri Cari" },
+    { id: "giderler", lbl: "🏛️ SGK / Vergi / Maaş" },
+    { id: "izin", lbl: "🌴 Personel İzinleri" },
+    { id: "takvim", lbl: "📅 Ödeme Takvimi" },
+    { id: "belgeler", lbl: "📄 Belgeler" },
+  ];
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap", borderBottom: `1px solid ${T.border}`, paddingBottom: 2 }}>
+        {tabs.map(t => {
+          const active = tab === t.id;
+          return <button key={t.id} onClick={() => setTab(t.id)} style={{
+            fontSize: 13, fontWeight: active ? 600 : 400, padding: "9px 16px", borderRadius: "8px 8px 0 0",
+            color: active ? T.amberText : T.textMuted, background: active ? T.bgCard : "transparent",
+            border: "none", borderBottom: `2px solid ${active ? T.amber : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap",
+          }}>{t.lbl}</button>;
+        })}
+      </div>
+      {tab === "cari" && <AccountingCari clients={clients} />}
+      {tab === "giderler" && <AccountingExpenses staff={staff} />}
+      {tab === "izin" && <AccountingLeave staff={staff} />}
+      {tab === "takvim" && <AccountingCalendar staff={staff} />}
+      {tab === "belgeler" && <AccountingDocuments />}
+    </div>
+  );
+}
+
+// ═══════════════ MÜŞTERİ CARİ ═══════════════
+function AccountingCari({ clients }) {
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [expanded, setExpanded] = useState(null);
+
+  const load = async () => {
+    const { data } = await supabase.from('client_payments').select('*').order('payment_date', { ascending: false });
+    setPayments(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const nowRef = currentMonthRef();
+  const clientStats = clients.map(c => {
+    const startRef = parseContractStartToRef(c.contractStart) || `${new Date().getFullYear()}-01`;
+    const months = generateMonthRange(startRef, nowRef);
+    const cPayments = payments.filter(p => p.client_id === c.id);
+    const paidByMonth = {};
+    cPayments.forEach(p => { if (p.month_ref) paidByMonth[p.month_ref] = (paidByMonth[p.month_ref] || 0) + Number(p.amount || 0); });
+    const totalPaid = cPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const unpaidMonths = months.filter(m => (paidByMonth[m] || 0) < (c.monthlyFee || 0));
+    const expected = months.length * (c.monthlyFee || 0);
+    const balance = expected - totalPaid;
+    return { client: c, months, cPayments, paidByMonth, totalPaid, unpaidMonths, expected, balance };
+  });
+
+  const totalExpected = clientStats.reduce((s, cs) => s + cs.expected, 0);
+  const totalCollected = clientStats.reduce((s, cs) => s + cs.totalPaid, 0);
+  const totalOutstanding = totalExpected - totalCollected;
+
+  const savePayment = async () => {
+    if (!form.client_id || !form.amount) { alert("Müşteri ve tutar zorunlu"); return; }
+    const { error } = await supabase.from('client_payments').insert({
+      client_id: parseInt(form.client_id),
+      amount: parseFloat(form.amount) || 0,
+      payment_date: form.payment_date || new Date().toISOString().slice(0, 10),
+      month_ref: form.month_ref || nowRef,
+      method: form.method || "havale",
+      notes: form.notes || "",
+    });
+    if (error) { alert("Ödeme kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+    setModal(false); setForm({});
+    load();
+  };
+
+  const deletePayment = async (id) => {
+    if (!window.confirm("Bu ödeme kaydı silinsin mi?")) return;
+    await supabase.from('client_payments').delete().eq('id', id);
+    load();
+  };
+
+  const exportCari = async () => {
+    // Sayfa 1: Cari özeti
+    const summaryRows = clientStats.map(cs => ({
+      "Müşteri": cs.client.name,
+      "Aylık Ücret (₺)": cs.client.monthlyFee || 0,
+      "Beklenen Toplam (₺)": cs.expected,
+      "Tahsil Edilen (₺)": cs.totalPaid,
+      "Kalan Bakiye (₺)": cs.balance,
+      "Ödenmemiş Ay Sayısı": cs.unpaidMonths.length,
+      "Durum": cs.balance <= 0 ? "Güncel" : "Borçlu",
+    }));
+    const sheets = [{ name: "Müşteri Cari", rows: summaryRows, title: "PANORMOS MEDYA — MÜŞTERİ CARİ ÖZETİ" }];
+
+    // Sayfa 2: Ödenmemiş aylar
+    const unpaidRows = [];
+    clientStats.forEach(cs => {
+      cs.unpaidMonths.forEach(m => {
+        const paid = cs.paidByMonth[m] || 0;
+        unpaidRows.push({
+          "Müşteri": cs.client.name,
+          "Ödenmemiş Ay": monthRefLabel(m),
+          "Aylık Ücret (₺)": cs.client.monthlyFee || 0,
+          "Ödenen (₺)": paid,
+          "Eksik (₺)": (cs.client.monthlyFee || 0) - paid,
+        });
+      });
+    });
+    if (unpaidRows.length > 0) sheets.push({ name: "Ödenmemiş Aylar", rows: unpaidRows, title: "ÖDENMEMİŞ AYLAR" });
+
+    // Sayfa 3: Tüm ödemeler
+    const payRows = payments.map(p => ({
+      "Müşteri": clients.find(c => c.id === p.client_id)?.name || "?",
+      "Ödeme Tarihi": p.payment_date || "—",
+      "Ait Olduğu Ay": monthRefLabel(p.month_ref),
+      "Tutar (₺)": Number(p.amount || 0),
+      "Yöntem": p.method || "—",
+      "Not": p.notes || "—",
+    }));
+    if (payRows.length > 0) sheets.push({ name: "Tüm Ödemeler", rows: payRows, title: "TÜM TAHSİLATLAR" });
+
+    await exportPerfectExcel(sheets, `panormos-musteri-cari-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  return (
+    <div>
+      {/* Özet kartlar */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Beklenen Toplam" value={fmtMoney(totalExpected)} color={T.indigoText} />
+        <StatCard label="Tahsil Edilen" value={fmtMoney(totalCollected)} color={T.greenText} />
+        <StatCard label="Kalan Alacak" value={fmtMoney(totalOutstanding)} color={T.amberText} />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+        <Btn variant="primary" onClick={() => { setForm({ payment_date: new Date().toISOString().slice(0, 10), month_ref: nowRef, method: "havale" }); setModal(true); }}>+ Ödeme Kaydet</Btn>
+        <Btn onClick={exportCari} style={{ background: T.greenDim, color: T.greenText }}>📊 Cari Excel</Btn>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+      ) : clientStats.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Müşteri yok</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {clientStats.map(cs => {
+            const isOpen = expanded === cs.client.id;
+            return (
+              <div key={cs.client.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+                <div onClick={() => setExpanded(isOpen ? null : cs.client.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", borderLeft: `3px solid ${cs.client.accentColor}` }}>
+                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: cs.client.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{cs.client.initials}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{cs.client.name}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>Aylık {fmtMoney(cs.client.monthlyFee)} · {cs.unpaidMonths.length} ay ödenmemiş</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: cs.balance > 0 ? T.amberText : T.greenText }}>{fmtMoney(cs.balance)}</div>
+                    <div style={{ fontSize: 10, color: T.textMuted }}>{cs.balance > 0 ? "kalan borç" : "güncel"}</div>
+                  </div>
+                  <span style={{ fontSize: 13, color: T.textMuted, transform: isOpen ? "rotate(90deg)" : "none", transition: "0.2s" }}>›</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${T.border}` }}>
+                    <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylık Ödeme Durumu</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
+                      {cs.months.map(m => {
+                        const paid = cs.paidByMonth[m] || 0;
+                        const full = paid >= (cs.client.monthlyFee || 0);
+                        const partial = paid > 0 && !full;
+                        return (
+                          <div key={m} style={{ padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{monthRefLabel(m)}</div>
+                            <div style={{ fontSize: 10, color: full ? T.greenText : partial ? T.amberText : T.textMuted }}>{full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(paid)}` : "Ödenmedi"}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {cs.cPayments.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 11, color: T.textMuted, margin: "8px 0", fontWeight: 600, textTransform: "uppercase" }}>Ödeme Geçmişi</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {cs.cPayments.map(p => (
+                            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: T.bgInput, borderRadius: 8, fontSize: 12 }}>
+                              <span style={{ color: T.textPrimary, fontWeight: 600 }}>{fmtMoney(Number(p.amount))}</span>
+                              <span style={{ color: T.textMuted }}>{p.payment_date}</span>
+                              <span style={{ color: T.amberText, fontSize: 11 }}>{monthRefLabel(p.month_ref)}</span>
+                              <span style={{ color: T.textMuted, fontSize: 11 }}>{p.method}</span>
+                              <button onClick={() => deletePayment(p.id)} style={{ marginLeft: "auto", background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 13 }}>✕</button>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modal && (
+        <Modal title="Müşteri Ödemesi Kaydet" onClose={() => setModal(false)}>
+          <FormField label="Müşteri">
+            <Select value={form.client_id || ""} onChange={e => { const cid = e.target.value; const c = clients.find(x => String(x.id) === cid); setForm(f => ({ ...f, client_id: cid, amount: f.amount || (c ? c.monthlyFee : "") })); }}>
+              <option value="">Seç...</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
+          <FormField label="Hangi Aya Ait">
+            <Select value={form.month_ref || nowRef} onChange={e => setForm(f => ({ ...f, month_ref: e.target.value }))}>
+              {monthRefOptions().map(m => <option key={m} value={m}>{monthRefLabel(m)}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Ödeme Tarihi"><Input type="date" value={form.payment_date || ""} onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))} /></FormField>
+          <FormField label="Ödeme Yöntemi">
+            <Select value={form.method || "havale"} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>
+              <option value="havale">Havale / EFT</option>
+              <option value="nakit">Nakit</option>
+              <option value="kredi kartı">Kredi Kartı</option>
+              <option value="çek">Çek</option>
+            </Select>
+          </FormField>
+          <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={savePayment} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ SGK / VERGİ / MAAŞ (GİDERLER) ═══════════════
+const EXPENSE_TYPES = {
+  sgk: { label: "SGK Ödemesi", icon: "🏛️", color: "#6366F1" },
+  tax: { label: "Vergi Dairesi", icon: "📋", color: "#F59E0B" },
+  salary: { label: "Personel Maaşı", icon: "💰", color: "#10B981" },
+  other: { label: "Diğer Gider", icon: "📌", color: "#8B8B8B" },
+};
+
+function AccountingExpenses({ staff }) {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ entry_type: "sgk" });
+  const [filter, setFilter] = useState("all");
+
+  const load = async () => {
+    const { data } = await supabase.from('accounting_entries').select('*').order('due_date', { ascending: false });
+    setEntries(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const saveEntry = async () => {
+    if (!form.title && form.entry_type !== "salary") { alert("Başlık zorunlu"); return; }
+    if (form.entry_type === "salary" && !form.staff_id) { alert("Maaş için çalışan seçin"); return; }
+    if (!form.amount) { alert("Tutar zorunlu"); return; }
+    const staffName = form.staff_id ? staff.find(s => String(s.id) === String(form.staff_id))?.name : null;
+    const { error } = await supabase.from('accounting_entries').insert({
+      entry_type: form.entry_type,
+      title: form.entry_type === "salary" ? (`Maaş — ${staffName || ""}`) : form.title,
+      amount: parseFloat(form.amount) || 0,
+      due_date: form.due_date || null,
+      month_ref: form.month_ref || currentMonthRef(),
+      staff_id: form.staff_id ? parseInt(form.staff_id) : null,
+      is_paid: false,
+      notes: form.notes || "",
+    });
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({ entry_type: "sgk" });
+    load();
+  };
+
+  const togglePaid = async (entry) => {
+    await supabase.from('accounting_entries').update({ is_paid: !entry.is_paid, paid_date: !entry.is_paid ? new Date().toISOString().slice(0, 10) : null }).eq('id', entry.id);
+    load();
+  };
+  const deleteEntry = async (id) => {
+    if (!window.confirm("Bu kayıt silinsin mi?")) return;
+    await supabase.from('accounting_entries').delete().eq('id', id);
+    load();
+  };
+
+  const filtered = filter === "all" ? entries : entries.filter(e => e.entry_type === filter);
+  const totalUnpaid = entries.filter(e => !e.is_paid).reduce((s, e) => s + Number(e.amount || 0), 0);
+  const totalPaid = entries.filter(e => e.is_paid).reduce((s, e) => s + Number(e.amount || 0), 0);
+
+  const exportExpenses = async () => {
+    const rows = entries.map(e => ({
+      "Tür": EXPENSE_TYPES[e.entry_type]?.label || e.entry_type,
+      "Başlık": e.title,
+      "Tutar (₺)": Number(e.amount || 0),
+      "Ait Olduğu Ay": monthRefLabel(e.month_ref),
+      "Son Ödeme": e.due_date || "—",
+      "Durum": e.is_paid ? "Ödendi" : "Bekliyor",
+      "Ödeme Tarihi": e.paid_date || "—",
+    }));
+    await exportPerfectExcel([{ name: "Giderler", rows, title: "PANORMOS MEDYA — GİDER ÖDEMELERİ" }], `panormos-giderler-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Ödenmemiş Giderler" value={fmtMoney(totalUnpaid)} color={T.amberText} />
+        <StatCard label="Ödenmiş Giderler" value={fmtMoney(totalPaid)} color={T.greenText} />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Btn variant="primary" onClick={() => { setForm({ entry_type: "sgk", month_ref: currentMonthRef() }); setModal(true); }}>+ Gider Ekle</Btn>
+        <Btn onClick={exportExpenses} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel</Btn>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+          {[{ id: "all", l: "Tümü" }, ...Object.entries(EXPENSE_TYPES).map(([id, v]) => ({ id, l: v.icon }))].map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, background: filter === f.id ? T.amber : T.bgInput, color: filter === f.id ? T.white : T.textSecondary, border: `1px solid ${filter === f.id ? T.amber : T.border}`, cursor: "pointer" }}>{f.l}</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Kayıt yok</div>
+          : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {filtered.map(e => {
+                const type = EXPENSE_TYPES[e.entry_type] || EXPENSE_TYPES.other;
+                return (
+                  <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, borderLeft: `3px solid ${type.color}`, opacity: e.is_paid ? 0.7 : 1 }}>
+                    <span style={{ fontSize: 22 }}>{type.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary, textDecoration: e.is_paid ? "line-through" : "none" }}>{e.title}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted }}>{type.label} · {monthRefLabel(e.month_ref)}{e.due_date ? ` · Son: ${e.due_date}` : ""}</div>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{fmtMoney(Number(e.amount))}</div>
+                    <button onClick={() => togglePaid(e)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: e.is_paid ? T.greenDim : T.bgInput, color: e.is_paid ? T.greenText : T.textSecondary, border: `1px solid ${e.is_paid ? T.green + "44" : T.border}`, cursor: "pointer", whiteSpace: "nowrap" }}>{e.is_paid ? "✓ Ödendi" : "Öde"}</button>
+                    <button onClick={() => deleteEntry(e.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+      {modal && (
+        <Modal title="Gider Ödemesi Ekle" onClose={() => setModal(false)}>
+          <FormField label="Gider Türü">
+            <Select value={form.entry_type} onChange={e => setForm(f => ({ ...f, entry_type: e.target.value }))}>
+              {Object.entries(EXPENSE_TYPES).map(([id, v]) => <option key={id} value={id}>{v.icon} {v.label}</option>)}
+            </Select>
+          </FormField>
+          {form.entry_type === "salary" ? (
+            <FormField label="Çalışan">
+              <Select value={form.staff_id || ""} onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))}>
+                <option value="">Seç...</option>
+                {staff.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+              </Select>
+            </FormField>
+          ) : (
+            <FormField label="Başlık"><Input placeholder={form.entry_type === "sgk" ? "Örn: Ekim SGK Primi" : form.entry_type === "tax" ? "Örn: KDV Beyannamesi" : "Açıklama"} value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
+          )}
+          <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
+          <FormField label="Hangi Aya Ait">
+            <Select value={form.month_ref || currentMonthRef()} onChange={e => setForm(f => ({ ...f, month_ref: e.target.value }))}>
+              {monthRefOptions().map(m => <option key={m} value={m}>{monthRefLabel(m)}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Son Ödeme Tarihi"><Input type="date" value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} /></FormField>
+          <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={saveEntry} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ PERSONEL İZİNLERİ ═══════════════
+const LEAVE_TYPES = { "yıllık": "Yıllık İzin", "hastalık": "Hastalık İzni", "ücretsiz": "Ücretsiz İzin", "diğer": "Diğer" };
+
+function AccountingLeave({ staff }) {
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ leave_type: "yıllık" });
+
+  const load = async () => {
+    const { data } = await supabase.from('staff_leave').select('*').order('start_date', { ascending: false });
+    setLeaves(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const calcDays = (start, end) => {
+    if (!start || !end) return 0;
+    const d1 = new Date(start), d2 = new Date(end);
+    return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)) + 1);
+  };
+
+  const saveLeave = async () => {
+    if (!form.staff_id) { alert("Çalışan seçin"); return; }
+    if (!form.start_date || !form.end_date) { alert("Başlangıç ve bitiş tarihi girin"); return; }
+    const days = calcDays(form.start_date, form.end_date);
+    const { error } = await supabase.from('staff_leave').insert({
+      staff_id: parseInt(form.staff_id),
+      start_date: form.start_date,
+      end_date: form.end_date,
+      days,
+      leave_type: form.leave_type || "yıllık",
+      notes: form.notes || "",
+    });
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({ leave_type: "yıllık" });
+    load();
+  };
+  const deleteLeave = async (id) => {
+    if (!window.confirm("Bu izin kaydı silinsin mi?")) return;
+    await supabase.from('staff_leave').delete().eq('id', id);
+    load();
+  };
+
+  // Çalışan bazlı özet
+  const byStaff = staff.map(s => {
+    const sLeaves = leaves.filter(l => l.staff_id === s.id);
+    const yearlyUsed = sLeaves.filter(l => l.leave_type === "yıllık").reduce((sum, l) => sum + (l.days || 0), 0);
+    return { staff: s, leaves: sLeaves, yearlyUsed };
+  }).filter(x => x.leaves.length > 0);
+
+  const exportLeave = async () => {
+    const rows = leaves.map(l => ({
+      "Çalışan": staff.find(s => s.id === l.staff_id)?.name || "?",
+      "İzin Türü": LEAVE_TYPES[l.leave_type] || l.leave_type,
+      "Başlangıç": l.start_date || "—",
+      "Bitiş": l.end_date || "—",
+      "Gün Sayısı": l.days || 0,
+      "Not": l.notes || "—",
+    }));
+    await exportPerfectExcel([{ name: "İzinler", rows, title: "PANORMOS MEDYA — PERSONEL İZİNLERİ" }], `panormos-izinler-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+        <Btn variant="primary" onClick={() => { setForm({ leave_type: "yıllık" }); setModal(true); }}>+ İzin Ekle</Btn>
+        {leaves.length > 0 && <Btn onClick={exportLeave} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel</Btn>}
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : byStaff.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Henüz izin kaydı yok</div>
+          : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {byStaff.map(({ staff: s, leaves: sLeaves, yearlyUsed }) => (
+                <div key={s.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: "50%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff" }}>{s.initials}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{s.name}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted }}>{s.role}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: T.amberText }}>{yearlyUsed} gün</div>
+                      <div style={{ fontSize: 10, color: T.textMuted }}>yıllık izin kullanıldı</div>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {sLeaves.map(l => (
+                      <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: T.bgInput, borderRadius: 8, fontSize: 12 }}>
+                        <span style={{ padding: "2px 8px", borderRadius: 5, background: T.indigoDim, color: T.indigoText, fontSize: 10, fontWeight: 600 }}>{LEAVE_TYPES[l.leave_type] || l.leave_type}</span>
+                        <span style={{ color: T.textSecondary }}>{l.start_date} → {l.end_date}</span>
+                        <span style={{ color: T.textPrimary, fontWeight: 600 }}>{l.days} gün</span>
+                        {l.notes && <span style={{ color: T.textMuted, fontSize: 11 }}>· {l.notes}</span>}
+                        <button onClick={() => deleteLeave(l.id)} style={{ marginLeft: "auto", background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 13 }}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+      {modal && (
+        <Modal title="Personel İzni Ekle" onClose={() => setModal(false)}>
+          <FormField label="Çalışan">
+            <Select value={form.staff_id || ""} onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))}>
+              <option value="">Seç...</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+            </Select>
+          </FormField>
+          <FormField label="İzin Türü">
+            <Select value={form.leave_type} onChange={e => setForm(f => ({ ...f, leave_type: e.target.value }))}>
+              {Object.entries(LEAVE_TYPES).map(([id, l]) => <option key={id} value={id}>{l}</option>)}
+            </Select>
+          </FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <FormField label="Başlangıç"><Input type="date" value={form.start_date || ""} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} /></FormField>
+            <FormField label="Bitiş"><Input type="date" value={form.end_date || ""} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} /></FormField>
+          </div>
+          {form.start_date && form.end_date && (
+            <div style={{ fontSize: 12, color: T.amberText, marginBottom: 12, fontWeight: 600 }}>Toplam: {calcDays(form.start_date, form.end_date)} gün</div>
+          )}
+          <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={saveLeave} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ ÖDEME TAKVİMİ ═══════════════
+function AccountingCalendar({ staff }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [entries, setEntries] = useState([]);
+  const [clientPays, setClientPays] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: e } = await supabase.from('accounting_entries').select('*');
+      setEntries(e || []);
+      const { data: cp } = await supabase.from('client_payments').select('*');
+      setClientPays(cp || []);
+    })();
+  }, []);
+
+  const cells = getMonthGrid(viewYear, viewMonth);
+  const goPrev = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); } else setViewMonth(m => m - 1); };
+  const goNext = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); } else setViewMonth(m => m + 1); };
+
+  const dateStrFor = (day) => `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <button onClick={goPrev} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer" }}>‹</button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary, flex: 1 }}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+        <button onClick={goNext} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer" }}>›</button>
+      </div>
+      <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 11, color: T.textMuted, flexWrap: "wrap" }}>
+        <span>🔴 Gider son ödeme</span><span>🟢 Tahsilat</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
+        {["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: T.textMuted }}>{d}</div>)}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+        {cells.map((cell, i) => {
+          const ds = cell.currentMonth ? dateStrFor(cell.day) : null;
+          const dueEntries = ds ? entries.filter(e => e.due_date === ds && !e.is_paid) : [];
+          const dayPays = ds ? clientPays.filter(p => p.payment_date === ds) : [];
+          const isToday = cell.currentMonth && cell.day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+          return (
+            <div key={i} style={{ minHeight: 80, borderRadius: 8, padding: "6px 7px", background: cell.currentMonth ? T.bgCard : "transparent", border: `1px solid ${isToday ? T.amber : (cell.currentMonth ? T.border : "transparent")}`, opacity: cell.currentMonth ? 1 : 0.3 }}>
+              <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? T.amberText : T.textSecondary, marginBottom: 3 }}>{cell.day}</div>
+              {dueEntries.slice(0, 2).map((e, ei) => (
+                <div key={"e" + ei} style={{ fontSize: 8, padding: "1px 4px", borderRadius: 3, marginBottom: 2, background: "rgba(239,68,68,0.15)", color: T.redText, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔴 {fmtMoney(Number(e.amount))}</div>
+              ))}
+              {dayPays.slice(0, 2).map((p, pi) => (
+                <div key={"p" + pi} style={{ fontSize: 8, padding: "1px 4px", borderRadius: 3, marginBottom: 2, background: "rgba(16,185,129,0.15)", color: T.greenText, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🟢 {fmtMoney(Number(p.amount))}</div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════ BELGELER (TARAMA/YÜKLEME) ═══════════════
+const DOC_CATEGORIES = { "fatura": "Fatura", "makbuz": "Makbuz", "sgk": "SGK Belgesi", "vergi": "Vergi Belgesi", "sozlesme": "Sözleşme", "diğer": "Diğer" };
+
+function AccountingDocuments() {
+  const [docs, setDocs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [category, setCategory] = useState("fatura");
+  const fileRef = useRef(null);
+  const cameraRef = useRef(null);
+
+  const load = async () => {
+    const { data } = await supabase.from('accounting_documents').select('*').order('created_at', { ascending: false });
+    setDocs(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const handleFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    for (const file of files) {
+      try {
+        const fileName = `accounting/${Date.now()}-${file.name}`;
+        const { data, error } = await supabase.storage.from('client-media').upload(fileName, file);
+        if (!error && data) {
+          await supabase.from('accounting_documents').insert({
+            title: file.name,
+            category,
+            storage_path: data.path,
+            storage_type: 'supabase',
+            doc_date: new Date().toISOString().slice(0, 10),
+          });
+        } else if (error) {
+          alert("Yükleme hatası: " + error.message);
+        }
+      } catch (err) { console.error(err); }
+    }
+    setUploading(false);
+    load();
+  };
+
+  const openDoc = (doc) => {
+    if (doc.storage_type === "supabase" && doc.storage_path) {
+      const { data } = supabase.storage.from('client-media').getPublicUrl(doc.storage_path);
+      if (data?.publicUrl) window.open(data.publicUrl, "_blank");
+    }
+  };
+  const deleteDoc = async (doc) => {
+    if (!window.confirm("Bu belge silinsin mi?")) return;
+    if (doc.storage_path) await supabase.storage.from('client-media').remove([doc.storage_path]);
+    await supabase.from('accounting_documents').delete().eq('id', doc.id);
+    load();
+  };
+
+  return (
+    <div>
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18, marginBottom: 18 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, marginBottom: 12 }}>📄 Belge Tara / Yükle</div>
+        <FormField label="Belge Kategorisi">
+          <Select value={category} onChange={e => setCategory(e.target.value)}>
+            {Object.entries(DOC_CATEGORIES).map(([id, l]) => <option key={id} value={id}>{l}</option>)}
+          </Select>
+        </FormField>
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => handleFiles(Array.from(e.target.files || []))} />
+        <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple style={{ display: "none" }} onChange={e => handleFiles(Array.from(e.target.files || []))} />
+        <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+          <Btn variant="primary" onClick={() => cameraRef.current?.click()} disabled={uploading}>📷 Kamera ile Tara</Btn>
+          <Btn onClick={() => fileRef.current?.click()} disabled={uploading}>📎 Dosya Seç</Btn>
+        </div>
+        {uploading && <div style={{ fontSize: 12, color: T.amberText, marginTop: 10 }}>Yükleniyor...</div>}
+        <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10 }}>💡 Telefonda "Kamera ile Tara" belgeyi fotoğraflayarak kaydeder.</div>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : docs.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Henüz belge yok</div>
+          : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12 }}>
+              {docs.map(doc => (
+                <div key={doc.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div onClick={() => openDoc(doc)} style={{ height: 70, background: T.bgSurface, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, cursor: "pointer" }}>📄</div>
+                  <div style={{ padding: "8px 10px" }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.title}</div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                      <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: T.indigoDim, color: T.indigoText }}>{DOC_CATEGORIES[doc.category] || doc.category}</span>
+                      <button onClick={() => deleteDoc(doc)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 12 }}>✕</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // MESAJLAR SAYFASI (çalışanlar arası sohbet)
@@ -2948,7 +3663,7 @@ async function loadAllData() {
     id: s.id, name: s.name, role: s.role || "", initials: s.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase(),
     color: ["#6366F1", "#EC4899", "#10B981"][s.id % 3], type: s.type || "Tam zamanlı",
     email: s.email, phone: s.phone || "", start: s.start_date || "",
-    is_admin: s.is_admin, perm_finance: s.perm_finance, perm_manage_clients: s.perm_manage_clients, perm_manage_staff: s.perm_manage_staff,
+    is_admin: s.is_admin, perm_finance: s.perm_finance, perm_manage_clients: s.perm_manage_clients, perm_manage_staff: s.perm_manage_staff, perm_accounting: s.perm_accounting,
   }));
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
@@ -2965,7 +3680,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'staff'];
+    const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -2988,7 +3703,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'staff'];
+      const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -3067,6 +3782,7 @@ export default function App() {
     finance: isAdmin || currentStaff.perm_finance === true,       // Finansal bilgiler, faturalar, ödemeler, ücretler
     manageClients: isAdmin || currentStaff.perm_manage_clients === true,  // Müşteri ekle/düzenle/sil
     manageStaff: isAdmin || currentStaff.perm_manage_staff === true,      // Çalışan ekle/düzenle/sil
+    accounting: isAdmin || currentStaff.perm_accounting === true || currentStaff.perm_finance === true, // Muhasebe erişimi
   };
 
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif"}}>
@@ -3078,7 +3794,7 @@ export default function App() {
         </div>
       </div>
       <div style={{flex:1,padding:"12px 8px"}}>
-        {NAV.filter(item => item.id !== 'staff' || perms.manageStaff).map(item=>(
+        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting)).map(item=>(
           <div key={item.id} onClick={()=>setPage(item.id)} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
@@ -3095,7 +3811,7 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>
-          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : '👥 Çalışanlar'}
+          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
@@ -3105,6 +3821,7 @@ export default function App() {
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
+        {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
       </div>
     </div>
