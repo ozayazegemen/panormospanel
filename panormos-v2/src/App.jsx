@@ -976,7 +976,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {currentTab==="invoices"&&<ClientInvoices client={client}/>}
     </div>
     
-    {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);}} />}
+    {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);window.location.reload();}} />}
   </div>;
 }
 
@@ -1038,16 +1038,36 @@ function ClientPosts({client}) {
 }
 
 function ClientMedia({client}) {
+  const openMedia = (m) => {
+    if (m.storageType === "google_drive" && m.storagePath) {
+      window.open(m.storagePath, "_blank");
+    } else if (m.storageType === "supabase" && m.storagePath) {
+      const { data } = supabase.storage.from('client-media').getPublicUrl(m.storagePath);
+      if (data?.publicUrl) window.open(data.publicUrl, "_blank");
+    }
+  };
+
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:10}}>
+    {client.media.length === 0 && (
+      <div style={{textAlign:"center",padding:"40px 0",color:T.textMuted,fontSize:13}}>Henüz medya dosyası yüklenmemiş</div>
+    )}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
       {client.media.map(m=>(
-        <div key={m.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden"}}>
-          <div style={{height:80,display:"flex",alignItems:"center",justifyContent:"center",background:T.bgSurface,fontSize:28}}>
+        <div key={m.id} onClick={()=>openMedia(m)} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden",cursor:"pointer",transition:"all 0.15s ease"}}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=T.borderLight}
+          onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+          <div style={{height:80,display:"flex",alignItems:"center",justifyContent:"center",background:T.bgSurface,fontSize:28,position:"relative"}}>
             {m.type === "video" ? "🎥" : m.type === "image" ? "🖼" : "📄"}
+            {m.storageType === "google_drive" && (
+              <span style={{position:"absolute",top:6,right:6,fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:4,background:"rgba(66,133,244,0.9)",color:"#fff"}}>DRIVE</span>
+            )}
+            {m.storageType === "supabase" && (
+              <span style={{position:"absolute",top:6,right:6,fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:4,background:"rgba(16,185,129,0.9)",color:"#fff"}}>SUPABASE</span>
+            )}
           </div>
           <div style={{padding:"8px 10px"}}>
             <div style={{fontSize:11,fontWeight:500,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-            <div style={{fontSize:10,color:T.textMuted,marginTop:2}}>{m.size}</div>
+            <div style={{fontSize:10,color:T.textMuted,marginTop:2}}>{m.size} · Aç →</div>
           </div>
         </div>
       ))}
@@ -1719,6 +1739,7 @@ async function loadAllData() {
     })),
     media: (mediaRaw || []).filter(m => m.client_id === c.id).map(m => ({
       id: m.id, name: m.name, type: m.type, size: m.size, date: m.date,
+      storagePath: m.storage_path, storageType: m.storage_type,
     })),
   }));
 
