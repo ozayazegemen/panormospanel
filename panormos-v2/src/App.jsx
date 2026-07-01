@@ -981,12 +981,13 @@ function StaffPage({staff,setStaff}) {
 }
 
 // ─────────────────────────────────────────────
-// TASKS PAGE
+// TASKS PAGE — DÜZELTILMIŞ VERSİYON
 // ─────────────────────────────────────────────
 function TasksPage({tasks,setTasks,clients,staff}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({});
   const [ai,setAi]=useState(false);
+  const [selectedTask,setSelectedTask]=useState(null);
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
@@ -1039,6 +1040,67 @@ function TasksPage({tasks,setTasks,clients,staff}) {
       onClose={()=>setAi(false)}
     />}
 
+    {selectedTask && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={()=>setSelectedTask(null)}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:420,maxHeight:"80vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <div style={{fontSize:16,fontWeight:600,color:T.textPrimary}}>{selectedTask.title}</div>
+            <button onClick={()=>setSelectedTask(null)} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer",lineHeight:1}}>✕</button>
+          </div>
+          
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Müşteri</div>
+              <div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.client}</div>
+            </div>
+            
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div>
+                <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Atanan</div>
+                <div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.assignee}</div>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Tür</div>
+                <div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.type}</div>
+              </div>
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div>
+                <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Öncelik</div>
+                <Badge status={selectedTask.priority}/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Son Tarih</div>
+                <div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.due}</div>
+              </div>
+            </div>
+
+            <div>
+              <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Durum</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+                {cols.map(c=>(
+                  <button key={c.id} onClick={()=>moveTask(selectedTask.id)} style={{
+                    padding:"8px 12px",fontSize:11,fontWeight:600,borderRadius:8,
+                    background:selectedTask.col===c.id?c.color+"22":T.bgSurface,
+                    color:selectedTask.col===c.id?c.color:T.textMuted,
+                    border:`1px solid ${selectedTask.col===c.id?c.color+"44":T.border}`,
+                    cursor:"pointer",transition:"all 0.12s"
+                  }}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{marginTop:20,paddingTop:20,borderTop:`1px solid ${T.border}`}}>
+            <button onClick={()=>setSelectedTask(null)} style={{width:"100%",padding:"8px 12px",fontSize:13,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
       {cols.map(col=>(
         <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
@@ -1048,7 +1110,7 @@ function TasksPage({tasks,setTasks,clients,staff}) {
           </div>
           {tasks.filter(t=>t.col===col.id).map(task=>{
             const pc=priorityConfig[task.priority];
-            return <div key={task.id} onClick={()=>moveTask(task.id)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${pc.color}`,transition:"border-color 0.12s"}}>
+            return <div key={task.id} onClick={()=>setSelectedTask(task)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${pc.color}`,transition:"all 0.12s",hover:{opacity:0.8}}}>
               <div style={{fontSize:12,fontWeight:500,color:T.textPrimary,marginBottom:8,lineHeight:1.4}}>{task.title}</div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
                 <span style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:4,background:pc.bg,color:pc.color}}>{pc.label}</span>
