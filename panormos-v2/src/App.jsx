@@ -2006,6 +2006,33 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  // 30 dakika hareketsizlik sonrası otomatik çıkış
+  useEffect(() => {
+    if (!session) return;
+    const TIMEOUT = 30 * 60 * 1000; // 30 dakika
+    let timer;
+
+    const logout = async () => {
+      await supabase.auth.signOut();
+      alert("30 dakika işlem yapılmadığı için oturumunuz kapatıldı. Lütfen tekrar giriş yapın.");
+      window.location.reload();
+    };
+
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(logout, TIMEOUT);
+    };
+
+    const events = ["mousedown", "keydown", "scroll", "touchstart", "click"];
+    events.forEach(e => window.addEventListener(e, resetTimer));
+    resetTimer(); // başlat
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [session]);
+
   useEffect(() => {
     if (!session) return;
     supabase.from('staff').select('*').eq('auth_id', session.user.id).single()
