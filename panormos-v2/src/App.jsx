@@ -22,9 +22,7 @@ const platformConfig = {
   fb: { label: "Facebook", color: "#1877F2", bg: "rgba(24,119,242,0.12)", icon: "FB" },
 };
 
-// ✨ YENİ: İçerik türü güncellemesi
 const CONTENT_TYPES = ["Reels", "Post", "Hikaye", "Kaydırmalı Post", "Yayına Alındı", "Yayından Kaldırıldı"];
-
 const TR_MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 
 function getMonthGrid(year, month) {
@@ -60,6 +58,7 @@ function encryptText(text) {
   }
   return btoa(unescape(encodeURIComponent(result)));
 }
+
 function decryptText(encoded) {
   if (!encoded) return "";
   try {
@@ -74,7 +73,6 @@ function decryptText(encoded) {
   }
 }
 
-// ✨ DETAYLI EXCEL EXPORT - Başlık satırı, formatı vb.
 function exportToExcelDetailed(rows, filename, title = "") {
   if (!rows || rows.length === 0) {
     alert("Dışa aktarılacak veri bulunamadı");
@@ -82,19 +80,15 @@ function exportToExcelDetailed(rows, filename, title = "") {
   }
   
   const headers = Object.keys(rows[0]);
+  let csvContent = "\uFEFF";
   
-  let csvContent = "\uFEFF"; // BOM for UTF-8
-  
-  // Başlık
   if (title) {
     csvContent += title + "\n";
     csvContent += "İndiriş Tarihi: " + new Date().toLocaleString("tr-TR") + "\n\n";
   }
   
-  // Başlık satırı
   csvContent += headers.map(h => `"${h}"`).join(";") + "\n";
   
-  // Veriler
   csvContent += rows.map(row => {
     return headers.map(h => {
       let val = row[h] === null || row[h] === undefined ? "" : String(row[h]);
@@ -117,203 +111,6 @@ function exportToExcelDetailed(rows, filename, title = "") {
   URL.revokeObjectURL(url);
 }
 
-async function callAI(systemPrompt, userMessage) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-  const data = await res.json();
-  return data.content?.[0]?.text || "Yanıt alınamadı.";
-}
-
-function AIPanel({ title, icon, color, systemPrompt, userPrompt, onClose, extraActions }) {
-  const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-  const [customPrompt, setCustomPrompt] = useState("");
-
-  const run = async (prompt) => {
-    setLoading(true); setDone(false); setResult("");
-    try {
-      const r = await callAI(systemPrompt, prompt || userPrompt);
-      setResult(r);
-    } catch(e) {
-      setResult("Hata: API bağlantısı kurulamadı.");
-    }
-    setLoading(false); setDone(true);
-  };
-
-  useEffect(() => { run(); }, []);
-
-  return (
-    <div style={{
-      position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", display:"flex",
-      alignItems:"center", justifyContent:"center", zIndex:2000, backdropFilter:"blur(6px)",
-    }} onClick={onClose}>
-      <div style={{
-        background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:18,
-        width:580, maxHeight:"82vh", display:"flex", flexDirection:"column",
-        overflow:"hidden", boxShadow:`0 0 60px ${color}22`,
-      }} onClick={e=>e.stopPropagation()}>
-        <div style={{
-          padding:"18px 22px", borderBottom:`1px solid ${T.border}`,
-          background:`linear-gradient(135deg, ${color}12, transparent)`,
-          display:"flex", alignItems:"center", gap:12,
-        }}>
-          <div style={{
-            width:38, height:38, borderRadius:10, background:`${color}22`,
-            border:`1.5px solid ${color}55`, display:"flex", alignItems:"center",
-            justifyContent:"center", fontSize:18,
-          }}>{icon}</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14, fontWeight:700, color:T.textPrimary}}>{title}</div>
-            <div style={{fontSize:11, color:T.textMuted, marginTop:2}}>Claude Sonnet 4.6 ile güçlendirildi</div>
-          </div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer",lineHeight:1}}>✕</button>
-        </div>
-
-        <div style={{flex:1, overflowY:"auto", padding:"20px 22px"}}>
-          {loading && (
-            <div style={{display:"flex", flexDirection:"column", alignItems:"center", gap:16, padding:"40px 0"}}>
-              <div style={{
-                width:44, height:44, borderRadius:"50%",
-                border:`3px solid ${T.border}`, borderTopColor:color,
-                animation:"spin 0.8s linear infinite",
-              }} />
-              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-            </div>
-          )}
-          {!loading && result && (
-            <div style={{
-              fontSize:13, color:T.textSecondary, lineHeight:1.75,
-              whiteSpace:"pre-wrap", background:T.bgSurface,
-              border:`1px solid ${T.border}`, borderRadius:12, padding:"16px 18px",
-            }}>{result}</div>
-          )}
-        </div>
-
-        <div style={{padding:"16px 22px", borderTop:`1px solid ${T.border}`, background:T.bgSurface}}>
-          <div style={{display:"flex", gap:8, marginBottom:done && extraActions ? 10 : 0}}>
-            <input
-              value={customPrompt}
-              onChange={e=>setCustomPrompt(e.target.value)}
-              onKeyDown={e=>e.key==="Enter" && customPrompt && run(customPrompt)}
-              placeholder="Farklı bir şey sor..."
-              style={{
-                flex:1, background:T.bgInput, border:`1px solid ${T.border}`, borderRadius:9,
-                padding:"8px 13px", fontSize:13, color:T.textPrimary, outline:"none",
-              }}
-            />
-            <button onClick={()=>customPrompt && run(customPrompt)} style={{
-              background:color, color:"#fff", border:"none", borderRadius:9,
-              padding:"8px 16px", fontSize:12, fontWeight:600, cursor:"pointer",
-            }}>Sor</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const fmtMoney = n => n.toLocaleString("tr-TR") + " ₺";
-
-const statusConfig = {
-  done:{label:"Yayınlandı",color:T.green,bg:T.greenDim},
-  planned:{label:"Planlandı",color:T.amber,bg:T.amberDim},
-  in_progress:{label:"Hazırlanıyor",color:T.indigo,bg:T.indigoGlow},
-  paid:{label:"Ödendi",color:T.green,bg:T.greenDim},
-  pending:{label:"Bekliyor",color:T.amber,bg:T.amberDim},
-  overdue:{label:"Gecikti",color:T.red,bg:T.redDim},
-};
-
-const priorityConfig = {
-  high:{label:"Yüksek",color:T.red,bg:T.redDim},
-  mid:{label:"Orta",color:T.amber,bg:T.amberDim},
-  low:{label:"Düşük",color:T.green,bg:T.greenDim},
-};
-
-function Badge({status}) {
-  const cfg = statusConfig[status] || statusConfig.planned;
-  return <span style={{fontSize:11,fontWeight:500,padding:"3px 9px",borderRadius:20,background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.color}22`}}>{cfg.label}</span>;
-}
-
-function PlatformTag({id}) {
-  const p = platformConfig[id]; if(!p) return null;
-  return <span style={{fontSize:10,fontWeight:700,padding:"3px 7px",borderRadius:5,background:p.bg,color:p.color,letterSpacing:"0.04em"}}>{p.icon}</span>;
-}
-
-function Avatar({initials,color,size=36}) {
-  return <div style={{width:size,height:size,borderRadius:"50%",flexShrink:0,background:`${color}22`,border:`1.5px solid ${color}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.32,fontWeight:600,color,letterSpacing:"0.02em"}}>{initials}</div>;
-}
-
-function Card({children,style={},onClick,hover=false}) {
-  const [hov,setHov]=useState(false);
-  return <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:hov&&hover?T.bgCardHover:T.bgCard,border:`1px solid ${hov&&hover?T.borderLight:T.border}`,borderRadius:12,transition:"all 0.15s ease",cursor:onClick?"pointer":"default",...style}}>{children}</div>;
-}
-
-function StatCard({label,value,color,sub}) {
-  return <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px"}}>
-    <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>{label}</div>
-    <div style={{fontSize:22,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em"}}>{value}</div>
-    {sub&&<div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{sub}</div>}
-  </div>;
-}
-
-function Btn({children,onClick,variant="ghost",style={}}) {
-  const [hov,setHov]=useState(false);
-  const styles={
-    primary:{background:T.amber,color:T.white,border:"none"},
-    ghost:{background:hov?T.bgSurface:"transparent",color:T.textSecondary,border:`1px solid ${T.border}`},
-    ai:{background:hov?"rgba(242,81,36,0.22)":T.amberDim,color:T.amberText,border:`1px solid ${T.amber}44`},
-  };
-  return <button onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12,fontWeight:500,padding:"6px 14px",borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
-}
-
-function Modal({title,onClose,children}) {
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={onClose}>
-    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,maxWidth:500,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{title}</div>
-        <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
-      </div>
-      {children}
-    </div>
-  </div>;
-}
-
-function FormField({label,children}) {
-  return <div style={{marginBottom:12}}>
-    <label style={{fontSize:11,color:T.textMuted,display:"block",marginBottom:5,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>{label}</label>
-    {children}
-  </div>;
-}
-
-function Input({value,onChange,placeholder,type="text"}) {
-  return <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />;
-}
-
-function Select({value,onChange,children}) {
-  return <select value={value} onChange={onChange} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none"}}>{children}</select>;
-}
-
-function Textarea({value,onChange,placeholder}) {
-  return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box",minHeight:80,fontFamily:"inherit",resize:"vertical"}} />;
-}
-
-function ModalActions({onClose,onSave}) {
-  return <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
-    <Btn onClick={onClose}>Vazgeç</Btn>
-    <Btn variant="primary" onClick={onSave}>Kaydet</Btn>
-  </div>;
-}
-
-// ✨ YENİ: Mesajlaşma Komponenti
 function MessagingPanel({clientId, clientName, onClose}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -331,7 +128,6 @@ function MessagingPanel({clientId, clientName, onClose}) {
     
     setMessages(prev => [...prev, msg]);
     
-    // Supabase'e kaydet
     await supabase.from('messages').insert({
       client_id: clientId,
       text: newMessage,
@@ -397,7 +193,6 @@ function MessagingPanel({clientId, clientName, onClose}) {
   );
 }
 
-// ✨ YENİ: Dosya Yükleme Komponenti
 function FileUploadPanel({clientId, onClose, onUploadComplete}) {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -427,7 +222,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           .upload(fileName, file);
         
         if (!error) {
-          // Veritabanına kaydet
           await supabase.from('media').insert({
             client_id: clientId,
             name: file.name,
@@ -459,7 +253,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer"}}>✕</button>
         </div>
         
-        {/* Drag & Drop Alanı */}
         <div
           onDragOver={e=>e.preventDefault()}
           onDrop={handleDragDrop}
@@ -488,7 +281,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           />
         </div>
         
-        {/* Seçili Dosyalar */}
         {files.length > 0 && (
           <div style={{marginBottom:16}}>
             <div style={{fontSize:12,color:T.textMuted,marginBottom:8,fontWeight:500}}>Seçili Dosyalar ({files.length})</div>
@@ -532,7 +324,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           </div>
         )}
         
-        {/* Uyarı */}
         <div style={{
           fontSize:11,
           color:T.textMuted,
@@ -545,31 +336,121 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           💾 Maksimum 500 MB dosya yükleyebilirsin. Video ve resim formatları destekleniyor.
         </div>
         
-        {/* Butonlar */}
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
-          <Btn onClick={onClose}>Vazgeç</Btn>
-          <Btn 
-            variant="primary" 
+          <button onClick={onClose} style={{fontSize:12,fontWeight:500,padding:"6px 14px",borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.12s ease",background:"transparent",color:T.textSecondary,border:`1px solid ${T.border}`}}>Vazgeç</button>
+          <button 
             onClick={handleUpload}
-            style={{opacity: uploading ? 0.6 : 1, pointerEvents: uploading ? "none" : "auto"}}
+            style={{
+              fontSize:12,fontWeight:500,padding:"6px 14px",borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.12s ease",background:T.amber,color:T.white,border:"none",opacity: uploading ? 0.6 : 1, pointerEvents: uploading ? "none" : "auto"
+            }}
           >
             {uploading ? "Yükleniyor..." : `Yükle (${files.length})`}
-          </Btn>
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+const fmtMoney = n => n.toLocaleString("tr-TR") + " ₺";
+
+const statusConfig = {
+  done:{label:"Yayınlandı",color:T.green,bg:T.greenDim},
+  planned:{label:"Planlandı",color:T.amber,bg:T.amberDim},
+  in_progress:{label:"Hazırlanıyor",color:T.indigo,bg:T.indigoGlow},
+  paid:{label:"Ödendi",color:T.green,bg:T.greenDim},
+  pending:{label:"Bekliyor",color:T.amber,bg:T.amberDim},
+  overdue:{label:"Gecikti",color:T.red,bg:T.redDim},
+};
+
+const priorityConfig = {
+  high:{label:"Yüksek",color:T.red,bg:T.redDim},
+  mid:{label:"Orta",color:T.amber,bg:T.amberDim},
+  low:{label:"Düşük",color:T.green,bg:T.greenDim},
+};
+
+function Badge({status}) {
+  const cfg = statusConfig[status] || statusConfig.planned;
+  return <span style={{fontSize:11,fontWeight:500,padding:"3px 9px",borderRadius:20,background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.color}22`}}>{cfg.label}</span>;
+}
+
+function PlatformTag({id}) {
+  const p = platformConfig[id]; if(!p) return null;
+  return <span style={{fontSize:10,fontWeight:700,padding:"3px 7px",borderRadius:5,background:p.bg,color:p.color,letterSpacing:"0.04em"}}>{p.icon}</span>;
+}
+
+function Avatar({initials,color,size=36}) {
+  return <div style={{width:size,height:size,borderRadius:"50%",flexShrink:0,background:`${color}22`,border:`1.5px solid ${color}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.32,fontWeight:600,color,letterSpacing:"0.02em"}}>{initials}</div>;
+}
+
+function Card({children,style={},onClick,hover=false}) {
+  const [hov,setHov]=useState(false);
+  return <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:hov&&hover?T.bgCardHover:T.bgCard,border:`1px solid ${hov&&hover?T.borderLight:T.border}`,borderRadius:12,transition:"all 0.15s ease",cursor:onClick?"pointer":"default",...style}}>{children}</div>;
+}
+
+function StatCard({label,value,color,sub}) {
+  return <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px"}}>
+    <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>{label}</div>
+    <div style={{fontSize:22,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em"}}>{value}</div>
+    {sub&&<div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{sub}</div>}
+  </div>;
+}
+
+function Btn({children,onClick,variant="ghost",style={}}) {
+  const [hov,setHov]=useState(false);
+  const styles={
+    primary:{background:T.amber,color:T.white,border:"none"},
+    ghost:{background:hov?T.bgSurface:"transparent",color:T.textSecondary,border:`1px solid ${T.border}`},
+  };
+  return <button onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12,fontWeight:500,padding:"6px 14px",borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
+}
+
+function Modal({title,onClose,children}) {
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={onClose}>
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,maxWidth:500,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{title}</div>
+        <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+      </div>
+      {children}
+    </div>
+  </div>;
+}
+
+function FormField({label,children}) {
+  return <div style={{marginBottom:12}}>
+    <label style={{fontSize:11,color:T.textMuted,display:"block",marginBottom:5,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>{label}</label>
+    {children}
+  </div>;
+}
+
+function Input({value,onChange,placeholder,type="text"}) {
+  return <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />;
+}
+
+function Textarea({value,onChange,placeholder}) {
+  return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box",minHeight:80,fontFamily:"inherit",resize:"vertical"}} />;
+}
+
+function Select({value,onChange,children}) {
+  return <select value={value} onChange={onChange} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none"}}>{children}</select>;
+}
+
+function ModalActions({onClose,onSave}) {
+  return <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
+    <Btn onClick={onClose}>Vazgeç</Btn>
+    <Btn variant="primary" onClick={onSave}>Kaydet</Btn>
+  </div>;
+}
+
 // ─────────────────────────────────────────────
-// CLIENTS PAGE - Geliştirilmiş
+// CLIENTS PAGE
 // ─────────────────────────────────────────────
 function ClientsPage({clients,setClients}) {
   const [open,setOpen]=useState(null);
   const [tab,setTab]=useState({});
   const [modal,setModal]=useState(null);
   const [form,setForm]=useState({});
-  const [ai,setAi]=useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("Tümü");
   const [filterPlatform, setFilterPlatform] = useState("Tümü");
@@ -674,7 +555,6 @@ function ClientsPage({clients,setClients}) {
       })}
     </div>
 
-    {/* Modal: Yeni Müşteri */}
     {modal==="addClient"&&<Modal title="Yeni müşteri ekle" onClose={()=>setModal(null)}>
       <FormField label="İşletme adı"><Input placeholder="Örn: Lezzet Durağı" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Kategori"><Input placeholder="Örn: Restoran & Cafe" value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
@@ -735,7 +615,6 @@ function ClientsPage({clients,setClients}) {
       }} />
     </Modal>}
 
-    {/* Mesajlaşma Paneli */}
     {messagingClient && <MessagingPanel clientId={messagingClient.id} clientName={messagingClient.name} onClose={()=>setMessagingClient(null)} />}
   </div>;
 }
@@ -743,7 +622,7 @@ function ClientsPage({clients,setClients}) {
 function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient}) {
   const [uploadPanel, setUploadPanel] = useState(false);
   
-  const tabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"},{id:"invoices",lbl:"Faturalar"},{id:"social",lbl:"Sosyal Hesaplar"}];
+  const tabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"},{id:"invoices",lbl:"Faturalar"}];
 
   return <div style={{background:T.bgSurface,border:`1px solid ${T.borderLight}`,borderTop:"none",borderRadius:"0 0 12px 12px",marginBottom:2}}>
     <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,padding:"0 20px",gap:2,alignItems:"center",flexWrap:"wrap"}}>
@@ -751,15 +630,14 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
         {currentTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
         {currentTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
-        <Btn variant="ghost" onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
+        <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
       </div>
     </div>
     <div style={{padding:20}}>
       {currentTab==="overview"&&<ClientOverview client={client}/>}
       {currentTab==="posts"&&<ClientPosts client={client}/>}
       {currentTab==="media"&&<ClientMedia client={client}/>}
-      {currentTab==="invoices"&&<ClientInvoices client={client} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm}/>}
-      {currentTab==="social"&&<ClientSocialAccounts client={client} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm}/>}
+      {currentTab==="invoices"&&<ClientInvoices client={client}/>}
     </div>
     
     {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);}} />}
@@ -841,10 +719,9 @@ function ClientMedia({client}) {
   </div>;
 }
 
-function ClientInvoices({client,clients,setClients,setModal,setForm}) {
+function ClientInvoices({client}) {
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
-  const pct=total>0?Math.round(paid/total*100):0;
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
@@ -867,37 +744,6 @@ function ClientInvoices({client,clients,setClients,setModal,setForm}) {
             <div style={{fontSize:10,color:T.textMuted}}>KDV dahil</div>
           </div>
           <Badge status={inv.status}/>
-        </div>
-      ))}
-    </div>
-  </div>;
-}
-
-function ClientSocialAccounts({client,clients,setClients,setModal,setForm}) {
-  const [visiblePasswords,setVisiblePasswords]=useState({});
-  const accounts = client.socialAccounts || [];
-
-  return <div>
-    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-      {accounts.length===0 && <div style={{fontSize:13,color:T.textMuted,textAlign:"center",padding:"30px 0"}}>Henüz sosyal medya hesabı eklenmemiş.</div>}
-      {accounts.map(acc=>(
-        <div key={acc.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-            <PlatformTag id={acc.platform}/>
-            <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{acc.username||"—"}</span>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,fontSize:12}}>
-            <div>
-              <div style={{color:T.textMuted,marginBottom:3,fontSize:10,textTransform:"uppercase"}}>Şifre</div>
-              <span style={{color:T.textPrimary,fontFamily:"monospace"}}>
-                {visiblePasswords[acc.id] ? (acc.password || decryptText(acc.passwordEncrypted)) : "••••••••"}
-              </span>
-            </div>
-            <div>
-              <div style={{color:T.textMuted,marginBottom:3,fontSize:10,textTransform:"uppercase"}}>Telefon</div>
-              <div style={{color:T.textPrimary}}>{acc.phone || "—"}</div>
-            </div>
-          </div>
         </div>
       ))}
     </div>
@@ -961,7 +807,6 @@ function TasksPage({tasks,setTasks,clients,staff}) {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Müşteri</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.client}</div></div>
-            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Atanan</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.assignee}</div></div>
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
                 {cols.map(c=>(
@@ -1000,14 +845,13 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     {modal&&<Modal title="Yeni görev" onClose={()=>setModal(false)}>
       <FormField label="Başlık"><Input placeholder="Görev" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
       <FormField label="Müşteri"><Select value={form.client||""} onChange={e=>setForm(f=>({...f,client:e.target.value}))}>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
-      <FormField label="Atanan"><Select value={form.assignee||""} onChange={e=>setForm(f=>({...f,assignee:e.target.value}))}>{staff.map(s=><option key={s.id} value={s.initials}>{s.name}</option>)}</Select></FormField>
       <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
       <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(false)} onSave={async()=>{
         if(!form.title)return;
         const { data, error } = await supabase.from('tasks').insert({
-          title: form.title, client_id: null, assignee_id: null, type: form.type||"Tasarım",
+          title: form.title, type: form.type||"Tasarım",
           priority: form.priority||"mid", due_date: form.due||"—", col: "todo",
         }).select().single();
         if(!error && data){
@@ -1016,6 +860,82 @@ function TasksPage({tasks,setTasks,clients,staff}) {
         setModal(false);
       }} />
     </Modal>}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// CALENDAR PAGE
+// ─────────────────────────────────────────────
+function CalendarPage({clients}) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const cells = getMonthGrid(viewYear, viewMonth);
+
+  const goPrevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y=>y-1); }
+    else setViewMonth(m=>m-1);
+  };
+  const goNextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y=>y+1); }
+    else setViewMonth(m=>m+1);
+  };
+  const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
+
+  const isRealToday = (day, currentMonth) => currentMonth && viewYear===today.getFullYear() && viewMonth===today.getMonth() && day===today.getDate();
+  const getWeekday = (cellIndex) => cellIndex % 7;
+  
+  const TR_WEEKDAY_INDEX = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
+  function getWeekdayIndex(dayName) {
+    const map = {
+      "pazartesi":"Pazartesi", "salı":"Salı", "sali":"Salı",
+      "çarşamba":"Çarşamba", "carsamba":"Çarşamba",
+      "perşembe":"Perşembe", "persembe":"Perşembe",
+      "cuma":"Cuma", "cumartesi":"Cumartesi", "pazar":"Pazar",
+    };
+    const lower = dayName.trim().toLocaleLowerCase("tr-TR");
+    const normalized = map[lower] || dayName.trim();
+    return TR_WEEKDAY_INDEX[normalized];
+  }
+
+  return <div>
+    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+      <button onClick={goPrevMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>‹</button>
+      <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+      <button onClick={goToday} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.amberText,cursor:"pointer",fontSize:11,fontWeight:600}}>Bugün</button>
+      <div style={{display:"flex",gap:12}}>
+        {[{l:"Paylaşım",c:T.amberText},{l:"Çekim",c:"#F9A8D4"}].map(l=>(
+          <div key={l.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
+        ))}
+      </div>
+      <button onClick={goNextMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>›</button>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+      {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(d=><div key={d} style={{fontSize:11,color:T.textMuted,textAlign:"center",padding:"4px 0",fontWeight:600,letterSpacing:"0.04em"}}>{d}</div>)}
+      {cells.map((cell,i)=>{
+        const weekday = getWeekday(i);
+        const isToday = isRealToday(cell.day, cell.currentMonth);
+        const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => getWeekdayIndex(d) === weekday)) : [];
+        const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => getWeekdayIndex(d) === weekday)) : [];
+        return <div key={i} style={{
+          minHeight:90,
+          background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
+          border:`1px solid ${isToday?"#223A5988":T.border}`,
+          borderRadius:10, padding:"6px 7px",
+          opacity: cell.currentMonth ? 1 : 0.35,
+        }}>
+          <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
+          {publishClients.slice(0,2).map((c,ci)=>(
+            <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{c.name}</div>
+          ))}
+          {shootClients.slice(0,2).map((c,ci)=>(
+            <div key={"s"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>📷 {c.name}</div>
+          ))}
+          {(publishClients.length+shootClients.length)>4 && <div style={{fontSize:9,color:T.textMuted}}>+{publishClients.length+shootClients.length-4}</div>}
+        </div>;
+      })}
+    </div>
   </div>;
 }
 
@@ -1044,6 +964,7 @@ function StaffPage({staff,setStaff}) {
 
 const NAV=[
   {id:"clients",label:"Müşteriler",icon:"🏢"},
+  {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
@@ -1056,7 +977,6 @@ async function loadAllData() {
     { data: postsRaw },
     { data: invoicesRaw },
     { data: mediaRaw },
-    { data: socialRaw },
   ] = await Promise.all([
     supabase.from('clients').select('*'),
     supabase.from('staff').select('*'),
@@ -1064,7 +984,6 @@ async function loadAllData() {
     supabase.from('posts').select('*'),
     supabase.from('invoices').select('*'),
     supabase.from('media').select('*'),
-    supabase.from('social_accounts').select('*'),
   ]);
 
   const clients = (clientsRaw || []).map(c => ({
@@ -1081,9 +1000,6 @@ async function loadAllData() {
     })),
     media: (mediaRaw || []).filter(m => m.client_id === c.id).map(m => ({
       id: m.id, name: m.name, type: m.type, size: m.size, date: m.date,
-    })),
-    socialAccounts: (socialRaw || []).filter(s => s.client_id === c.id).map(s => ({
-      id: s.id, platform: s.platform, username: s.username, passwordEncrypted: s.password_encrypted, phone: s.phone,
     })),
   }));
 
@@ -1152,9 +1068,12 @@ export default function App() {
 
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif"}}>
     <div style={{width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
-      <div style={{padding:"16px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:18,fontWeight:700,color:T.amberText}}>📊 Panormos</div>
-        <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>Medya Yönetim Paneli</div>
+      <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{marginBottom:6}}>
+          <div style={{fontSize:16,fontWeight:700,color:T.amberText}}>📊 Panormos</div>
+          <div style={{fontSize:13,fontWeight:700,color:T.amberText}}>medya</div>
+        </div>
+        <div style={{fontSize:9,color:T.textMuted,letterSpacing:"0.02em"}}>Medya Yönetim Paneli</div>
       </div>
       <div style={{flex:1,padding:"12px 8px"}}>
         {NAV.map(item=>(
@@ -1174,11 +1093,12 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>
-          {page === 'clients' ? '🏢 Müşteriler' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
+          {page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients}/>}
+        {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff}/>}
       </div>
