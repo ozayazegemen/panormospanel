@@ -1700,7 +1700,133 @@ function StaffPage({staff,setStaff,allStaff}) {
   </div>;
 }
 
+// ─────────────────────────────────────────────
+// ANA SAYFA (DASHBOARD)
+// ─────────────────────────────────────────────
+function DashboardPage({clients, staff, tasks, setPage}) {
+  const totalRevenue = clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
+  const paidRevenue = clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="paid").reduce((ss,i)=>ss+i.total,0),0);
+  const pendingRevenue = totalRevenue - paidRevenue;
+  const monthlyTotal = clients.reduce((s,c)=>s+c.monthlyFee,0);
+  const totalPosts = clients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0);
+  const doneTasks = tasks.filter(t=>t.col==="done").length;
+  const activeTasks = tasks.filter(t=>t.col!=="done").length;
+  const taskProgress = tasks.length > 0 ? Math.round((doneTasks/tasks.length)*100) : 0;
+
+  // Bugünün paylaşım/çekim günleri
+  const today = new Date();
+  let wd = today.getDay(); wd = wd === 0 ? 6 : wd - 1;
+  const TR_WD = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
+  const wdIndex = (dn) => {
+    const map={"pazartesi":"Pazartesi","salı":"Salı","sali":"Salı","çarşamba":"Çarşamba","carsamba":"Çarşamba","perşembe":"Perşembe","persembe":"Perşembe","cuma":"Cuma","cumartesi":"Cumartesi","pazar":"Pazar"};
+    return TR_WD[map[dn.trim().toLocaleLowerCase("tr-TR")] || dn.trim()];
+  };
+  const todayPublish = clients.filter(c => c.publishDays.some(d => wdIndex(d) === wd));
+  const todayShoot = clients.filter(c => c.shootDays.some(d => wdIndex(d) === wd));
+  const todayName = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd];
+
+  const NavCard = ({icon,label,value,sub,color,target}) => (
+    <div onClick={()=>setPage(target)} style={{
+      background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",
+      cursor:"pointer",transition:"all 0.15s ease",
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderLight;e.currentTarget.style.background=T.bgCardHover;}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bgCard;}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <span style={{fontSize:22}}>{icon}</span>
+        <span style={{fontSize:13,fontWeight:600,color:T.textSecondary}}>{label}</span>
+      </div>
+      <div style={{fontSize:28,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em"}}>{value}</div>
+      {sub && <div style={{fontSize:12,color:T.textMuted,marginTop:6}}>{sub}</div>}
+    </div>
+  );
+
+  return <div>
+    {/* Karşılama */}
+    <div style={{marginBottom:24}}>
+      <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>Hoş geldin 👋</div>
+      <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+    </div>
+
+    {/* Finansal Özet */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
+      <div style={{background:`linear-gradient(135deg, ${T.bgCard}, ${T.indigoDim})`,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Toplam Ciro</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.textPrimary}}>{fmtMoney(totalRevenue)}</div>
+      </div>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Tahsil Edilen</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.greenText}}>{fmtMoney(paidRevenue)}</div>
+      </div>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Bekleyen Tahsilat</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.amberText}}>{fmtMoney(pendingRevenue)}</div>
+      </div>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Aylık Gelir</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.indigoText}}>{fmtMoney(monthlyTotal)}</div>
+      </div>
+    </div>
+
+    {/* Bugün */}
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
+      <div style={{fontSize:14,fontWeight:600,color:T.textPrimary,marginBottom:14}}>📅 Bugün ({todayName})</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <div>
+          <div style={{fontSize:11,color:T.amberText,fontWeight:600,marginBottom:8}}>PAYLAŞIM ({todayPublish.length})</div>
+          {todayPublish.length === 0 ? (
+            <div style={{fontSize:12,color:T.textMuted}}>Bugün paylaşım yok</div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {todayPublish.map(c=>(
+                <div key={c.id} style={{fontSize:12,color:T.textPrimary,padding:"6px 10px",background:"rgba(242,81,36,0.12)",borderRadius:6,borderLeft:`2px solid ${c.accentColor}`}}>{c.name}</div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div>
+          <div style={{fontSize:11,color:"#F9A8D4",fontWeight:600,marginBottom:8}}>ÇEKİM ({todayShoot.length})</div>
+          {todayShoot.length === 0 ? (
+            <div style={{fontSize:12,color:T.textMuted}}>Bugün çekim yok</div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {todayShoot.map(c=>(
+                <div key={c.id} style={{fontSize:12,color:T.textPrimary,padding:"6px 10px",background:"rgba(236,72,153,0.12)",borderRadius:6,borderLeft:`2px solid ${c.accentColor}`}}>📷 {c.name}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Görev İlerlemesi */}
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <span style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>📋 Görev İlerlemesi</span>
+        <span style={{fontSize:16,fontWeight:700,color:T.amber}}>{taskProgress}%</span>
+      </div>
+      <div style={{height:10,background:T.bgSurface,borderRadius:5,overflow:"hidden",border:`1px solid ${T.border}`}}>
+        <div style={{height:"100%",width:`${taskProgress}%`,background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,borderRadius:5,transition:"width 0.6s ease"}} />
+      </div>
+      <div style={{display:"flex",gap:16,marginTop:10,fontSize:12,color:T.textMuted}}>
+        <span>✓ {doneTasks} tamamlandı</span>
+        <span>→ {activeTasks} devam ediyor</span>
+      </div>
+    </div>
+
+    {/* Hızlı Erişim Kartları */}
+    <div style={{fontSize:13,fontWeight:600,color:T.textSecondary,marginBottom:12}}>Hızlı Erişim</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
+      <NavCard icon="🏢" label="Müşteriler" value={clients.length} sub="Aktif müşteri" color={T.textPrimary} target="clients" />
+      <NavCard icon="👥" label="Çalışanlar" value={staff.length} sub="Ekip üyesi" color={T.textPrimary} target="staff" />
+      <NavCard icon="📋" label="Görevler" value={activeTasks} sub="Aktif görev" color={T.amberText} target="tasks" />
+      <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="calendar" />
+    </div>
+  </div>;
+}
+
 const NAV=[
+  {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
@@ -1763,12 +1889,12 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
-    const validPages = ['clients', 'calendar', 'ideas', 'tasks', 'staff'];
+    const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
     if (validPages.includes(saved)) return saved;
-    return 'clients';
+    return 'dashboard';
   });
   const [clients, setClients] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -1786,7 +1912,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['clients', 'calendar', 'ideas', 'tasks', 'staff'];
+      const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -1857,10 +1983,11 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>
-          {page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
+          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
+        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients}/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
