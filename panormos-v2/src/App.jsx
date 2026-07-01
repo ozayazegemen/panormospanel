@@ -220,6 +220,61 @@ function EmojiButton({ onSelect, size = 18 }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// GÜN & SAAT SEÇİCİLER
+// ─────────────────────────────────────────────
+const DAYS_OF_WEEK = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+
+// Haftanın günlerini seçilebilir düğmeler olarak göster
+function DaySelector({ selected = [], onChange, activeColor }) {
+  const col = activeColor || T.amber;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {DAYS_OF_WEEK.map(day => {
+        const sel = selected.includes(day);
+        return (
+          <span key={day} onClick={() => onChange(sel ? selected.filter(d => d !== day) : [...selected, day])}
+            style={{
+              fontSize: 12, fontWeight: sel ? 600 : 400, padding: "7px 12px", borderRadius: 8, cursor: "pointer",
+              background: sel ? col : T.bgInput, color: sel ? T.white : T.textSecondary,
+              border: `1px solid ${sel ? col : T.border}`, transition: "all 0.12s", userSelect: "none",
+            }}>{day}</span>
+        );
+      })}
+    </div>
+  );
+}
+
+// Saatleri ekle/çıkar (HH:MM listesi)
+function TimeSelector({ times = [], onChange }) {
+  const [newTime, setNewTime] = useState("");
+  const addTime = () => {
+    if (newTime && !times.includes(newTime)) {
+      onChange([...times, newTime].sort());
+      setNewTime("");
+    }
+  };
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, marginBottom: times.length > 0 ? 8 : 0 }}>
+        <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)}
+          style={{ flex: 1, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: T.textPrimary, outline: "none" }} />
+        <button type="button" onClick={addTime}
+          style={{ background: T.indigo, color: "#A8C4DC", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Ekle</button>
+      </div>
+      {times.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {times.map(t => (
+            <span key={t} onClick={() => onChange(times.filter(x => x !== t))}
+              style={{ fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 6, cursor: "pointer", background: T.amberDim, color: T.amberText, border: `1px solid ${T.amber}44` }}
+              title="Kaldırmak için tıkla">🕐 {t} ✕</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getMonthGrid(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
@@ -242,6 +297,111 @@ function getMonthGrid(year, month) {
     if (cells.length >= 42) break;
   }
   return cells;
+}
+
+// Gün adını haftanın index'ine çevir (0=Pazartesi ... 6=Pazar)
+function weekdayIndexOf(dayName) {
+  const IDX = { Pazartesi: 0, Salı: 1, Çarşamba: 2, Perşembe: 3, Cuma: 4, Cumartesi: 5, Pazar: 6 };
+  const map = {
+    "pazartesi": "Pazartesi", "salı": "Salı", "sali": "Salı",
+    "çarşamba": "Çarşamba", "carsamba": "Çarşamba",
+    "perşembe": "Perşembe", "persembe": "Perşembe",
+    "cuma": "Cuma", "cumartesi": "Cumartesi", "pazar": "Pazar",
+  };
+  const lower = (dayName || "").trim().toLocaleLowerCase("tr-TR");
+  return IDX[map[lower] || (dayName || "").trim()];
+}
+
+// Müşteriye özel takvim (paylaşım/çekim günleri + paylaşımlar)
+function ClientCalendar({ client }) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  const cells = getMonthGrid(viewYear, viewMonth);
+  const publishIdx = (client.publishDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
+  const shootIdx = (client.shootDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
+  const publishTimes = client.publishTimes || [];
+
+  // Paylaşımları tarihe göre grupla (YYYY-MM-DD veya gün formatı)
+  const postsByDate = {};
+  (client.posts || []).forEach(p => {
+    if (p.date) postsByDate[p.date] = (postsByDate[p.date] || []).concat(p);
+  });
+
+  const goPrev = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); } else setViewMonth(m => m - 1); };
+  const goNext = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); } else setViewMonth(m => m + 1); };
+  const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
+
+  const dayNames = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+
+  return (
+    <div>
+      {/* Özet üst bilgi */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, minWidth: 160, background: "rgba(242,81,36,0.1)", border: `1px solid ${T.amber}44`, borderRadius: 10, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, color: T.amberText, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>📅 Paylaşım Günleri</div>
+          <div style={{ fontSize: 13, color: T.textPrimary, fontWeight: 500 }}>{(client.publishDays || []).join(", ") || "Belirtilmemiş"}</div>
+          {publishTimes.length > 0 && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>🕐 {publishTimes.join(", ")}</div>}
+        </div>
+        <div style={{ flex: 1, minWidth: 160, background: "rgba(236,72,153,0.1)", border: "1px solid #EC489944", borderRadius: 10, padding: "12px 14px" }}>
+          <div style={{ fontSize: 10, color: "#F9A8D4", fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>📷 Çekim Günleri</div>
+          <div style={{ fontSize: 13, color: T.textPrimary, fontWeight: 500 }}>{(client.shootDays || []).join(", ") || "Belirtilmemiş"}</div>
+        </div>
+      </div>
+
+      {/* Takvim başlığı */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <button onClick={goPrev} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>‹</button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary, flex: 1 }}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+        <button onClick={goToday} style={{ background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.amberText, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Bugün</button>
+        <button onClick={goNext} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>›</button>
+      </div>
+
+      {/* Gün başlıkları */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 4 }}>
+        {dayNames.map(d => <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: T.textMuted, padding: "4px 0" }}>{d}</div>)}
+      </div>
+
+      {/* Takvim hücreleri */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 }}>
+        {cells.map((cell, i) => {
+          const weekday = i % 7;
+          const isPublish = cell.currentMonth && publishIdx.includes(weekday);
+          const isShoot = cell.currentMonth && shootIdx.includes(weekday);
+          const dateStr = cell.currentMonth ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(cell.day).padStart(2, "0")}` : null;
+          const dayPosts = dateStr ? (postsByDate[dateStr] || []) : [];
+          const isToday = cell.currentMonth && cell.day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+
+          let bg = T.bgCard, borderCol = T.border;
+          if (isPublish && isShoot) { bg = "rgba(168,85,247,0.12)"; borderCol = "#A855F7"; }
+          else if (isPublish) { bg = "rgba(242,81,36,0.12)"; borderCol = `${T.amber}66`; }
+          else if (isShoot) { bg = "rgba(236,72,153,0.12)"; borderCol = "#EC489966"; }
+
+          return (
+            <div key={i} style={{
+              minHeight: 66, borderRadius: 8, padding: "6px 7px", background: cell.currentMonth ? bg : "transparent",
+              border: `1px solid ${isToday ? T.amber : (cell.currentMonth ? borderCol : "transparent")}`, opacity: cell.currentMonth ? 1 : 0.3,
+            }}>
+              <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? T.amberText : T.textSecondary, marginBottom: 3 }}>{cell.day}</div>
+              {isPublish && <div style={{ fontSize: 8, fontWeight: 700, color: T.amberText, marginBottom: 1 }}>📅 Paylaşım</div>}
+              {isShoot && <div style={{ fontSize: 8, fontWeight: 700, color: "#F9A8D4" }}>📷 Çekim</div>}
+              {dayPosts.map((p, pi) => (
+                <div key={pi} style={{ fontSize: 8, color: T.textPrimary, background: T.bgSurface, borderRadius: 4, padding: "1px 4px", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.title}>{platformConfig[p.platform]?.icon || "•"} {p.title}</div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Açıklama */}
+      <div style={{ display: "flex", gap: 16, marginTop: 14, fontSize: 11, color: T.textMuted, flexWrap: "wrap" }}>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "rgba(242,81,36,0.4)", marginRight: 5, verticalAlign: "middle" }} />Paylaşım günü</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "rgba(236,72,153,0.4)", marginRight: 5, verticalAlign: "middle" }} />Çekim günü</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: "rgba(168,85,247,0.4)", marginRight: 5, verticalAlign: "middle" }} />İkisi birden</span>
+      </div>
+    </div>
+  );
 }
 
 const ENC_KEY = "panormos-medya-2026-secure-key";
@@ -1027,7 +1187,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         <span style={{fontSize:20}}>🖨️</span>
         <span style={{fontSize:11,fontWeight:600,color:T.textSecondary}}>Yazdır</span>
       </div>
-      {perms.manageClients && <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:"",shootDays:"",platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>}
+      {perms.manageClients && <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:[],shootDays:[],publishTimes:[],platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>}
     </div>
 
     <div style={{display:"flex",flexDirection:"column",gap:2}}>
@@ -1071,8 +1231,9 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
       <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>
-      <FormField label="Paylaşım günleri"><Input placeholder="Pazartesi, Çarşamba, Cuma" value={form.publishDays||""} onChange={e=>setForm(f=>({...f,publishDays:e.target.value}))} /></FormField>
-      <FormField label="Çekim günleri"><Input placeholder="Salı, Perşembe" value={form.shootDays||""} onChange={e=>setForm(f=>({...f,shootDays:e.target.value}))} /></FormField>
+      <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
+      <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
+      <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
       <FormField label="Platformlar">
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {Object.entries(platformConfig).map(([id,p])=>{const sel=(form.platforms||[]).includes(id);return <span key={id} onClick={()=>setForm(f=>({...f,platforms:sel?f.platforms.filter(x=>x!==id):[...(f.platforms||[]),id]}))} style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:6,cursor:"pointer",background:sel?p.bg:T.bgInput,color:sel?p.color:T.textMuted,border:`1px solid ${sel?p.color+"44":T.border}`}}>{p.label}</span>;})}
@@ -1083,18 +1244,59 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         const colors=["#6366F1","#EC4899","#10B981","#F59E0B","#F97316"];
         const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
         const accentColor = colors[clients.length%colors.length];
-        const publishDays = form.publishDays?form.publishDays.split(",").map(s=>s.trim()):[];
-        const shootDays = form.shootDays?form.shootDays.split(",").map(s=>s.trim()):[];
+        const publishDays = Array.isArray(form.publishDays)?form.publishDays:(form.publishDays?form.publishDays.split(",").map(s=>s.trim()):[]);
+        const shootDays = Array.isArray(form.shootDays)?form.shootDays:(form.shootDays?form.shootDays.split(",").map(s=>s.trim()):[]);
+        const publishTimes = form.publishTimes||[];
         const { data, error } = await supabase.from('clients').insert({
           name: form.name, category: form.category||"", initials, accent_color: accentColor,
           phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"",
-          platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays,
+          platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026",
         }).select().single();
-        if(!error && data){
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
+        if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nSupabase'de publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
+        if(data){
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
         }
+        setModal(null);
+      }} />
+    </Modal>}
+
+    {modal==="editClient"&&<Modal title="Müşteri Bilgilerini Düzenle" onClose={()=>setModal(null)}>
+      <FormField label="İşletme adı"><Input placeholder="Örn: Lezzet Durağı" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
+      <FormField label="Kategori"><Input placeholder="Örn: Restoran & Cafe" value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
+      <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <FormField label="İl"><Input placeholder="Istanbul" value={form.city||""} onChange={e=>setForm(f=>({...f,city:e.target.value}))} /></FormField>
+        <FormField label="İlçe"><Input placeholder="Besiktas" value={form.district||""} onChange={e=>setForm(f=>({...f,district:e.target.value}))} /></FormField>
+      </div>
+      <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
+      <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
+      <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>
+      <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
+      <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
+      <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
+      <FormField label="Platformlar">
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {Object.entries(platformConfig).map(([id,p])=>{const sel=(form.platforms||[]).includes(id);return <span key={id} onClick={()=>setForm(f=>({...f,platforms:sel?f.platforms.filter(x=>x!==id):[...(f.platforms||[]),id]}))} style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:6,cursor:"pointer",background:sel?p.bg:T.bgInput,color:sel?p.color:T.textMuted,border:`1px solid ${sel?p.color+"44":T.border}`}}>{p.label}</span>;})}
+        </div>
+      </FormField>
+      <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
+        if(!form.name)return;
+        const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+        const publishDays = Array.isArray(form.publishDays)?form.publishDays:[];
+        const shootDays = Array.isArray(form.shootDays)?form.shootDays:[];
+        const publishTimes = form.publishTimes||[];
+        const { error } = await supabase.from('clients').update({
+          name: form.name, category: form.category||"", initials,
+          phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
+          tax_number: form.taxNumber||"", tax_office: form.taxOffice||"",
+          platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
+          monthly_fee: parseInt(form.monthlyFee)||0,
+        }).eq('id', form.id);
+        if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nSupabase'de publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -1153,11 +1355,87 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   const [uploadPanel, setUploadPanel] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
-  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"}];
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"}];
   const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
   const safeTab = (currentTab === "invoices" && !perms.finance) ? "overview" : currentTab;
+
+  // Bu müşterinin TÜM bilgilerini Excel'e aktar (birden çok sayfa)
+  const exportClientAll = async () => {
+    const toplamBakiye = client.invoices.reduce((s,i)=>s+i.total,0);
+    const odenenBakiye = client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
+
+    // Sayfa 1: Genel bilgiler (dikey liste)
+    const genelRows = [
+      { "Alan": "İşletme Adı", "Bilgi": client.name },
+      { "Alan": "Kategori", "Bilgi": client.category || "—" },
+      { "Alan": "Telefon", "Bilgi": client.phone || "—" },
+      { "Alan": "Adres", "Bilgi": client.address || "—" },
+      { "Alan": "İl", "Bilgi": client.city || "—" },
+      { "Alan": "İlçe", "Bilgi": client.district || "—" },
+      { "Alan": "Vergi Numarası", "Bilgi": client.taxNumber || "—" },
+      { "Alan": "Vergi Dairesi", "Bilgi": client.taxOffice || "—" },
+      { "Alan": "Platformlar", "Bilgi": client.platforms.map(p=>platformConfig[p]?.label).join(", ") || "—" },
+      { "Alan": "Paylaşım Günleri", "Bilgi": (client.publishDays||[]).join(", ") || "—" },
+      { "Alan": "Paylaşım Saatleri", "Bilgi": (client.publishTimes||[]).join(", ") || "—" },
+      { "Alan": "Çekim Günleri", "Bilgi": (client.shootDays||[]).join(", ") || "—" },
+      { "Alan": "Aylık Paylaşım Sayısı", "Bilgi": (client.publishDays||[]).length * 4 },
+      { "Alan": "Aylık Çekim Sayısı", "Bilgi": (client.shootDays||[]).length * 4 },
+      { "Alan": "Sözleşme Başlangıç", "Bilgi": client.contractStart || "—" },
+    ];
+    if (perms.finance) {
+      genelRows.push(
+        { "Alan": "Aylık Ücret (₺)", "Bilgi": client.monthlyFee || 0 },
+        { "Alan": "Toplam Bakiye (₺)", "Bilgi": toplamBakiye },
+        { "Alan": "Ödenen Bakiye (₺)", "Bilgi": odenenBakiye },
+        { "Alan": "Kalan Bakiye (₺)", "Bilgi": toplamBakiye - odenenBakiye },
+      );
+    }
+
+    const sheets = [{ name: "Genel Bilgiler", rows: genelRows, title: `${client.name.toLocaleUpperCase("tr-TR")} — MÜŞTERİ BİLGİLERİ` }];
+
+    // Sayfa 2: Paylaşımlar
+    if (client.posts.length > 0) {
+      const postRows = client.posts.map(p => ({
+        "Tarih": p.date || "—",
+        "Platform": platformConfig[p.platform]?.label || p.platform || "—",
+        "Tür": p.type || "—",
+        "Başlık": p.title || "—",
+        "Açıklama": p.description || "—",
+        "Durum": p.status === "done" ? "Yayınlandı" : p.status === "in_progress" ? "Hazırlanıyor" : "Planlandı",
+      }));
+      sheets.push({ name: "Paylaşımlar", rows: postRows, title: `${client.name} — PAYLAŞIMLAR` });
+    }
+
+    // Sayfa 3: Faturalar (yetki varsa)
+    if (perms.finance && client.invoices.length > 0) {
+      const invRows = client.invoices.map(i => ({
+        "Fatura No": i.no || "—",
+        "Tarih": i.date || "—",
+        "Tutar (₺)": i.amount || 0,
+        "KDV (₺)": i.vat || 0,
+        "Toplam (₺)": i.total || 0,
+        "Durum": i.status === "paid" ? "Ödendi" : i.status === "overdue" ? "Gecikmiş" : "Bekliyor",
+        "Açıklama": i.desc || "—",
+      }));
+      sheets.push({ name: "Faturalar", rows: invRows, title: `${client.name} — FATURALAR` });
+    }
+
+    // Sayfa 4: Medya listesi
+    if (client.media.length > 0) {
+      const mediaRows = client.media.map(m => ({
+        "Dosya Adı": m.name,
+        "Tür": m.type === "video" ? "Video" : m.type === "image" ? "Görsel" : "Dosya",
+        "Boyut": m.size || "—",
+        "Tarih": m.date || "—",
+        "Konum": m.storageType === "google_drive" ? "Google Drive" : "Supabase",
+      }));
+      sheets.push({ name: "Medya", rows: mediaRows, title: `${client.name} — MEDYA DOSYALARI` });
+    }
+
+    await exportPerfectExcel(sheets, `${client.name.replace(/[^a-zA-Z0-9ğüşıöçĞÜŞİÖÇ]/g, "-")}-bilgileri.xlsx`);
+  };
 
   return <div style={{background:T.bgSurface,border:`1px solid ${T.borderLight}`,borderTop:"none",borderRadius:"0 0 12px 12px",marginBottom:2}}>
     <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,padding:"0 20px",gap:2,alignItems:"center",flexWrap:"wrap"}}>
@@ -1165,13 +1443,16 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
         {safeTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
         {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
+        <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
     <div style={{padding:20}}>
       {safeTab==="overview"&&<ClientOverview client={client} perms={perms}/>}
       {safeTab==="posts"&&<ClientPosts client={client}/>}
+      {safeTab==="calendar"&&<ClientCalendar client={client}/>}
       {safeTab==="media"&&<ClientMedia client={client}/>}
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
     </div>
@@ -1634,7 +1915,7 @@ function CalendarPage({clients}) {
         }}>
           <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
           {publishClients.slice(0,2).map((c,ci)=>(
-            <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{c.name}</div>
+            <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{(c.publishTimes&&c.publishTimes.length>0)?c.publishTimes[0]+" ":""}{c.name}</div>
           ))}
           {shootClients.slice(0,2).map((c,ci)=>(
             <div key={"s"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>📷 {c.name}</div>
@@ -1967,7 +2248,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 // ─────────────────────────────────────────────
 // ANA SAYFA (DASHBOARD)
 // ─────────────────────────────────────────────
-function DashboardPage({clients, staff, tasks, setPage, perms}) {
+function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allStaff, refreshData}) {
   const totalRevenue = clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const paidRevenue = clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="paid").reduce((ss,i)=>ss+i.total,0),0);
   const pendingRevenue = totalRevenue - paidRevenue;
@@ -2088,7 +2369,89 @@ function DashboardPage({clients, staff, tasks, setPage, perms}) {
       <NavCard icon="📋" label="Görevler" value={activeTasks} sub="Aktif görev" color={T.amberText} target="tasks" />
       <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="calendar" />
     </div>
+
+    {/* AYRILAN MÜŞTERİLER & ÇALIŞANLAR */}
+    <DepartedSection allClients={allClients} allStaff={allStaff} refreshData={refreshData} perms={perms} />
   </div>;
+}
+
+// Ayrılan müşteriler ve çalışanlar bölümü (geri aktifleştirme ile)
+function DepartedSection({ allClients, allStaff, refreshData, perms }) {
+  const [busy, setBusy] = useState(false);
+  const departedClients = (allClients || []).filter(c => c.deleted_at);
+  const departedStaff = (allStaff || []).filter(s => s.deleted_at);
+
+  const restoreClient = async (id, name) => {
+    if (!window.confirm(`"${name}" tekrar aktif müşteri olacak. Onaylıyor musunuz?`)) return;
+    setBusy(true);
+    const { error } = await supabase.from('clients').update({ deleted_at: null, delete_reason: null, deletion_date: null }).eq('id', id);
+    setBusy(false);
+    if (error) { alert("Hata: " + error.message); return; }
+    await refreshData();
+    alert(`"${name}" tekrar aktif müşteri! Bilgilerini düzenlemek için Müşteriler sayfasına gidebilirsiniz.`);
+  };
+
+  const restoreStaff = async (id, name) => {
+    if (!window.confirm(`"${name}" tekrar aktif çalışan olacak. Onaylıyor musunuz?`)) return;
+    setBusy(true);
+    const { error } = await supabase.from('staff').update({ deleted_at: null, departure_reason: null, departure_date: null }).eq('id', id);
+    setBusy(false);
+    if (error) { alert("Hata: " + error.message); return; }
+    await refreshData();
+    alert(`"${name}" tekrar aktif çalışan! Bilgilerini düzenlemek için Çalışanlar sayfasına gidebilirsiniz.`);
+  };
+
+  if (departedClients.length === 0 && departedStaff.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Ayrılan Müşteriler */}
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>🚪 Ayrılan Müşteriler</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14 }}>Kayıtları saklanıyor · tekrar aktif yapılabilir</div>
+          {departedClients.length === 0 ? (
+            <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "16px 0" }}>Ayrılan müşteri yok</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {departedClients.map(c => (
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bgInput, borderRadius: 10, border: `1px solid ${T.border}` }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, flexShrink: 0 }}>{c.initials || (c.name||"?").slice(0,2).toUpperCase()}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                    <div style={{ fontSize: 10, color: T.textMuted }}>{CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "Ayrıldı"}{c.deletion_date ? ` · ${c.deletion_date}` : ""}</div>
+                  </div>
+                  {perms.manageClients && <button disabled={busy} onClick={() => restoreClient(c.id, c.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Ayrılan Çalışanlar */}
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>🚪 Ayrılan Çalışanlar</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14 }}>Kayıtları saklanıyor · tekrar aktif yapılabilir</div>
+          {departedStaff.length === 0 ? (
+            <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "16px 0" }}>Ayrılan çalışan yok</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {departedStaff.map(s => (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bgInput, borderRadius: 10, border: `1px solid ${T.border}` }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, flexShrink: 0 }}>{(s.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+                    <div style={{ fontSize: 10, color: T.textMuted }}>{s.role || "—"}{s.departure_date ? ` · ${s.departure_date}` : ""}</div>
+                  </div>
+                  {perms.manageStaff && <button disabled={busy} onClick={() => restoreStaff(s.id, s.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const NAV=[
@@ -2426,6 +2789,7 @@ async function loadAllData() {
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
+    publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
     posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
       id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description,
@@ -2594,7 +2958,7 @@ export default function App() {
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
-        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms}/>}
+        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
