@@ -163,6 +163,63 @@ const CLIENT_DELETE_REASONS = [
   { id: "non_payment", label: "Ödeme yapmamasından dolayı sonlandırıldı" },
 ];
 
+// ─────────────────────────────────────────────
+// EMOJİ SİSTEMİ
+// ─────────────────────────────────────────────
+const EMOJI_LIST = [
+  "😀","😃","😄","😁","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘",
+  "😋","😛","😜","🤪","😎","🥳","🤩","🤗","🤔","🤭","🙄","😴","🥱","😷","🤒","🤕",
+  "😢","😭","😤","😠","😡","🥺","😳","😱","😨","😰","😥","😔","😞","🙁","☹️","😖",
+  "👍","👎","👌","✌️","🤞","🤟","👏","🙌","🙏","💪","👋","🤝","☝️","👇","👈","👉",
+  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💕","💯","🔥","⭐","🌟","✨","⚡",
+  "✅","❌","❓","❗","💡","📌","📍","🎯","🏆","🥇","🎉","🎊","🎈","🎁","💰","💵",
+  "📊","📈","📉","📅","📆","⏰","📷","🎥","📱","💻","✏️","📝","📎","🚀","☕","👀",
+];
+
+// Emoji seçici düğmesi — herhangi bir metin alanına emoji eklemek için
+function EmojiButton({ onSelect, size = 18 }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: "none", border: "none", cursor: "pointer", fontSize: size,
+          padding: "2px 4px", lineHeight: 1, opacity: 0.85,
+        }}
+        title="Emoji ekle"
+      >😊</button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 3000 }} />
+          <div style={{
+            position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 3001,
+            background: T.bgSurface, border: `1px solid ${T.borderLight}`, borderRadius: 12,
+            padding: 10, width: 280, maxHeight: 220, overflowY: "auto",
+            display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+          }}>
+            {EMOJI_LIST.map((emoji, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => { onSelect(emoji); setOpen(false); }}
+                style={{
+                  background: "none", border: "none", cursor: "pointer", fontSize: 20,
+                  padding: 3, borderRadius: 6, transition: "background 0.1s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = T.bgCardHover}
+                onMouseLeave={e => e.currentTarget.style.background = "none"}
+              >{emoji}</button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function getMonthGrid(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
@@ -1046,8 +1103,18 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="Tarih"><Input type="date" value={form.date||""} onChange={e=>setForm(f=>({...f,date:e.target.value}))} /></FormField>
       <FormField label="Platform"><Select value={form.platform||"ig"} onChange={e=>setForm(f=>({...f,platform:e.target.value}))}>{Object.entries(platformConfig).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}</Select></FormField>
       <FormField label="İçerik türü"><Select value={form.type||"Reels"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{CONTENT_TYPES.map(t=><option key={t}>{t}</option>)}</Select></FormField>
-      <FormField label="Başlık"><Input placeholder="İçerik başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
-      <FormField label="Açıklama"><Textarea placeholder="İçerik açıklaması" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} /></FormField>
+      <FormField label="Başlık">
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <Input placeholder="İçerik başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
+          <EmojiButton onSelect={(em)=>setForm(f=>({...f,title:(f.title||"")+em}))} size={20} />
+        </div>
+      </FormField>
+      <FormField label="Açıklama">
+        <div style={{position:"relative"}}>
+          <Textarea placeholder="İçerik açıklaması" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} />
+          <div style={{position:"absolute",bottom:8,right:8}}><EmojiButton onSelect={(em)=>setForm(f=>({...f,description:(f.description||"")+em}))} size={20} /></div>
+        </div>
+      </FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Hazırlanıyor</option><option value="done">Yayınlandı</option></Select></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.title||!form.clientId)return;
@@ -1284,8 +1351,18 @@ function IdeasPage() {
     </div>
 
     {modal && <Modal title="Yeni Fikir Ekle" onClose={()=>setModal(false)} width={700}>
-      <FormField label="Başlık"><Input placeholder="Fikrin başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
-      <FormField label="Açıklama"><Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={200} /></FormField>
+      <FormField label="Başlık">
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <Input placeholder="Fikrin başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
+          <EmojiButton onSelect={(em)=>setForm(f=>({...f,title:(f.title||"")+em}))} size={20} />
+        </div>
+      </FormField>
+      <FormField label="Açıklama">
+        <div style={{position:"relative"}}>
+          <Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={200} />
+          <div style={{position:"absolute",bottom:8,right:8}}><EmojiButton onSelect={(em)=>setForm(f=>({...f,description:(f.description||"")+em}))} size={20} /></div>
+        </div>
+      </FormField>
       <FormField label="Kategori"><Input placeholder="Video, Social, Audio, vb." value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Devam Ediyor</option><option value="completed">Tamamlandı</option></Select></FormField>
       <ModalActions onClose={()=>setModal(false)} onSave={()=>{
@@ -1448,7 +1525,12 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     </div>
 
     {modal&&<Modal title="Yeni görev" onClose={()=>setModal(false)}>
-      <FormField label="Başlık"><Input placeholder="Görev" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
+      <FormField label="Başlık">
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <Input placeholder="Görev" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
+          <EmojiButton onSelect={(em)=>setForm(f=>({...f,title:(f.title||"")+em}))} size={20} />
+        </div>
+      </FormField>
       <FormField label="Müşteri"><Select value={form.client||""} onChange={e=>setForm(f=>({...f,client:e.target.value}))}>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
       <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
@@ -2015,8 +2097,312 @@ const NAV=[
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
+  {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
+
+// ─────────────────────────────────────────────
+// MESAJLAR SAYFASI (çalışanlar arası sohbet)
+// ─────────────────────────────────────────────
+function MessagesPage({ currentStaff, staff }) {
+  const [conversations, setConversations] = useState([]);
+  const [activeConvId, setActiveConvId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [newChatModal, setNewChatModal] = useState(false);
+  const [groupModal, setGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef(null);
+
+  const otherStaff = staff.filter(s => s.id !== currentStaff.id);
+
+  // Konuşmaları yükle
+  const loadConversations = async () => {
+    const { data: myMems } = await supabase
+      .from('conversation_members').select('conversation_id').eq('staff_id', currentStaff.id);
+    const convIds = (myMems || []).map(m => m.conversation_id);
+    if (convIds.length === 0) { setConversations([]); setLoading(false); return; }
+
+    const { data: convs } = await supabase.from('conversations').select('*').in('id', convIds);
+    const { data: allMems } = await supabase.from('conversation_members').select('*').in('conversation_id', convIds);
+    const { data: msgs } = await supabase.from('staff_messages').select('*').in('conversation_id', convIds).order('created_at', { ascending: true });
+
+    const list = (convs || []).map(conv => {
+      const memberIds = (allMems || []).filter(m => m.conversation_id === conv.id).map(m => m.staff_id);
+      const memberNames = memberIds.map(id => staff.find(s => s.id === id)?.name || "?");
+      const convMsgs = (msgs || []).filter(m => m.conversation_id === conv.id);
+      const lastMsg = convMsgs[convMsgs.length - 1];
+      // Özel sohbette isim: karşı tarafın adı
+      let displayName = conv.name;
+      if (!conv.is_group) {
+        const otherId = memberIds.find(id => id !== currentStaff.id);
+        displayName = staff.find(s => s.id === otherId)?.name || "Bilinmeyen";
+      }
+      return {
+        id: conv.id, isGroup: conv.is_group, name: displayName,
+        memberIds, memberNames, lastText: lastMsg?.text || "",
+        lastTime: lastMsg?.created_at || conv.created_at,
+      };
+    });
+    // Son mesaja göre sırala
+    list.sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime));
+    setConversations(list);
+    setLoading(false);
+  };
+
+  // Aktif konuşmanın mesajlarını yükle
+  const loadMessages = async (convId) => {
+    if (!convId) return;
+    const { data } = await supabase
+      .from('staff_messages').select('*').eq('conversation_id', convId).order('created_at', { ascending: true });
+    setMessages(data || []);
+  };
+
+  useEffect(() => { loadConversations(); }, []);
+
+  // Aktif sohbet açıkken 3 saniyede bir yenile (canlı sohbet hissi)
+  useEffect(() => {
+    if (!activeConvId) return;
+    loadMessages(activeConvId);
+    const interval = setInterval(() => {
+      loadMessages(activeConvId);
+      loadConversations();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activeConvId]);
+
+  // Yeni mesaj gelince en alta kaydır
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !activeConvId) return;
+    const text = newMessage.trim();
+    setNewMessage("");
+    // Anında ekranda göster
+    const temp = { id: "temp-" + Date.now(), conversation_id: activeConvId, sender_id: currentStaff.id, text, created_at: new Date().toISOString() };
+    setMessages(prev => [...prev, temp]);
+
+    const { error } = await supabase.from('staff_messages').insert({
+      conversation_id: activeConvId,
+      sender_id: currentStaff.id,
+      text,
+      created_at: new Date().toISOString(),
+    });
+    if (error) {
+      alert("Mesaj gönderilemedi: " + error.message + "\n\nMesajlaşma tabloları eksik olabilir. SQL kodunu çalıştırın.");
+    }
+    loadMessages(activeConvId);
+  };
+
+  // Özel sohbet başlat (varsa aç, yoksa oluştur)
+  const startPrivateChat = async (otherId) => {
+    setNewChatModal(false);
+    // Mevcut özel sohbet var mı kontrol et
+    const existing = conversations.find(c => !c.isGroup && c.memberIds.length === 2 && c.memberIds.includes(otherId));
+    if (existing) { setActiveConvId(existing.id); return; }
+
+    const { data: conv, error } = await supabase.from('conversations').insert({
+      name: null, is_group: false, created_by: currentStaff.id, created_at: new Date().toISOString(),
+    }).select().single();
+    if (error) { alert("Sohbet oluşturulamadı: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+
+    await supabase.from('conversation_members').insert([
+      { conversation_id: conv.id, staff_id: currentStaff.id },
+      { conversation_id: conv.id, staff_id: otherId },
+    ]);
+    await loadConversations();
+    setActiveConvId(conv.id);
+  };
+
+  // Grup oluştur
+  const createGroup = async () => {
+    if (!groupName.trim()) { alert("Grup adı girin"); return; }
+    if (groupMembers.length === 0) { alert("En az bir üye seçin"); return; }
+    setGroupModal(false);
+
+    const { data: conv, error } = await supabase.from('conversations').insert({
+      name: groupName.trim(), is_group: true, created_by: currentStaff.id, created_at: new Date().toISOString(),
+    }).select().single();
+    if (error) { alert("Grup oluşturulamadı: " + error.message); return; }
+
+    const members = [currentStaff.id, ...groupMembers].map(id => ({ conversation_id: conv.id, staff_id: id }));
+    await supabase.from('conversation_members').insert(members);
+
+    setGroupName(""); setGroupMembers([]);
+    await loadConversations();
+    setActiveConvId(conv.id);
+  };
+
+  const activeConv = conversations.find(c => c.id === activeConvId);
+  const fmtTime = (iso) => {
+    const d = new Date(iso);
+    const today = new Date();
+    const isToday = d.toDateString() === today.toDateString();
+    return isToday ? d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })
+                   : d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  return (
+    <div style={{ display: "flex", gap: 16, height: "calc(100vh - 140px)" }}>
+      {/* SOL: Sohbet listesi */}
+      <div style={{ width: 300, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 10 }}>💬 Sohbetler</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setNewChatModal(true)} style={{ flex: 1, fontSize: 11, fontWeight: 600, padding: "7px", borderRadius: 8, background: T.amber, color: T.white, border: "none", cursor: "pointer" }}>＋ Özel</button>
+            <button onClick={() => setGroupModal(true)} style={{ flex: 1, fontSize: 11, fontWeight: 600, padding: "7px", borderRadius: 8, background: T.indigo, color: "#A8C4DC", border: "none", cursor: "pointer" }}>👥 Grup</button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
+          {loading && <div style={{ textAlign: "center", color: T.textMuted, fontSize: 12, marginTop: 20 }}>Yükleniyor...</div>}
+          {!loading && conversations.length === 0 && (
+            <div style={{ textAlign: "center", color: T.textMuted, fontSize: 12, marginTop: 30, padding: "0 16px" }}>Henüz sohbet yok.<br />"＋ Özel" veya "👥 Grup" ile başla!</div>
+          )}
+          {conversations.map(conv => {
+            const active = conv.id === activeConvId;
+            const initials = conv.isGroup ? "👥" : (conv.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase());
+            return (
+              <div key={conv.id} onClick={() => setActiveConvId(conv.id)} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, cursor: "pointer", marginBottom: 2,
+                background: active ? T.bgSurface : "transparent", border: `1px solid ${active ? T.borderLight : "transparent"}`,
+              }}>
+                <div style={{ width: 38, height: 38, borderRadius: "50%", background: conv.isGroup ? T.indigo : T.amber, display: "flex", alignItems: "center", justifyContent: "center", fontSize: conv.isGroup ? 18 : 13, fontWeight: 700, color: T.white, flexShrink: 0 }}>{initials}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.name}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{conv.isGroup ? `${conv.memberIds.length} üye · ` : ""}{conv.lastText || "Yeni sohbet"}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SAĞ: Aktif sohbet */}
+      <div style={{ flex: 1, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {!activeConv ? (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: T.textMuted }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
+            <div style={{ fontSize: 14 }}>Sohbet etmek için soldan bir konuşma seç</div>
+          </div>
+        ) : (
+          <>
+            {/* Sohbet başlığı */}
+            <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: activeConv.isGroup ? T.indigo : T.amber, display: "flex", alignItems: "center", justifyContent: "center", fontSize: activeConv.isGroup ? 18 : 14, fontWeight: 700, color: T.white }}>
+                {activeConv.isGroup ? "👥" : activeConv.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary }}>{activeConv.name}</div>
+                <div style={{ fontSize: 11, color: T.textMuted }}>{activeConv.isGroup ? activeConv.memberNames.join(", ") : "Özel sohbet"}</div>
+              </div>
+            </div>
+
+            {/* Mesajlar */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+              {messages.length === 0 && (
+                <div style={{ textAlign: "center", color: T.textMuted, fontSize: 12, marginTop: 30 }}>Henüz mesaj yok. İlk mesajı sen gönder! 👋</div>
+              )}
+              {messages.map(msg => {
+                const mine = msg.sender_id === currentStaff.id;
+                const senderName = staff.find(s => s.id === msg.sender_id)?.name || "?";
+                return (
+                  <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start" }}>
+                    {activeConv.isGroup && !mine && (
+                      <div style={{ fontSize: 10, color: T.amberText, fontWeight: 600, marginBottom: 2, marginLeft: 4 }}>{senderName}</div>
+                    )}
+                    <div style={{
+                      background: mine ? T.amber : T.bgSurface, color: mine ? T.white : T.textPrimary,
+                      padding: "9px 13px", borderRadius: mine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      fontSize: 13, maxWidth: "75%", wordBreak: "break-word", lineHeight: 1.4,
+                      border: mine ? "none" : `1px solid ${T.border}`,
+                    }}>
+                      {msg.text}
+                    </div>
+                    <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2, marginLeft: mine ? 0 : 4, marginRight: mine ? 4 : 0 }}>{fmtTime(msg.created_at)}</div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Mesaj yazma alanı */}
+            <div style={{ padding: "12px 16px", borderTop: `1px solid ${T.border}`, display: "flex", gap: 8, alignItems: "center" }}>
+              <EmojiButton onSelect={(e) => setNewMessage(prev => prev + e)} size={22} />
+              <input
+                value={newMessage}
+                onChange={e => setNewMessage(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && sendMessage()}
+                placeholder="Mesaj yaz..."
+                style={{ flex: 1, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: T.textPrimary, outline: "none" }}
+              />
+              <button onClick={sendMessage} style={{ background: T.amber, color: T.white, border: "none", borderRadius: 10, padding: "10px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Gönder</button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Yeni özel sohbet modalı */}
+      {newChatModal && (
+        <Modal title="Yeni Özel Sohbet" onClose={() => setNewChatModal(false)}>
+          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>Sohbet başlatmak istediğin kişiyi seç:</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
+            {otherStaff.length === 0 && <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: 20 }}>Başka çalışan yok</div>}
+            {otherStaff.map(s => (
+              <div key={s.id} onClick={() => startPrivateChat(s.id)} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, cursor: "pointer",
+                background: T.bgInput, border: `1px solid ${T.border}`,
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = T.borderLight}
+              onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: s.color || T.amber, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: T.white }}>{s.initials}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{s.name}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{s.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {/* Yeni grup modalı */}
+      {groupModal && (
+        <Modal title="Yeni Grup Oluştur" onClose={() => { setGroupModal(false); setGroupName(""); setGroupMembers([]); }}>
+          <FormField label="Grup Adı">
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <Input placeholder="Örn: Tasarım Ekibi" value={groupName} onChange={e => setGroupName(e.target.value)} />
+              <EmojiButton onSelect={(e) => setGroupName(prev => prev + e)} size={20} />
+            </div>
+          </FormField>
+          <div style={{ fontSize: 12, color: T.textMuted, marginTop: 8, marginBottom: 8 }}>Üyeleri seç:</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+            {otherStaff.map(s => {
+              const selected = groupMembers.includes(s.id);
+              return (
+                <div key={s.id} onClick={() => setGroupMembers(prev => selected ? prev.filter(id => id !== s.id) : [...prev, s.id])} style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10, cursor: "pointer",
+                  background: selected ? T.amberDim : T.bgInput, border: `1px solid ${selected ? T.amber + "66" : T.border}`,
+                }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: s.color || T.amber, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white }}>{s.initials}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{s.name}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>{s.role}</div>
+                  </div>
+                  {selected && <span style={{ color: T.amber, fontSize: 16 }}>✓</span>}
+                </div>
+              );
+            })}
+          </div>
+          <ModalActions onClose={() => { setGroupModal(false); setGroupName(""); setGroupMembers([]); }} onSave={createGroup} />
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 async function loadAllData() {
   const [
@@ -2074,7 +2460,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'staff'];
+    const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -2097,7 +2483,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'staff'];
+      const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -2204,7 +2590,7 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>
-          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
+          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : '👥 Çalışanlar'}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
@@ -2213,6 +2599,7 @@ export default function App() {
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
+        {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
       </div>
     </div>
