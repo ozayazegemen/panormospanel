@@ -1115,6 +1115,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       return {
         "İşletme Adı": c.name,
         "Kategori": c.category || "—",
+        "Sosyal Medya": c.socialMedia || "—",
         "Telefon": c.phone || "—",
         "Adres": c.address || "—",
         "İl": c.city || "—",
@@ -1267,6 +1268,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
     {modal==="addClient"&&<Modal title="Yeni müşteri ekle" onClose={()=>setModal(null)}>
       <FormField label="İşletme adı"><Input placeholder="Örn: Lezzet Durağı" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Kategori"><Input placeholder="Örn: Restoran & Cafe" value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
+      <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.socialMedia||""} onChange={e=>setForm(f=>({...f,socialMedia:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -1295,13 +1297,13 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         const { data, error } = await supabase.from('clients').insert({
           name: form.name, category: form.category||"", initials, accent_color: accentColor,
           phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
-          tax_number: form.taxNumber||"", tax_office: form.taxOffice||"",
+          tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026",
         }).select().single();
         if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nSupabase'de publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
         if(data){
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
         }
         setModal(null);
       }} />
@@ -1310,6 +1312,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
     {modal==="editClient"&&<Modal title="Müşteri Bilgilerini Düzenle" onClose={()=>setModal(null)}>
       <FormField label="İşletme adı"><Input placeholder="Örn: Lezzet Durağı" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Kategori"><Input placeholder="Örn: Restoran & Cafe" value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
+      <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.socialMedia||""} onChange={e=>setForm(f=>({...f,socialMedia:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -1336,12 +1339,12 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         const { error } = await supabase.from('clients').update({
           name: form.name, category: form.category||"", initials,
           phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
-          tax_number: form.taxNumber||"", tax_office: form.taxOffice||"",
+          tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0,
         }).eq('id', form.id);
-        if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nSupabase'de publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0}:c));
+        if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nSupabase'de social_media veya publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -1415,6 +1418,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
     const genelRows = [
       { "Alan": "İşletme Adı", "Bilgi": client.name },
       { "Alan": "Kategori", "Bilgi": client.category || "—" },
+      { "Alan": "Sosyal Medya", "Bilgi": client.socialMedia || "—" },
       { "Alan": "Telefon", "Bilgi": client.phone || "—" },
       { "Alan": "Adres", "Bilgi": client.address || "—" },
       { "Alan": "İl", "Bilgi": client.city || "—" },
@@ -1490,7 +1494,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
-        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
@@ -1522,6 +1526,7 @@ function ClientOverview({client, perms}) {
         <div style={{fontSize:11,color:T.textMuted,marginBottom:8,fontWeight:500,textTransform:"uppercase"}}>İşletme Bilgileri</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12}}>
           <div><span style={{color:T.textMuted}}>Telefon:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.phone||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Sosyal Medya:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.socialMedia||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Şehir:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.city||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Vergi No:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxNumber||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Vergi Dairesi:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxOffice||"—"}</span></div>
@@ -2633,7 +2638,7 @@ function LeadsPage({ refreshData }) {
   const openAdd = () => { setEditId(null); setForm({ status: "potential" }); setModal(true); };
   const openEdit = (l) => {
     setEditId(l.id);
-    setForm({ business_name: l.business_name, city: l.city, district: l.district, address: l.address, phone: l.phone, email: l.email, offer1: l.offer1, offer2: l.offer2, offer3: l.offer3, agreed_price: l.agreed_price, status: l.status, notes: l.notes });
+    setForm({ business_name: l.business_name, city: l.city, district: l.district, address: l.address, phone: l.phone, email: l.email, social_media: l.social_media, offer1: l.offer1, offer2: l.offer2, offer3: l.offer3, agreed_price: l.agreed_price, status: l.status, notes: l.notes });
     setModal(true);
   };
 
@@ -2642,7 +2647,7 @@ function LeadsPage({ refreshData }) {
     const payload = {
       business_name: form.business_name,
       city: form.city || "", district: form.district || "", address: form.address || "",
-      phone: form.phone || "", email: form.email || "",
+      phone: form.phone || "", email: form.email || "", social_media: form.social_media || "",
       offer1: form.offer1 ? parseFloat(form.offer1) : null,
       offer2: form.offer2 ? parseFloat(form.offer2) : null,
       offer3: form.offer3 ? parseFloat(form.offer3) : null,
@@ -2681,7 +2686,7 @@ function LeadsPage({ refreshData }) {
       initials,
       accent_color: colors[Math.floor(Math.random() * colors.length)],
       phone: lead.phone || "", address: lead.address || "", city: lead.city || "", district: lead.district || "",
-      tax_number: "", tax_office: "",
+      tax_number: "", tax_office: "", social_media: lead.social_media || "",
       platforms: [], publish_days: [], shoot_days: [], publish_times: [],
       monthly_fee: Math.round(price), contract_start: contractStart,
     });
@@ -2723,7 +2728,7 @@ function LeadsPage({ refreshData }) {
     const rows = filtered.map(l => ({
       "İşletme Adı": l.business_name,
       "İl": l.city || "—", "İlçe": l.district || "—", "Adres": l.address || "—",
-      "Telefon": l.phone || "—", "Mail": l.email || "—",
+      "Telefon": l.phone || "—", "Mail": l.email || "—", "Sosyal Medya": l.social_media || "—",
       "1. Teklif (₺)": l.offer1 || 0, "2. Teklif (₺)": l.offer2 || 0, "3. Teklif (₺)": l.offer3 || 0,
       "Anlaşılan Fiyat (₺)": l.agreed_price || 0,
       "Durum": LEAD_STATUS[l.status]?.label || l.status,
@@ -2791,6 +2796,7 @@ function LeadsPage({ refreshData }) {
                               <div>📍 {l.address || "Adres yok"}</div>
                               <div>📞 {l.phone || "—"}</div>
                               <div>✉️ {l.email || "—"}</div>
+                              <div>📱 {l.social_media || "—"}</div>
                             </div>
                           </div>
                           <div>
@@ -2830,6 +2836,7 @@ function LeadsPage({ refreshData }) {
             <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone || ""} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></FormField>
             <FormField label="Mail (varsa)"><Input placeholder="mail@ornek.com" value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></FormField>
           </div>
+          <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.social_media || ""} onChange={e => setForm(f => ({ ...f, social_media: e.target.value }))} /></FormField>
           <div style={{ fontSize: 11, color: T.amberText, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", margin: "8px 0 4px" }}>💰 Teklifler</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             <FormField label="1. Teklif (₺)"><Input type="number" placeholder="0" value={form.offer1 || ""} onChange={e => setForm(f => ({ ...f, offer1: e.target.value }))} /></FormField>
@@ -3893,6 +3900,7 @@ async function loadAllData() {
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
+    socialMedia: c.social_media || "",
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
