@@ -25,6 +25,19 @@ const platformConfig = {
 const CONTENT_TYPES = ["Reels", "Post", "Hikaye", "Kaydırmalı Post", "Yayına Alındı", "Yayından Kaldırıldı"];
 const TR_MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 
+const TASK_DELETE_REASONS = [
+  { id: "completed", label: "Tamamlandı ve arşivlendi" },
+  { id: "cancelled", label: "İptal edildi" },
+  { id: "duplicate", label: "Tekrarlanan görev" },
+  { id: "other", label: "Diğer" },
+];
+
+const CLIENT_DELETE_REASONS = [
+  { id: "contract_ended", label: "Sözleşme süresi sona erdi" },
+  { id: "business_closed", label: "İşletme kapatıldı" },
+  { id: "non_payment", label: "Ödeme yapmamasından dolayı sonlandırıldı" },
+];
+
 function getMonthGrid(year, month) {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
@@ -197,6 +210,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [useGoogleDrive, setUseGoogleDrive] = useState(false);
   
   const handleFileSelect = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
@@ -214,6 +228,13 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
     
     setUploading(true);
     
+    if (useGoogleDrive) {
+      // Google Drive API placeholder - şimdilik yerel depolamada tutalım
+      alert("Google Drive entegrasyonu kurulum gerektirir. OAuth credentials gerekli. Şimdilik Supabase Storage kullanılıyor.");
+      setUseGoogleDrive(false);
+      return;
+    }
+    
     for (const file of files) {
       try {
         const fileName = `${clientId}-${Date.now()}-${file.name}`;
@@ -229,6 +250,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
             size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
             date: new Date().toLocaleDateString("tr-TR"),
             storage_path: data.path,
+            storage_type: 'supabase',
           });
         }
       } catch (err) {
@@ -251,6 +273,11 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
           <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>📁 Dosya Yükle</div>
           <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer"}}>✕</button>
+        </div>
+        
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          <button onClick={()=>setUseGoogleDrive(false)} style={{flex:1,padding:"8px",fontSize:12,fontWeight:600,borderRadius:8,background:!useGoogleDrive?T.amber:T.bgSurface,color:!useGoogleDrive?T.white:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>Supabase</button>
+          <button onClick={()=>setUseGoogleDrive(true)} style={{flex:1,padding:"8px",fontSize:12,fontWeight:600,borderRadius:8,background:useGoogleDrive?T.amber:T.bgSurface,color:useGoogleDrive?T.white:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>Google Drive</button>
         </div>
         
         <div
@@ -333,7 +360,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           marginBottom:16,
           border:`1px solid ${T.border}`,
         }}>
-          💾 Maksimum 500 MB dosya yükleyebilirsin. Video ve resim formatları destekleniyor.
+          💾 Supabase: 500 MB | Google Drive: 10 TB (kurulum gerekli)
         </div>
         
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
@@ -361,6 +388,7 @@ const statusConfig = {
   paid:{label:"Ödendi",color:T.green,bg:T.greenDim},
   pending:{label:"Bekliyor",color:T.amber,bg:T.amberDim},
   overdue:{label:"Gecikti",color:T.red,bg:T.redDim},
+  deleted:{label:"Silindi",color:T.red,bg:T.redDim},
 };
 
 const priorityConfig = {
@@ -446,7 +474,7 @@ function ModalActions({onClose,onSave}) {
 // ─────────────────────────────────────────────
 // CLIENTS PAGE
 // ─────────────────────────────────────────────
-function ClientsPage({clients,setClients}) {
+function ClientsPage({clients,setClients,allClients}) {
   const [open,setOpen]=useState(null);
   const [tab,setTab]=useState({});
   const [modal,setModal]=useState(null);
@@ -455,6 +483,7 @@ function ClientsPage({clients,setClients}) {
   const [filterCategory, setFilterCategory] = useState("Tümü");
   const [filterPlatform, setFilterPlatform] = useState("Tümü");
   const [messagingClient, setMessagingClient] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null);
 
   const totalRevenue=clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const pendingRevenue=clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status!=="paid").reduce((ss,i)=>ss+i.total,0),0);
@@ -469,7 +498,8 @@ function ClientsPage({clients,setClients}) {
   });
 
   const handleExportClients = () => {
-    const rows = filteredClients.map(c => ({
+    const activeRows = filteredClients.map(c => ({
+      "Durum": "Aktif",
       "İşletme Adı": c.name,
       "Kategori": c.category,
       "Telefon": c.phone || "—",
@@ -481,8 +511,36 @@ function ClientsPage({clients,setClients}) {
       "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", "),
       "Aylık Ücret": c.monthlyFee,
       "Toplam Fatura": c.invoices.reduce((s,i)=>s+i.total,0),
+      "Sözleşme Başlangıç": c.contractStart,
     }));
-    exportToExcelDetailed(rows, `panormos-musteriler-${new Date().toISOString().slice(0,10)}.csv`, "PANORMOs MEDYA - MÜŞTERİ LİSTESİ");
+
+    const deletedClients = (allClients.filter(c => c.deleted_at) || []).map(c => ({
+      "Durum": "Silindi",
+      "İşletme Adı": c.name,
+      "Kategori": c.category || "—",
+      "Silme Sebebi": CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "—",
+      "Bitiş Tarihi": c.deletion_date || "—",
+      "Silme Tarihi": c.deleted_at ? new Date(c.deleted_at).toLocaleDateString("tr-TR") : "—",
+    }));
+
+    const allRows = [...activeRows, ...deletedClients];
+    exportToExcelDetailed(allRows, `panormos-musteriler-${new Date().toISOString().slice(0,10)}.csv`, "PANORMOs MEDYA - MÜŞTERİ LİSTESİ");
+  };
+
+  const handleDeleteClient = async (clientId) => {
+    if (!deleteModal.reason || !deleteModal.date) {
+      alert("Lütfen silme sebebi ve bitiş tarihini seçin");
+      return;
+    }
+
+    await supabase.from('clients').update({
+      deleted_at: new Date().toISOString(),
+      delete_reason: deleteModal.reason,
+      deletion_date: deleteModal.date,
+    }).eq('id', clientId);
+
+    setClients(clients.filter(c => c.id !== clientId));
+    setDeleteModal(null);
   };
 
   return <div>
@@ -550,7 +608,7 @@ function ClientsPage({clients,setClients}) {
             </div>
             <span style={{fontSize:13,color:T.textMuted,transition:"transform 0.2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)"}}>›</span>
           </div>
-          {isOpen&&<ClientDetail client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} />}
+          {isOpen&&<ClientDetail client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} onDelete={()=>setDeleteModal({clientId:client.id,reason:"",date:""})} />}
         </div>;
       })}
     </div>
@@ -615,11 +673,27 @@ function ClientsPage({clients,setClients}) {
       }} />
     </Modal>}
 
+    {deleteModal && <Modal title="Müşteriyi Sil" onClose={()=>setDeleteModal(null)}>
+      <FormField label="Silme Sebebi">
+        <Select value={deleteModal.reason||""} onChange={e=>setDeleteModal({...deleteModal,reason:e.target.value})}>
+          <option value="">Seç...</option>
+          {CLIENT_DELETE_REASONS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Bitiş Tarihi">
+        <Input type="date" value={deleteModal.date||""} onChange={e=>setDeleteModal({...deleteModal,date:e.target.value})} />
+      </FormField>
+      <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"12px",marginBottom:16,fontSize:12,color:T.textMuted}}>
+        ⚠️ Bu müşteri silindi olarak işaretlenecek ve Excel çıktısında görünecektir.
+      </div>
+      <ModalActions onClose={()=>setDeleteModal(null)} onSave={()=>handleDeleteClient(deleteModal.clientId)} />
+    </Modal>}
+
     {messagingClient && <MessagingPanel clientId={messagingClient.id} clientName={messagingClient.name} onClose={()=>setMessagingClient(null)} />}
   </div>;
 }
 
-function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient}) {
+function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient,onDelete}) {
   const [uploadPanel, setUploadPanel] = useState(false);
   
   const tabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"},{id:"invoices",lbl:"Faturalar"}];
@@ -631,6 +705,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         {currentTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
         {currentTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
+        <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>
       </div>
     </div>
     <div style={{padding:20}}>
@@ -751,12 +826,63 @@ function ClientInvoices({client}) {
 }
 
 // ─────────────────────────────────────────────
+// IDEAS PAGE (YENİ)
+// ─────────────────────────────────────────────
+function IdeasPage() {
+  const [ideas, setIdeas] = useState([
+    { id: 1, title: "İnstagram Reel Series", description: "Haftalık tutorial reelleri", status: "in_progress", category: "Video" },
+    { id: 2, title: "TikTok Challenge", description: "Viral challenge kampanyası", status: "planned", category: "Social" },
+    { id: 3, title: "Podcast Series", description: "Aylık podcast yayınları", status: "completed", category: "Audio" },
+  ]);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+      <StatCard label="Toplam Fikir" value={ideas.length} />
+      <StatCard label="Devam Ediyor" value={ideas.filter(i=>i.status==="in_progress").length} color={T.amberText} />
+      <StatCard label="Tamamlanan" value={ideas.filter(i=>i.status==="completed").length} color={T.greenText} />
+    </div>
+
+    <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",description:"",status:"planned",category:""});}} style={{marginBottom:20}}>💡 Yeni Fikir Ekle</Btn>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+      {ideas.map(idea => (
+        <Card key={idea.id} style={{padding:20}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+            <div style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{idea.title}</div>
+            <Badge status={idea.status} />
+          </div>
+          <div style={{fontSize:12,color:T.textMuted,marginBottom:12}}>{idea.description}</div>
+          <div style={{display:"flex",gap:6}}>
+            <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span>
+          </div>
+        </Card>
+      ))}
+    </div>
+
+    {modal && <Modal title="Yeni Fikir Ekle" onClose={()=>setModal(false)}>
+      <FormField label="Başlık"><Input placeholder="Fikrin başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} /></FormField>
+      <FormField label="Açıklama"><Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} /></FormField>
+      <FormField label="Kategori"><Input placeholder="Video, Social, Audio, vb." value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
+      <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Devam Ediyor</option><option value="completed">Tamamlandı</option></Select></FormField>
+      <ModalActions onClose={()=>setModal(false)} onSave={()=>{
+        if(!form.title) return;
+        setIdeas([...ideas, {id:Date.now(),title:form.title,description:form.description,status:form.status,category:form.category}]);
+        setModal(false);
+      }} />
+    </Modal>}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
 // TASKS PAGE
 // ─────────────────────────────────────────────
 function TasksPage({tasks,setTasks,clients,staff}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({});
   const [selectedTask,setSelectedTask]=useState(null);
+  const [deleteModal,setDeleteModal]=useState(null);
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
@@ -771,6 +897,23 @@ function TasksPage({tasks,setTasks,clients,staff}) {
       setSelectedTask({...selectedTask,col:newCol});
     }
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
+  };
+
+  const deleteTask = async (taskId) => {
+    if (!deleteModal.reason || !deleteModal.note) {
+      alert("Lütfen silme sebebini ve açıklamayı girin");
+      return;
+    }
+
+    await supabase.from('tasks').update({
+      deleted_at: new Date().toISOString(),
+      delete_reason: deleteModal.reason,
+      delete_note: deleteModal.note,
+    }).eq('id', taskId);
+
+    setTasks(tasks.filter(t => t.id !== taskId));
+    setDeleteModal(null);
+    setSelectedTask(null);
   };
 
   const totalTasks = tasks.length;
@@ -817,7 +960,31 @@ function TasksPage({tasks,setTasks,clients,staff}) {
               </div>
             </div>
           </div>
-          <button onClick={()=>setSelectedTask(null)} style={{width:"100%",padding:"8px",fontSize:13,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <button onClick={()=>{setDeleteModal({taskId:selectedTask.id,reason:"",note:""});}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.redDim,color:T.redText,border:"none",cursor:"pointer"}}>🗑 Sil</button>
+            <button onClick={()=>setSelectedTask(null)} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {deleteModal && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}} onClick={()=>setDeleteModal(null)}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:420}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:15,fontWeight:600,color:T.textPrimary,marginBottom:16}}>Görevi Sil</div>
+          <FormField label="Silme Sebebi">
+            <Select value={deleteModal.reason} onChange={e=>setDeleteModal({...deleteModal,reason:e.target.value})}>
+              <option value="">Seç...</option>
+              {TASK_DELETE_REASONS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Açıklama">
+            <Textarea placeholder="Neden silindi?" value={deleteModal.note} onChange={e=>setDeleteModal({...deleteModal,note:e.target.value})} />
+          </FormField>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn onClick={()=>setDeleteModal(null)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={()=>deleteTask(deleteModal.taskId)}>Sil</Btn>
+          </div>
         </div>
       </div>
     )}
@@ -965,6 +1132,7 @@ function StaffPage({staff,setStaff}) {
 const NAV=[
   {id:"clients",label:"Müşteriler",icon:"🏢"},
   {id:"calendar",label:"Takvim",icon:"📅"},
+  {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
@@ -986,7 +1154,7 @@ async function loadAllData() {
     supabase.from('media').select('*'),
   ]);
 
-  const clients = (clientsRaw || []).map(c => ({
+  const clients = (clientsRaw || []).filter(c => !c.deleted_at).map(c => ({
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
@@ -1009,12 +1177,12 @@ async function loadAllData() {
     email: s.email, phone: s.phone || "", start: s.start_date || "",
   }));
 
-  const tasks = (tasksRaw || []).map(t => ({
+  const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
     id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "",
     type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo",
   }));
 
-  return { clients, staff, tasks };
+  return { clients, staff, tasks, allClients: clientsRaw || [] };
 }
 
 export default function App() {
@@ -1026,6 +1194,7 @@ export default function App() {
   const [clients, setClients] = useState([]);
   const [staff, setStaff] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [allClients, setAllClients] = useState([]);
 
   useEffect(() => {
     localStorage.setItem('currentPage', page);
@@ -1050,10 +1219,11 @@ export default function App() {
 
   const refreshData = async () => {
     setDataLoading(true);
-    const { clients, staff, tasks } = await loadAllData();
+    const { clients, staff, tasks, allClients } = await loadAllData();
     setClients(clients);
     setStaff(staff);
     setTasks(tasks);
+    setAllClients(allClients);
     setDataLoading(false);
   };
 
@@ -1070,7 +1240,7 @@ export default function App() {
     <div style={{width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
       <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{marginBottom:6}}>
-          <div style={{fontSize:16,fontWeight:700,color:T.amberText}}>📊 Panormos</div>
+          <div style={{fontSize:16,fontWeight:700,color:T.amberText}}>📊 PANORMOS</div>
           <div style={{fontSize:13,fontWeight:700,color:T.amberText}}>medya</div>
         </div>
         <div style={{fontSize:9,color:T.textMuted,letterSpacing:"0.02em"}}>Medya Yönetim Paneli</div>
@@ -1093,12 +1263,13 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>
-          {page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
+          {page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : '👥 Çalışanlar'}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
-        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients}/>}
+        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients}/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
+        {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff}/>}
       </div>
