@@ -1762,7 +1762,14 @@ export default function App() {
   const [currentStaff, setCurrentStaff] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
-  const [page, setPage] = useState(() => localStorage.getItem('currentPage') || 'clients');
+  const [page, setPage] = useState(() => {
+    const validPages = ['clients', 'calendar', 'ideas', 'tasks', 'staff'];
+    const hash = window.location.hash.replace('#', '');
+    if (validPages.includes(hash)) return hash;
+    const saved = localStorage.getItem('currentPage');
+    if (validPages.includes(saved)) return saved;
+    return 'clients';
+  });
   const [clients, setClients] = useState([]);
   const [staff, setStaff] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -1771,7 +1778,21 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('currentPage', page);
+    if (window.location.hash.replace('#', '') !== page) {
+      window.location.hash = page;
+    }
   }, [page]);
+
+  // Tarayıcı geri/ileri butonlarını dinle
+  useEffect(() => {
+    const onHashChange = () => {
+      const validPages = ['clients', 'calendar', 'ideas', 'tasks', 'staff'];
+      const hash = window.location.hash.replace('#', '');
+      if (validPages.includes(hash)) setPage(hash);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
