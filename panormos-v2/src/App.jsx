@@ -1133,6 +1133,8 @@ function StaffPage({staff,setStaff,allStaff}) {
   const [form, setForm] = useState({});
   const [departureModal, setDepartureModal] = useState(null);
   const [uploadedDocs, setUploadedDocs] = useState([]);
+  const [editModal, setEditModal] = useState(null);
+  const [editForm, setEditForm] = useState({});
   const fileInputRef = useRef(null);
 
   const handleAddStaff = async () => {
@@ -1170,6 +1172,43 @@ function StaffPage({staff,setStaff,allStaff}) {
 
     setModal(false);
     setForm({});
+  };
+
+  const handleEditStaff = async () => {
+    if (!editForm.name || !editForm.role) {
+      alert("Lütfen isim ve pozisyon girin");
+      return;
+    }
+
+    const initials = editForm.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
+    const { error } = await supabase.from('staff').update({
+      name: editForm.name,
+      role: editForm.role,
+      type: editForm.type || "Tam zamanlı",
+      email: editForm.email || "",
+      phone: editForm.phone || "",
+      start_date: editForm.startDate || "",
+    }).eq('id', editModal.id);
+
+    if (error) {
+      alert("HATA: Çalışan güncellenemedi!\n\n" + error.message);
+      return;
+    }
+
+    setStaff(staff.map(s => s.id === editModal.id ? {
+      ...s,
+      name: editForm.name,
+      role: editForm.role,
+      initials,
+      type: editForm.type || "Tam zamanlı",
+      email: editForm.email || "",
+      phone: editForm.phone || "",
+      start: editForm.startDate || "",
+    } : s));
+
+    setEditModal(null);
+    setEditForm({});
   };
 
   const handleDeparture = async () => {
@@ -1242,9 +1281,10 @@ function StaffPage({staff,setStaff,allStaff}) {
             </div>
           </div>
 
-          {/* Ayrılış Butonu */}
-          <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",justifyContent:"flex-end"}}>
-            <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış İşlemi</Btn>
+          {/* Butonlar */}
+          <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
           </div>
         </Card>
       ))}
@@ -1258,6 +1298,16 @@ function StaffPage({staff,setStaff,allStaff}) {
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(false)} onSave={handleAddStaff} />
+    </Modal>}
+
+    {editModal && <Modal title="Çalışan Bilgilerini Düzenle" onClose={()=>setEditModal(null)}>
+      <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={editForm.name||""} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></FormField>
+      <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={editForm.role||""} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))} /></FormField>
+      <FormField label="Çalışan Türü"><Select value={editForm.type||"Tam zamanlı"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
+      <FormField label="E-mail"><Input placeholder="mail@example.com" value={editForm.email||""} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={editForm.phone||""} onChange={e=>setEditForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="Başlangıç Tarihi"><Input type="date" value={editForm.startDate||""} onChange={e=>setEditForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+      <ModalActions onClose={()=>setEditModal(null)} onSave={handleEditStaff} />
     </Modal>}
 
     {departureModal && <Modal title="Çalışan Ayrılış İşlemi" onClose={()=>setDepartureModal(null)}>
