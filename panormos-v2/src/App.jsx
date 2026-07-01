@@ -2742,6 +2742,7 @@ const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
   {id:"leads",label:"Soğuk Arama",icon:"📞"},
+  {id:"pricing",label:"Fiyatlar",icon:"💰"},
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
@@ -2749,6 +2750,402 @@ const NAV=[
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
+
+// ─────────────────────────────────────────────
+// FİYATLANDIRMA - yazdırma yardımcıları
+// ─────────────────────────────────────────────
+function openPrintWindow(html) {
+  const w = window.open("", "_blank");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html);
+  w.document.close();
+  const doPrint = () => { try { w.focus(); w.print(); } catch (e) {} };
+  w.onload = doPrint;
+  setTimeout(doPrint, 600);
+}
+
+const PRINT_STYLES = `
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:32px; }
+  .head { background:#1A2B3F; border-radius:10px; padding:26px 28px; margin-bottom:24px; }
+  .logo { font-size:17px; font-weight:800; color:#fff; margin-bottom:10px; }
+  .logo .m { color:#F25124; }
+  .head h1 { color:#fff; font-size:24px; margin-bottom:4px; }
+  .head .sub { color:#C7CDD6; font-size:12px; }
+  .intro { font-size:13px; line-height:1.6; margin-bottom:22px; color:#374151; }
+  .pkgs { display:flex; gap:14px; margin-bottom:20px; }
+  .pkg { flex:1; border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; }
+  .pkg.pop { border:2px solid #F25124; }
+  .pkg .ph { background:#1A2B3F; color:#fff; padding:12px; text-align:center; }
+  .pkg.pop .ph { background:#F25124; }
+  .pkg .ph .tag { font-size:8px; letter-spacing:0.5px; opacity:0.9; }
+  .pkg .ph .nm { font-size:14px; font-weight:800; margin:2px 0; }
+  .pkg .ph .tl { font-size:9px; opacity:0.85; }
+  .pkg .pb { padding:14px; }
+  .pkg .price { font-size:24px; font-weight:800; text-align:center; color:#1A2B3F; }
+  .pkg.pop .price { color:#F25124; }
+  .pkg .pn { font-size:9px; color:#8A8F98; text-align:center; margin-bottom:12px; }
+  .pkg ul { list-style:none; }
+  .pkg li { font-size:10px; line-height:1.5; padding:3px 0; padding-left:16px; position:relative; }
+  .pkg li:before { content:"✓"; color:#10B981; font-weight:800; position:absolute; left:0; }
+  h2 { font-size:16px; color:#1A2B3F; margin:22px 0 12px; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#1A2B3F; color:#fff; padding:9px 12px; text-align:left; font-size:11px; }
+  td { padding:8px 12px; border-bottom:1px solid #E5E7EB; font-size:11px; }
+  tr:nth-child(even) td { background:#F5F6F8; }
+  .footer { background:#F25124; color:#fff; border-radius:8px; padding:16px 20px; margin-top:22px; display:flex; justify-content:space-between; }
+  .footer .t { font-weight:800; font-size:13px; margin-bottom:3px; }
+  .footer .c { font-size:11px; line-height:1.7; }
+  .terms { font-size:9px; color:#8A8F98; margin-top:14px; line-height:1.5; }
+  @media print { body { padding:16px; } .head,.pkg.pop .ph,.pkg .ph,th,.footer { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+`;
+
+function printPricingCatalog(packages, addons) {
+  const now = new Date().toLocaleDateString("tr-TR");
+  const pkgHTML = packages.map(p => `
+    <div class="pkg ${p.is_popular ? 'pop' : ''}">
+      <div class="ph">
+        ${p.is_popular ? '<div class="tag">★ EN POPÜLER</div>' : '<div class="tag">&nbsp;</div>'}
+        <div class="nm">${p.name}</div>
+        <div class="tl">${p.tagline || ''}</div>
+      </div>
+      <div class="pb">
+        <div class="price">${fmtMoney(Number(p.price))}</div>
+        <div class="pn">${p.price_note || ''}</div>
+        <ul>${(p.features || []).map(f => `<li>${f}</li>`).join("")}</ul>
+      </div>
+    </div>`).join("");
+  const addonHTML = addons.length ? `
+    <h2>Ek Hizmetler</h2>
+    <table><thead><tr><th>Hizmet</th><th>Fiyat</th></tr></thead><tbody>
+    ${addons.map(a => `<tr><td>${a.name}</td><td><strong>${a.price_text}</strong></td></tr>`).join("")}
+    </tbody></table>` : "";
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Fiyat Listesi</title><style>${PRINT_STYLES}</style></head><body>
+    <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><h1>Sosyal Medya Yönetimi</h1><div class="sub">Hizmet Paketleri ve Fiyat Listesi · ${now}</div></div>
+    <div class="intro">İşletmenizin sosyal medya hesaplarını profesyonel ekibimize emanet edin. İçerik üretiminden reklam yönetimine kadar tüm süreci sizin için yönetiyoruz.</div>
+    <div class="pkgs">${pkgHTML}</div>
+    ${addonHTML}
+    <div class="footer"><div><div class="t">Teklifi beğendiniz mi?</div><div style="font-size:11px;">Hemen başlayalım, size özel paket için iletişime geçin.</div></div><div class="c"><strong>Tel:</strong> 0(5XX) XXX XX XX<br><strong>E-posta:</strong> info@panormosmedya.com<br><strong>Web:</strong> panormosmedya.com</div></div>
+    <div class="terms">Fiyatlara KDV dahil değildir. · Reklam bütçeleri pakete dahil değildir. · Paketler ihtiyaca göre özelleştirilebilir.</div>
+  </body></html>`;
+  openPrintWindow(html);
+}
+
+function printQuote(quote, addonList) {
+  const now = new Date().toLocaleDateString("tr-TR");
+  const selectedAddons = (quote.addons || []);
+  const addonHTML = selectedAddons.length ? `
+    <h2>Eklenen Hizmetler</h2>
+    <table><thead><tr><th>Hizmet</th><th>Fiyat</th></tr></thead><tbody>
+    ${selectedAddons.map(name => { const a = addonList.find(x => x.name === name); return `<tr><td>${name}</td><td><strong>${a ? a.price_text : ''}</strong></td></tr>`; }).join("")}
+    </tbody></table>` : "";
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Fiyat Teklifi - ${quote.business_name}</title><style>${PRINT_STYLES}</style></head><body>
+    <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><h1>Fiyat Teklifi</h1><div class="sub">${quote.business_name} · ${now}</div></div>
+    <div class="intro">Sayın <strong>${quote.business_name}</strong> yetkilisi, işletmeniz için hazırladığımız sosyal medya yönetim teklifimiz aşağıdadır.</div>
+    <div class="pkgs"><div class="pkg pop" style="max-width:340px;">
+      <div class="ph"><div class="tag">SEÇİLEN PAKET</div><div class="nm">${quote.package_name || 'Özel Paket'}</div><div class="tl">&nbsp;</div></div>
+      <div class="pb"><div class="price">${fmtMoney(Number(quote.price))}</div><div class="pn">aylık · KDV hariç</div>
+      <ul>${(quote.features || []).map(f => `<li>${f}</li>`).join("")}</ul></div>
+    </div></div>
+    ${addonHTML}
+    ${quote.note ? `<h2>Not</h2><div class="intro">${quote.note}</div>` : ''}
+    <div class="footer"><div><div class="t">Onaylıyor musunuz?</div><div style="font-size:11px;">Başlamak için bizimle iletişime geçin.</div></div><div class="c"><strong>Tel:</strong> 0(5XX) XXX XX XX<br><strong>E-posta:</strong> info@panormosmedya.com<br><strong>Web:</strong> panormosmedya.com</div></div>
+    <div class="terms">Fiyatlara KDV dahil değildir. · Minimum sözleşme süresi 3 aydır. · Reklam bütçeleri pakete dahil değildir. · Bu teklif 30 gün geçerlidir.</div>
+  </body></html>`;
+  openPrintWindow(html);
+}
+
+const QUOTE_STATUS = {
+  draft: { label: "Taslak", color: T.textMuted, bg: T.bgSurface },
+  sent: { label: "Gönderildi", color: T.indigoText, bg: T.indigoDim },
+  accepted: { label: "Kabul Edildi", color: T.greenText, bg: T.greenDim },
+  rejected: { label: "Reddedildi", color: T.redText, bg: T.redDim },
+};
+
+// ═══════════════ FİYATLAR ANA SAYFA ═══════════════
+function PricingPage() {
+  const [tab, setTab] = useState("packages");
+  const [packages, setPackages] = useState([]);
+  const [addons, setAddons] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    try {
+      const { data: p } = await supabase.from('pricing_packages').select('*').order('sort_order');
+      setPackages(p || []);
+      const { data: a } = await supabase.from('pricing_addons').select('*').order('sort_order');
+      setAddons(a || []);
+      const { data: q } = await supabase.from('pricing_quotes').select('*').order('created_at', { ascending: false });
+      setQuotes(q || []);
+    } catch (e) { /* tablo yoksa */ }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const tabs = [
+    { id: "packages", lbl: "📦 Paketler" },
+    { id: "addons", lbl: "➕ Ek Hizmetler" },
+    { id: "quotes", lbl: "📄 Teklifler" },
+  ];
+
+  if (loading) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap", borderBottom: `1px solid ${T.border}`, paddingBottom: 2 }}>
+        {tabs.map(t => {
+          const active = tab === t.id;
+          return <button key={t.id} onClick={() => setTab(t.id)} style={{ fontSize: 13, fontWeight: active ? 600 : 400, padding: "9px 16px", borderRadius: "8px 8px 0 0", color: active ? T.amberText : T.textMuted, background: active ? T.bgCard : "transparent", border: "none", borderBottom: `2px solid ${active ? T.amber : "transparent"}`, cursor: "pointer" }}>{t.lbl}</button>;
+        })}
+      </div>
+      {tab === "packages" && <PricingPackages packages={packages} addons={addons} reload={load} />}
+      {tab === "addons" && <PricingAddons addons={addons} reload={load} />}
+      {tab === "quotes" && <PricingQuotes packages={packages} addons={addons} quotes={quotes} reload={load} />}
+    </div>
+  );
+}
+
+// ── Özellik listesi editörü ──
+function FeatureEditor({ features, onChange }) {
+  return (
+    <div>
+      {(features || []).map((f, i) => (
+        <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+          <Input value={f} onChange={e => { const nf = [...features]; nf[i] = e.target.value; onChange(nf); }} placeholder="Özellik..." />
+          <button onClick={() => onChange(features.filter((_, x) => x !== i))} style={{ background: T.redDim, color: T.redText, border: "none", borderRadius: 8, width: 36, cursor: "pointer", flexShrink: 0 }}>×</button>
+        </div>
+      ))}
+      <Btn onClick={() => onChange([...(features || []), ""])} style={{ fontSize: 12, padding: "6px 12px" }}>+ Özellik Ekle</Btn>
+    </div>
+  );
+}
+
+// ═══════════════ PAKETLER ═══════════════
+function PricingPackages({ packages, addons, reload }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [editId, setEditId] = useState(null);
+
+  const openAdd = () => { setEditId(null); setForm({ name: "", tagline: "", price: "", price_note: "aylık · KDV hariç", features: [""], is_popular: false }); setModal(true); };
+  const openEdit = (p) => { setEditId(p.id); setForm({ name: p.name, tagline: p.tagline, price: p.price, price_note: p.price_note, features: p.features || [], is_popular: p.is_popular }); setModal(true); };
+
+  const save = async () => {
+    if (!form.name) { alert("Paket adı zorunlu"); return; }
+    const payload = {
+      name: form.name, tagline: form.tagline || "", price: parseFloat(form.price) || 0,
+      price_note: form.price_note || "", features: (form.features || []).filter(f => f.trim()), is_popular: !!form.is_popular,
+    };
+    let error;
+    if (editId) ({ error } = await supabase.from('pricing_packages').update(payload).eq('id', editId));
+    else { payload.sort_order = (packages.length ? Math.max(...packages.map(p => p.sort_order || 0)) : 0) + 1; ({ error } = await supabase.from('pricing_packages').insert(payload)); }
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nFIYATLANDIRMA-SQL kodunu çalıştırın."); return; }
+    setModal(false); reload();
+  };
+  const del = async (id) => { if (!window.confirm("Bu paket silinsin mi?")) return; await supabase.from('pricing_packages').delete().eq('id', id); reload(); };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+        <Btn variant="primary" onClick={openAdd}>+ Paket Ekle</Btn>
+        <Btn onClick={() => printPricingCatalog(packages, addons)} style={{ background: T.indigoDim, color: T.indigoText }}>🖨️ Fiyat Listesini Yazdır</Btn>
+      </div>
+
+      {packages.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Henüz paket yok. "+ Paket Ekle" ile başla!</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
+          {packages.map(p => (
+            <div key={p.id} style={{ background: T.bgCard, border: `2px solid ${p.is_popular ? T.amber : T.border}`, borderRadius: 14, overflow: "hidden" }}>
+              <div style={{ background: p.is_popular ? T.amber : T.indigo, padding: "14px 16px", textAlign: "center" }}>
+                {p.is_popular && <div style={{ fontSize: 9, color: "#fff", fontWeight: 700, letterSpacing: "0.5px", marginBottom: 2 }}>★ EN POPÜLER</div>}
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>{p.name}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)" }}>{p.tagline}</div>
+              </div>
+              <div style={{ padding: 16 }}>
+                <div style={{ fontSize: 24, fontWeight: 800, color: p.is_popular ? T.amberText : T.textPrimary, textAlign: "center" }}>{fmtMoney(Number(p.price))}</div>
+                <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", marginBottom: 12 }}>{p.price_note}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
+                  {(p.features || []).map((f, i) => (
+                    <div key={i} style={{ fontSize: 11.5, color: T.textSecondary, display: "flex", gap: 6 }}><span style={{ color: T.greenText, fontWeight: 700 }}>✓</span>{f}</div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Btn onClick={() => openEdit(p)} style={{ fontSize: 12, padding: "6px 12px", flex: 1 }}>✏️ Düzenle</Btn>
+                  <Btn onClick={() => del(p.id)} style={{ fontSize: 12, padding: "6px 12px", background: T.redDim, color: T.redText }}>🗑</Btn>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modal && (
+        <Modal title={editId ? "Paketi Düzenle" : "Yeni Paket"} onClose={() => setModal(false)} width={560}>
+          <FormField label="Paket Adı"><Input placeholder="Örn: Profesyonel" value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FormField>
+          <FormField label="Kısa Açıklama"><Input placeholder="Örn: En çok tercih edilen" value={form.tagline || ""} onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))} /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <FormField label="Aylık Fiyat (₺)"><Input type="number" placeholder="0" value={form.price || ""} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></FormField>
+            <FormField label="Fiyat Notu"><Input placeholder="aylık · KDV hariç" value={form.price_note || ""} onChange={e => setForm(f => ({ ...f, price_note: e.target.value }))} /></FormField>
+          </div>
+          <FormField label="Özellikler"><FeatureEditor features={form.features} onChange={fs => setForm(f => ({ ...f, features: fs }))} /></FormField>
+          <div onClick={() => setForm(f => ({ ...f, is_popular: !f.is_popular }))} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bgInput, borderRadius: 8, cursor: "pointer", marginTop: 8 }}>
+            <div style={{ width: 40, height: 22, borderRadius: 11, background: form.is_popular ? T.amber : T.border, position: "relative", transition: "0.2s" }}>
+              <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 2, left: form.is_popular ? 20 : 2, transition: "0.2s" }} />
+            </div>
+            <span style={{ fontSize: 13, color: T.textPrimary }}>★ "En Popüler" olarak işaretle</span>
+          </div>
+          <ModalActions onClose={() => setModal(false)} onSave={save} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ EK HİZMETLER ═══════════════
+function PricingAddons({ addons, reload }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [editId, setEditId] = useState(null);
+
+  const openAdd = () => { setEditId(null); setForm({ name: "", price_text: "" }); setModal(true); };
+  const openEdit = (a) => { setEditId(a.id); setForm({ name: a.name, price_text: a.price_text }); setModal(true); };
+  const save = async () => {
+    if (!form.name) { alert("Hizmet adı zorunlu"); return; }
+    const payload = { name: form.name, price_text: form.price_text || "" };
+    let error;
+    if (editId) ({ error } = await supabase.from('pricing_addons').update(payload).eq('id', editId));
+    else { payload.sort_order = (addons.length ? Math.max(...addons.map(a => a.sort_order || 0)) : 0) + 1; ({ error } = await supabase.from('pricing_addons').insert(payload)); }
+    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    setModal(false); reload();
+  };
+  const del = async (id) => { if (!window.confirm("Silinsin mi?")) return; await supabase.from('pricing_addons').delete().eq('id', id); reload(); };
+
+  return (
+    <div>
+      <Btn variant="primary" onClick={openAdd} style={{ marginBottom: 18 }}>+ Ek Hizmet Ekle</Btn>
+      {addons.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Henüz ek hizmet yok</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {addons.map(a => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{a.name}</div>
+                <div style={{ fontSize: 12, color: T.amberText, fontWeight: 600 }}>{a.price_text}</div>
+              </div>
+              <Btn onClick={() => openEdit(a)} style={{ fontSize: 12, padding: "6px 12px" }}>✏️</Btn>
+              <Btn onClick={() => del(a.id)} style={{ fontSize: 12, padding: "6px 12px", background: T.redDim, color: T.redText }}>🗑</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+      {modal && (
+        <Modal title={editId ? "Ek Hizmeti Düzenle" : "Yeni Ek Hizmet"} onClose={() => setModal(false)}>
+          <FormField label="Hizmet Adı"><Input placeholder="Örn: Logo tasarımı" value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FormField>
+          <FormField label="Fiyat Metni"><Input placeholder="Örn: ₺6.500'den başlayan" value={form.price_text || ""} onChange={e => setForm(f => ({ ...f, price_text: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={save} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ TEKLİFLER ═══════════════
+function PricingQuotes({ packages, addons, quotes, reload }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+
+  const openAdd = () => { setForm({ business_name: "", package_name: "", price: "", features: [], addons: [], note: "", status: "draft" }); setModal(true); };
+
+  const selectPackage = (name) => {
+    const p = packages.find(x => x.name === name);
+    if (p) setForm(f => ({ ...f, package_name: p.name, price: p.price, features: [...(p.features || [])] }));
+    else setForm(f => ({ ...f, package_name: name }));
+  };
+
+  const toggleAddon = (name) => setForm(f => ({ ...f, addons: (f.addons || []).includes(name) ? f.addons.filter(a => a !== name) : [...(f.addons || []), name] }));
+
+  const save = async (thenPrint) => {
+    if (!form.business_name) { alert("İşletme adı zorunlu"); return; }
+    const payload = {
+      business_name: form.business_name, package_name: form.package_name || "", price: parseFloat(form.price) || 0,
+      features: (form.features || []).filter(f => f.trim()), addons: form.addons || [], note: form.note || "", status: form.status || "draft",
+    };
+    const { data, error } = await supabase.from('pricing_quotes').insert(payload).select().single();
+    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    setModal(false); reload();
+    if (thenPrint && data) printQuote(data, addons);
+  };
+
+  const setStatus = async (id, status) => { await supabase.from('pricing_quotes').update({ status }).eq('id', id); reload(); };
+  const del = async (id) => { if (!window.confirm("Bu teklif silinsin mi?")) return; await supabase.from('pricing_quotes').delete().eq('id', id); reload(); };
+
+  return (
+    <div>
+      <Btn variant="primary" onClick={openAdd} style={{ marginBottom: 18 }}>+ Yeni Teklif Hazırla</Btn>
+      {quotes.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Henüz teklif yok. Müşteriye özel teklif hazırlamak için "+ Yeni Teklif Hazırla".</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {quotes.map(q => {
+            const st = QUOTE_STATUS[q.status] || QUOTE_STATUS.draft;
+            return (
+              <div key={q.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: T.amber, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", flexShrink: 0 }}>📄</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{q.business_name}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{q.package_name || "Özel"} · {fmtMoney(Number(q.price))} · {new Date(q.created_at).toLocaleDateString("tr-TR")}</div>
+                </div>
+                <select value={q.status} onChange={e => setStatus(q.id, e.target.value)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 8px", borderRadius: 6, background: st.bg, color: st.color, border: `1px solid ${T.border}`, cursor: "pointer" }}>
+                  {Object.entries(QUOTE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                </select>
+                <Btn onClick={() => printQuote(q, addons)} style={{ fontSize: 12, padding: "6px 12px", background: T.indigoDim, color: T.indigoText }}>🖨️ Yazdır</Btn>
+                <Btn onClick={() => del(q.id)} style={{ fontSize: 12, padding: "6px 12px", background: T.redDim, color: T.redText }}>🗑</Btn>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modal && (
+        <Modal title="Yeni Teklif Hazırla" onClose={() => setModal(false)} width={600}>
+          <FormField label="İşletme Adı"><Input placeholder="Teklif verilecek işletme" value={form.business_name || ""} onChange={e => setForm(f => ({ ...f, business_name: e.target.value }))} /></FormField>
+          <FormField label="Paket Seç (otomatik doldurur)">
+            <Select value={form.package_name || ""} onChange={e => selectPackage(e.target.value)}>
+              <option value="">Paket seçin veya özel hazırlayın...</option>
+              {packages.map(p => <option key={p.id} value={p.name}>{p.name} — {fmtMoney(Number(p.price))}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Teklif Fiyatı (₺)"><Input type="number" placeholder="0" value={form.price || ""} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></FormField>
+          <FormField label="Paket İçeriği (düzenlenebilir)"><FeatureEditor features={form.features} onChange={fs => setForm(f => ({ ...f, features: fs }))} /></FormField>
+          {addons.length > 0 && (
+            <FormField label="Ek Hizmetler (isteğe bağlı)">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {addons.map(a => {
+                  const on = (form.addons || []).includes(a.name);
+                  return (
+                    <div key={a.id} onClick={() => toggleAddon(a.name)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: on ? T.amberDim : T.bgInput, borderRadius: 8, cursor: "pointer", border: `1px solid ${on ? T.amber + "66" : T.border}` }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 4, background: on ? T.amber : "transparent", border: `1px solid ${on ? T.amber : T.borderLight}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12 }}>{on ? "✓" : ""}</div>
+                      <span style={{ fontSize: 12, color: T.textPrimary, flex: 1 }}>{a.name}</span>
+                      <span style={{ fontSize: 11, color: T.amberText, fontWeight: 600 }}>{a.price_text}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </FormField>
+          )}
+          <FormField label="Özel Not (isteğe bağlı)"><Textarea placeholder="Müşteriye özel mesaj..." value={form.note || ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></FormField>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20 }}>
+            <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
+            <Btn onClick={() => save(false)}>Kaydet</Btn>
+            <Btn variant="primary" onClick={() => save(true)}>Kaydet & Yazdır</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // SOĞUK ARAMA / POTANSİYEL MÜŞTERİ SAYFASI
@@ -4280,7 +4677,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'leads', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
+    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -4303,7 +4700,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'leads', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
+      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -4394,7 +4791,7 @@ export default function App() {
         </div>
       </div>
       <div style={{flex:1,padding:"12px 8px"}}>
-        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting)).map(item=>(
+        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients)).map(item=>(
           <div key={item.id} onClick={()=>setPage(item.id)} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
@@ -4411,7 +4808,7 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary,flexShrink:0}}>
-          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'leads' ? '📞 Soğuk Arama' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
+          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'leads' ? '📞 Soğuk Arama' : page === 'pricing' ? '💰 Fiyatlar' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
         </div>
         <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} />
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} />
@@ -4420,6 +4817,7 @@ export default function App() {
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
+        {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
