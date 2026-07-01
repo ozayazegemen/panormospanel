@@ -1221,22 +1221,62 @@ function StaffPage({staff,setStaff,allStaff}) {
       <ModalActions onClose={()=>setModal(false)} onSave={handleAddStaff} />
     </Modal>}
 
-    {selectedStaff && <Modal title={selectedStaff.name} onClose={()=>setSelectedStaff(null)}>
-      <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
-        <Avatar initials={selectedStaff.initials} color={selectedStaff.color} size={60}/>
+    {selectedStaff && <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={()=>setSelectedStaff(null)}>
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:0,maxWidth:600,width:"90%",maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+      {/* Header */}
+      <div style={{padding:"24px 24px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>{selectedStaff.name}</div>
+          <div style={{fontSize:13,color:T.amberText,fontWeight:600,marginTop:6}}>{selectedStaff.role}</div>
+        </div>
+        <button onClick={()=>setSelectedStaff(null)} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer",lineHeight:1}}>✕</button>
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
-        <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Pozisyon</div><div style={{fontSize:13,color:T.textPrimary,fontWeight:600}}>{selectedStaff.role}</div></div>
-        <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Çalışan Türü</div><div style={{fontSize:13,color:T.textPrimary,fontWeight:600}}>{selectedStaff.type}</div></div>
-        {selectedStaff.email && <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>E-mail</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedStaff.email}</div></div>}
-        {selectedStaff.phone && <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Telefon</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedStaff.phone}</div></div>}
-        {selectedStaff.start && <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase",fontWeight:500}}>Başlangıç Tarihi</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedStaff.start}</div></div>}
+
+      {/* Avatar */}
+      <div style={{padding:"0 24px",display:"flex",justifyContent:"center",marginBottom:24}}>
+        <Avatar initials={selectedStaff.initials} color={selectedStaff.color} size={80}/>
       </div>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+
+      {/* Info Grid */}
+      <div style={{padding:"0 24px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
+        {/* Pozisyon */}
+        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Pozisyon</div>
+          <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{selectedStaff.role}</div>
+        </div>
+
+        {/* Çalışan Türü */}
+        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Çalışan Türü</div>
+          <div style={{fontSize:14,fontWeight:600,color:T.amberText}}>{selectedStaff.type}</div>
+        </div>
+
+        {/* Email */}
+        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16,gridColumn:"1 / -1"}}>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>✉️ E-mail Adresi</div>
+          <div style={{fontSize:13,color:T.textPrimary,fontWeight:500,wordBreak:"break-all"}}>{selectedStaff.email || "—"}</div>
+        </div>
+
+        {/* Telefon */}
+        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>📱 Telefon</div>
+          <div style={{fontSize:13,color:T.textPrimary,fontWeight:500}}>{selectedStaff.phone || "—"}</div>
+        </div>
+
+        {/* Başlangıç Tarihi */}
+        <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:12,padding:16}}>
+          <div style={{fontSize:10,color:T.textMuted,marginBottom:8,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>📅 Başlangıç Tarihi</div>
+          <div style={{fontSize:13,color:T.textPrimary,fontWeight:500}}>{selectedStaff.start || "—"}</div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div style={{padding:"24px",borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
         <Btn onClick={()=>setSelectedStaff(null)}>Kapat</Btn>
         <Btn onClick={()=>setDepartureModal({staffId:selectedStaff.id,reason:"",date:""})} style={{background:T.redDim,color:T.redText}}>🗑 Ayrılış İşlemi</Btn>
       </div>
-    </Modal>}
+    </div>
+    </div>}
 
     {departureModal && <Modal title="Çalışan Ayrılış İşlemi" onClose={()=>setDepartureModal(null)}>
       <FormField label="Ayrılış Nedeni">
