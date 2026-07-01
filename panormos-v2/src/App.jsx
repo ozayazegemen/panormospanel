@@ -2,6 +2,131 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 
+// ─────────────────────────────────────────────
+// GOOGLE DRIVE AYARLARI
+// ─────────────────────────────────────────────
+const GOOGLE_CLIENT_ID = "443896142639-835q2tfpo4cr4tem933v5pkg1f3kk80r.apps.googleusercontent.com";
+const GOOGLE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+
+let googleTokenClient = null;
+let googleAccessToken = null;
+
+// Google Identity Services script'ini yükle
+function loadGoogleScript() {
+  return new Promise((resolve, reject) => {
+    if (window.google && window.google.accounts) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google script yüklenemedi"));
+    document.body.appendChild(script);
+  });
+}
+
+// Google'a giriş yap ve access token al
+function getGoogleAccessToken() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await loadGoogleScript();
+
+      if (!googleTokenClient) {
+        googleTokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: GOOGLE_SCOPE,
+          callback: (response) => {
+            if (response.access_token) {
+              googleAccessToken = response.access_token;
+              resolve(response.access_token);
+            } else {
+              reject(new Error("Access token alınamadı"));
+            }
+          },
+          error_callback: (err) => {
+            reject(new Error("Google giriş iptal edildi veya hata oluştu"));
+          },
+        });
+      } else {
+        googleTokenClient.callback = (response) => {
+          if (response.access_token) {
+            googleAccessToken = response.access_token;
+            resolve(response.access_token);
+          } else {
+            reject(new Error("Access token alınamadı"));
+          }
+        };
+      }
+
+      googleTokenClient.requestAccessToken({ prompt: googleAccessToken ? "" : "consent" });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// Panormos klasörünü bul veya oluştur, klasör ID'sini döndür
+async function getPanormosFolder(token) {
+  // Önce "Panormos Medya" adlı klasör var mı ara
+  const searchRes = await fetch(
+    "https://www.googleapis.com/drive/v3/files?q=" +
+      encodeURIComponent("name='Panormos Medya' and mimeType='application/vnd.google-apps.folder' and trashed=false") +
+      "&fields=files(id,name)",
+    { headers: { Authorization: "Bearer " + token } }
+  );
+  const searchData = await searchRes.json();
+
+  if (searchData.files && searchData.files.length > 0) {
+    return searchData.files[0].id;
+  }
+
+  // Yoksa oluştur
+  const createRes = await fetch("https://www.googleapis.com/drive/v3/files", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: "Panormos Medya",
+      mimeType: "application/vnd.google-apps.folder",
+    }),
+  });
+  const createData = await createRes.json();
+  return createData.id;
+}
+
+// Dosyayı Google Drive'a yükle
+async function uploadFileToGoogleDrive(token, file, folderId) {
+  const metadata = {
+    name: file.name,
+    parents: folderId ? [folderId] : [],
+  };
+
+  const form = new FormData();
+  form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+  form.append("file", file);
+
+  const res = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink",
+    {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token },
+      body: form,
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error("Drive yükleme hatası: " + errText);
+  }
+
+  return await res.json();
+}
+
 const T = {
   bg: "#0D1219", bgCard: "#121A25", bgCardHover: "#172030", bgSurface: "#1A2535", bgInput: "#0A1018",
   border: "#1E2E42", borderLight: "#263B55",
@@ -306,12 +431,45 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
     setUploading(true);
     
     if (useGoogleDrive) {
-      // Google Drive API placeholder - şimdilik yerel depolamada tutalım
-      alert("Google Drive entegrasyonu kurulum gerektirir. OAuth credentials gerekli. Şimdilik Supabase Storage kullanılıyor.");
-      setUseGoogleDrive(false);
-      return;
+      try {
+        // Google'a giriş yap
+        const token = await getGoogleAccessToken();
+        // Panormos klasörünü bul/oluştur
+        const folderId = await getPanormosFolder(token);
+
+        let successCount = 0;
+        for (const file of files) {
+          try {
+            const driveFile = await uploadFileToGoogleDrive(token, file, folderId);
+            // Kaydı Supabase'e de yaz (referans için)
+            await supabase.from('media').insert({
+              client_id: clientId,
+              name: file.name,
+              type: file.type.startsWith('video') ? 'video' : file.type.startsWith('image') ? 'image' : 'file',
+              size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+              date: new Date().toLocaleDateString("tr-TR"),
+              storage_path: driveFile.webViewLink || driveFile.id,
+              storage_type: 'google_drive',
+            });
+            successCount++;
+          } catch (err) {
+            console.error("Dosya yüklenemedi:", file.name, err);
+          }
+        }
+
+        setUploading(false);
+        setFiles([]);
+        alert(successCount + " dosya Google Drive'a yüklendi! (Panormos Medya klasörü)");
+        onUploadComplete?.();
+        return;
+      } catch (err) {
+        setUploading(false);
+        alert("Google Drive hatası: " + err.message);
+        return;
+      }
     }
     
+    // Supabase Storage'a yükle
     for (const file of files) {
       try {
         const fileName = `${clientId}-${Date.now()}-${file.name}`;
@@ -437,7 +595,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
           marginBottom:16,
           border:`1px solid ${T.border}`,
         }}>
-          💾 Supabase: 500 MB | Google Drive: 10 TB (kurulum gerekli)
+          💾 Supabase: 500 MB | Google Drive: 10 TB (Panormos Medya klasörüne yüklenir)
         </div>
         
         <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
