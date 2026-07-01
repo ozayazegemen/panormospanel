@@ -844,20 +844,33 @@ function ClientsPage({clients,setClients,allClients,perms}) {
   });
 
   const handleExportClients = async () => {
-    const activeRows = filteredClients.map(c => ({
-      "İşletme Adı": c.name,
-      "Kategori": c.category || "—",
-      "Telefon": c.phone || "—",
-      "Adres": c.address || "—",
-      "İl": c.city || "—",
-      "İlçe": c.district || "—",
-      "Vergi Numarası": c.taxNumber || "—",
-      "Vergi Dairesi": c.taxOffice || "—",
-      "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", ") || "—",
-      "Aylık Ücret (₺)": c.monthlyFee || 0,
-      "Toplam Fatura (₺)": c.invoices.reduce((s,i)=>s+i.total,0),
-      "Sözleşme Başlangıç": c.contractStart || "—",
-    }));
+    const activeRows = filteredClients.map(c => {
+      const publishDaysArr = c.publishDays || [];
+      const shootDaysArr = c.shootDays || [];
+      const toplamBakiye = c.invoices.reduce((s,i)=>s+i.total,0);
+      const odenenBakiye = c.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
+      const kalanBakiye = toplamBakiye - odenenBakiye;
+      return {
+        "İşletme Adı": c.name,
+        "Kategori": c.category || "—",
+        "Telefon": c.phone || "—",
+        "Adres": c.address || "—",
+        "İl": c.city || "—",
+        "İlçe": c.district || "—",
+        "Vergi Numarası": c.taxNumber || "—",
+        "Vergi Dairesi": c.taxOffice || "—",
+        "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", ") || "—",
+        "Paylaşım Günleri": publishDaysArr.join(", ") || "—",
+        "Çekim Günleri": shootDaysArr.join(", ") || "—",
+        "Aylık Paylaşım Sayısı": publishDaysArr.length * 4,
+        "Aylık Çekim Sayısı": shootDaysArr.length * 4,
+        "Aylık Ücret (₺)": c.monthlyFee || 0,
+        "Toplam Bakiye (₺)": toplamBakiye,
+        "Ödenen Bakiye (₺)": odenenBakiye,
+        "Kalan Bakiye (₺)": kalanBakiye,
+        "Sözleşme Başlangıç": c.contractStart || "—",
+      };
+    });
 
     const deletedClients = (allClients.filter(c => c.deleted_at) || []).map(c => ({
       "İşletme Adı": c.name,
