@@ -124,6 +124,83 @@ function exportToExcelDetailed(rows, filename, title = "") {
   URL.revokeObjectURL(url);
 }
 
+// ─────────────────────────────────────────────
+// YAZDIRMA FONKSİYONU - Yazıcıya gönderir
+// ─────────────────────────────────────────────
+function printData(title, rows) {
+  if (!rows || rows.length === 0) {
+    alert("Yazdırılacak veri bulunamadı");
+    return;
+  }
+
+  const headers = Object.keys(rows[0]);
+  const now = new Date().toLocaleString("tr-TR");
+
+  const tableRows = rows.map(row =>
+    "<tr>" + headers.map(h => {
+      const val = row[h] === null || row[h] === undefined ? "—" : String(row[h]);
+      return `<td>${val.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
+    }).join("") + "</tr>"
+  ).join("");
+
+  const headerRow = "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
+
+  const html = `
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+      <meta charset="UTF-8">
+      <title>${title}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1a1a1a; }
+        .header { border-bottom: 3px solid #F25124; padding-bottom: 16px; margin-bottom: 20px; }
+        .logo { font-size: 24px; font-weight: 700; }
+        .logo .p { color: #1A2B3F; }
+        .logo .m { color: #F25124; }
+        h1 { font-size: 18px; margin-top: 8px; color: #333; }
+        .meta { font-size: 12px; color: #888; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+        th { background: #1A2B3F; color: #fff; padding: 10px 8px; text-align: left; font-weight: 600; }
+        td { padding: 8px; border-bottom: 1px solid #e0e0e0; }
+        tr:nth-child(even) td { background: #f7f7f7; }
+        .footer { margin-top: 24px; font-size: 11px; color: #aaa; text-align: center; border-top: 1px solid #e0e0e0; padding-top: 12px; }
+        @media print {
+          body { padding: 15px; }
+          th { background: #1A2B3F !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          tr:nth-child(even) td { background: #f7f7f7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo"><span class="p">panormos</span> <span class="m">medya.</span></div>
+        <h1>${title}</h1>
+        <div class="meta">Yazdırma Tarihi: ${now} · Toplam ${rows.length} kayıt</div>
+      </div>
+      <table>
+        <thead>${headerRow}</thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+      <div class="footer">Panormos Medya Yönetim Paneli · panormosmedya.com</div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open("", "_blank", "width=900,height=700");
+  if (!printWindow) {
+    alert("Yazdırma penceresi açılamadı. Tarayıcının pop-up engelleyicisini kapatın.");
+    return;
+  }
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+  }, 300);
+}
+
+
 function MessagingPanel({clientId, clientName, onClose}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -527,6 +604,19 @@ function ClientsPage({clients,setClients,allClients}) {
     exportToExcelDetailed(allRows, `panormos-musteriler-${new Date().toISOString().slice(0,10)}.csv`, "PANORMOs MEDYA - MÜŞTERİ LİSTESİ");
   };
 
+  const handlePrintClients = () => {
+    const rows = filteredClients.map(c => ({
+      "İşletme Adı": c.name,
+      "Kategori": c.category,
+      "Telefon": c.phone || "—",
+      "Şehir": c.city || "—",
+      "Vergi No": c.taxNumber || "—",
+      "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", "),
+      "Aylık Ücret": fmtMoney(c.monthlyFee),
+    }));
+    printData("Müşteri Listesi", rows);
+  };
+
   const handleDeleteClient = async (clientId) => {
     if (!deleteModal.reason || !deleteModal.date) {
       alert("Lütfen silme sebebi ve bitiş tarihini seçin");
@@ -585,6 +675,14 @@ function ClientsPage({clients,setClients,allClients}) {
       }}>
         <span style={{fontSize:20}}>📊</span>
         <span style={{fontSize:11,fontWeight:600,color:T.textSecondary}}>Excel'e Aktar</span>
+      </div>
+      <div onClick={handlePrintClients} style={{
+        display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:6,
+        padding:"14px 24px", background:T.bgCard, border:`1px solid ${T.border}`, borderRadius:12,
+        cursor:"pointer", minWidth:120,
+      }}>
+        <span style={{fontSize:20}}>🖨️</span>
+        <span style={{fontSize:11,fontWeight:600,color:T.textSecondary}}>Yazdır</span>
       </div>
       <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:"",shootDays:"",platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>
     </div>
@@ -849,7 +947,19 @@ function IdeasPage() {
       <StatCard label="Tamamlanan" value={ideas.filter(i=>i.status==="completed").length} color={T.greenText} />
     </div>
 
-    <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",description:"",status:"planned",category:""});}} style={{marginBottom:20}}>💡 Yeni Fikir Ekle</Btn>
+    <div style={{display:"flex",gap:10,marginBottom:20}}>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",description:"",status:"planned",category:""});}}>💡 Yeni Fikir Ekle</Btn>
+      <Btn onClick={()=>{
+        const statusLabels={planned:"Planlandı",in_progress:"Devam Ediyor",completed:"Tamamlandı"};
+        const rows = ideas.map(i => ({
+          "Başlık": i.title,
+          "Açıklama": i.description || "—",
+          "Kategori": i.category || "—",
+          "Durum": statusLabels[i.status] || i.status,
+        }));
+        printData("Fikir Listesi", rows);
+      }}>🖨️ Yazdır</Btn>
+    </div>
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
       {ideas.map(idea => (
@@ -949,6 +1059,17 @@ function TasksPage({tasks,setTasks,clients,staff}) {
 
     <div style={{display:"flex",gap:8,marginBottom:16}}>
       <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
+      <Btn onClick={()=>{
+        const colLabels={todo:"Yapılacak",inprogress:"Devam Ediyor",review:"İncelemede",done:"Tamamlandı"};
+        const rows = tasks.map(t => ({
+          "Görev": t.title,
+          "Müşteri": t.client || "—",
+          "Durum": colLabels[t.col] || t.col,
+          "Öncelik": priorityConfig[t.priority]?.label || "—",
+          "Son Tarih": t.due || "—",
+        }));
+        printData("Görev Listesi", rows);
+      }}>🖨️ Yazdır</Btn>
     </div>
 
     {selectedTask && (
@@ -1081,6 +1202,26 @@ function CalendarPage({clients}) {
       <button onClick={goPrevMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>‹</button>
       <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
       <button onClick={goToday} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.amberText,cursor:"pointer",fontSize:11,fontWeight:600}}>Bugün</button>
+      <button onClick={()=>{
+        const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+        const rows = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const date = new Date(viewYear, viewMonth, d);
+          let wd = date.getDay(); wd = wd === 0 ? 6 : wd - 1;
+          const pub = clients.filter(c => c.publishDays.some(dn => getWeekdayIndex(dn) === wd));
+          const shoot = clients.filter(c => c.shootDays.some(dn => getWeekdayIndex(dn) === wd));
+          if (pub.length > 0 || shoot.length > 0) {
+            rows.push({
+              "Tarih": `${d} ${TR_MONTHS[viewMonth]} ${viewYear}`,
+              "Gün": ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd],
+              "Paylaşımlar": pub.map(c=>c.name).join(", ") || "—",
+              "Çekimler": shoot.map(c=>c.name).join(", ") || "—",
+            });
+          }
+        }
+        if (rows.length === 0) { alert("Bu ayda planlanmış paylaşım/çekim yok"); return; }
+        printData(`İçerik Takvimi - ${TR_MONTHS[viewMonth]} ${viewYear}`, rows);
+      }} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>🖨️ Yazdır</button>
       <div style={{display:"flex",gap:12}}>
         {[{l:"Paylaşım",c:T.amberText},{l:"Çekim",c:"#F9A8D4"}].map(l=>(
           <div key={l.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
@@ -1250,7 +1391,20 @@ function StaffPage({staff,setStaff,allStaff}) {
       <StatCard label="Serbest" value={staff.filter(s=>s.type==="Serbest").length} color={T.indigoText} />
     </div>
 
-    <Btn variant="primary" onClick={()=>{setModal(true);setForm({name:"",role:"",type:"Tam zamanlı",email:"",phone:"",startDate:""});}} style={{marginBottom:20}}>+ Çalışan Ekle</Btn>
+    <div style={{display:"flex",gap:10,marginBottom:20}}>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({name:"",role:"",type:"Tam zamanlı",email:"",phone:"",startDate:""});}}>+ Çalışan Ekle</Btn>
+      <Btn onClick={()=>{
+        const rows = staff.map(s => ({
+          "Ad Soyad": s.name,
+          "Pozisyon": s.role,
+          "Çalışan Türü": s.type,
+          "E-mail": s.email || "—",
+          "Telefon": s.phone || "—",
+          "Başlangıç Tarihi": s.start || "—",
+        }));
+        printData("Çalışan Listesi", rows);
+      }}>🖨️ Yazdır</Btn>
+    </div>
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:14}}>
       {staff.map(s=>(
