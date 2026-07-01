@@ -2595,6 +2595,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
 const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
+  {id:"leads",label:"Soğuk Arama",icon:"📞"},
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
@@ -2602,6 +2603,254 @@ const NAV=[
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
+
+// ─────────────────────────────────────────────
+// SOĞUK ARAMA / POTANSİYEL MÜŞTERİ SAYFASI
+// ─────────────────────────────────────────────
+const LEAD_STATUS = {
+  potential: { label: "Potansiyel", color: T.indigoText, bg: T.indigoDim, dot: "#6366F1" },
+  agreed: { label: "Anlaşıldı", color: T.greenText, bg: T.greenDim, dot: "#10B981" },
+  lost: { label: "Kaybedildi", color: T.redText, bg: T.redDim, dot: "#EF4444" },
+  converted: { label: "Müşteri Oldu", color: T.amberText, bg: T.amberDim, dot: "#F25124" },
+};
+
+function LeadsPage({ refreshData }) {
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [editId, setEditId] = useState(null);
+  const [filter, setFilter] = useState("active"); // active = potential+agreed
+  const [expanded, setExpanded] = useState(null);
+
+  const load = async () => {
+    const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    setLeads(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const openAdd = () => { setEditId(null); setForm({ status: "potential" }); setModal(true); };
+  const openEdit = (l) => {
+    setEditId(l.id);
+    setForm({ business_name: l.business_name, city: l.city, district: l.district, address: l.address, phone: l.phone, email: l.email, offer1: l.offer1, offer2: l.offer2, offer3: l.offer3, agreed_price: l.agreed_price, status: l.status, notes: l.notes });
+    setModal(true);
+  };
+
+  const saveLead = async () => {
+    if (!form.business_name) { alert("İşletme adı zorunlu"); return; }
+    const payload = {
+      business_name: form.business_name,
+      city: form.city || "", district: form.district || "", address: form.address || "",
+      phone: form.phone || "", email: form.email || "",
+      offer1: form.offer1 ? parseFloat(form.offer1) : null,
+      offer2: form.offer2 ? parseFloat(form.offer2) : null,
+      offer3: form.offer3 ? parseFloat(form.offer3) : null,
+      agreed_price: form.agreed_price ? parseFloat(form.agreed_price) : null,
+      status: form.status || "potential",
+      notes: form.notes || "",
+    };
+    let error;
+    if (editId) {
+      ({ error } = await supabase.from('leads').update(payload).eq('id', editId));
+    } else {
+      ({ error } = await supabase.from('leads').insert(payload));
+    }
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+    setModal(false); setForm({}); setEditId(null);
+    load();
+  };
+
+  const deleteLead = async (id) => {
+    if (!window.confirm("Bu kayıt silinsin mi?")) return;
+    await supabase.from('leads').delete().eq('id', id);
+    load();
+  };
+
+  // Aktif müşteriye taşı
+  const convertToClient = async (lead) => {
+    const price = lead.agreed_price || 0;
+    if (!window.confirm(`"${lead.business_name}" aktif müşterilere taşınacak.\nAylık ücret: ${fmtMoney(price)}\n\nOnaylıyor musunuz?`)) return;
+    const initials = (lead.business_name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const now = new Date();
+    const contractStart = `${TR_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+    const colors = ["#6366F1", "#EC4899", "#10B981", "#F59E0B", "#F97316"];
+    const { error } = await supabase.from('clients').insert({
+      name: lead.business_name,
+      category: "",
+      initials,
+      accent_color: colors[Math.floor(Math.random() * colors.length)],
+      phone: lead.phone || "", address: lead.address || "", city: lead.city || "", district: lead.district || "",
+      tax_number: "", tax_office: "",
+      platforms: [], publish_days: [], shoot_days: [], publish_times: [],
+      monthly_fee: Math.round(price), contract_start: contractStart,
+    });
+    if (error) { alert("Taşıma başarısız: " + error.message); return; }
+    await supabase.from('leads').update({ status: 'converted' }).eq('id', lead.id);
+    await load();
+    if (refreshData) await refreshData();
+    alert(`"${lead.business_name}" artık aktif müşteri! 🎉\nMüşteriler sekmesinden bilgilerini tamamlayabilirsiniz.`);
+  };
+
+  const filtered = leads.filter(l => {
+    if (filter === "active") return l.status === "potential" || l.status === "agreed";
+    if (filter === "all") return true;
+    return l.status === filter;
+  });
+
+  const stats = {
+    potential: leads.filter(l => l.status === "potential").length,
+    agreed: leads.filter(l => l.status === "agreed").length,
+    converted: leads.filter(l => l.status === "converted").length,
+  };
+
+  const printLeads = () => {
+    const rows = filtered.map(l => ({
+      "İşletme": l.business_name,
+      "İl/İlçe": [l.city, l.district].filter(Boolean).join(" / ") || "—",
+      "Telefon": l.phone || "—",
+      "Mail": l.email || "—",
+      "1. Teklif": l.offer1 ? fmtMoney(l.offer1) : "—",
+      "2. Teklif": l.offer2 ? fmtMoney(l.offer2) : "—",
+      "3. Teklif": l.offer3 ? fmtMoney(l.offer3) : "—",
+      "Anlaşılan": l.agreed_price ? fmtMoney(l.agreed_price) : "—",
+      "Durum": LEAD_STATUS[l.status]?.label || l.status,
+    }));
+    printData("Soğuk Arama Listesi", rows);
+  };
+
+  const exportLeads = async () => {
+    const rows = filtered.map(l => ({
+      "İşletme Adı": l.business_name,
+      "İl": l.city || "—", "İlçe": l.district || "—", "Adres": l.address || "—",
+      "Telefon": l.phone || "—", "Mail": l.email || "—",
+      "1. Teklif (₺)": l.offer1 || 0, "2. Teklif (₺)": l.offer2 || 0, "3. Teklif (₺)": l.offer3 || 0,
+      "Anlaşılan Fiyat (₺)": l.agreed_price || 0,
+      "Durum": LEAD_STATUS[l.status]?.label || l.status,
+      "Not": l.notes || "—",
+    }));
+    await exportPerfectExcel([{ name: "Soğuk Arama", rows, title: "PANORMOS MEDYA — POTANSİYEL MÜŞTERİLER" }], `panormos-soguk-arama-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const FILTER_TABS = [
+    { id: "active", l: "Aktif Takip" },
+    { id: "potential", l: "Potansiyel" },
+    { id: "agreed", l: "Anlaşıldı" },
+    { id: "converted", l: "Müşteri Oldu" },
+    { id: "lost", l: "Kaybedildi" },
+    { id: "all", l: "Tümü" },
+  ];
+
+  return (
+    <div>
+      {/* Özet */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Potansiyel" value={stats.potential} color={T.indigoText} sub="Görüşülüyor" />
+        <StatCard label="Anlaşıldı" value={stats.agreed} color={T.greenText} sub="Taşınmayı bekliyor" />
+        <StatCard label="Müşteri Oldu" value={stats.converted} color={T.amberText} sub="Aktife taşındı" />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Btn variant="primary" onClick={openAdd}>+ Potansiyel Müşteri Ekle</Btn>
+        <Btn onClick={exportLeads} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel</Btn>
+        <Btn onClick={printLeads}>🖨️ Yazdır</Btn>
+      </div>
+
+      {/* Durum filtreleri */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {FILTER_TABS.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{ fontSize: 12, fontWeight: filter === f.id ? 600 : 400, padding: "6px 12px", borderRadius: 8, background: filter === f.id ? T.amber : T.bgInput, color: filter === f.id ? T.white : T.textSecondary, border: `1px solid ${filter === f.id ? T.amber : T.border}`, cursor: "pointer" }}>{f.l}</button>
+        ))}
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Bu durumda kayıt yok. "+ Potansiyel Müşteri Ekle" ile başla!</div>
+          : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {filtered.map(l => {
+                const st = LEAD_STATUS[l.status] || LEAD_STATUS.potential;
+                const isOpen = expanded === l.id;
+                return (
+                  <div key={l.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+                    <div onClick={() => setExpanded(isOpen ? null : l.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", borderLeft: `3px solid ${st.dot}` }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: st.dot, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", flexShrink: 0 }}>📞</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{l.business_name}</div>
+                        <div style={{ fontSize: 11, color: T.textMuted }}>{[l.city, l.district].filter(Boolean).join(" / ") || "—"}{l.phone ? " · " + l.phone : ""}</div>
+                      </div>
+                      {l.agreed_price ? <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: T.greenText }}>{fmtMoney(l.agreed_price)}</div><div style={{ fontSize: 10, color: T.textMuted }}>anlaşılan</div></div> : null}
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: st.bg, color: st.color }}>{st.label}</span>
+                      <span style={{ fontSize: 13, color: T.textMuted, transform: isOpen ? "rotate(90deg)" : "none", transition: "0.2s" }}>›</span>
+                    </div>
+                    {isOpen && (
+                      <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${T.border}` }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "14px 0" }}>
+                          <div>
+                            <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>İletişim</div>
+                            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7 }}>
+                              <div>📍 {l.address || "Adres yok"}</div>
+                              <div>📞 {l.phone || "—"}</div>
+                              <div>✉️ {l.email || "—"}</div>
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>Teklifler</div>
+                            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7 }}>
+                              <div>1️⃣ {l.offer1 ? fmtMoney(l.offer1) : "—"}</div>
+                              <div>2️⃣ {l.offer2 ? fmtMoney(l.offer2) : "—"}</div>
+                              <div>3️⃣ {l.offer3 ? fmtMoney(l.offer3) : "—"}</div>
+                              <div style={{ color: T.greenText, fontWeight: 600 }}>✅ Anlaşılan: {l.agreed_price ? fmtMoney(l.agreed_price) : "—"}</div>
+                            </div>
+                          </div>
+                        </div>
+                        {l.notes && <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, padding: "8px 12px", background: T.bgInput, borderRadius: 8 }}>📝 {l.notes}</div>}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {l.status !== "converted" && <Btn variant="primary" onClick={() => convertToClient(l)} style={{ fontSize: 12, padding: "7px 14px", background: T.greenDim, color: T.greenText }}>✅ Aktif Müşteriye Taşı</Btn>}
+                          <Btn onClick={() => openEdit(l)} style={{ fontSize: 12, padding: "7px 14px" }}>✏️ Düzenle</Btn>
+                          <Btn onClick={() => deleteLead(l.id)} style={{ fontSize: 12, padding: "7px 14px", background: T.redDim, color: T.redText }}>🗑 Sil</Btn>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+      {/* Ekleme/Düzenleme modalı */}
+      {modal && (
+        <Modal title={editId ? "Potansiyel Müşteriyi Düzenle" : "Yeni Potansiyel Müşteri"} onClose={() => { setModal(false); setEditId(null); }} width={600}>
+          <FormField label="İşletme Adı"><Input placeholder="Örn: Lezzet Durağı" value={form.business_name || ""} onChange={e => setForm(f => ({ ...f, business_name: e.target.value }))} /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <FormField label="İl"><Input placeholder="Bursa" value={form.city || ""} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></FormField>
+            <FormField label="İlçe"><Input placeholder="Nilüfer" value={form.district || ""} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} /></FormField>
+          </div>
+          <FormField label="Açık Adres"><Textarea placeholder="Açık adres" value={form.address || ""} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone || ""} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></FormField>
+            <FormField label="Mail (varsa)"><Input placeholder="mail@ornek.com" value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></FormField>
+          </div>
+          <div style={{ fontSize: 11, color: T.amberText, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", margin: "8px 0 4px" }}>💰 Teklifler</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <FormField label="1. Teklif (₺)"><Input type="number" placeholder="0" value={form.offer1 || ""} onChange={e => setForm(f => ({ ...f, offer1: e.target.value }))} /></FormField>
+            <FormField label="2. Teklif (₺)"><Input type="number" placeholder="0" value={form.offer2 || ""} onChange={e => setForm(f => ({ ...f, offer2: e.target.value }))} /></FormField>
+            <FormField label="3. Teklif (₺)"><Input type="number" placeholder="0" value={form.offer3 || ""} onChange={e => setForm(f => ({ ...f, offer3: e.target.value }))} /></FormField>
+          </div>
+          <FormField label="✅ Anlaşılan Fiyat (₺)"><Input type="number" placeholder="0" value={form.agreed_price || ""} onChange={e => setForm(f => ({ ...f, agreed_price: e.target.value }))} /></FormField>
+          <FormField label="Durum">
+            <Select value={form.status || "potential"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              <option value="potential">Potansiyel (görüşülüyor)</option>
+              <option value="agreed">Anlaşıldı</option>
+              <option value="lost">Kaybedildi</option>
+            </Select>
+          </FormField>
+          <FormField label="Notlar"><Textarea placeholder="Görüşme notları..." value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => { setModal(false); setEditId(null); }} onSave={saveLead} />
+        </Modal>
+      )}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // MUHASEBE YARDIMCILARI
@@ -3680,7 +3929,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
+    const validPages = ['dashboard', 'clients', 'leads', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -3703,7 +3952,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
+      const validPages = ['dashboard', 'clients', 'leads', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -3811,12 +4060,13 @@ export default function App() {
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard}}>
         <div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>
-          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
+          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'leads' ? '📞 Soğuk Arama' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
+        {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
