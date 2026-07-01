@@ -706,10 +706,28 @@ function ModalActions({onClose,onSave}) {
   </div>;
 }
 
+// Yetki açma/kapama düğmesi
+function PermToggle({label, checked, onChange}) {
+  return <div onClick={onChange} style={{
+    display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:8,cursor:"pointer",
+    background:checked?T.amberDim:T.bgInput,border:`1px solid ${checked?T.amber+"66":T.border}`,transition:"all 0.12s",
+  }}>
+    <div style={{
+      width:36,height:20,borderRadius:20,background:checked?T.amber:T.borderLight,position:"relative",transition:"all 0.2s",flexShrink:0,
+    }}>
+      <div style={{
+        width:16,height:16,borderRadius:"50%",background:"#fff",position:"absolute",top:2,
+        left:checked?18:2,transition:"all 0.2s",
+      }} />
+    </div>
+    <span style={{fontSize:12,color:checked?T.textPrimary:T.textSecondary,fontWeight:checked?500:400}}>{label}</span>
+  </div>;
+}
+
 // ─────────────────────────────────────────────
 // CLIENTS PAGE
 // ─────────────────────────────────────────────
-function ClientsPage({clients,setClients,allClients}) {
+function ClientsPage({clients,setClients,allClients,perms}) {
   const [open,setOpen]=useState(null);
   const [tab,setTab]=useState({});
   const [modal,setModal]=useState(null);
@@ -797,10 +815,10 @@ function ClientsPage({clients,setClients,allClients}) {
   };
 
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24}}>
+    <div style={{display:"grid",gridTemplateColumns:perms.finance?"repeat(4,1fr)":"repeat(2,1fr)",gap:12,marginBottom:24}}>
       <StatCard label="Aktif Müşteri" value={filteredClients.length} sub={`Toplam: ${clients.length}`} />
-      <StatCard label="Toplam Ciro" value={fmtMoney(totalRevenue)} color={T.indigoText} sub="Tüm zamanlar" />
-      <StatCard label="Tahsilat Bekleyen" value={fmtMoney(pendingRevenue)} color={T.amberText} sub={`${overdueCount} gecikmiş`} />
+      {perms.finance && <StatCard label="Toplam Ciro" value={fmtMoney(totalRevenue)} color={T.indigoText} sub="Tüm zamanlar" />}
+      {perms.finance && <StatCard label="Tahsilat Bekleyen" value={fmtMoney(pendingRevenue)} color={T.amberText} sub={`${overdueCount} gecikmiş`} />}
       <StatCard label="Bu Ay Paylaşım" value={filteredClients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0)} color={T.greenText} sub="Yayınlanan" />
     </div>
 
@@ -842,7 +860,7 @@ function ClientsPage({clients,setClients,allClients}) {
         <span style={{fontSize:20}}>🖨️</span>
         <span style={{fontSize:11,fontWeight:600,color:T.textSecondary}}>Yazdır</span>
       </div>
-      <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:"",shootDays:"",platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>
+      {perms.manageClients && <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:"",shootDays:"",platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>}
     </div>
 
     <div style={{display:"flex",flexDirection:"column",gap:2}}>
@@ -863,13 +881,13 @@ function ClientsPage({clients,setClients,allClients}) {
               <div style={{fontSize:12,color:T.textMuted,marginTop:2}}>{client.category} • {client.phone}</div>
             </div>
             <div style={{display:"flex",gap:5}}>{client.platforms.map(p=><PlatformTag key={p} id={p}/>)}</div>
-            <div style={{textAlign:"right",minWidth:90}}>
+            {perms.finance && <div style={{textAlign:"right",minWidth:90}}>
               <div style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{fmtMoney(client.monthlyFee)}</div>
               <div style={{fontSize:11,color:T.textMuted}}>aylık</div>
-            </div>
+            </div>}
             <span style={{fontSize:13,color:T.textMuted,transition:"transform 0.2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)"}}>›</span>
           </div>
-          {isOpen&&<ClientDetail client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} onDelete={()=>setDeleteModal({clientId:client.id,reason:"",date:""})} />}
+          {isOpen&&<ClientDetail client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} onDelete={()=>setDeleteModal({clientId:client.id,reason:"",date:""})} perms={perms} />}
         </div>;
       })}
     </div>
@@ -954,44 +972,49 @@ function ClientsPage({clients,setClients,allClients}) {
   </div>;
 }
 
-function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient,onDelete}) {
+function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient,onDelete,perms}) {
   const [uploadPanel, setUploadPanel] = useState(false);
   
-  const tabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"},{id:"invoices",lbl:"Faturalar"}];
+  // Faturalar sekmesi sadece finansal yetkisi olana görünür
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"media",lbl:"Medya"}];
+  const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}] : baseTabs;
+
+  // Yetkisi olmayan biri faturalar sekmesindeyse özete al
+  const safeTab = (currentTab === "invoices" && !perms.finance) ? "overview" : currentTab;
 
   return <div style={{background:T.bgSurface,border:`1px solid ${T.borderLight}`,borderTop:"none",borderRadius:"0 0 12px 12px",marginBottom:2}}>
     <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,padding:"0 20px",gap:2,alignItems:"center",flexWrap:"wrap"}}>
-      {tabs.map(t=>{const active=currentTab===t.id;return <button key={t.id} onClick={()=>setTab(t.id)} style={{fontSize:12,fontWeight:active?600:400,padding:"11px 16px",color:active?T.amberText:T.textMuted,background:"none",border:"none",borderBottom:`2px solid ${active?T.amber:"transparent"}`,cursor:"pointer",transition:"all 0.12s",whiteSpace:"nowrap"}}>{t.lbl}</button>;})}
+      {tabs.map(t=>{const active=safeTab===t.id;return <button key={t.id} onClick={()=>setTab(t.id)} style={{fontSize:12,fontWeight:active?600:400,padding:"11px 16px",color:active?T.amberText:T.textMuted,background:"none",border:"none",borderBottom:`2px solid ${active?T.amber:"transparent"}`,cursor:"pointer",transition:"all 0.12s",whiteSpace:"nowrap"}}>{t.lbl}</button>;})}
       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-        {currentTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
-        {currentTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
+        {safeTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
+        {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
-        <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>
+        {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
     <div style={{padding:20}}>
-      {currentTab==="overview"&&<ClientOverview client={client}/>}
-      {currentTab==="posts"&&<ClientPosts client={client}/>}
-      {currentTab==="media"&&<ClientMedia client={client}/>}
-      {currentTab==="invoices"&&<ClientInvoices client={client}/>}
+      {safeTab==="overview"&&<ClientOverview client={client} perms={perms}/>}
+      {safeTab==="posts"&&<ClientPosts client={client}/>}
+      {safeTab==="media"&&<ClientMedia client={client}/>}
+      {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
     </div>
     
     {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);window.location.reload();}} />}
   </div>;
 }
 
-function ClientOverview({client}) {
+function ClientOverview({client, perms}) {
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
   const pct=total>0?Math.round(paid/total*100):0;
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
-      <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} />
+    <div style={{display:"grid",gridTemplateColumns:perms.finance?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:20}}>
+      {perms.finance && <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} />}
       <StatCard label="Paylaşım" value={client.posts.filter(p=>p.status==="done").length} sub="Bu ay yayınlanan" />
       <StatCard label="Medya Dosyası" value={client.media.length} />
       <StatCard label="Sözleşme Başlangıç" value={client.contractStart} />
     </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+    <div style={{display:"grid",gridTemplateColumns:perms.finance?"1fr 1fr":"1fr",gap:16,marginBottom:16}}>
       <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
         <div style={{fontSize:11,color:T.textMuted,marginBottom:8,fontWeight:500,textTransform:"uppercase"}}>İşletme Bilgileri</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12}}>
@@ -1001,7 +1024,7 @@ function ClientOverview({client}) {
           <div><span style={{color:T.textMuted}}>Vergi Dairesi:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxOffice||"—"}</span></div>
         </div>
       </div>
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
+      {perms.finance && <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
         <div style={{fontSize:11,color:T.textMuted,marginBottom:8,fontWeight:500,textTransform:"uppercase"}}>Mali Özet</div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div><div style={{fontSize:11,color:T.textMuted}}>Toplam</div><div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>{fmtMoney(total)}</div></div>
@@ -1013,7 +1036,7 @@ function ClientOverview({client}) {
             <span style={{fontSize:11,color:T.textMuted}}>%{pct}</span>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   </div>;
 }
@@ -1443,7 +1466,7 @@ const DEPARTURE_REASONS = [
   { id: "other", label: "Diğer" },
 ];
 
-function StaffPage({staff,setStaff,allStaff}) {
+function StaffPage({staff,setStaff,allStaff,perms}) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [departureModal, setDepartureModal] = useState(null);
@@ -1469,9 +1492,18 @@ function StaffPage({staff,setStaff,allStaff}) {
       email: form.email || "",
       phone: form.phone || "",
       start_date: form.startDate || new Date().toLocaleDateString("tr-TR"),
+      is_admin: form.is_admin || false,
+      perm_finance: form.perm_finance || false,
+      perm_manage_clients: form.perm_manage_clients || false,
+      perm_manage_staff: form.perm_manage_staff || false,
     }).select().single();
 
-    if (!error && data) {
+    if (error) {
+      alert("HATA: Çalışan eklenemedi!\n\n" + error.message + "\n\nSupabase'de yetki sütunları eksik olabilir. SQL kodunu çalıştırın.");
+      return;
+    }
+
+    if (data) {
       setStaff(prev => [...prev, {
         id: data.id,
         name: data.name,
@@ -1482,6 +1514,10 @@ function StaffPage({staff,setStaff,allStaff}) {
         email: data.email,
         phone: data.phone,
         start: data.start_date,
+        is_admin: data.is_admin,
+        perm_finance: data.perm_finance,
+        perm_manage_clients: data.perm_manage_clients,
+        perm_manage_staff: data.perm_manage_staff,
       }]);
     }
 
@@ -1504,6 +1540,10 @@ function StaffPage({staff,setStaff,allStaff}) {
       email: editForm.email || "",
       phone: editForm.phone || "",
       start_date: editForm.startDate || "",
+      is_admin: editForm.is_admin || false,
+      perm_finance: editForm.perm_finance || false,
+      perm_manage_clients: editForm.perm_manage_clients || false,
+      perm_manage_staff: editForm.perm_manage_staff || false,
     }).eq('id', editModal.id);
 
     if (error) {
@@ -1520,6 +1560,10 @@ function StaffPage({staff,setStaff,allStaff}) {
       email: editForm.email || "",
       phone: editForm.phone || "",
       start: editForm.startDate || "",
+      is_admin: editForm.is_admin,
+      perm_finance: editForm.perm_finance,
+      perm_manage_clients: editForm.perm_manage_clients,
+      perm_manage_staff: editForm.perm_manage_staff,
     } : s));
 
     setEditModal(null);
@@ -1611,7 +1655,7 @@ function StaffPage({staff,setStaff,allStaff}) {
 
           {/* Butonlar */}
           <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
             <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
           </div>
         </Card>
@@ -1625,6 +1669,20 @@ function StaffPage({staff,setStaff,allStaff}) {
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+
+      <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+        <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <PermToggle label="👑 Yönetici (her şeyi görür ve yönetir)" checked={form.is_admin} onChange={()=>setForm(f=>({...f,is_admin:!f.is_admin}))} />
+          {!form.is_admin && <>
+            <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={form.perm_finance} onChange={()=>setForm(f=>({...f,perm_finance:!f.perm_finance}))} />
+            <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={form.perm_manage_clients} onChange={()=>setForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
+            <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={form.perm_manage_staff} onChange={()=>setForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
+          </>}
+        </div>
+      </div>
+
       <ModalActions onClose={()=>setModal(false)} onSave={handleAddStaff} />
     </Modal>}
 
@@ -1635,6 +1693,20 @@ function StaffPage({staff,setStaff,allStaff}) {
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={editForm.email||""} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={editForm.phone||""} onChange={e=>setEditForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={editForm.startDate||""} onChange={e=>setEditForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+
+      <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+        <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <PermToggle label="👑 Yönetici (her şeyi görür ve yönetir)" checked={editForm.is_admin} onChange={()=>setEditForm(f=>({...f,is_admin:!f.is_admin}))} />
+          {!editForm.is_admin && <>
+            <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={editForm.perm_finance} onChange={()=>setEditForm(f=>({...f,perm_finance:!f.perm_finance}))} />
+            <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={editForm.perm_manage_clients} onChange={()=>setEditForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
+            <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={editForm.perm_manage_staff} onChange={()=>setEditForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
+          </>}
+        </div>
+      </div>
+
       <ModalActions onClose={()=>setEditModal(null)} onSave={handleEditStaff} />
     </Modal>}
 
@@ -1703,7 +1775,7 @@ function StaffPage({staff,setStaff,allStaff}) {
 // ─────────────────────────────────────────────
 // ANA SAYFA (DASHBOARD)
 // ─────────────────────────────────────────────
-function DashboardPage({clients, staff, tasks, setPage}) {
+function DashboardPage({clients, staff, tasks, setPage, perms}) {
   const totalRevenue = clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const paidRevenue = clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="paid").reduce((ss,i)=>ss+i.total,0),0);
   const pendingRevenue = totalRevenue - paidRevenue;
@@ -1748,7 +1820,8 @@ function DashboardPage({clients, staff, tasks, setPage}) {
       <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
     </div>
 
-    {/* Finansal Özet */}
+    {/* Finansal Özet - sadece yetkili görür */}
+    {perms.finance && (
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
       <div style={{background:`linear-gradient(135deg, ${T.bgCard}, ${T.indigoDim})`,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
         <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Toplam Ciro</div>
@@ -1767,6 +1840,7 @@ function DashboardPage({clients, staff, tasks, setPage}) {
         <div style={{fontSize:26,fontWeight:700,color:T.indigoText}}>{fmtMoney(monthlyTotal)}</div>
       </div>
     </div>
+    )}
 
     {/* Bugün */}
     <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
@@ -1873,6 +1947,7 @@ async function loadAllData() {
     id: s.id, name: s.name, role: s.role || "", initials: s.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase(),
     color: ["#6366F1", "#EC4899", "#10B981"][s.id % 3], type: s.type || "Tam zamanlı",
     email: s.email, phone: s.phone || "", start: s.start_date || "",
+    is_admin: s.is_admin, perm_finance: s.perm_finance, perm_manage_clients: s.perm_manage_clients, perm_manage_staff: s.perm_manage_staff,
   }));
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
@@ -1957,6 +2032,15 @@ export default function App() {
 
   if (dataLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Veriler yükleniyor...</div>;
 
+  // Yetki hesaplama: Yönetici her şeyi görür, diğerleri sadece izinli olduklarını
+  const isAdmin = currentStaff.is_admin === true;
+  const perms = {
+    isAdmin,
+    finance: isAdmin || currentStaff.perm_finance === true,       // Finansal bilgiler, faturalar, ödemeler, ücretler
+    manageClients: isAdmin || currentStaff.perm_manage_clients === true,  // Müşteri ekle/düzenle/sil
+    manageStaff: isAdmin || currentStaff.perm_manage_staff === true,      // Çalışan ekle/düzenle/sil
+  };
+
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif"}}>
     <div style={{width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
       <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
@@ -1966,7 +2050,7 @@ export default function App() {
         </div>
       </div>
       <div style={{flex:1,padding:"12px 8px"}}>
-        {NAV.map(item=>(
+        {NAV.filter(item => item.id !== 'staff' || perms.manageStaff).map(item=>(
           <div key={item.id} onClick={()=>setPage(item.id)} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
@@ -1987,12 +2071,12 @@ export default function App() {
         </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
-        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage}/>}
-        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients}/>}
+        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms}/>}
+        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
-        {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff}/>}
+        {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
       </div>
     </div>
   </div>;
