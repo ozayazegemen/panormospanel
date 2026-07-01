@@ -1240,10 +1240,9 @@ export default function App() {
     <div style={{width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
       <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{marginBottom:6}}>
-          <div style={{fontSize:16,fontWeight:700,color:T.amberText}}>📊 PANORMOS</div>
-          <div style={{fontSize:13,fontWeight:700,color:T.amberText}}>medya</div>
+          <div style={{fontSize:20,fontWeight:700,color:"#1A2B3F",letterSpacing:"-0.02em"}}>panormos</div>
+          <div style={{fontSize:18,fontWeight:700,color:"#F25124",letterSpacing:"-0.02em"}}>medya.</div>
         </div>
-        <div style={{fontSize:9,color:T.textMuted,letterSpacing:"0.02em"}}>Medya Yönetim Paneli</div>
       </div>
       <div style={{flex:1,padding:"12px 8px"}}>
         {NAV.map(item=>(
