@@ -211,43 +211,136 @@ function decryptText(encoded) {
   }
 }
 
-function exportToExcelDetailed(rows, filename, title = "") {
-  if (!rows || rows.length === 0) {
+// ─────────────────────────────────────────────
+// KUSURSUZ EXCEL - Gerçek .xlsx (renkli, biçimli)
+// ─────────────────────────────────────────────
+
+// SheetJS (stil destekli ücretsiz sürüm) kütüphanesini dinamik yükle
+function loadXLSX() {
+  return new Promise((resolve, reject) => {
+    if (window.XLSX) { resolve(window.XLSX); return; }
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";
+    script.onload = () => resolve(window.XLSX);
+    script.onerror = () => reject(new Error("Excel kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edin."));
+    document.head.appendChild(script);
+  });
+}
+
+// Bir sayfayı (sheet) profesyonel biçimlendir: başlık satırı renkli, sütun genişliği otomatik
+function styleWorksheet(XLSX, ws, headers, rows, titleText) {
+  const range = XLSX.utils.decode_range(ws["!ref"]);
+
+  // Otomatik sütun genişliği (içeriğe göre)
+  const colWidths = headers.map((h, colIdx) => {
+    let maxLen = String(h).length;
+    rows.forEach(row => {
+      const val = row[h] === null || row[h] === undefined ? "" : String(row[h]);
+      if (val.length > maxLen) maxLen = val.length;
+    });
+    return { wch: Math.min(Math.max(maxLen + 3, 12), 50) };
+  });
+  ws["!cols"] = colWidths;
+
+  // Satır yükseklikleri
+  ws["!rows"] = [];
+  for (let r = 0; r <= range.e.r; r++) {
+    ws["!rows"][r] = { hpt: r === 0 ? 26 : 20 };
+  }
+
+  // Hücre stilleri
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[cellRef]) continue;
+
+      if (R === 0) {
+        // Başlık satırı — turuncu arka plan, beyaz kalın yazı
+        ws[cellRef].s = {
+          font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11, name: "Calibri" },
+          fill: { fgColor: { rgb: "F25124" } },
+          alignment: { horizontal: "center", vertical: "center", wrapText: true },
+          border: {
+            top: { style: "thin", color: { rgb: "D9D9D9" } },
+            bottom: { style: "thin", color: { rgb: "D9D9D9" } },
+            left: { style: "thin", color: { rgb: "D9D9D9" } },
+            right: { style: "thin", color: { rgb: "D9D9D9" } },
+          },
+        };
+      } else {
+        // Veri satırları — zebra deseni (tek/çift satır)
+        const isEven = R % 2 === 0;
+        ws[cellRef].s = {
+          font: { color: { rgb: "1A1A1A" }, sz: 10, name: "Calibri" },
+          fill: { fgColor: { rgb: isEven ? "FEF0EB" : "FFFFFF" } },
+          alignment: { horizontal: "left", vertical: "center", wrapText: false },
+          border: {
+            top: { style: "thin", color: { rgb: "EEEEEE" } },
+            bottom: { style: "thin", color: { rgb: "EEEEEE" } },
+            left: { style: "thin", color: { rgb: "EEEEEE" } },
+            right: { style: "thin", color: { rgb: "EEEEEE" } },
+          },
+        };
+      }
+    }
+  }
+}
+
+// Ana Excel oluşturma fonksiyonu
+// sheets: [{ name, rows, title }]  → her biri ayrı sayfa olur
+async function exportPerfectExcel(sheets, filename) {
+  const validSheets = sheets.filter(s => s.rows && s.rows.length > 0);
+  if (validSheets.length === 0) {
     alert("Dışa aktarılacak veri bulunamadı");
     return;
   }
-  
-  const headers = Object.keys(rows[0]);
-  let csvContent = "\uFEFF";
-  
-  if (title) {
-    csvContent += title + "\n";
-    csvContent += "İndiriş Tarihi: " + new Date().toLocaleString("tr-TR") + "\n\n";
+
+  let XLSX;
+  try {
+    XLSX = await loadXLSX();
+  } catch (err) {
+    alert(err.message);
+    return;
   }
-  
-  csvContent += headers.map(h => `"${h}"`).join(";") + "\n";
-  
-  csvContent += rows.map(row => {
-    return headers.map(h => {
-      let val = row[h] === null || row[h] === undefined ? "" : String(row[h]);
-      val = val.replace(/"/g, '""');
-      if (val.includes(";") || val.includes("\n") || val.includes('"')) {
-        val = `"${val}"`;
-      }
-      return val;
-    }).join(";");
-  }).join("\r\n");
-  
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+
+  const wb = XLSX.utils.book_new();
+
+  validSheets.forEach(sheet => {
+    const headers = Object.keys(sheet.rows[0]);
+
+    // Başlık metni için üstte boş satırlar bırak
+    const titleRows = sheet.title ? 2 : 0;
+    const ws = XLSX.utils.json_to_sheet(sheet.rows, {
+      origin: titleRows > 0 ? `A${titleRows + 1}` : "A1",
+    });
+
+    // Başlık metnini ekle (varsa)
+    if (sheet.title) {
+      XLSX.utils.sheet_add_aoa(ws, [
+        [sheet.title],
+        ["İndirilme: " + new Date().toLocaleString("tr-TR")],
+      ], { origin: "A1" });
+    }
+
+    styleWorksheet(XLSX, ws, headers, sheet.rows, sheet.title);
+
+    // Başlık hücrelerini stille (üstteki 2 satır)
+    if (sheet.title) {
+      const titleCell = ws["A1"];
+      if (titleCell) titleCell.s = { font: { bold: true, sz: 14, color: { rgb: "F25124" }, name: "Calibri" } };
+      const dateCell = ws["A2"];
+      if (dateCell) dateCell.s = { font: { italic: true, sz: 9, color: { rgb: "999999" }, name: "Calibri" } };
+    }
+
+    // Sayfa adı en fazla 31 karakter olabilir (Excel kuralı)
+    const safeName = sheet.name.slice(0, 31).replace(/[:\\/?*\[\]]/g, "");
+    XLSX.utils.book_append_sheet(wb, ws, safeName);
+  });
+
+  XLSX.writeFile(wb, filename);
 }
+
+
 
 // ─────────────────────────────────────────────
 // YAZDIRMA FONKSİYONU - Yazıcıya gönderir
@@ -750,25 +843,23 @@ function ClientsPage({clients,setClients,allClients,perms}) {
     return matchSearch && matchCategory && matchPlatform;
   });
 
-  const handleExportClients = () => {
+  const handleExportClients = async () => {
     const activeRows = filteredClients.map(c => ({
-      "Durum": "Aktif",
       "İşletme Adı": c.name,
-      "Kategori": c.category,
+      "Kategori": c.category || "—",
       "Telefon": c.phone || "—",
       "Adres": c.address || "—",
       "İl": c.city || "—",
       "İlçe": c.district || "—",
       "Vergi Numarası": c.taxNumber || "—",
       "Vergi Dairesi": c.taxOffice || "—",
-      "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", "),
-      "Aylık Ücret": c.monthlyFee,
-      "Toplam Fatura": c.invoices.reduce((s,i)=>s+i.total,0),
-      "Sözleşme Başlangıç": c.contractStart,
+      "Platformlar": c.platforms.map(p=>platformConfig[p]?.label).join(", ") || "—",
+      "Aylık Ücret (₺)": c.monthlyFee || 0,
+      "Toplam Fatura (₺)": c.invoices.reduce((s,i)=>s+i.total,0),
+      "Sözleşme Başlangıç": c.contractStart || "—",
     }));
 
     const deletedClients = (allClients.filter(c => c.deleted_at) || []).map(c => ({
-      "Durum": "Silindi",
       "İşletme Adı": c.name,
       "Kategori": c.category || "—",
       "Silme Sebebi": CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "—",
@@ -776,8 +867,14 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       "Silme Tarihi": c.deleted_at ? new Date(c.deleted_at).toLocaleDateString("tr-TR") : "—",
     }));
 
-    const allRows = [...activeRows, ...deletedClients];
-    exportToExcelDetailed(allRows, `panormos-musteriler-${new Date().toISOString().slice(0,10)}.csv`, "PANORMOs MEDYA - MÜŞTERİ LİSTESİ");
+    const sheets = [
+      { name: "Aktif Müşteriler", rows: activeRows, title: "PANORMOS MEDYA — AKTİF MÜŞTERİ LİSTESİ" },
+    ];
+    if (deletedClients.length > 0) {
+      sheets.push({ name: "Silinen Müşteriler", rows: deletedClients, title: "PANORMOS MEDYA — SİLİNEN MÜŞTERİLER" });
+    }
+
+    await exportPerfectExcel(sheets, `panormos-musteriler-${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
   const handlePrintClients = () => {
