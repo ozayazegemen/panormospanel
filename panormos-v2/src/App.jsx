@@ -996,11 +996,11 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     {id:"done",label:"Tamamlandı",color:T.green},
   ];
 
-  const moveTask=async id=>{
-    const order=cols.map(c=>c.id);
-    const task = tasks.find(t=>t.id===id);
-    const newCol = order[(order.indexOf(task.col)+1)%order.length];
+  const moveTask=async (id, newCol)=>{
     setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol}:t));
+    if(selectedTask && selectedTask.id===id){
+      setSelectedTask({...selectedTask,col:newCol});
+    }
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
   };
 
@@ -1080,7 +1080,7 @@ function TasksPage({tasks,setTasks,clients,staff}) {
               <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Durum</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
                 {cols.map(c=>(
-                  <button key={c.id} onClick={()=>moveTask(selectedTask.id)} style={{
+                  <button key={c.id} onClick={()=>moveTask(selectedTask.id, c.id)} style={{
                     padding:"8px 12px",fontSize:11,fontWeight:600,borderRadius:8,
                     background:selectedTask.col===c.id?T.amber:T.bgSurface,
                     color:selectedTask.col===c.id?T.white:T.textMuted,
