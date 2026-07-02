@@ -167,26 +167,51 @@ const CLIENT_DELETE_REASONS = [
 // EMOJİ SİSTEMİ
 // ─────────────────────────────────────────────
 const EMOJI_LIST = [
-  "😀","😃","😄","😁","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘",
-  "😋","😛","😜","🤪","😎","🥳","🤩","🤗","🤔","🤭","🙄","😴","🥱","😷","🤒","🤕",
-  "😢","😭","😤","😠","😡","🥺","😳","😱","😨","😰","😥","😔","😞","🙁","☹️","😖",
-  "👍","👎","👌","✌️","🤞","🤟","👏","🙌","🙏","💪","👋","🤝","☝️","👇","👈","👉",
-  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💕","💯","🔥","⭐","🌟","✨","⚡",
-  "✅","❌","❓","❗","💡","📌","📍","🎯","🏆","🥇","🎉","🎊","🎈","🎁","💰","💵",
-  "📊","📈","📉","📅","📆","⏰","📷","🎥","📱","💻","✏️","📝","📎","🚀","☕","👀",
+  "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰",
+  "😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳",
+  "😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤",
+  "😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫",
+  "🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵",
+  "🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","🤡","💩",
+  "👍","👎","👌","🤌","🤏","✌️","🤞","🤟","🤘","🤙","👈","👉","👆","👇","☝️","✋",
+  "🤚","🖐️","🖖","👋","🤝","👏","🙌","👐","🤲","🙏","💪","🦾","✍️","💅","👀","👁️",
+  "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖",
+  "💘","💝","💯","💢","💥","💫","💦","💨","🔥","⭐","🌟","✨","⚡","☄️","💎","🎯",
+  "✅","☑️","✔️","❌","❎","❓","❔","❗","❕","💡","📌","📍","🎉","🎊","🎈","🎁",
+  "💰","💵","💴","💶","💷","🪙","📊","📈","📉","📅","📆","🗓️","⏰","⏱️","⌛","⏳",
+  "📷","📸","🎥","🎬","📱","💻","🖥️","⌨️","🖱️","🖨️","✏️","📝","📎","📏","🔗","🚀",
+  "☕","🍵","🍺","🍻","🥂","🍷","🎵","🎶","🔔","📢","📣","💬","💭","🗨️","👌","🆗",
 ];
 
 // Emoji seçici düğmesi — herhangi bir metin alanına emoji eklemek için
 function EmojiButton({ onSelect, size = 18 }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const pickerW = 300, pickerH = 260;
+      let left = r.right - pickerW;              // butona sağ hizala
+      if (left < 8) left = 8;
+      let top = r.top - pickerH - 8;             // butonun üstünde aç
+      if (top < 8) top = r.bottom + 8;           // yukarı sığmıyorsa altında aç
+      setPos({ top, left });
+    }
+    setOpen(o => !o);
+  };
+
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
         style={{
           background: "none", border: "none", cursor: "pointer", fontSize: size,
           padding: "2px 4px", lineHeight: 1, opacity: 0.85,
+          fontFamily: "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif",
         }}
         title="Emoji ekle"
       >😊</button>
@@ -194,10 +219,10 @@ function EmojiButton({ onSelect, size = 18 }) {
         <>
           <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 3000 }} />
           <div style={{
-            position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 3001,
+            position: "fixed", top: pos.top, left: pos.left, zIndex: 3001,
             background: T.bgSurface, border: `1px solid ${T.borderLight}`, borderRadius: 12,
-            padding: 10, width: 280, maxHeight: 220, overflowY: "auto",
-            display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4,
+            padding: 10, width: 300, height: 260, overflowY: "auto",
+            display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 4, alignContent: "start",
             boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
           }}>
             {EMOJI_LIST.map((emoji, i) => (
@@ -206,8 +231,9 @@ function EmojiButton({ onSelect, size = 18 }) {
                 type="button"
                 onClick={() => { onSelect(emoji); setOpen(false); }}
                 style={{
-                  background: "none", border: "none", cursor: "pointer", fontSize: 20,
-                  padding: 3, borderRadius: 6, transition: "background 0.1s",
+                  background: "none", border: "none", cursor: "pointer", fontSize: 22,
+                  padding: 3, borderRadius: 6, transition: "background 0.1s", lineHeight: 1.2,
+                  fontFamily: "'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif",
                 }}
                 onMouseEnter={e => e.currentTarget.style.background = T.bgCardHover}
                 onMouseLeave={e => e.currentTarget.style.background = "none"}
@@ -216,7 +242,7 @@ function EmojiButton({ onSelect, size = 18 }) {
           </div>
         </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -1881,7 +1907,18 @@ function TasksPage({tasks,setTasks,clients,staff}) {
             <button onClick={()=>setSelectedTask(null)} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer"}}>✕</button>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
-            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Müşteri</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.client}</div></div>
+            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Müşteri</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.client||"—"}</div></div>
+            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>👤 Atanan Kişi</div>
+              <Select value={selectedTask.assignedTo||""} onChange={async e=>{
+                const val = e.target.value || null;
+                await supabase.from('tasks').update({assigned_to: val}).eq('id', selectedTask.id);
+                setTasks(prev=>prev.map(t=>t.id===selectedTask.id?{...t,assignedTo:val}:t));
+                setSelectedTask({...selectedTask,assignedTo:val});
+              }}>
+                <option value="">Atanmadı</option>
+                {staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+              </Select>
+            </div>
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
                 {cols.map(c=>(
@@ -1928,15 +1965,23 @@ function TasksPage({tasks,setTasks,clients,staff}) {
             <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}</span>
             <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{tasks.filter(t=>t.col===col.id).length}</span>
           </div>
-          {tasks.filter(t=>t.col===col.id).map(task=>(
+          {tasks.filter(t=>t.col===col.id).map(task=>{
+            const assignee = task.assignedTo ? staff.find(s=>s.id===task.assignedTo) : null;
+            return (
             <div key={task.id} onClick={()=>setSelectedTask(task)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${priorityConfig[task.priority]?.color}`,transition:"all 0.12s"}}>
               <div style={{fontSize:12,fontWeight:500,color:T.textPrimary,marginBottom:6}}>{task.title}</div>
+              {assignee && (
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
+                  <div style={{width:18,height:18,borderRadius:"50%",background:assignee.color||T.amber,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{assignee.initials}</div>
+                  <span style={{fontSize:10,color:T.textSecondary}}>{assignee.name}</span>
+                </div>
+              )}
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
                 <span style={{fontSize:10,fontWeight:600,padding:"2px 6px",borderRadius:4,background:priorityConfig[task.priority]?.bg,color:priorityConfig[task.priority]?.color}}>{priorityConfig[task.priority]?.label}</span>
                 <span style={{fontSize:10,color:T.textMuted}}>{task.due}</span>
               </div>
             </div>
-          ))}
+          );})}
         </div>
       ))}
     </div>
@@ -1949,6 +1994,7 @@ function TasksPage({tasks,setTasks,clients,staff}) {
         </div>
       </FormField>
       <FormField label="Müşteri"><Select value={form.client||""} onChange={e=>setForm(f=>({...f,client:e.target.value}))}>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
+      <FormField label="👤 Kime Atanacak"><Select value={form.assignedTo||""} onChange={e=>setForm(f=>({...f,assignedTo:e.target.value}))}><option value="">Atanmadı</option>{staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}</Select></FormField>
       <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
       <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
@@ -1957,10 +2003,11 @@ function TasksPage({tasks,setTasks,clients,staff}) {
         const { data, error } = await supabase.from('tasks').insert({
           title: form.title, type: form.type||"Tasarım",
           priority: form.priority||"mid", due_date: form.due||"—", col: "todo",
+          assigned_to: form.assignedTo || null,
         }).select().single();
-        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nDUZELTMELER-SQL kodunu çalıştırıp RLS engelini kaldırdığınızdan emin olun."); return; }
+        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nFIKIR-GOREV-SQL kodunu çalıştırıp assigned_to sütununu eklediğinizden emin olun."); return; }
         if(data){
-          setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",col:"todo",due:form.due}]);
+          setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",col:"todo",due:form.due,priority:form.priority||"mid",type:form.type||"Tasarım",assignedTo:form.assignedTo||null}]);
         }
         setModal(false);
       }} />
@@ -4544,7 +4591,7 @@ async function loadAllData() {
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
     id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "",
-    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo",
+    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo", assignedTo: t.assigned_to || null,
   }));
 
   return { clients, staff, tasks, allClients: clientsRaw || [], allStaff: staffRaw || [] };
@@ -4752,12 +4799,38 @@ function NotificationBell({ clients, tasks, perms, setPage }) {
   );
 }
 
+// Bildirim sesi çal (harici dosya gerekmez, tarayıcıda üretilir)
+function playNotificationSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const notes = [880, 1174.66]; // iki notalı hoş bir "ding"
+    notes.forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "sine";
+      o.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.12;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.25, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      o.start(start);
+      o.stop(start + 0.36);
+    });
+  } catch (e) { /* ses çalınamazsa sessizce geç */ }
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [currentStaff, setCurrentStaff] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authDenied, setAuthDenied] = useState(false);
   const [staffResolving, setStaffResolving] = useState(false);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
+  const knownMsgIdsRef = useRef(null);
+  const pageRef = useRef("dashboard");
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
     const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
@@ -4867,6 +4940,49 @@ export default function App() {
     if (session && currentStaff) refreshData();
   }, [session, currentStaff]);
 
+  // Sayfa değişimini ref'te tut (dinleyici içinde okumak için)
+  useEffect(() => { pageRef.current = page; }, [page]);
+  // Mesajlar sayfasına gelince okunmamış sayacı sıfırla
+  useEffect(() => { if (page === "messages") setUnreadMsgs(0); }, [page]);
+
+  // Global yeni mesaj dinleyici — bildirim + ses
+  useEffect(() => {
+    if (!currentStaff) return;
+    // Tarayıcı bildirim izni iste
+    if ("Notification" in window && Notification.permission === "default") {
+      try { Notification.requestPermission(); } catch (e) {}
+    }
+    const check = async () => {
+      try {
+        const { data: members } = await supabase.from('conversation_members').select('conversation_id').eq('staff_id', currentStaff.id);
+        const convIds = (members || []).map(m => m.conversation_id);
+        if (convIds.length === 0) { knownMsgIdsRef.current = new Set(); return; }
+        const { data: msgs } = await supabase
+          .from('staff_messages').select('id,sender_id,text,conversation_id')
+          .in('conversation_id', convIds).neq('sender_id', currentStaff.id)
+          .order('created_at', { ascending: false }).limit(50);
+        const list = msgs || [];
+        const ids = new Set(list.map(m => m.id));
+        if (knownMsgIdsRef.current === null) { knownMsgIdsRef.current = ids; return; } // ilk yükleme: baz al, bildirim yok
+        const newMsgs = list.filter(m => !knownMsgIdsRef.current.has(m.id));
+        knownMsgIdsRef.current = ids;
+        if (newMsgs.length > 0) {
+          playNotificationSound();
+          if (pageRef.current !== "messages") {
+            setUnreadMsgs(u => u + newMsgs.length);
+            if ("Notification" in window && Notification.permission === "granted") {
+              const latest = newMsgs[0];
+              try { new Notification("💬 Yeni mesaj", { body: (latest.text || "").slice(0, 90) }); } catch (e) {}
+            }
+          }
+        }
+      } catch (e) { /* sessiz geç */ }
+    };
+    check();
+    const interval = setInterval(check, 4000);
+    return () => clearInterval(interval);
+  }, [currentStaff]);
+
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
   if (!session) return <Login onLogin={() => {}} />;
 
@@ -4921,7 +5037,10 @@ export default function App() {
             color:page===item.id?"#A8C4DC":T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:page===item.id?600:400,transition:"all 0.12s",
           }}>
             <span style={{fontSize:15}}>{item.icon}</span>
-            <span>{item.label}</span>
+            <span style={{flex:1}}>{item.label}</span>
+            {item.id==="messages" && unreadMsgs>0 && (
+              <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:"#EF4444",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMsgs}</span>
+            )}
           </div>
         ))}
       </div>
