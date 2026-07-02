@@ -1233,7 +1233,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         <span style={{fontSize:20}}>🖨️</span>
         <span style={{fontSize:11,fontWeight:600,color:T.textSecondary}}>Yazdır</span>
       </div>
-      {perms.manageClients && <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:[],shootDays:[],publishTimes:[],platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>}
+      <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:[],shootDays:[],publishTimes:[],platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>
     </div>
 
     <div style={{display:"flex",flexDirection:"column",gap:2}}>
@@ -1277,7 +1277,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       </div>
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
-      <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>
+      {perms.finance && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1321,7 +1321,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       </div>
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
-      <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>
+      {perms.finance && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1701,8 +1701,32 @@ function ClientInvoices({client}) {
 // ─────────────────────────────────────────────
 function IdeasPage() {
   const [ideas, setIdeas] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
+
+  const load = async () => {
+    const { data } = await supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+    setIdeas(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const saveIdea = async () => {
+    if (!form.title) return;
+    const { error } = await supabase.from('ideas').insert({
+      title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
+    });
+    if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nDUZELTMELER-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
+    setModal(false); setForm({});
+    load();
+  };
+
+  const deleteIdea = async (id) => {
+    if (!window.confirm("Bu fikir silinsin mi?")) return;
+    await supabase.from('ideas').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    load();
+  };
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
@@ -1725,20 +1749,27 @@ function IdeasPage() {
       }}>🖨️ Yazdır</Btn>
     </div>
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
-      {ideas.map(idea => (
-        <Card key={idea.id} style={{padding:20}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-            <div style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{idea.title}</div>
-            <Badge status={idea.status} />
-          </div>
-          <div style={{fontSize:12,color:T.textMuted,marginBottom:12}}>{idea.description}</div>
-          <div style={{display:"flex",gap:6}}>
-            <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span>
-          </div>
-        </Card>
-      ))}
-    </div>
+    {loading ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Yükleniyor...</div>
+    ) : ideas.length === 0 ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Henüz fikir yok. "💡 Yeni Fikir Ekle" ile başla!</div>
+    ) : (
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+        {ideas.map(idea => (
+          <Card key={idea.id} style={{padding:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:8}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,flex:1}}>{idea.title}</div>
+              <Badge status={idea.status} />
+            </div>
+            <div style={{fontSize:12,color:T.textMuted,marginBottom:12,whiteSpace:"pre-wrap"}}>{idea.description}</div>
+            <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between"}}>
+              {idea.category ? <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span> : <span/>}
+              <button onClick={()=>deleteIdea(idea.id)} style={{background:"none",border:"none",color:T.redText,cursor:"pointer",fontSize:13}}>🗑</button>
+            </div>
+          </Card>
+        ))}
+      </div>
+    )}
 
     {modal && <Modal title="Yeni Fikir Ekle" onClose={()=>setModal(false)} width={700}>
       <FormField label="Başlık">
@@ -1755,11 +1786,7 @@ function IdeasPage() {
       </FormField>
       <FormField label="Kategori"><Input placeholder="Video, Social, Audio, vb." value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Devam Ediyor</option><option value="completed">Tamamlandı</option></Select></FormField>
-      <ModalActions onClose={()=>setModal(false)} onSave={()=>{
-        if(!form.title) return;
-        setIdeas([...ideas, {id:Date.now(),title:form.title,description:form.description,status:form.status,category:form.category}]);
-        setModal(false);
-      }} />
+      <ModalActions onClose={()=>setModal(false)} onSave={saveIdea} />
     </Modal>}
   </div>;
 }
@@ -1931,7 +1958,8 @@ function TasksPage({tasks,setTasks,clients,staff}) {
           title: form.title, type: form.type||"Tasarım",
           priority: form.priority||"mid", due_date: form.due||"—", col: "todo",
         }).select().single();
-        if(!error && data){
+        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nDUZELTMELER-SQL kodunu çalıştırıp RLS engelini kaldırdığınızdan emin olun."); return; }
+        if(data){
           setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",col:"todo",due:form.due}]);
         }
         setModal(false);
@@ -3474,6 +3502,14 @@ function monthRefOptions() {
 // ═══════════════ MUHASEBE ANA SAYFA ═══════════════
 function AccountingPage({ clients, staff, perms }) {
   const [tab, setTab] = useState("cari");
+  // Güvenlik: muhasebe yetkisi yoksa erişimi engelle
+  if (!perms.accounting) {
+    return <div style={{textAlign:"center",color:T.textMuted,padding:60}}>
+      <div style={{fontSize:40,marginBottom:16}}>🔒</div>
+      <div style={{fontSize:16,fontWeight:600,color:T.textPrimary}}>Bu bölüme erişim yetkiniz yok</div>
+      <div style={{fontSize:13,marginTop:8}}>Muhasebe bilgileri yalnızca yetkili kişiler tarafından görülebilir.</div>
+    </div>;
+  }
   const tabs = [
     { id: "cari", lbl: "💳 Müşteri Cari" },
     { id: "giderler", lbl: "🏛️ SGK / Vergi / Maaş" },
@@ -4858,7 +4894,7 @@ export default function App() {
           <div style={{fontSize:18,fontWeight:700,color:"#F25124",letterSpacing:"-0.02em"}}>medya.</div>
         </div>
       </div>
-      <div style={{flex:1,padding:"12px 8px"}}>
+      <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
         {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients)).map(item=>(
           <div key={item.id} onClick={()=>setPage(item.id)} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
@@ -4870,6 +4906,26 @@ export default function App() {
             <span>{item.label}</span>
           </div>
         ))}
+      </div>
+
+      {/* Kullanıcı bilgisi + Çıkış */}
+      <div style={{padding:"12px",borderTop:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,padding:"4px 4px"}}>
+          <div style={{width:34,height:34,borderRadius:"50%",background:currentStaff.color||T.amber,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#fff",flexShrink:0}}>{currentStaff.initials||(currentStaff.name||"?").slice(0,2).toUpperCase()}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentStaff.name}</div>
+            <div style={{fontSize:10,color:T.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{perms.isAdmin?"Yönetici":currentStaff.role||"Çalışan"}</div>
+          </div>
+        </div>
+        <button onClick={async()=>{ if(window.confirm("Çıkış yapmak istediğinize emin misiniz?")){ await supabase.auth.signOut(); window.location.reload(); } }} style={{
+          width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+          padding:"9px 12px",borderRadius:10,background:T.bgSurface,border:`1px solid ${T.border}`,
+          color:T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:600,transition:"all 0.12s",
+        }}
+        onMouseEnter={e=>{e.currentTarget.style.background=T.redDim;e.currentTarget.style.color=T.redText;e.currentTarget.style.borderColor=T.red+"66";}}
+        onMouseLeave={e=>{e.currentTarget.style.background=T.bgSurface;e.currentTarget.style.color=T.textSecondary;e.currentTarget.style.borderColor=T.border;}}>
+          <span style={{fontSize:15}}>🚪</span><span>Çıkış Yap</span>
+        </button>
       </div>
     </div>
 
