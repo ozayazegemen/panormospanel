@@ -2155,6 +2155,19 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
     }
 
     if (data) {
+      // Giriş hesabı oluştur (email + şifre verildiyse)
+      if (form.email && form.password) {
+        if (form.password.length < 6) {
+          alert("Çalışan eklendi ancak GİRİŞ HESABI oluşturulamadı: Şifre en az 6 karakter olmalı. Düzenle'den şifre belirleyebilirsiniz.");
+        } else {
+          const { data: rpcData, error: rpcError } = await supabase.rpc('create_staff_login', { staff_email: form.email, staff_password: form.password });
+          if (rpcError) {
+            alert("Çalışan eklendi ANCAK giriş hesabı oluşturulamadı:\n\n" + rpcError.message + "\n\nCALISAN-SIFRE-SQL kodunu Supabase'de çalıştırdığınızdan emin olun. Sonra 'Düzenle'den şifre verebilirsiniz.");
+          } else {
+            alert("✅ Çalışan eklendi ve giriş hesabı oluşturuldu!\n\nÇalışana şu bilgileri verin:\nE-posta: " + form.email + "\nŞifre: " + form.password + "\n\nÇalışan 'Giriş Yap' ile bu bilgilerle girebilir.");
+          }
+        }
+      }
       setStaff(prev => [...prev, {
         id: data.id,
         name: data.name,
@@ -2321,6 +2334,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} /></FormField>
       <FormField label="Çalışan Türü"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="🔑 Giriş Şifresi (çalışan bununla girecek)"><Input type="text" placeholder="En az 6 karakter" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></FormField>
 
@@ -2346,6 +2360,19 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={editForm.role||""} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))} /></FormField>
       <FormField label="Çalışan Türü"><Select value={editForm.type||"Tam zamanlı"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={editForm.email||""} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="🔑 Yeni Şifre Belirle (boş bırakırsan değişmez)">
+        <div style={{display:"flex",gap:6}}>
+          <Input type="text" placeholder="Yeni giriş şifresi" value={editForm.newPassword||""} onChange={e=>setEditForm(f=>({...f,newPassword:e.target.value}))} />
+          <Btn onClick={async()=>{
+            if(!editForm.email){ alert("Önce e-posta girin"); return; }
+            if(!editForm.newPassword || editForm.newPassword.length<6){ alert("Şifre en az 6 karakter olmalı"); return; }
+            const { error } = await supabase.rpc('create_staff_login', { staff_email: editForm.email, staff_password: editForm.newPassword });
+            if(error){ alert("Şifre ayarlanamadı:\n\n"+error.message+"\n\nCALISAN-SIFRE-SQL kodunu çalıştırın."); return; }
+            alert("✅ Şifre ayarlandı!\n\nÇalışana verin:\nE-posta: "+editForm.email+"\nŞifre: "+editForm.newPassword);
+            setEditForm(f=>({...f,newPassword:""}));
+          }} style={{fontSize:12,padding:"0 14px",whiteSpace:"nowrap",flexShrink:0}}>Şifreyi Ayarla</Btn>
+        </div>
+      </FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={editForm.phone||""} onChange={e=>setEditForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={editForm.startDate||""} onChange={e=>setEditForm(f=>({...f,startDate:e.target.value}))} /></FormField>
 
