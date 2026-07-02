@@ -4304,6 +4304,23 @@ function MessagesPage({ currentStaff, staff }) {
     setActiveConvId(conv.id);
   };
 
+  // Sohbet veya grubu sil
+  const deleteConversation = async (conv) => {
+    const isGroup = conv.isGroup;
+    const msg = isGroup
+      ? `"${conv.name}" grubunu silmek istediğinize emin misiniz?\n\nTüm mesajlar kalıcı olarak silinecek.`
+      : `${conv.name} ile olan sohbeti silmek istediğinize emin misiniz?\n\nTüm mesajlar kalıcı olarak silinecek.`;
+    if (!window.confirm(msg)) return;
+    // Üyeler ve mesajlar CASCADE ile otomatik silinir; yine de garantiye alalım
+    await supabase.from('staff_messages').delete().eq('conversation_id', conv.id);
+    await supabase.from('conversation_members').delete().eq('conversation_id', conv.id);
+    const { error } = await supabase.from('conversations').delete().eq('id', conv.id);
+    if (error) { alert("Silinemedi: " + error.message); return; }
+    setActiveConvId(null);
+    setMessages([]);
+    await loadConversations();
+  };
+
   const activeConv = conversations.find(c => c.id === activeConvId);
   const fmtTime = (iso) => {
     const d = new Date(iso);
@@ -4375,6 +4392,7 @@ function MessagesPage({ currentStaff, staff }) {
                 }));
                 printData(`Mesaj Geçmişi - ${activeConv.name}`, rows);
               }} style={{fontSize:11,padding:"6px 12px"}}>🖨️ Yazdır</Btn>
+              <Btn onClick={()=>deleteConversation(activeConv)} style={{fontSize:11,padding:"6px 12px",background:T.redDim,color:T.redText}}>🗑 {activeConv.isGroup?"Grubu Sil":"Sohbeti Sil"}</Btn>
             </div>
 
             {/* Mesajlar */}
