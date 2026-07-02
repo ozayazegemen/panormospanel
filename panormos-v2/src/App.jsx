@@ -4675,6 +4675,8 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [currentStaff, setCurrentStaff] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authDenied, setAuthDenied] = useState(false);
+  const [staffResolving, setStaffResolving] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
     const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
@@ -4747,9 +4749,26 @@ export default function App() {
   }, [session]);
 
   useEffect(() => {
-    if (!session) return;
-    supabase.from('staff').select('*').eq('auth_id', session.user.id).single()
-      .then(({ data }) => setCurrentStaff(data));
+    if (!session) { setAuthDenied(false); setStaffResolving(false); return; }
+    setStaffResolving(true);
+    (async () => {
+      const uid = session.user.id;
+      const email = (session.user.email || "").toLowerCase();
+      // 1) auth_id ile eşleştir
+      let { data: row } = await supabase.from('staff').select('*').eq('auth_id', uid).maybeSingle();
+      // 2) bulunamazsa: email ile eşleştir ve auth_id'yi bağla (ilk girişte otomatik)
+      if (!row && email) {
+        const { data: matches } = await supabase.from('staff').select('*').ilike('email', email).is('deleted_at', null).limit(1);
+        const byEmail = matches && matches[0];
+        if (byEmail) {
+          await supabase.from('staff').update({ auth_id: uid }).eq('id', byEmail.id);
+          row = { ...byEmail, auth_id: uid };
+        }
+      }
+      if (row) { setCurrentStaff(row); setAuthDenied(false); }
+      else { setCurrentStaff(null); setAuthDenied(true); }
+      setStaffResolving(false);
+    })();
   }, [session]);
 
   const refreshData = async () => {
@@ -4768,7 +4787,29 @@ export default function App() {
   }, [session, currentStaff]);
 
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
-  if (!session || !currentStaff) return <Login onLogin={() => {}} />;
+  if (!session) return <Login onLogin={() => {}} />;
+
+  // Giriş yapıldı ama çalışan kaydı çözülüyor
+  if (staffResolving) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Hesap kontrol ediliyor...</div>;
+
+  // Giriş yapıldı ama bu email çalışan listesinde yok → erişim reddedildi
+  if (authDenied) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,padding:20}}>
+      <div style={{maxWidth:440,textAlign:"center",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:"40px 32px"}}>
+        <div style={{fontSize:44,marginBottom:16}}>🔒</div>
+        <div style={{fontSize:20,fontWeight:700,color:T.textPrimary,marginBottom:10}}>Erişim Yetkiniz Yok</div>
+        <div style={{fontSize:14,color:T.textSecondary,lineHeight:1.6,marginBottom:8}}>
+          <strong style={{color:T.amberText}}>{session.user.email}</strong> hesabı sistemde kayıtlı bir çalışana bağlı değil.
+        </div>
+        <div style={{fontSize:13,color:T.textMuted,lineHeight:1.6,marginBottom:24}}>
+          Yöneticinizden sizi <strong>bu e-posta adresiyle</strong> çalışan olarak eklemesini isteyin. Eklendikten sonra tekrar giriş yapın.
+        </div>
+        <Btn variant="primary" onClick={async()=>{await supabase.auth.signOut();window.location.reload();}}>Çıkış Yap ve Tekrar Dene</Btn>
+      </div>
+    </div>
+  );
+
+  if (!currentStaff) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
 
   if (dataLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Veriler yükleniyor...</div>;
 
