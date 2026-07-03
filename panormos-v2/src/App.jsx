@@ -1069,6 +1069,70 @@ function printMonthlyReport(client) {
   setTimeout(() => w.print(), 300);
 }
 
+// Sosyal medya aylık raporu PDF (müşteriye gönderilir)
+function printSocialReport(client, r, prev, monthLabel) {
+  const metrics = [
+    { key: "new_followers", label: "Yeni Takipçi", icon: "👥" },
+    { key: "total_followers", label: "Toplam Takipçi", icon: "🫂" },
+    { key: "reach", label: "Erişim", icon: "👁️" },
+    { key: "impressions", label: "Gösterim / İzlenme", icon: "📊" },
+    { key: "likes", label: "Beğeni", icon: "❤️" },
+    { key: "comments", label: "Yorum", icon: "💬" },
+    { key: "saves", label: "Kaydetme", icon: "🔖" },
+    { key: "shares", label: "Paylaşım", icon: "📤" },
+    { key: "profile_visits", label: "Profil Ziyareti", icon: "🔎" },
+  ];
+  const fmt = (n) => (n || 0).toLocaleString("tr-TR");
+  const cards = metrics.map(m => {
+    const val = r[m.key] || 0;
+    const pv = prev ? (prev[m.key] || 0) : null;
+    const diff = pv !== null ? val - pv : null;
+    const pct = pv ? Math.round((diff / pv) * 100) : null;
+    let badge = "";
+    if (diff !== null && diff !== 0) {
+      const up = diff > 0;
+      badge = `<div class="diff ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${fmt(Math.abs(diff))}${pct !== null ? ` (%${Math.abs(pct)})` : ''}</div>`;
+    }
+    return `<div class="metric"><div class="mlbl">${m.icon} ${m.label}</div><div class="mval">${fmt(val)}</div>${badge}</div>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${client.name} Rapor</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:0;color:#1a1a1a;background:#fff}
+    .page{max-width:800px;margin:0 auto;padding:30px}
+    .hero{background:linear-gradient(135deg,#1A2B3F,#3a2d6b);color:#fff;border-radius:18px;padding:34px;margin-bottom:24px;position:relative;overflow:hidden}
+    .hero::after{content:"";position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(242,81,36,0.4),transparent 70%)}
+    .logo{font-size:20px;font-weight:700;position:relative}.logo .m{color:#F8906E}
+    .hero h1{font-size:26px;margin-top:14px;font-weight:800;position:relative}
+    .hero .period{font-size:15px;opacity:0.85;margin-top:4px;position:relative}
+    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+    .metric{background:#f7f7f9;border-radius:14px;padding:18px;border-top:3px solid #6366F1}
+    .mlbl{font-size:12px;color:#888;margin-bottom:8px}
+    .mval{font-size:26px;font-weight:800;color:#1A2B3F}
+    .diff{font-size:12px;font-weight:700;margin-top:6px}
+    .diff.up{color:#0a7a4a}.diff.down{color:#c0392b}
+    .note{background:#eef2ff;border-radius:12px;padding:16px 18px;font-size:14px;color:#4338ca;margin-bottom:20px}
+    .footer{text-align:center;font-size:12px;color:#999;margin-top:26px;padding-top:16px;border-top:1px solid #eee}
+    .footer .co{color:#F25124;font-weight:700}
+    @media print{.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}.metric{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body><div class="page">
+    <div class="hero">
+      <div class="logo">panormos <span class="m">medya.</span></div>
+      <h1>${client.name}</h1>
+      <div class="period">${monthLabel(r.month_ref)} — Aylık Sosyal Medya Performans Raporu</div>
+    </div>
+    <div class="metrics">${cards}</div>
+    ${r.notes ? `<div class="note">📝 ${r.notes}</div>` : ""}
+    <div class="footer">Bu rapor <span class="co">Panormos Medya</span> tarafından hazırlanmıştır.<br>İş birliğiniz için teşekkür ederiz · panormosmedya.com</div>
+  </div></body></html>`;
+
+  const w = window.open("", "_blank", "width=1000,height=850");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
 function MessagingPanel({clientId, clientName, onClose}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -2906,6 +2970,240 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 }
 
 // ─────────────────────────────────────────────
+// SOSYAL MEDYA RAPORLARI (Meta verileri elle girilir)
+// ─────────────────────────────────────────────
+const REPORT_METRICS = [
+  { key: "new_followers", label: "Yeni Takipçi", icon: "👥", color: "#10B981" },
+  { key: "total_followers", label: "Toplam Takipçi", icon: "🫂", color: "#6366F1" },
+  { key: "reach", label: "Erişim", icon: "👁️", color: "#F25124" },
+  { key: "impressions", label: "Gösterim / İzlenme", icon: "📊", color: "#EC4899" },
+  { key: "likes", label: "Beğeni", icon: "❤️", color: "#EF4444" },
+  { key: "comments", label: "Yorum", icon: "💬", color: "#8B5CF6" },
+  { key: "saves", label: "Kaydetme", icon: "🔖", color: "#F59E0B" },
+  { key: "shares", label: "Paylaşım", icon: "📤", color: "#06B6D4" },
+  { key: "profile_visits", label: "Profil Ziyareti", icon: "🔎", color: "#14B8A6" },
+];
+
+function ReportsPage({ clients, perms }) {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selClient, setSelClient] = useState(null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    const { data } = await supabase.from('social_reports').select('*').order('month_ref', { ascending: false });
+    setReports(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const monthLabel = (ref) => {
+    if (!ref) return "—";
+    const [y, m] = ref.split("-");
+    return `${TR_MONTHS[parseInt(m) - 1]} ${y}`;
+  };
+  const monthOptions = () => {
+    const opts = []; const now = new Date();
+    for (let i = 0; i < 18; i++) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); }
+    return opts;
+  };
+
+  const save = async () => {
+    if (!form.client_id || !form.month_ref) { alert("Müşteri ve ay zorunlu"); return; }
+    setSaving(true);
+    const payload = { client_id: form.client_id, month_ref: form.month_ref, notes: form.notes || "" };
+    REPORT_METRICS.forEach(m => { payload[m.key] = parseInt(form[m.key]) || 0; });
+    // Aynı müşteri+ay varsa güncelle, yoksa ekle
+    const existing = reports.find(r => r.client_id === form.client_id && r.month_ref === form.month_ref);
+    let error;
+    if (existing) { ({ error } = await supabase.from('social_reports').update(payload).eq('id', existing.id)); }
+    else { ({ error } = await supabase.from('social_reports').insert(payload)); }
+    setSaving(false);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nRAPORLAMA-SQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({}); load();
+  };
+
+  const del = async (id) => { if (!window.confirm("Bu rapor silinsin mi?")) return; await supabase.from('social_reports').delete().eq('id', id); load(); };
+
+  // Bir müşterinin raporları (tarihe göre, eskiden yeniye grafik için)
+  const clientReports = (cid) => reports.filter(r => r.client_id === cid).sort((a, b) => a.month_ref.localeCompare(b.month_ref));
+
+  // Müşteri seçilmişse detay göster
+  if (selClient) {
+    const c = clients.find(x => x.id === selClient);
+    const list = clientReports(selClient); // eskiden yeniye
+    const listDesc = [...list].reverse(); // yeniden eskiye (kart listesi)
+    return (
+      <div>
+        <button onClick={() => setSelClient(null)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 13, marginBottom: 14 }}>← Tüm müşteriler</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Avatar initials={c?.initials} color={c?.accentColor} size={44} />
+            <div><div style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>{c?.name}</div><div style={{ fontSize: 12, color: T.textMuted }}>{list.length} aylık rapor</div></div>
+          </div>
+          <Btn variant="primary" onClick={() => { setForm({ client_id: selClient, month_ref: monthOptions()[0] }); setModal(true); }}>+ Yeni Ay Ekle</Btn>
+        </div>
+
+        {list.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.textMuted, padding: 50 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+            <div style={{ fontSize: 14, color: T.textPrimary, fontWeight: 600 }}>Henüz rapor yok</div>
+            <div style={{ fontSize: 12, marginTop: 6 }}>Meta Business Suite'ten verileri alıp "Yeni Ay Ekle" ile girin.</div>
+          </div>
+        ) : (
+          <>
+            {/* Takipçi trend grafiği */}
+            {list.length >= 2 && <ReportTrend list={list} monthLabel={monthLabel} />}
+
+            {/* Aylık kartlar */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+              {listDesc.map((r, i) => {
+                const prev = list[list.length - 1 - i - 1]; // bir önceki ay
+                return (
+                  <div key={r.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{monthLabel(r.month_ref)}</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn onClick={() => { const f = { client_id: r.client_id, month_ref: r.month_ref, notes: r.notes }; REPORT_METRICS.forEach(m => f[m.key] = r[m.key]); setForm(f); setModal(true); }} style={{ fontSize: 11, padding: "4px 10px" }}>✏️ Düzenle</Btn>
+                        <Btn onClick={() => printSocialReport(c, r, prev, monthLabel)} style={{ fontSize: 11, padding: "4px 10px", background: T.indigoDim, color: T.indigoText }}>📄 PDF</Btn>
+                        <button onClick={() => del(r.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+                      {REPORT_METRICS.map(m => {
+                        const val = r[m.key] || 0;
+                        const pv = prev ? (prev[m.key] || 0) : null;
+                        const diff = pv !== null ? val - pv : null;
+                        const pct = pv ? Math.round((diff / pv) * 100) : null;
+                        return (
+                          <div key={m.key} style={{ background: T.bgInput, borderRadius: 10, padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 3 }}>{m.icon} {m.label}</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>{val.toLocaleString("tr-TR")}</div>
+                            {diff !== null && diff !== 0 && (
+                              <div style={{ fontSize: 10, fontWeight: 600, color: diff > 0 ? T.greenText : T.redText, marginTop: 2 }}>
+                                {diff > 0 ? "▲" : "▼"} {Math.abs(diff).toLocaleString("tr-TR")}{pct !== null ? ` (%${Math.abs(pct)})` : ""}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {r.notes && <div style={{ marginTop: 12, fontSize: 12, color: T.textMuted, fontStyle: "italic" }}>📝 {r.notes}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {modal && <ReportFormModal form={form} setForm={setForm} onClose={() => setModal(false)} onSave={save} saving={saving} monthOptions={monthOptions} monthLabel={monthLabel} clients={clients} lockClient />}
+      </div>
+    );
+  }
+
+  // Müşteri listesi (kimin kaç raporu var)
+  const withCounts = clients.map(c => ({ c, count: reports.filter(r => r.client_id === c.id).length, last: reports.filter(r => r.client_id === c.id).sort((a, b) => b.month_ref.localeCompare(a.month_ref))[0] }));
+  const nowRef = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
+  const missingThisMonth = withCounts.filter(w => !reports.find(r => r.client_id === w.c.id && r.month_ref === nowRef)).length;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard label="Toplam Müşteri" value={clients.length} />
+        <StatCard label="Toplam Rapor" value={reports.length} color={T.greenText} />
+        <StatCard label="Bu Ay Girilmemiş" value={missingThisMonth} color={missingThisMonth > 0 ? T.amberText : T.greenText} />
+      </div>
+
+      <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 14 }}>Rapor girmek için bir müşteri seçin. Veriler <strong style={{ color: T.textPrimary }}>Meta Business Suite → İstatistikler</strong>'den alınır.</div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {withCounts.map(w => {
+            const hasThisMonth = reports.find(r => r.client_id === w.c.id && r.month_ref === nowRef);
+            return (
+              <div key={w.c.id} onClick={() => setSelClient(w.c.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, cursor: "pointer", borderLeft: `3px solid ${w.c.accentColor}` }}>
+                <Avatar initials={w.c.initials} color={w.c.accentColor} size={38} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{w.c.name}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{w.count > 0 ? `${w.count} rapor · son: ${monthLabel(w.last?.month_ref)}` : "Henüz rapor yok"}</div>
+                </div>
+                {hasThisMonth ? <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: T.greenDim, color: T.greenText }}>✓ Bu ay girildi</span>
+                  : <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: T.amberDim, color: T.amberText }}>Bu ay bekliyor</span>}
+                <span style={{ fontSize: 13, color: T.textMuted }}>›</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modal && <ReportFormModal form={form} setForm={setForm} onClose={() => setModal(false)} onSave={save} saving={saving} monthOptions={monthOptions} monthLabel={monthLabel} clients={clients} />}
+    </div>
+  );
+}
+
+// Rapor giriş formu (modal)
+function ReportFormModal({ form, setForm, onClose, onSave, saving, monthOptions, monthLabel, clients, lockClient }) {
+  return (
+    <Modal title="📊 Aylık Rapor Verileri" onClose={onClose} width={620}>
+      <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16, padding: "10px 12px", background: T.bgInput, borderRadius: 8 }}>
+        💡 Verileri <strong>Meta Business Suite → İstatistikler</strong>'den son 30 günü seçerek alın ve aşağıya girin.
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 8 }}>
+        <FormField label="Müşteri">
+          {lockClient ? <div style={{ padding: "10px 12px", background: T.bgInput, borderRadius: 8, fontSize: 13, color: T.textPrimary }}>{clients.find(c => c.id === form.client_id)?.name || "—"}</div>
+            : <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}><option value="">Seç...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>}
+        </FormField>
+        <FormField label="Ay">
+          <Select value={form.month_ref || ""} onChange={e => setForm(f => ({ ...f, month_ref: e.target.value }))}>
+            <option value="">Seç...</option>
+            {monthOptions().map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
+          </Select>
+        </FormField>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 8 }}>
+        {REPORT_METRICS.map(m => (
+          <FormField key={m.key} label={`${m.icon} ${m.label}`}>
+            <Input type="number" placeholder="0" value={form[m.key] ?? ""} onChange={e => setForm(f => ({ ...f, [m.key]: e.target.value }))} />
+          </FormField>
+        ))}
+      </div>
+      <FormField label="📝 Not (isteğe bağlı)"><Input placeholder="Örn: Reels çok iyi performans gösterdi" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+        <Btn onClick={onClose}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={onSave} disabled={saving}>{saving ? "Kaydediliyor..." : "Kaydet"}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// Takipçi/erişim trend grafiği (basit SVG bar)
+function ReportTrend({ list, monthLabel }) {
+  const metric = "total_followers";
+  const hasTotalFollowers = list.some(r => (r[metric] || 0) > 0);
+  const useMetric = hasTotalFollowers ? "total_followers" : "reach";
+  const useLabel = hasTotalFollowers ? "Toplam Takipçi" : "Erişim";
+  const data = list.slice(-6);
+  const max = Math.max(1, ...data.map(r => r[useMetric] || 0));
+  const H = 130;
+  return (
+    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18, marginBottom: 4 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 16 }}>📈 {useLabel} Trendi (son {data.length} ay)</div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: H + 30 }}>
+        {data.map((r, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textSecondary }}>{(r[useMetric] || 0).toLocaleString("tr-TR")}</div>
+            <div style={{ width: "60%", maxWidth: 40, height: `${Math.max(4, ((r[useMetric] || 0) / max) * H)}px`, background: "linear-gradient(180deg,#6366F1,#8B5CF6)", borderRadius: "6px 6px 0 0", transition: "height .4s" }} />
+            <div style={{ fontSize: 9, color: T.textMuted, textAlign: "center" }}>{monthLabel(r.month_ref).split(" ")[0].slice(0, 3)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // DOSYALAR - Google Drive ekip görünürlüğü (madde 10)
 // ─────────────────────────────────────────────
 function DriveFilesPage({ clients }) {
@@ -3185,6 +3483,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_manage_clients: form.perm_manage_clients || false,
       perm_manage_staff: form.perm_manage_staff || false,
       perm_accounting: form.perm_accounting || false,
+      perm_reports: form.perm_reports || false,
     }).select().single();
 
     if (error) {
@@ -3220,7 +3519,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
         perm_finance: data.perm_finance,
         perm_manage_clients: data.perm_manage_clients,
         perm_manage_staff: data.perm_manage_staff,
-        perm_accounting: data.perm_accounting,
+        perm_accounting: data.perm_accounting, perm_reports: data.perm_reports,
       }]);
     }
 
@@ -3248,6 +3547,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_manage_clients: editForm.perm_manage_clients || false,
       perm_manage_staff: editForm.perm_manage_staff || false,
       perm_accounting: editForm.perm_accounting || false,
+      perm_reports: editForm.perm_reports || false,
     }).eq('id', editModal.id);
 
     if (error) {
@@ -3268,7 +3568,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_finance: editForm.perm_finance,
       perm_manage_clients: editForm.perm_manage_clients,
       perm_manage_staff: editForm.perm_manage_staff,
-      perm_accounting: editForm.perm_accounting,
+      perm_accounting: editForm.perm_accounting, perm_reports: editForm.perm_reports,
     } : s));
 
     setEditModal(null);
@@ -3360,7 +3660,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
           {/* Butonlar */}
           <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting,perm_reports:s.perm_reports});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
             <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
           </div>
         </Card>
@@ -3386,6 +3686,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={form.perm_manage_clients} onChange={()=>setForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={form.perm_manage_staff} onChange={()=>setForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
             <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={form.perm_accounting} onChange={()=>setForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
+            <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={form.perm_reports} onChange={()=>setForm(f=>({...f,perm_reports:!f.perm_reports}))} />
           </>}
         </div>
       </div>
@@ -3424,6 +3725,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={editForm.perm_manage_clients} onChange={()=>setEditForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={editForm.perm_manage_staff} onChange={()=>setEditForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
             <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={editForm.perm_accounting} onChange={()=>setEditForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
+            <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={editForm.perm_reports} onChange={()=>setEditForm(f=>({...f,perm_reports:!f.perm_reports}))} />
           </>}
         </div>
       </div>
@@ -3850,6 +4152,7 @@ const NAV=[
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
+  {id:"reports",label:"Raporlar",icon:"📊"},
   {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
@@ -5851,7 +6154,7 @@ async function loadAllData() {
     id: s.id, name: s.name, role: s.role || "", initials: s.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase(),
     color: ["#6366F1", "#EC4899", "#10B981"][s.id % 3], type: s.type || "Tam zamanlı",
     email: s.email, phone: s.phone || "", start: s.start_date || "",
-    is_admin: s.is_admin, perm_finance: s.perm_finance, perm_manage_clients: s.perm_manage_clients, perm_manage_staff: s.perm_manage_staff, perm_accounting: s.perm_accounting,
+    is_admin: s.is_admin, perm_finance: s.perm_finance, perm_manage_clients: s.perm_manage_clients, perm_manage_staff: s.perm_manage_staff, perm_accounting: s.perm_accounting, perm_reports: s.perm_reports,
   }));
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
@@ -6422,7 +6725,7 @@ export default function App() {
   const pageRef = useRef("dashboard");
   const [dataLoading, setDataLoading] = useState(true);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
+    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -6445,7 +6748,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'messages', 'accounting', 'staff'];
+      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -6610,6 +6913,7 @@ export default function App() {
     manageClients: isAdmin || currentStaff.perm_manage_clients === true,  // Müşteri ekle/düzenle/sil
     manageStaff: isAdmin || currentStaff.perm_manage_staff === true,      // Çalışan ekle/düzenle/sil
     accounting: isAdmin || currentStaff.perm_accounting === true || currentStaff.perm_finance === true, // Muhasebe erişimi
+    reports: isAdmin || currentStaff.perm_reports === true, // Sosyal medya raporlama
   };
 
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif"}}>
@@ -6621,7 +6925,7 @@ export default function App() {
         </div>
       </div>
       <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
-        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients)).map(item=>(
+        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports)).map(item=>(
           <div key={item.id} onClick={()=>setPage(item.id)} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
@@ -6675,6 +6979,7 @@ export default function App() {
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
+        {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
