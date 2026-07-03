@@ -356,6 +356,16 @@ function ClientCalendar({ client }) {
     if (p.date) postsByDate[p.date] = (postsByDate[p.date] || []).concat(p);
   });
 
+  // Gerçekleşen paylaşımları (görevden) tarihe göre grupla
+  const publishesByDate = {};
+  (client.publishesList || []).forEach(p => {
+    if (p.publishedAt) {
+      const d = new Date(p.publishedAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      publishesByDate[key] = (publishesByDate[key] || []).concat(p);
+    }
+  });
+
   const goPrev = () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); } else setViewMonth(m => m - 1); };
   const goNext = () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); } else setViewMonth(m => m + 1); };
   const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
@@ -398,15 +408,17 @@ function ClientCalendar({ client }) {
           const isShoot = cell.currentMonth && shootIdx.includes(weekday);
           const dateStr = cell.currentMonth ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(cell.day).padStart(2, "0")}` : null;
           const dayPosts = dateStr ? (postsByDate[dateStr] || []) : [];
+          const dayPublishes = dateStr ? (publishesByDate[dateStr] || []) : [];
           const isToday = cell.currentMonth && cell.day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
 
           let bg = T.bgCard, borderCol = T.border;
           if (isPublish && isShoot) { bg = "rgba(168,85,247,0.12)"; borderCol = "#A855F7"; }
           else if (isPublish) { bg = "rgba(242,81,36,0.12)"; borderCol = `${T.amber}66`; }
           else if (isShoot) { bg = "rgba(236,72,153,0.12)"; borderCol = "#EC489966"; }
+          if (dayPublishes.length > 0) { bg = "rgba(16,185,129,0.14)"; borderCol = "#10B98188"; }
 
           return (
-            <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, isPublish, isShoot, dayPosts, dateStr}); }} style={{
+            <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, isPublish, isShoot, dayPosts, dayPublishes, dateStr}); }} style={{
               minHeight: 66, borderRadius: 8, padding: "6px 7px", background: cell.currentMonth ? bg : "transparent",
               border: `1px solid ${isToday ? T.amber : (cell.currentMonth ? borderCol : "transparent")}`, opacity: cell.currentMonth ? 1 : 0.3,
               cursor: cell.currentMonth ? "pointer" : "default",
@@ -414,6 +426,9 @@ function ClientCalendar({ client }) {
               <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? T.amberText : T.textSecondary, marginBottom: 3 }}>{cell.day}</div>
               {isPublish && <div style={{ fontSize: 8, fontWeight: 700, color: T.amberText, marginBottom: 1 }}>📅 Paylaşım</div>}
               {isShoot && <div style={{ fontSize: 8, fontWeight: 700, color: "#F9A8D4" }}>📷 Çekim</div>}
+              {dayPublishes.map((p, pi) => (
+                <div key={"pub"+pi} style={{ fontSize: 8, fontWeight: 700, color: T.greenText, background: "rgba(16,185,129,0.18)", borderRadius: 4, padding: "1px 4px", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✅ {new Date(p.publishedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})} {p.contentType}</div>
+              ))}
               {dayPosts.map((p, pi) => (
                 <div key={pi} style={{ fontSize: 8, color: T.textPrimary, background: T.bgSurface, borderRadius: 4, padding: "1px 4px", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={p.title}>{platformConfig[p.platform]?.icon || "•"} {p.title}</div>
               ))}
@@ -432,13 +447,29 @@ function ClientCalendar({ client }) {
       {/* Gün Detay Modalı */}
       {selectedDay && (
         <Modal title={`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} — ${client.name}`} onClose={() => setSelectedDay(null)} width={520}>
-          {!selectedDay.isPublish && !selectedDay.isShoot && selectedDay.dayPosts.length === 0 ? (
+          {!selectedDay.isPublish && !selectedDay.isShoot && selectedDay.dayPosts.length === 0 && (!selectedDay.dayPublishes || selectedDay.dayPublishes.length === 0) ? (
             <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "30px 0" }}>Bu gün için plan yok 📭</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {selectedDay.dayPublishes && selectedDay.dayPublishes.length > 0 && (
+                <div style={{ padding: "14px 16px", background: "rgba(16,185,129,0.1)", borderRadius: 10, borderLeft: "3px solid #10B981" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.greenText, marginBottom: 8 }}>✅ Yapılan Paylaşımlar ({selectedDay.dayPublishes.length})</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {selectedDay.dayPublishes.map((p, pi) => {
+                      const ctLabel = {post:"Post",reels:"Reels",carousel:"Kaydırmalı Post",story:"Hikaye"}[p.contentType]||p.contentType;
+                      return (
+                        <div key={pi} style={{ padding: "8px 12px", background: T.bgInput, borderRadius: 8, fontSize: 12 }}>
+                          <div style={{ color: T.textPrimary, fontWeight: 600 }}>{platformConfig[p.platform]?.label || p.platform} · {ctLabel}</div>
+                          <div style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>🕐 {new Date(p.publishedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {selectedDay.isPublish && (
                 <div style={{ padding: "14px 16px", background: "rgba(242,81,36,0.1)", borderRadius: 10, borderLeft: `3px solid ${T.amber}` }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.amberText, marginBottom: 6 }}>📅 Paylaşım Günü</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.amberText, marginBottom: 6 }}>📅 Paylaşım Günü (planlı)</div>
                   {client.publishTimes && client.publishTimes.length > 0 ? (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {client.publishTimes.map(t => <span key={t} style={{ fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: T.amberDim, color: T.amberText }}>🕐 {t}</span>)}
@@ -1295,6 +1326,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="İşletme adı"><Input placeholder="Örn: Lezzet Durağı" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Kategori"><Input placeholder="Örn: Restoran & Cafe" value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
       <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.socialMedia||""} onChange={e=>setForm(f=>({...f,socialMedia:e.target.value}))} /></FormField>
+      <FormField label="🔑 Sosyal Medya Şifresi"><Input placeholder="Hesap şifresi" value={form.socialPassword||""} onChange={e=>setForm(f=>({...f,socialPassword:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -1312,6 +1344,8 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           {Object.entries(platformConfig).map(([id,p])=>{const sel=(form.platforms||[]).includes(id);return <span key={id} onClick={()=>setForm(f=>({...f,platforms:sel?f.platforms.filter(x=>x!==id):[...(f.platforms||[]),id]}))} style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:6,cursor:"pointer",background:sel?p.bg:T.bgInput,color:sel?p.color:T.textMuted,border:`1px solid ${sel?p.color+"44":T.border}`}}>{p.label}</span>;})}
         </div>
       </FormField>
+      <FormField label="📊 Aylık Paylaşım Kotası (anlaşma sayısı)"><Input type="number" placeholder="Örn: 12 (boş bırakılırsa paylaşım günü x4)" value={form.monthlyPostQuota||""} onChange={e=>setForm(f=>({...f,monthlyPostQuota:e.target.value}))} /></FormField>
+      <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
         const colors=["#6366F1","#EC4899","#10B981","#F59E0B","#F97316"];
@@ -1324,12 +1358,13 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           name: form.name, category: form.category||"", initials, accent_color: accentColor,
           phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
+          social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0,
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026",
         }).select().single();
-        if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nSupabase'de publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
+        if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         if(data){
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
         }
         setModal(null);
       }} />
@@ -1339,6 +1374,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="İşletme adı"><Input placeholder="Örn: Lezzet Durağı" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Kategori"><Input placeholder="Örn: Restoran & Cafe" value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
       <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.socialMedia||""} onChange={e=>setForm(f=>({...f,socialMedia:e.target.value}))} /></FormField>
+      <FormField label="🔑 Sosyal Medya Şifresi"><Input placeholder="Hesap şifresi" value={form.socialPassword||""} onChange={e=>setForm(f=>({...f,socialPassword:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -1356,6 +1392,8 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           {Object.entries(platformConfig).map(([id,p])=>{const sel=(form.platforms||[]).includes(id);return <span key={id} onClick={()=>setForm(f=>({...f,platforms:sel?f.platforms.filter(x=>x!==id):[...(f.platforms||[]),id]}))} style={{fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:6,cursor:"pointer",background:sel?p.bg:T.bgInput,color:sel?p.color:T.textMuted,border:`1px solid ${sel?p.color+"44":T.border}`}}>{p.label}</span>;})}
         </div>
       </FormField>
+      <FormField label="📊 Aylık Paylaşım Kotası (anlaşma sayısı)"><Input type="number" placeholder="Örn: 12 (boş bırakılırsa paylaşım günü x4)" value={form.monthlyPostQuota||""} onChange={e=>setForm(f=>({...f,monthlyPostQuota:e.target.value}))} /></FormField>
+      <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
         const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -1366,11 +1404,12 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           name: form.name, category: form.category||"", initials,
           phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
+          social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0,
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0,
         }).eq('id', form.id);
-        if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nSupabase'de social_media veya publish_times sütunu eksik olabilir. SQL kodunu çalıştırın."); return; }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0}:c));
+        if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -1520,7 +1559,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
-        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
@@ -1540,22 +1579,87 @@ function ClientOverview({client, perms}) {
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
   const pct=total>0?Math.round(paid/total*100):0;
+
+  // Bu ayki gerçekleşen paylaşımlar (görevlerden)
+  const now = new Date();
+  const thisMonthPublishes = (client.publishesList||[]).filter(p=>{
+    if(!p.publishedAt) return false;
+    const d = new Date(p.publishedAt);
+    return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+  });
+  const totalThisMonth = thisMonthPublishes.length;
+  // Anlaşma kotası: elle girilmişse onu, yoksa paylaşım günü sayısı × 4 (haftalık)
+  const quota = client.monthlyPostQuota>0 ? client.monthlyPostQuota : (client.publishDays||[]).length*4;
+  const excess = Math.max(0, totalThisMonth - quota);
+
+  // Platform ve tür kırılımı
+  const byPlatform = {};
+  const byType = {};
+  thisMonthPublishes.forEach(p=>{
+    byPlatform[p.platform] = (byPlatform[p.platform]||0)+1;
+    byType[p.contentType] = (byType[p.contentType]||0)+1;
+  });
+  const typeLabels = {post:"Post",reels:"Reels",carousel:"Kaydırmalı Post",story:"Hikaye"};
+
   return <div>
     <div style={{display:"grid",gridTemplateColumns:perms.finance?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:20}}>
       {perms.finance && <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} />}
-      <StatCard label="Paylaşım" value={client.posts.filter(p=>p.status==="done").length} sub="Bu ay yayınlanan" />
+      <StatCard label="Bu Ay Paylaşım" value={totalThisMonth} sub={quota>0?`Anlaşma: ${quota}`:"Gerçekleşen"} color={excess>0?T.amberText:undefined} />
       <StatCard label="Medya Dosyası" value={client.media.length} />
       <StatCard label="Sözleşme Başlangıç" value={client.contractStart} />
     </div>
+
+    {/* Paylaşım Sayımı (madde 9) */}
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16,marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase"}}>📊 Bu Ayki Paylaşım Sayımı</div>
+        {quota>0 && (
+          excess>0
+            ? <span style={{fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:8,background:T.amberDim,color:T.amberText}}>⚠️ Anlaşma dışı {excess} fazla paylaşım</span>
+            : <span style={{fontSize:12,fontWeight:600,padding:"4px 12px",borderRadius:8,background:T.greenDim,color:T.greenText}}>✓ {totalThisMonth} / {quota} anlaşma içinde</span>
+        )}
+      </div>
+      {totalThisMonth===0 ? (
+        <div style={{fontSize:12,color:T.textMuted,textAlign:"center",padding:"16px 0"}}>Bu ay henüz paylaşım yapılmadı. (Görevler → "Paylaşım Yapıldı" kolonuna taşıyınca burada sayılır)</div>
+      ) : (
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+          <div>
+            <div style={{fontSize:10,color:T.textMuted,marginBottom:6,fontWeight:600}}>PLATFORMA GÖRE</div>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {Object.entries(byPlatform).map(([plat,cnt])=>(
+                <div key={plat} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 10px",background:T.bgInput,borderRadius:6}}>
+                  <span style={{color:T.textSecondary}}>{platformConfig[plat]?.label||plat}</span>
+                  <span style={{color:T.textPrimary,fontWeight:700}}>{cnt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:10,color:T.textMuted,marginBottom:6,fontWeight:600}}>İÇERİK TÜRÜNE GÖRE</div>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {Object.entries(byType).map(([tp,cnt])=>(
+                <div key={tp} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 10px",background:T.bgInput,borderRadius:6}}>
+                  <span style={{color:T.textSecondary}}>{typeLabels[tp]||tp}</span>
+                  <span style={{color:T.textPrimary,fontWeight:700}}>{cnt}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+
     <div style={{display:"grid",gridTemplateColumns:perms.finance?"1fr 1fr":"1fr",gap:16,marginBottom:16}}>
       <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
         <div style={{fontSize:11,color:T.textMuted,marginBottom:8,fontWeight:500,textTransform:"uppercase"}}>İşletme Bilgileri</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12}}>
           <div><span style={{color:T.textMuted}}>Telefon:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.phone||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Sosyal Medya:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.socialMedia||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Sosyal Medya Şifresi:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.socialPassword||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Şehir:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.city||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Vergi No:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxNumber||"—"}</span></div>
           <div><span style={{color:T.textMuted}}>Vergi Dairesi:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxOffice||"—"}</span></div>
+          {client.description && <div style={{marginTop:4,paddingTop:8,borderTop:`1px solid ${T.border}`}}><span style={{color:T.textMuted}}>Açıklama:</span><div style={{color:T.textPrimary,marginTop:4,whiteSpace:"pre-wrap"}}>{client.description}</div></div>}
         </div>
       </div>
       {perms.finance && <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
@@ -4685,6 +4789,7 @@ async function loadAllData() {
     { data: postsRaw },
     { data: invoicesRaw },
     { data: mediaRaw },
+    { data: publishesRaw },
   ] = await Promise.all([
     supabase.from('clients').select('*'),
     supabase.from('staff').select('*'),
@@ -4692,18 +4797,22 @@ async function loadAllData() {
     supabase.from('posts').select('*'),
     supabase.from('invoices').select('*'),
     supabase.from('media').select('*'),
+    supabase.from('publishes').select('*'),
   ]);
 
   const clients = (clientsRaw || []).filter(c => !c.deleted_at).map(c => ({
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
-    socialMedia: c.social_media || "",
+    socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", monthlyPostQuota: c.monthly_post_quota || 0,
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
     posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
       id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description, approval: p.approval || 'pending', approvalNote: p.approval_note || '',
+    })),
+    publishesList: (publishesRaw || []).filter(p => p.client_id === c.id).map(p => ({
+      id: p.id, taskId: p.task_id, publisherId: p.publisher_id, platform: p.platform, contentType: p.content_type, publishedAt: p.published_at,
     })),
     invoices: (invoicesRaw || []).filter(i => i.client_id === c.id).map(i => ({
       id: i.id, no: i.no, date: i.date, amount: i.amount, vat: i.vat, total: i.total, status: i.status, desc: i.description,
