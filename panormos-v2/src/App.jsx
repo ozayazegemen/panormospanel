@@ -449,6 +449,7 @@ function ClientCalendar({ client }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <button onClick={goPrev} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>‹</button>
         <span style={{ fontSize: 15, fontWeight: 600, color: T.textPrimary, flex: 1 }}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+        <button onClick={()=>printClientCalendar(client, viewYear, viewMonth, publishesByDate)} style={{ background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>🖨️ Yazdır</button>
         <button onClick={goToday} style={{ background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.amberText, cursor: "pointer", fontSize: 11, fontWeight: 600 }}>Bugün</button>
         <button onClick={goNext} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 12px", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>›</button>
       </div>
@@ -795,6 +796,82 @@ function printData(title, rows) {
   }, 300);
 }
 
+// Müşteri takvimini yazdır (aylık ızgara + planlı günler + yapılan paylaşımlar)
+function printClientCalendar(client, year, month, publishesByDate) {
+  const cells = getMonthGrid(year, month);
+  const publishIdx = (client.publishDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
+  const shootIdx = (client.shootDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
+  const dayNames = ["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+  const typeLbl = {post:"Post",reels:"Reels",carousel:"Kaydırmalı",story:"Hikaye"};
+
+  let cellsHtml = "";
+  cells.forEach((cell, i) => {
+    const weekday = i % 7;
+    const isPub = cell.currentMonth && publishIdx.includes(weekday);
+    const isShoot = cell.currentMonth && shootIdx.includes(weekday);
+    const dateStr = cell.currentMonth ? `${year}-${String(month+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}` : null;
+    const pubs = dateStr ? (publishesByDate[dateStr] || []) : [];
+    let inner = cell.currentMonth ? `<div class="daynum">${cell.day}</div>` : "";
+    if (isPub) inner += `<div class="tag pub">Paylaşım Günü</div>`;
+    if (isShoot) inner += `<div class="tag shoot">Çekim Günü</div>`;
+    pubs.forEach(p => {
+      const t = new Date(p.publishedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+      inner += `<div class="tag done">✓ ${t} ${typeLbl[p.contentType]||p.contentType}</div>`;
+    });
+    cellsHtml += `<td class="${cell.currentMonth ? "" : "empty"}">${inner}</td>`;
+    if (weekday === 6) cellsHtml = cellsHtml; // satır sonu tablo tarafından yönetiliyor
+  });
+  // 7'li satırlara böl
+  let rowsHtml = "";
+  const tds = cellsHtml.match(/<td[\s\S]*?<\/td>/g) || [];
+  for (let r = 0; r < tds.length; r += 7) {
+    rowsHtml += "<tr>" + tds.slice(r, r+7).join("") + "</tr>";
+  }
+
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${client.name} Takvim</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:24px;color:#1a1a1a}
+    .header{border-bottom:3px solid #F25124;padding-bottom:14px;margin-bottom:16px}
+    .logo{font-size:22px;font-weight:700}.logo .p{color:#1A2B3F}.logo .m{color:#F25124}
+    h1{font-size:16px;margin-top:6px;color:#333}
+    .meta{font-size:12px;color:#888;margin-top:4px}
+    .info{font-size:12px;color:#444;margin:10px 0;display:flex;gap:20px;flex-wrap:wrap}
+    .info b{color:#F25124}
+    table{width:100%;border-collapse:collapse;margin-top:12px;table-layout:fixed}
+    th{background:#1A2B3F;color:#fff;padding:8px 4px;font-size:12px;border:1px solid #1A2B3F}
+    td{border:1px solid #ddd;height:88px;vertical-align:top;padding:4px;font-size:10px}
+    td.empty{background:#fafafa}
+    .daynum{font-weight:700;font-size:12px;margin-bottom:3px}
+    .tag{font-size:9px;border-radius:3px;padding:1px 4px;margin-bottom:2px;display:block}
+    .tag.pub{background:#fde4dc;color:#c0392b}
+    .tag.shoot{background:#fce4ec;color:#c2185b}
+    .tag.done{background:#d4f5e4;color:#0a7a4a;font-weight:700}
+    .footer{margin-top:20px;font-size:11px;color:#aaa;text-align:center;border-top:1px solid #e0e0e0;padding-top:10px}
+    @media print{body{padding:12px}th{background:#1A2B3F!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+    <div class="header">
+      <div class="logo"><span class="p">panormos</span> <span class="m">medya.</span></div>
+      <h1>${client.name} — ${TR_MONTHS[month]} ${year} Takvimi</h1>
+      <div class="meta">Yazdırma Tarihi: ${new Date().toLocaleString("tr-TR")}</div>
+    </div>
+    <div class="info">
+      <span>📅 Paylaşım Günleri: <b>${(client.publishDays||[]).join(", ")||"—"}</b></span>
+      <span>📷 Çekim Günleri: <b>${(client.shootDays||[]).join(", ")||"—"}</b></span>
+      ${client.publishTimes&&client.publishTimes.length?`<span>🕐 Saatler: <b>${client.publishTimes.join(", ")}</b></span>`:""}
+    </div>
+    <table>
+      <thead><tr>${dayNames.map(d=>`<th>${d}</th>`).join("")}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="footer">Panormos Medya Yönetim Paneli · panormosmedya.com</div>
+  </body></html>`;
+
+  const w = window.open("", "_blank", "width=1000,height=750");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 300);
+}
 
 function MessagingPanel({clientId, clientName, onClose}) {
   const [messages, setMessages] = useState([]);
@@ -907,10 +984,21 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
         // Panormos klasörünü bul/oluştur
         const folderId = await getPanormosFolder(token);
 
+        // Yükleyen çalışanı bul (oturumdan)
+        let uploaderId = null, uploaderName = "";
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: st } = await supabase.from('staff').select('id,name').eq('auth_id', user.id).limit(1);
+            if (st && st[0]) { uploaderId = st[0].id; uploaderName = st[0].name; }
+          }
+        } catch(e) {}
+
         let successCount = 0;
         for (const file of files) {
           try {
             const driveFile = await uploadFileToGoogleDrive(token, file, folderId);
+            const link = driveFile.webViewLink || driveFile.id;
             // Kaydı Supabase'e de yaz (referans için)
             await supabase.from('media').insert({
               client_id: clientId,
@@ -918,8 +1006,14 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
               type: file.type.startsWith('video') ? 'video' : file.type.startsWith('image') ? 'image' : 'file',
               size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
               date: new Date().toLocaleDateString("tr-TR"),
-              storage_path: driveFile.webViewLink || driveFile.id,
+              storage_path: link,
               storage_type: 'google_drive',
+            });
+            // Ekip görünürlüğü için drive_files tablosuna da kaydet
+            await supabase.from('drive_files').insert({
+              name: file.name, link, file_id: driveFile.id,
+              uploader_id: uploaderId, uploader_name: uploaderName,
+              client_id: clientId, uploaded_at: new Date().toISOString(),
             });
             successCount++;
           } catch (err) {
@@ -2014,6 +2108,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [editForm,setEditForm]=useState({});
   const [publishModal,setPublishModal]=useState(null);   // paylaşım yapıldı modalı
   const [filterStaff,setFilterStaff]=useState("all");    // kişiye göre filtre
+  const [reportModal,setReportModal]=useState(null);     // görev raporu
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
@@ -2119,7 +2214,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
   // ── Çalışan bazlı istatistikler ──
   const isAdminView = perms?.isAdmin;
-  const allPublishes = clients.flatMap(c => (c.publishesList || []).map(p => ({ ...p })));
+  const allPublishes = clients.flatMap(c => (c.publishesList || []).map(p => ({ ...p, clientId: c.id })));
   const computeStats = (sid) => {
     const myTasks = tasks.filter(t => t.assignedTo === sid);
     const done = myTasks.filter(t => t.col === "done" || t.col === "published").length;
@@ -2170,7 +2265,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               "Çalışan": s.name, "Toplam Görev": st.total, "Tamamlanan": st.done, "Aktif": st.active,
               "Yapılacak": st.todo, "Paylaşım Yapıldı": st.publishCount, "Tamamlanma %": st.rate+"%",
             };});
-            if(typeof exportPerfectExcel==="function") exportPerfectExcel("Calisan-Istatistikleri", rows);
+            if(typeof exportPerfectExcel==="function") exportPerfectExcel([{name:"İstatistikler", rows, title:"PANORMOS MEDYA — ÇALIŞAN İSTATİSTİKLERİ"}], "calisan-istatistikleri.xlsx");
             else printData("Çalışan İstatistikleri", rows);
           }} style={{fontSize:11,padding:"5px 10px"}}>📊 Excel</Btn>
         )}
@@ -2220,6 +2315,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         }));
         printData("Görev Listesi", rows);
       }}>🖨️ Yazdır</Btn>
+      {isAdminView && <Btn onClick={()=>setReportModal({period:"month"})}>📊 Rapor</Btn>}
     </div>
 
     {selectedTask && (
@@ -2325,6 +2421,86 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       );})}
     </div>
 
+    {/* Görev Raporu Modalı (günlük/haftalık/aylık) */}
+    {reportModal && (()=>{
+      const now = new Date();
+      let start;
+      if(reportModal.period==="day"){ start = new Date(now.getFullYear(),now.getMonth(),now.getDate()); }
+      else if(reportModal.period==="week"){ const d=new Date(now); const wd=(d.getDay()+6)%7; start=new Date(d.getFullYear(),d.getMonth(),d.getDate()-wd); }
+      else { start = new Date(now.getFullYear(),now.getMonth(),1); }
+      const inPeriod = (iso)=>{ if(!iso) return false; const d=new Date(iso); return d>=start && d<=now; };
+      // Dönemdeki paylaşımlar
+      const periodPublishes = allPublishes.filter(p=>inPeriod(p.publishedAt));
+      const periodLabel = reportModal.period==="day"?"Bugün":reportModal.period==="week"?"Bu Hafta":"Bu Ay";
+      // Çalışan bazlı: dönemde yapılan paylaşım + genel görev durumu
+      const staffReport = staff.map(s=>{
+        const st = computeStats(s.id);
+        const periodPub = periodPublishes.filter(p=>p.publisherId===s.id).length;
+        return { name:s.name, role:s.role, periodPub, ...st };
+      });
+      const clientName = (cid)=>clients.find(c=>c.id===cid)?.name||"—";
+      return (
+      <Modal title={`📊 Görev Raporu — ${periodLabel}`} onClose={()=>setReportModal(null)} width={640}>
+        <div style={{display:"flex",gap:6,marginBottom:16}}>
+          {[{id:"day",l:"Günlük"},{id:"week",l:"Haftalık"},{id:"month",l:"Aylık"}].map(p=>(
+            <button key={p.id} onClick={()=>setReportModal({period:p.id})} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${reportModal.period===p.id?T.amber:T.border}`,background:reportModal.period===p.id?T.amber:T.bgInput,color:reportModal.period===p.id?"#fff":T.textSecondary,fontWeight:600,fontSize:12,cursor:"pointer"}}>{p.l}</button>
+          ))}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#A855F7"}}>{periodPublishes.length}</div><div style={{fontSize:10,color:T.textMuted}}>DÖNEMDE PAYLAŞIM</div></div>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.greenText}}>{tasks.filter(t=>t.col==="done"||t.col==="published").length}</div><div style={{fontSize:10,color:T.textMuted}}>TOPLAM TAMAMLANAN</div></div>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#7DA4C7"}}>{tasks.filter(t=>t.col==="inprogress"||t.col==="review").length}</div><div style={{fontSize:10,color:T.textMuted}}>DEVAM EDEN</div></div>
+        </div>
+
+        <div style={{fontSize:12,fontWeight:700,color:T.textSecondary,marginBottom:8}}>Çalışan Bazlı</div>
+        <div style={{overflowX:"auto",marginBottom:16}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>
+              <th style={{textAlign:"left",padding:"6px 8px",fontSize:10,color:T.textMuted}}>ÇALIŞAN</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>{periodLabel.toUpperCase()} PAYLAŞIM</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>TOPLAM GÖREV</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>TAMAMLANAN</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>ORAN</th>
+            </tr></thead>
+            <tbody>
+              {staffReport.map((r,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
+                  <td style={{padding:"7px 8px",color:T.textPrimary}}>{r.name}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",fontWeight:700,color:"#A855F7"}}>{r.periodPub}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",color:T.textSecondary}}>{r.total}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",color:T.greenText,fontWeight:600}}>{r.done}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",color:T.textPrimary}}>{r.rate}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn onClick={()=>{
+            const rows = staffReport.map(r=>({
+              "Çalışan":r.name, "Pozisyon":r.role||"—",
+              [`${periodLabel} Paylaşım`]:r.periodPub,
+              "Toplam Görev":r.total, "Tamamlanan":r.done, "Aktif":r.active, "Yapılacak":r.todo, "Tamamlanma %":r.rate+"%",
+            }));
+            const pubRows = periodPublishes.map(p=>({
+              "Tarih":new Date(p.publishedAt).toLocaleString("tr-TR"),
+              "Müşteri":clientName(p.clientId||p.client_id),
+              "Çalışan":staff.find(s=>s.id===p.publisherId)?.name||"—",
+              "Platform":platLabel(p.platform), "İçerik":typeLabel(p.contentType),
+            }));
+            exportPerfectExcel([
+              {name:"Çalışan Özeti", rows, title:`PANORMOS MEDYA — GÖREV RAPORU (${periodLabel})`},
+              {name:"Paylaşım Detayı", rows:pubRows, title:`PAYLAŞIMLAR (${periodLabel})`},
+            ], `gorev-raporu-${reportModal.period}-${new Date().toISOString().slice(0,10)}.xlsx`);
+          }} style={{fontSize:12}}>📊 Excel'e Aktar</Btn>
+          <Btn variant="primary" onClick={()=>setReportModal(null)}>Kapat</Btn>
+        </div>
+      </Modal>
+      );
+    })()}
+
     {/* Görev Düzenleme Modalı */}
     {editModal && <Modal title="Görevi Düzenle" onClose={()=>setEditModal(false)}>
       <FormField label="Başlık"><Input value={editForm.title||""} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} /></FormField>
@@ -2402,6 +2578,78 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         setModal(false);
       }} />
     </Modal>}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// DOSYALAR - Google Drive ekip görünürlüğü (madde 10)
+// ─────────────────────────────────────────────
+function DriveFilesPage({ clients }) {
+  const [filesList, setFilesList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+
+  const load = async () => {
+    const { data } = await supabase.from('drive_files').select('*').order('uploaded_at', { ascending: false });
+    setFilesList(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const clientName = (cid) => clients.find(c => c.id === cid)?.name || "—";
+  const fileIcon = (name) => {
+    const ext = (name || "").split(".").pop().toLowerCase();
+    if (["jpg","jpeg","png","gif","webp","heic","svg"].includes(ext)) return "🖼️";
+    if (["mp4","mov","avi","mkv","webm"].includes(ext)) return "🎬";
+    if (["pdf"].includes(ext)) return "📄";
+    if (["doc","docx"].includes(ext)) return "📝";
+    if (["xls","xlsx","csv"].includes(ext)) return "📊";
+    if (["zip","rar"].includes(ext)) return "🗜️";
+    return "📎";
+  };
+  const fmtDT = (iso) => { if(!iso) return "—"; const d=new Date(iso); return d.toLocaleDateString("tr-TR")+" "+d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}); };
+
+  const filtered = filesList.filter(f =>
+    !q || (f.name||"").toLowerCase().includes(q.toLowerCase()) ||
+    (f.uploader_name||"").toLowerCase().includes(q.toLowerCase()) ||
+    clientName(f.client_id).toLowerCase().includes(q.toLowerCase())
+  );
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+      <StatCard label="Toplam Dosya" value={filesList.length} />
+      <StatCard label="Bu Ay Yüklenen" value={filesList.filter(f=>{const d=new Date(f.uploaded_at);const n=new Date();return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}).length} color={T.greenText} />
+      <StatCard label="Yükleyen Kişi" value={new Set(filesList.map(f=>f.uploader_name).filter(Boolean)).size} />
+    </div>
+
+    <div style={{marginBottom:16}}>
+      <input placeholder="🔍 Dosya, kişi veya müşteri ara..." value={q} onChange={e=>setQ(e.target.value)} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />
+    </div>
+
+    {loading ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Yükleniyor...</div>
+    ) : filtered.length === 0 ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:50}}>
+        <div style={{fontSize:40,marginBottom:12}}>📁</div>
+        <div style={{fontSize:14,color:T.textPrimary,fontWeight:600}}>Henüz dosya yok</div>
+        <div style={{fontSize:12,marginTop:6}}>Müşteri → Medya sekmesinden Google Drive'a dosya yükleyince burada herkese görünür.</div>
+      </div>
+    ) : (
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
+        {filtered.map((f,i)=>(
+          <div key={f.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none"}}>
+            <div style={{fontSize:24}}>{fileIcon(f.name)}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+              <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>
+                👤 {f.uploader_name||"—"} · 🏢 {clientName(f.client_id)} · 🕐 {fmtDT(f.uploaded_at)}
+              </div>
+            </div>
+            {f.link && <a href={f.link} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:600,padding:"6px 14px",borderRadius:8,background:T.amber,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>Aç ↗</a>}
+          </div>
+        ))}
+      </div>
+    )}
   </div>;
 }
 
@@ -3238,6 +3486,7 @@ const NAV=[
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
+  {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
@@ -5477,6 +5726,7 @@ export default function App() {
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
+        {page==="files"&&<DriveFilesPage clients={clients}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
