@@ -6181,7 +6181,7 @@ function LandingPage({ onEnter }) {
   .lp nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:all .3s ease;border-bottom:1px solid transparent}
   .lp nav.scrolled{background:rgba(10,14,22,0.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
   .lp .nav-inner{display:flex;align-items:center;justify-content:space-between;height:74px}
-  .lp .logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;letter-spacing:-0.02em;display:flex;align-items:center;gap:2px}
+  .lp .logo{font-family:'Space Grotesk';font-weight:700;font-size:24px;letter-spacing:-0.02em;display:flex;align-items:center;gap:2px}
   .lp .logo .m{background:var(--grad2);-webkit-background-clip:text;background-clip:text;color:transparent}
   .lp .logo .dot{color:var(--orange)}
   .lp .nav-links{display:flex;align-items:center;gap:34px}
