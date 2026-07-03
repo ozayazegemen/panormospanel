@@ -4301,6 +4301,8 @@ function AccountingPage({ clients, staff, perms }) {
   }
   const tabs = [
     { id: "cari", lbl: "💳 Müşteri Cari" },
+    { id: "harcamalar", lbl: "🧾 Giderler" },
+    { id: "gelirler", lbl: "💵 Gelirler" },
     { id: "giderler", lbl: "🏛️ SGK / Vergi / Maaş" },
     { id: "izin", lbl: "🌴 Personel İzinleri" },
     { id: "takvim", lbl: "📅 Ödeme Takvimi" },
@@ -4319,10 +4321,231 @@ function AccountingPage({ clients, staff, perms }) {
         })}
       </div>
       {tab === "cari" && <AccountingCari clients={clients} />}
+      {tab === "harcamalar" && <AccountingSpending />}
+      {tab === "gelirler" && <AccountingIncome />}
       {tab === "giderler" && <AccountingExpenses staff={staff} />}
       {tab === "izin" && <AccountingLeave staff={staff} />}
       {tab === "takvim" && <AccountingCalendar staff={staff} />}
       {tab === "belgeler" && <AccountingDocuments />}
+    </div>
+  );
+}
+
+// ═══════════════ GİDERLER (kategorili + belge) ═══════════════
+const EXPENSE_CATEGORIES = [
+  { id: "yakit", label: "⛽ Yakıt", color: "#F59E0B" },
+  { id: "yemek", label: "🍽️ Yemek", color: "#EC4899" },
+  { id: "kirtasiye", label: "✏️ Kırtasiye", color: "#6366F1" },
+  { id: "ofis", label: "🏢 Ofis İçi Genel", color: "#10B981" },
+  { id: "ekipman", label: "🎥 Ekipman", color: "#A855F7" },
+];
+const expCatLabel = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.label || id;
+const expCatColor = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.color || "#8A8F98";
+
+// Ortak belge yükleme (Supabase Storage → public URL)
+async function uploadAccountingDoc(file, prefix) {
+  const path = `${prefix}/${Date.now()}-${file.name}`;
+  const { data, error } = await supabase.storage.from('client-media').upload(path, file);
+  if (error) throw error;
+  let url = "";
+  try { url = supabase.storage.from('client-media').getPublicUrl(data.path).data.publicUrl || ""; } catch (e) {}
+  return { url, name: file.name };
+}
+
+function AccountingSpending() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [filterCat, setFilterCat] = useState("all");
+
+  const load = async () => {
+    const { data } = await supabase.from('company_expenses').select('*').order('expense_date', { ascending: false });
+    setItems(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!form.category || !form.amount) { alert("Kategori ve tutar zorunlu"); return; }
+    setUploading(true);
+    let docUrl = "", docName = "";
+    if (file) {
+      try { const r = await uploadAccountingDoc(file, "giderler"); docUrl = r.url; docName = r.name; }
+      catch (e) { setUploading(false); alert("Belge yüklenemedi: " + e.message); return; }
+    }
+    const { error } = await supabase.from('company_expenses').insert({
+      category: form.category, title: form.title || "", amount: parseFloat(form.amount) || 0,
+      expense_date: form.expense_date || new Date().toISOString().slice(0, 10),
+      document_url: docUrl, document_name: docName, notes: form.notes || "",
+    });
+    setUploading(false);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({}); setFile(null);
+    load();
+  };
+
+  const del = async (id) => { if (!window.confirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); load(); };
+
+  const now = new Date();
+  const filtered = filterCat === "all" ? items : items.filter(i => i.category === filterCat);
+  const total = items.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const thisMonth = items.filter(i => { const d = new Date(i.expense_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((s, i) => s + Number(i.amount || 0), 0);
+  const byCat = {};
+  items.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + Number(i.amount || 0); });
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Toplam Gider" value={fmtMoney(total)} color={T.amberText} />
+        <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.redText} />
+      </div>
+
+      {/* Kategori özet kartları */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10, marginBottom: 16 }}>
+        {EXPENSE_CATEGORIES.map(c => (
+          <div key={c.id} onClick={() => setFilterCat(filterCat === c.id ? "all" : c.id)} style={{ background: filterCat === c.id ? c.color + "22" : T.bgCard, border: `1px solid ${filterCat === c.id ? c.color : T.border}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", borderLeft: `3px solid ${c.color}` }}>
+            <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 4 }}>{c.label}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>{fmtMoney(byCat[c.id] || 0)}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+        <Btn variant="primary" onClick={() => { setForm({ category: "yakit", expense_date: new Date().toISOString().slice(0, 10) }); setFile(null); setModal(true); }}>+ Gider Ekle</Btn>
+        {filterCat !== "all" && <Btn onClick={() => setFilterCat("all")} style={{ fontSize: 12 }}>✕ Filtreyi Temizle ({expCatLabel(filterCat)})</Btn>}
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
+        filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gider kaydı yok</div> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {filtered.map(i => (
+              <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${expCatColor(i.category)}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || expCatLabel(i.category)}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{expCatLabel(i.category)} · {i.expense_date}{i.notes ? " · " + i.notes : ""}</div>
+                </div>
+                {i.document_url && <a href={i.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.amberText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
+                <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+      {modal && (
+        <Modal title="Gider Ekle" onClose={() => setModal(false)}>
+          <FormField label="Kategori">
+            <Select value={form.category || "yakit"} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
+              {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Açıklama"><Input placeholder="Örn: Benzin - Shell" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
+          <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
+          <FormField label="Tarih"><Input type="date" value={form.expense_date || ""} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} /></FormField>
+          <FormField label="📄 Belge (PDF/Görsel — fatura, fiş vb.)">
+            <input type="file" accept=".pdf,image/*" onChange={e => setFile(e.target.files[0])} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
+            {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
+          </FormField>
+          <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={save} disabled={uploading}>{uploading ? "Yükleniyor..." : "Kaydet"}</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ GELİRLER ═══════════════
+function AccountingIncome() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  const load = async () => {
+    const { data } = await supabase.from('company_incomes').select('*').order('income_date', { ascending: false });
+    setItems(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!form.amount) { alert("Tutar zorunlu"); return; }
+    setUploading(true);
+    let docUrl = "", docName = "";
+    if (file) {
+      try { const r = await uploadAccountingDoc(file, "gelirler"); docUrl = r.url; docName = r.name; }
+      catch (e) { setUploading(false); alert("Belge yüklenemedi: " + e.message); return; }
+    }
+    const { error } = await supabase.from('company_incomes').insert({
+      source: form.source || "", title: form.title || "", amount: parseFloat(form.amount) || 0,
+      income_date: form.income_date || new Date().toISOString().slice(0, 10),
+      document_url: docUrl, document_name: docName, notes: form.notes || "",
+    });
+    setUploading(false);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({}); setFile(null);
+    load();
+  };
+
+  const del = async (id) => { if (!window.confirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); load(); };
+
+  const now = new Date();
+  const total = items.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const thisMonth = items.filter(i => { const d = new Date(i.income_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((s, i) => s + Number(i.amount || 0), 0);
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 16 }}>
+        <StatCard label="Toplam Gelir" value={fmtMoney(total)} color={T.greenText} />
+        <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.greenText} />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <Btn variant="primary" onClick={() => { setForm({ income_date: new Date().toISOString().slice(0, 10) }); setFile(null); setModal(true); }}>+ Gelir Ekle</Btn>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
+        items.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gelir kaydı yok</div> : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {items.map(i => (
+              <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${T.green}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || i.source || "Gelir"}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{i.source ? i.source + " · " : ""}{i.income_date}{i.notes ? " · " + i.notes : ""}</div>
+                </div>
+                {i.document_url && <a href={i.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.greenText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
+                <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+      {modal && (
+        <Modal title="Gelir Ekle" onClose={() => setModal(false)}>
+          <FormField label="Gelir Kaynağı"><Input placeholder="Örn: Reklam geliri, Ek proje" value={form.source || ""} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} /></FormField>
+          <FormField label="Açıklama"><Input placeholder="Detay" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
+          <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
+          <FormField label="Tarih"><Input type="date" value={form.income_date || ""} onChange={e => setForm(f => ({ ...f, income_date: e.target.value }))} /></FormField>
+          <FormField label="📄 Belge (PDF/Görsel — dekont, fatura vb.)">
+            <input type="file" accept=".pdf,image/*" onChange={e => setFile(e.target.files[0])} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
+            {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
+          </FormField>
+          <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={save} disabled={uploading}>{uploading ? "Yükleniyor..." : "Kaydet"}</Btn>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
