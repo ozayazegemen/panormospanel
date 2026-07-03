@@ -6247,6 +6247,11 @@ function LandingPage({ onEnter }) {
   .lp .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:56px 44px;border-radius:24px;background:linear-gradient(135deg,rgba(242,81,36,0.08),rgba(139,92,246,0.08));border:1px solid var(--line2)}
   .lp .stat .n{font-family:'Space Grotesk';font-weight:700;font-size:clamp(36px,5vw,52px);line-height:1;letter-spacing:-0.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
   .lp .stat .l{font-size:14px;color:var(--muted)}
+  .lp .about{max-width:820px}
+  .lp .about h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(30px,5vw,50px);line-height:1.1;letter-spacing:-0.02em;margin-bottom:28px}
+  .lp .about-hl{background:var(--grad);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lpshine 6s linear infinite}
+  .lp .about-text p{font-size:17px;color:var(--muted);margin-bottom:20px;line-height:1.75}
+  .lp .about-text p:last-child{margin-bottom:0}
   .lp .contact-card{border-radius:28px;background:var(--surface);border:1px solid var(--line);padding:64px;text-align:center;position:relative;overflow:hidden}
   .lp .contact-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(236,72,153,0.12),transparent 60%);pointer-events:none}
   .lp .contact-card h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(30px,5vw,48px);letter-spacing:-0.02em;margin-bottom:18px;position:relative}
@@ -6349,11 +6354,14 @@ function LandingPage({ onEnter }) {
 
       <section id="lp-hakkimizda">
         <div className="wrap">
-          <div className="stats reveal">
-            <div className="stat"><div className="n">20+</div><div className="l">Aktif Marka</div></div>
-            <div className="stat"><div className="n">500+</div><div className="l">Üretilen İçerik</div></div>
-            <div className="stat"><div className="n">4</div><div className="l">Uzman Ekip Alanı</div></div>
-            <div className="stat"><div className="n">%100</div><div className="l">Müşteri Odaklı</div></div>
+          <div className="about reveal">
+            <span className="sec-label">Hakkımızda</span>
+            <h2>Markanın dijitaldeki<br /><span className="about-hl">büyüme ortağı</span></h2>
+            <div className="about-text">
+              <p>Panormos Medya olarak, markaların dijital dünyada hak ettiği yeri almasını sağlıyoruz. Sosyal medya yönetiminden reklam kampanyalarına, profesyonel çekimlerden tasarıma kadar ihtiyacın olan tüm hizmetleri tek çatı altında sunuyoruz.</p>
+              <p>Amacımız sadece içerik üretmek değil; markanı tanıyıp, hedef kitlenle gerçek bir bağ kuran, satışa ve bilinirliğe dönüşen stratejiler geliştirmek. Her markaya özel yaklaşımımız ve ölçülebilir sonuç odağımızla, dijitaldeki yolculuğunda güvenilir ortağın oluyoruz.</p>
+              <p>İşini bilen ekibimiz, yaratıcı bakış açımız ve şeffaf çalışma prensibimizle; markanı büyütmek için buradayız.</p>
+            </div>
           </div>
         </div>
       </section>
