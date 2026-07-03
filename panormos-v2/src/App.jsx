@@ -2354,6 +2354,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [reportModal,setReportModal]=useState(null);     // görev raporu
   const [columnModal,setColumnModal]=useState(null);     // kolon "tümünü gör" modalı
   const [approvalModal,setApprovalModal]=useState(null);  // onaya gönder (WhatsApp) modalı
+  const [approvalUploading,setApprovalUploading]=useState(false);
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
@@ -2396,22 +2397,34 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
   };
 
-  // Onaya gönder: WhatsApp mesajı aç + görevi approval kolonuna taşı
+  // Onaya gönder: dosya yükle + WhatsApp mesajı (link ile) + görevi taşı
   const confirmApproval = async (sendWhatsapp) => {
     const am = approvalModal;
     const cli = clients.find(c => c.id === am.client_id);
+    if(sendWhatsapp && !cli){ alert("Lütfen müşteri seçin"); return; }
+
+    // Dosya yüklendiyse önce yükle, linkini al
+    let fileLink = am.fileLink || "";
+    if(am.file && !fileLink){
+      setApprovalUploading(true);
+      try {
+        const r = await uploadAccountingDoc(am.file, "onay");
+        fileLink = r.url;
+      } catch(e){ setApprovalUploading(false); alert("Dosya yüklenemedi: "+e.message); return; }
+      setApprovalUploading(false);
+    }
+
     if(sendWhatsapp){
-      if(!cli){ alert("Lütfen müşteri seçin"); return; }
       const t = am.task || {};
       let msg = `Merhaba ${cli.name},\n\nAşağıdaki içeriği onayınıza sunuyoruz:\n\n📌 ${t.title||"İçerik"}`;
       if(t.type) msg += `\n🎨 Tür: ${t.type}`;
       if(t.due && t.due!=="—") msg += `\n📅 Planlanan: ${t.due}`;
+      if(fileLink) msg += `\n\n🎬 İçeriği görmek için: ${fileLink}`;
       msg += `\n\nOnaylıyor musunuz? Revize talebiniz varsa lütfen belirtin. 🙏\n\nPanormos Medya`;
       const phone = (cli.phone||"").replace(/\D/g,"").replace(/^0/,"90");
       const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
       window.open(url, "_blank");
     }
-    // Görevi approval kolonuna taşı + müşteriyi kaydet
     await supabase.from('tasks').update({ col: "approval", client_id: am.client_id||null }).eq('id', am.taskId);
     setTasks(prev=>prev.map(t=>t.id===am.taskId?{...t,col:"approval",clientId:am.client_id||null,client:cli?.name||t.client}:t));
     if(selectedTask && selectedTask.id===am.taskId){ setSelectedTask({...selectedTask,col:"approval"}); }
@@ -2851,11 +2864,16 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
             {clients.map(c=><option key={c.id} value={c.id}>{c.name}{(c.phone||"").replace(/\D/g,"").length>=10?"":" (telefon yok)"}</option>)}
           </Select>
         </FormField>
+        <FormField label="🎬 İçerik Dosyası (video/görsel/PDF — müşteriye link gider)">
+          <input type="file" accept="video/*,image/*,.pdf" onChange={e=>setApprovalModal(m=>({...m,file:e.target.files[0],fileLink:""}))} style={{width:"100%",fontSize:12,color:T.textSecondary,padding:"8px",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8}} />
+          {approvalModal.file && <div style={{fontSize:11,color:T.greenText,marginTop:4}}>✓ {approvalModal.file.name} {approvalUploading && "· yükleniyor..."}</div>}
+          <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>Dosya yüklenip linki WhatsApp mesajına eklenir. Müşteri linke tıklayıp içeriği görür.</div>
+        </FormField>
         {cli && !hasPhone && <div style={{fontSize:11,color:T.amberText,marginBottom:12}}>⚠️ Bu müşterinin kayıtlı telefonu yok. WhatsApp numarayı elle isteyecek. (Müşteriyi düzenleyip telefon ekleyebilirsiniz)</div>}
         <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20,flexWrap:"wrap"}}>
           <Btn onClick={()=>setApprovalModal(null)}>Vazgeç</Btn>
-          <Btn onClick={()=>confirmApproval(false)} style={{fontSize:12}}>Sadece Taşı</Btn>
-          <Btn variant="primary" onClick={()=>confirmApproval(true)} style={{background:"#25D366",border:"none"}}>📱 WhatsApp'a Gönder ve Taşı</Btn>
+          <Btn onClick={()=>confirmApproval(false)} style={{fontSize:12}} disabled={approvalUploading}>Sadece Taşı</Btn>
+          <Btn variant="primary" onClick={()=>confirmApproval(true)} style={{background:"#25D366",border:"none"}} disabled={approvalUploading}>{approvalUploading?"Yükleniyor...":"📱 WhatsApp'a Gönder ve Taşı"}</Btn>
         </div>
       </Modal>
       );
