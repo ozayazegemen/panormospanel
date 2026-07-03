@@ -3263,6 +3263,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
   const todayPublish = clients.filter(c => c.publishDays.some(d => wdIndex(d) === wd));
   const todayShoot = clients.filter(c => c.shootDays.some(d => wdIndex(d) === wd));
   const todayName = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd];
+  const [todayModal, setTodayModal] = useState(null); // "publish" | "shoot" | null
 
   const NavCard = ({icon,label,value,sub,color,target}) => (
     <div onClick={()=>setPage(target)} style={{
@@ -3338,9 +3339,12 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
             <div style={{fontSize:12,color:T.textMuted}}>Bugün paylaşım yok</div>
           ) : (
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {todayPublish.map(c=>(
+              {todayPublish.slice(0,6).map(c=>(
                 <div key={c.id} style={{fontSize:12,color:T.textPrimary,padding:"6px 10px",background:"rgba(242,81,36,0.12)",borderRadius:6,borderLeft:`2px solid ${c.accentColor}`}}>{c.name}</div>
               ))}
+              {todayPublish.length>6 && (
+                <button onClick={()=>setTodayModal("publish")} style={{marginTop:2,padding:"7px",borderRadius:6,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ {todayPublish.length-6} tane daha (detay)</button>
+              )}
             </div>
           )}
         </div>
@@ -3350,14 +3354,35 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
             <div style={{fontSize:12,color:T.textMuted}}>Bugün çekim yok</div>
           ) : (
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {todayShoot.map(c=>(
+              {todayShoot.slice(0,6).map(c=>(
                 <div key={c.id} style={{fontSize:12,color:T.textPrimary,padding:"6px 10px",background:"rgba(236,72,153,0.12)",borderRadius:6,borderLeft:`2px solid ${c.accentColor}`}}>📷 {c.name}</div>
               ))}
+              {todayShoot.length>6 && (
+                <button onClick={()=>setTodayModal("shoot")} style={{marginTop:2,padding:"7px",borderRadius:6,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ {todayShoot.length-6} tane daha (detay)</button>
+              )}
             </div>
           )}
         </div>
       </div>
     </div>
+
+    {/* Bugün detay modalı */}
+    {todayModal && (()=>{
+      const list = todayModal==="publish" ? todayPublish : todayShoot;
+      const isPublish = todayModal==="publish";
+      return (
+        <Modal title={`${isPublish?"📅 Paylaşım":"📷 Çekim"} — Bugün (${list.length})`} onClose={()=>setTodayModal(null)} width={480}>
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:480,overflowY:"auto"}}>
+            {list.map(c=>(
+              <div key={c.id} onClick={()=>{setPage("clients");setTodayModal(null);}} style={{fontSize:13,color:T.textPrimary,padding:"9px 12px",background:isPublish?"rgba(242,81,36,0.12)":"rgba(236,72,153,0.12)",borderRadius:8,borderLeft:`3px solid ${c.accentColor}`,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>{isPublish?"":"📷 "}{c.name}</span>
+                {c.publishTimes && c.publishTimes.length>0 && isPublish && <span style={{fontSize:11,color:T.amberText}}>{c.publishTimes.join(", ")}</span>}
+              </div>
+            ))}
+          </div>
+        </Modal>
+      );
+    })()}
 
     {/* Görev İlerlemesi */}
     <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
