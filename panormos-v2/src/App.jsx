@@ -6262,6 +6262,12 @@ function LandingPage({ onEnter }) {
   .lp .cm.wa{background:#25D366;color:#fff}
   .lp .cm.ig{background:var(--grad2);color:#fff}
   .lp .cm.line{border:1px solid var(--line2);color:var(--text)}
+  .lp .contact-info{position:relative;margin-top:44px;padding-top:36px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:20px;max-width:620px;margin-left:auto;margin-right:auto;text-align:left}
+  .lp .ci-item{display:flex;gap:14px;align-items:flex-start}
+  .lp .ci-ic{font-size:20px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px}
+  .lp .ci-lbl{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted2);margin-bottom:3px}
+  .lp .ci-val{font-size:15px;color:var(--text);line-height:1.5}
+  .lp .ci-link{color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;font-weight:600}
   .lp footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:56px 0 40px}
   .lp .foot-inner{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:32px}
   .lp .foot-brand{max-width:320px}
@@ -6376,6 +6382,11 @@ function LandingPage({ onEnter }) {
               <a href="https://instagram.com/panormosmedya" className="cm ig" target="_blank" rel="noopener">📷 Instagram</a>
               <a href="mailto:info@panormosmedya.com" className="cm line">✉️ info@panormosmedya.com</a>
             </div>
+            <div className="contact-info">
+              <div className="ci-item"><span className="ci-ic">🏢</span><div><div className="ci-lbl">Ünvan</div><div className="ci-val">Panormos Medya Sanayi ve Ticaret Limited Şirketi</div></div></div>
+              <div className="ci-item"><span className="ci-ic">📍</span><div><div className="ci-lbl">Adres</div><div className="ci-val">Paşakent Mahallesi, Şehit Şener Köksal Caddesi No: 6/A, Pervin Sitesi, Bandırma / BALIKESİR</div></div></div>
+              <div className="ci-item"><span className="ci-ic">📞</span><div><div className="ci-lbl">Telefon</div><a className="ci-val ci-link" href="tel:+905364716012">0 (536) 471 60 12</a></div></div>
+            </div>
           </div>
         </div>
       </section>
@@ -6383,10 +6394,10 @@ function LandingPage({ onEnter }) {
       <footer>
         <div className="wrap">
           <div className="foot-inner">
-            <div className="foot-brand"><a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a><p>Bandırma merkezli sosyal medya ve reklam ajansı. Markanı dijitalde büyütüyoruz.</p></div>
+            <div className="foot-brand"><a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a><p>Panormos Medya Sanayi ve Ticaret Limited Şirketi — markanı dijitalde büyüten sosyal medya ve reklam ajansı.</p></div>
             <div className="foot-col"><h5>Hizmetler</h5><a href="#lp-hizmetler">Instagram Yönetimi</a><a href="#lp-hizmetler">İçerik Üretimi</a><a href="#lp-hizmetler">Reklam Yönetimi</a><a href="#lp-hizmetler">Grafik Tasarım</a></div>
             <div className="foot-col"><h5>Kurumsal</h5><a href="#lp-hakkimizda">Hakkımızda</a><a href="#lp-surec">Nasıl Çalışırız</a><a href="#lp-iletisim">İletişim</a><a onClick={onEnter}>Çalışan Girişi</a></div>
-            <div className="foot-col"><h5>İletişim</h5><a href="https://wa.me/905364716012" target="_blank" rel="noopener">0536 471 60 12</a><a href="mailto:info@panormosmedya.com">info@panormosmedya.com</a><a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener">@panormosmedya</a><a href="#lp-iletisim">Bandırma / Balıkesir</a></div>
+            <div className="foot-col"><h5>İletişim</h5><a href="tel:+905364716012">0 (536) 471 60 12</a><a href="mailto:info@panormosmedya.com">info@panormosmedya.com</a><a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener">@panormosmedya</a><a href="#lp-iletisim">Paşakent Mah. Bandırma / Balıkesir</a></div>
           </div>
           <div className="foot-bottom"><span>© 2026 Panormos Medya. Tüm hakları saklıdır.</span><span>Markanı büyütmek için buradayız ✦</span></div>
         </div>
