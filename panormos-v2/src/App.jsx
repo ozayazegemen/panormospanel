@@ -2056,7 +2056,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData}) {
     if(!pm.publisher_id){ alert("Lütfen paylaşımı yapan çalışanı seçin"); return; }
     const nowIso = new Date().toISOString();
     const { error } = await supabase.from('publishes').insert({
-      task_id: pm.taskId, client_id: parseInt(pm.client_id), publisher_id: pm.publisher_id,
+      task_id: pm.taskId, client_id: pm.client_id, publisher_id: pm.publisher_id,
       platform: pm.platform, content_type: pm.content_type, published_at: nowIso,
     });
     if(error){ alert("Paylaşım kaydedilemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırın."); return; }
