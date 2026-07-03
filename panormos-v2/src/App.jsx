@@ -6113,8 +6113,252 @@ function playNotificationSound() {
   } catch (e) { /* ses çalınamazsa sessizce geç */ }
 }
 
+// ═══════════════════════════════════════════════════════════
+// LANDING PAGE — Kurumsal tanıtım sitesi (giriş yapılmadan görünür)
+// ═══════════════════════════════════════════════════════════
+function LandingPage({ onEnter }) {
+  useEffect(() => {
+    const nav = document.getElementById('lp-nav');
+    const onScroll = () => { if (nav) nav.classList.toggle('scrolled', window.scrollY > 20); };
+    window.addEventListener('scroll', onScroll);
+
+    const toggle = document.getElementById('lp-menuToggle');
+    const links = document.getElementById('lp-navLinks');
+    const onToggle = () => links && links.classList.toggle('open');
+    if (toggle) toggle.addEventListener('click', onToggle);
+    if (links) links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
+
+    const words = ['büyütürüz', 'parlatırız', 'öne taşırız', 'fark ettiririz', 'konuştururuz'];
+    let wi = 0;
+    const rot = document.getElementById('lp-rotator');
+    const iv = setInterval(() => {
+      wi = (wi + 1) % words.length;
+      if (!rot) return;
+      rot.style.opacity = '0'; rot.style.transition = 'opacity .3s';
+      setTimeout(() => { rot.textContent = words[wi]; rot.style.opacity = '1'; }, 300);
+    }, 2600);
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.lp .reveal').forEach((el, i) => { el.style.transitionDelay = ((i % 4) * 0.08) + 's'; io.observe(el); });
+
+    return () => { window.removeEventListener('scroll', onScroll); if (toggle) toggle.removeEventListener('click', onToggle); clearInterval(iv); io.disconnect(); };
+  }, []);
+
+  const css = `
+  .lp{--bg:#0A0E16;--surface:#141B28;--line:#212C3E;--line2:#2C3A52;--text:#EEF3F9;--muted:#8B97A8;--muted2:#5F6C7E;--orange:#F25124;--pink:#EC4899;--violet:#8B5CF6;--cyan:#06B6D4;--grad:linear-gradient(100deg,#F25124 0%,#EC4899 38%,#8B5CF6 70%,#06B6D4 100%);--grad2:linear-gradient(135deg,#F25124,#EC4899);--grad3:linear-gradient(135deg,#8B5CF6,#06B6D4);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh;position:relative;overflow-x:hidden}
+  .lp *{margin:0;padding:0;box-sizing:border-box}
+  .lp ::selection{background:var(--pink);color:#fff}
+  .lp a{color:inherit;text-decoration:none;cursor:pointer}
+  .lp .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+  .lp .mesh{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+  .lp .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:0.5;animation:lpfloat 18s ease-in-out infinite}
+  .lp .orb.a{width:520px;height:520px;background:#F25124;top:-160px;left:-120px}
+  .lp .orb.b{width:460px;height:460px;background:#8B5CF6;top:10%;right:-140px;animation-delay:-6s}
+  .lp .orb.c{width:400px;height:400px;background:#06B6D4;bottom:-120px;left:30%;animation-delay:-12s;opacity:0.35}
+  @keyframes lpfloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.08)}66%{transform:translate(-30px,20px) scale(0.96)}}
+  .lp nav{position:fixed;top:0;left:0;right:0;z-index:100;transition:all .3s ease;border-bottom:1px solid transparent}
+  .lp nav.scrolled{background:rgba(10,14,22,0.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  .lp .nav-inner{display:flex;align-items:center;justify-content:space-between;height:74px}
+  .lp .logo{font-family:'Space Grotesk';font-weight:700;font-size:22px;letter-spacing:-0.02em;display:flex;align-items:center;gap:2px}
+  .lp .logo .m{background:var(--grad2);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lp .logo .dot{color:var(--orange)}
+  .lp .nav-links{display:flex;align-items:center;gap:34px}
+  .lp .nav-links a.link{font-size:14px;color:var(--muted);font-weight:500;transition:color .2s;position:relative}
+  .lp .nav-links a.link:hover{color:var(--text)}
+  .lp .nav-links a.link::after{content:"";position:absolute;left:0;bottom:-6px;width:0;height:2px;background:var(--grad2);transition:width .25s}
+  .lp .nav-links a.link:hover::after{width:100%}
+  .lp .btn-login{font-family:'Space Grotesk';font-weight:600;font-size:14px;padding:10px 22px;border-radius:100px;background:var(--grad2);color:#fff;transition:transform .2s,box-shadow .2s;box-shadow:0 4px 20px rgba(242,81,36,0.3);border:none}
+  .lp .btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(236,72,153,0.45)}
+  .lp .menu-toggle{display:none;background:none;border:none;color:var(--text);cursor:pointer;font-size:24px}
+  .lp header{position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;padding-top:74px}
+  .lp .hero{max-width:960px}
+  .lp .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:28px;padding:8px 16px;border:1px solid var(--line2);border-radius:100px;background:rgba(255,255,255,0.02)}
+  .lp .eyebrow .pulse{width:8px;height:8px;border-radius:50%;background:var(--orange);animation:lppulse 2s infinite}
+  @keyframes lppulse{0%{box-shadow:0 0 0 0 rgba(242,81,36,0.6)}70%{box-shadow:0 0 0 12px rgba(242,81,36,0)}100%{box-shadow:0 0 0 0 rgba(242,81,36,0)}}
+  .lp h1{font-family:'Space Grotesk';font-weight:700;font-size:clamp(44px,8vw,92px);line-height:1.02;letter-spacing:-0.03em;margin-bottom:28px}
+  .lp .rotator{display:inline-block;background:var(--grad);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lpshine 6s linear infinite}
+  @keyframes lpshine{to{background-position:200% center}}
+  .lp .lead{font-size:clamp(17px,2.2vw,21px);color:var(--muted);max-width:600px;margin-bottom:40px}
+  .lp .hero-cta{display:flex;gap:16px;flex-wrap:wrap}
+  .lp .btn-primary{font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 32px;border-radius:100px;background:var(--grad2);color:#fff;transition:transform .2s,box-shadow .2s;box-shadow:0 6px 28px rgba(242,81,36,0.35);display:inline-flex;align-items:center;gap:10px;border:none}
+  .lp .btn-primary:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(236,72,153,0.5)}
+  .lp .btn-ghost{font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 32px;border-radius:100px;border:1px solid var(--line2);color:var(--text);transition:all .2s;display:inline-flex;align-items:center;gap:10px;background:none}
+  .lp .btn-ghost:hover{border-color:var(--pink);background:rgba(236,72,153,0.08)}
+  .lp .marquee{position:relative;z-index:1;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 0;overflow:hidden;background:rgba(255,255,255,0.015);margin-top:20px}
+  .lp .marquee-track{display:flex;gap:48px;white-space:nowrap;animation:lpscroll 28s linear infinite;width:max-content}
+  .lp .marquee:hover .marquee-track{animation-play-state:paused}
+  .lp .marquee-item{font-family:'Space Grotesk';font-weight:600;font-size:22px;color:var(--muted);display:flex;align-items:center;gap:48px}
+  .lp .marquee-item .star{color:var(--orange);font-size:16px}
+  @keyframes lpscroll{to{transform:translateX(-50%)}}
+  .lp section{position:relative;z-index:1;padding:120px 0}
+  .lp .sec-head{margin-bottom:64px;max-width:720px}
+  .lp .sec-label{font-family:'Space Grotesk';font-size:14px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:18px;display:block}
+  .lp .sec-head h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.08;letter-spacing:-0.02em;margin-bottom:20px}
+  .lp .sec-head p{font-size:17px;color:var(--muted)}
+  .lp .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+  .lp .service{position:relative;padding:38px;border-radius:22px;background:var(--surface);border:1px solid var(--line);overflow:hidden;transition:transform .3s,border-color .3s}
+  .lp .service::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .4s}
+  .lp .service:hover{transform:translateY(-6px);border-color:var(--line2)}
+  .lp .service:hover::before{transform:scaleX(1)}
+  .lp .service .num{font-family:'Space Grotesk';font-size:13px;font-weight:600;color:var(--muted2);margin-bottom:22px}
+  .lp .service .icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:22px;background:var(--accent-soft);border:1px solid var(--accent-line)}
+  .lp .service h3{font-family:'Space Grotesk';font-weight:600;font-size:24px;margin-bottom:12px;letter-spacing:-0.01em}
+  .lp .service p{font-size:15px;color:var(--muted);margin-bottom:20px}
+  .lp .service ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+  .lp .service li{font-size:12.5px;color:var(--muted);padding:5px 12px;border-radius:100px;background:rgba(255,255,255,0.03);border:1px solid var(--line)}
+  .lp .s1{--accent:var(--grad2);--accent-soft:rgba(242,81,36,0.1);--accent-line:rgba(242,81,36,0.25)}
+  .lp .s2{--accent:linear-gradient(135deg,#EC4899,#8B5CF6);--accent-soft:rgba(236,72,153,0.1);--accent-line:rgba(236,72,153,0.25)}
+  .lp .s3{--accent:linear-gradient(135deg,#8B5CF6,#6366F1);--accent-soft:rgba(139,92,246,0.1);--accent-line:rgba(139,92,246,0.25)}
+  .lp .s4{--accent:var(--grad3);--accent-soft:rgba(6,182,212,0.1);--accent-line:rgba(6,182,212,0.25)}
+  .lp .process{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+  .lp .step{padding:32px 28px 32px 0;position:relative;border-top:1px solid var(--line2)}
+  .lp .step .snum{font-family:'Space Grotesk';font-weight:700;font-size:15px;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:16px;display:block}
+  .lp .step h4{font-family:'Space Grotesk';font-weight:600;font-size:19px;margin-bottom:10px}
+  .lp .step p{font-size:14px;color:var(--muted)}
+  .lp .step::before{content:"";position:absolute;top:-1px;left:0;width:40px;height:3px;background:var(--grad2)}
+  .lp .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;padding:56px 44px;border-radius:24px;background:linear-gradient(135deg,rgba(242,81,36,0.08),rgba(139,92,246,0.08));border:1px solid var(--line2)}
+  .lp .stat .n{font-family:'Space Grotesk';font-weight:700;font-size:clamp(36px,5vw,52px);line-height:1;letter-spacing:-0.02em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:8px}
+  .lp .stat .l{font-size:14px;color:var(--muted)}
+  .lp .contact-card{border-radius:28px;background:var(--surface);border:1px solid var(--line);padding:64px;text-align:center;position:relative;overflow:hidden}
+  .lp .contact-card::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(236,72,153,0.12),transparent 60%);pointer-events:none}
+  .lp .contact-card h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(30px,5vw,48px);letter-spacing:-0.02em;margin-bottom:18px;position:relative}
+  .lp .contact-card p{font-size:18px;color:var(--muted);margin-bottom:36px;position:relative}
+  .lp .contact-methods{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
+  .lp .cm{display:inline-flex;align-items:center;gap:10px;padding:14px 24px;border-radius:100px;font-weight:600;font-size:15px;font-family:'Space Grotesk';transition:transform .2s}
+  .lp .cm:hover{transform:translateY(-3px)}
+  .lp .cm.wa{background:#25D366;color:#fff}
+  .lp .cm.ig{background:var(--grad2);color:#fff}
+  .lp .cm.line{border:1px solid var(--line2);color:var(--text)}
+  .lp footer{position:relative;z-index:1;border-top:1px solid var(--line);padding:56px 0 40px}
+  .lp .foot-inner{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:32px}
+  .lp .foot-brand{max-width:320px}
+  .lp .foot-brand .logo{margin-bottom:16px}
+  .lp .foot-brand p{font-size:14px;color:var(--muted)}
+  .lp .foot-col h5{font-family:'Space Grotesk';font-size:13px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted2);margin-bottom:16px}
+  .lp .foot-col a{display:block;font-size:14px;color:var(--muted);margin-bottom:10px;transition:color .2s}
+  .lp .foot-col a:hover{color:var(--text)}
+  .lp .foot-bottom{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted2)}
+  .lp .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
+  .lp .reveal.in{opacity:1;transform:none}
+  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:400px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}}
+  @media(max-width:520px){.lp .process{grid-template-columns:1fr}.lp .stats{grid-template-columns:1fr 1fr;gap:32px 16px}.lp .contact-methods{flex-direction:column}.lp .cm{justify-content:center}}
+  @media(prefers-reduced-motion:reduce){.lp *{animation:none!important;transition:none!important}.lp .reveal{opacity:1;transform:none}}
+  .lp :focus-visible{outline:2px solid var(--pink);outline-offset:3px;border-radius:4px}
+  `;
+
+  return (
+    <div className="lp">
+      <style>{css}</style>
+      <div className="mesh" aria-hidden="true"><div className="orb a"></div><div className="orb b"></div><div className="orb c"></div></div>
+
+      <nav id="lp-nav">
+        <div className="wrap nav-inner">
+          <a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a>
+          <div className="nav-links" id="lp-navLinks">
+            <a href="#lp-hizmetler" className="link">Hizmetler</a>
+            <a href="#lp-surec" className="link">Nasıl Çalışırız</a>
+            <a href="#lp-hakkimizda" className="link">Hakkımızda</a>
+            <a href="#lp-iletisim" className="link">İletişim</a>
+            <button className="btn-login" onClick={onEnter}>Giriş Yap</button>
+          </div>
+          <button className="menu-toggle" id="lp-menuToggle" aria-label="Menü">☰</button>
+        </div>
+      </nav>
+
+      <header id="lp-top">
+        <div className="wrap">
+          <div className="hero">
+            <span className="eyebrow"><span className="pulse"></span>Bandırma Merkezli Sosyal Medya Ajansı</span>
+            <h1>Markanı<br /><span className="rotator" id="lp-rotator">büyütürüz</span></h1>
+            <p className="lead">Instagram yönetiminden reklam kampanyalarına, içerik üretiminden tasarıma — markanı dijitalde fark edilir kılacak her şeyi tek çatı altında topluyoruz.</p>
+            <div className="hero-cta">
+              <a href="#lp-iletisim" className="btn-primary">Teklif Al →</a>
+              <a href="#lp-hizmetler" className="btn-ghost">Hizmetleri Keşfet</a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="marquee" aria-hidden="true">
+        <div className="marquee-track">
+          <span className="marquee-item">Instagram Yönetimi<span className="star">✦</span>İçerik Üretimi<span className="star">✦</span>Reklam Yönetimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Video Prodüksiyon<span className="star">✦</span>Sosyal Medya Stratejisi<span className="star">✦</span></span>
+          <span className="marquee-item">Instagram Yönetimi<span className="star">✦</span>İçerik Üretimi<span className="star">✦</span>Reklam Yönetimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Video Prodüksiyon<span className="star">✦</span>Sosyal Medya Stratejisi<span className="star">✦</span></span>
+        </div>
+      </div>
+
+      <section id="lp-hizmetler">
+        <div className="wrap">
+          <div className="sec-head reveal"><span className="sec-label">Hizmetlerimiz</span><h2>Markanı büyüten dört ana hizmet</h2><p>Her biri işini bilen ekiplerle; ölçülebilir sonuçlar ve gerçek etkileşim için.</p></div>
+          <div className="services-grid">
+            <div className="service s1 reveal"><div className="num">01</div><div className="icon">📱</div><h3>Instagram Yönetimi</h3><p>Hesabını profesyonelce yönetiyor, düzenli paylaşım ve etkileşimle takipçini gerçek müşteriye dönüştürüyoruz.</p><ul><li>İçerik takvimi</li><li>Story & Reels</li><li>Topluluk yönetimi</li><li>Analiz & raporlama</li></ul></div>
+            <div className="service s2 reveal"><div className="num">02</div><div className="icon">🎬</div><h3>İçerik Üretimi</h3><p>Fotoğraf, video ve reels çekimlerinden kurguya; markanı en iyi anlatan görselleri sıfırdan üretiyoruz.</p><ul><li>Reels & kısa video</li><li>Ürün çekimi</li><li>Kurgu & montaj</li><li>Senaryo</li></ul></div>
+            <div className="service s3 reveal"><div className="num">03</div><div className="icon">🎯</div><h3>Reklam Yönetimi</h3><p>Meta ve Instagram reklamlarını doğru kitleye, doğru bütçeyle yöneterek satış ve bilinirliğini artırıyoruz.</p><ul><li>Hedef kitle</li><li>Kampanya kurulumu</li><li>Bütçe optimizasyonu</li><li>Dönüşüm takibi</li></ul></div>
+            <div className="service s4 reveal"><div className="num">04</div><div className="icon">🎨</div><h3>Grafik Tasarım</h3><p>Logo'dan sosyal medya görsellerine kadar markanın kimliğini yansıtan özgün ve akılda kalıcı tasarımlar.</p><ul><li>Kurumsal kimlik</li><li>Sosyal medya görseli</li><li>Logo tasarım</li><li>Katalog & afiş</li></ul></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="lp-surec">
+        <div className="wrap">
+          <div className="sec-head reveal"><span className="sec-label">Nasıl Çalışırız</span><h2>Fikirden sonuca, dört adımda</h2><p>Şeffaf ve düzenli bir süreçle her aşamada yanındayız.</p></div>
+          <div className="process">
+            <div className="step reveal"><span className="snum">Adım 01</span><h4>Tanışma & Analiz</h4><p>Markanı, hedeflerini ve rakiplerini analiz ederek yol haritanı çıkarıyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Adım 02</span><h4>Strateji & Plan</h4><p>Sana özel içerik takvimi ve reklam stratejisi oluşturuyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Adım 03</span><h4>Üretim & Paylaşım</h4><p>İçerikleri üretip onayınla düzenli olarak yayınlıyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Adım 04</span><h4>Ölçüm & Raporlama</h4><p>Sonuçları düzenli raporlarla paylaşıp sürekli iyileştiriyoruz.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="lp-hakkimizda">
+        <div className="wrap">
+          <div className="stats reveal">
+            <div className="stat"><div className="n">20+</div><div className="l">Aktif Marka</div></div>
+            <div className="stat"><div className="n">500+</div><div className="l">Üretilen İçerik</div></div>
+            <div className="stat"><div className="n">4</div><div className="l">Uzman Ekip Alanı</div></div>
+            <div className="stat"><div className="n">%100</div><div className="l">Müşteri Odaklı</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="lp-iletisim">
+        <div className="wrap">
+          <div className="contact-card reveal">
+            <h2>Markanı birlikte büyütelim</h2>
+            <p>Ücretsiz keşif görüşmesi için bize ulaş, sana özel teklifini hazırlayalım.</p>
+            <div className="contact-methods">
+              <a href="https://wa.me/905364716012" className="cm wa" target="_blank" rel="noopener">💬 WhatsApp</a>
+              <a href="https://instagram.com/panormosmedya" className="cm ig" target="_blank" rel="noopener">📷 Instagram</a>
+              <a href="mailto:info@panormosmedya.com" className="cm line">✉️ info@panormosmedya.com</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div className="wrap">
+          <div className="foot-inner">
+            <div className="foot-brand"><a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a><p>Bandırma merkezli sosyal medya ve reklam ajansı. Markanı dijitalde büyütüyoruz.</p></div>
+            <div className="foot-col"><h5>Hizmetler</h5><a href="#lp-hizmetler">Instagram Yönetimi</a><a href="#lp-hizmetler">İçerik Üretimi</a><a href="#lp-hizmetler">Reklam Yönetimi</a><a href="#lp-hizmetler">Grafik Tasarım</a></div>
+            <div className="foot-col"><h5>Kurumsal</h5><a href="#lp-hakkimizda">Hakkımızda</a><a href="#lp-surec">Nasıl Çalışırız</a><a href="#lp-iletisim">İletişim</a><a onClick={onEnter}>Çalışan Girişi</a></div>
+            <div className="foot-col"><h5>İletişim</h5><a href="https://wa.me/905364716012" target="_blank" rel="noopener">0536 471 60 12</a><a href="mailto:info@panormosmedya.com">info@panormosmedya.com</a><a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener">@panormosmedya</a><a href="#lp-iletisim">Bandırma / Balıkesir</a></div>
+          </div>
+          <div className="foot-bottom"><span>© 2026 Panormos Medya. Tüm hakları saklıdır.</span><span>Markanı büyütmek için buradayız ✦</span></div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
+  const [showLogin, setShowLogin] = useState(() => {
+    // Doğrudan giriş bağlantısıyla gelenler için (#giris veya #panel)
+    const h = window.location.hash.replace('#','');
+    return h === 'giris' || h === 'login' || h === 'panel';
+  });
   const [currentStaff, setCurrentStaff] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authDenied, setAuthDenied] = useState(false);
@@ -6275,7 +6519,10 @@ export default function App() {
   }, [currentStaff]);
 
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
-  if (!session) return <Login onLogin={() => {}} />;
+  if (!session) {
+    if (showLogin) return <Login onLogin={() => {}} />;
+    return <LandingPage onEnter={() => { setShowLogin(true); window.scrollTo(0,0); }} />;
+  }
 
   // Giriş yapıldı ama çalışan kaydı çözülüyor
   if (staffResolving) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Hesap kontrol ediliyor...</div>;
