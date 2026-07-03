@@ -1313,6 +1313,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
   const [filterPlatform, setFilterPlatform] = useState("Tümü");
   const [messagingClient, setMessagingClient] = useState(null);
   const [deleteModal, setDeleteModal] = useState(null);
+  const [showAllClients, setShowAllClients] = useState(false);
 
   const totalRevenue=clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const pendingRevenue=clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status!=="paid").reduce((ss,i)=>ss+i.total,0),0);
@@ -1458,7 +1459,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
     </div>
 
     <div style={{display:"flex",flexDirection:"column",gap:2}}>
-      {filteredClients.map(client=>{
+      {(showAllClients ? filteredClients : filteredClients.slice(0,6)).map(client=>{
         const isOpen=open===client.id;
         const currentTab=tab[client.id]||"overview";
         return <div key={client.id}>
@@ -1484,6 +1485,11 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           {isOpen&&<ClientDetail client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} onDelete={()=>setDeleteModal({clientId:client.id,reason:"",date:""})} perms={perms} />}
         </div>;
       })}
+      {filteredClients.length>6 && (
+        <button onClick={()=>setShowAllClients(v=>!v)} style={{marginTop:8,padding:"11px",borderRadius:10,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+          {showAllClients ? "▲ Daha az göster" : `▼ Tümünü göster (${filteredClients.length} müşteri)`}
+        </button>
+      )}
     </div>
 
     {modal==="addClient"&&<Modal title="Yeni müşteri ekle" onClose={()=>setModal(null)}>
@@ -4357,7 +4363,7 @@ function AccountingCari({ clients }) {
   const savePayment = async () => {
     if (!form.client_id || !form.amount) { alert("Müşteri ve tutar zorunlu"); return; }
     const { error } = await supabase.from('client_payments').insert({
-      client_id: parseInt(form.client_id),
+      client_id: form.client_id,
       amount: parseFloat(form.amount) || 0,
       payment_date: form.payment_date || new Date().toISOString().slice(0, 10),
       month_ref: form.month_ref || nowRef,
@@ -4456,6 +4462,9 @@ function AccountingCari({ clients }) {
                 </div>
                 {isOpen && (
                   <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${T.border}` }}>
+                    <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}>
+                      <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,padding:"6px 12px"}}>+ Bu Müşteriye Ödeme Ekle</Btn>
+                    </div>
                     <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylık Ödeme Durumu</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
                       {cs.months.map(m => {
