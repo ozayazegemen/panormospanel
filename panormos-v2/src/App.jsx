@@ -2991,6 +2991,8 @@ function ReportsPage({ clients, perms }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from('social_reports').select('*').order('month_ref', { ascending: false });
@@ -3146,9 +3148,17 @@ function ReportsPage({ clients, perms }) {
 
       <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 14 }}>👇 Rapor girmek için bir müşteri seçin.</div>
 
-      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : (
+      <div style={{marginBottom:14}}>
+        <input placeholder="🔍 Müşteri ara..." value={q} onChange={e=>{setQ(e.target.value);setShowAll(false);}} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : (()=>{
+        const filtered = withCounts.filter(w => !q || w.c.name.toLowerCase().includes(q.toLowerCase()));
+        const shown = showAll ? filtered : filtered.slice(0,10);
+        return (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {withCounts.map(w => {
+          {filtered.length===0 && <div style={{textAlign:"center",color:T.textMuted,padding:30,fontSize:13}}>Müşteri bulunamadı</div>}
+          {shown.map(w => {
             const hasThisMonth = reports.find(r => r.client_id === w.c.id && r.month_ref === nowRef);
             return (
               <div key={w.c.id} onClick={() => setSelClient(w.c.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, cursor: "pointer", borderLeft: `3px solid ${w.c.accentColor}` }}>
@@ -3163,8 +3173,14 @@ function ReportsPage({ clients, perms }) {
               </div>
             );
           })}
+          {filtered.length>10 && (
+            <button onClick={()=>setShowAll(v=>!v)} style={{marginTop:4,padding:"11px",borderRadius:10,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              {showAll ? "▲ Daha az göster" : `▼ Tümünü göster (${filtered.length} müşteri)`}
+            </button>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {modal && <ReportFormModal form={form} setForm={setForm} onClose={() => setModal(false)} onSave={save} saving={saving} monthOptions={monthOptions} monthLabel={monthLabel} clients={clients} />}
     </div>
@@ -6289,12 +6305,17 @@ function GlobalSearch({ clients, tasks, setPage }) {
   );
 }
 
-function NotificationBell({ clients, tasks, perms, setPage }) {
+function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState([]);
   const [payments, setPayments] = useState([]);
   const [agreedLeads, setAgreedLeads] = useState([]);
   const boxRef = useRef(null);
+  // Kullanıcı bazlı okunmuş bildirimler (localStorage)
+  const readStoreKey = `notifRead_${currentStaff?.id || "user"}`;
+  const [readKeys, setReadKeys] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(readStoreKey) || "[]"); } catch (e) { return []; }
+  });
 
   useEffect(() => {
     (async () => {
@@ -6384,15 +6405,35 @@ function NotificationBell({ clients, tasks, perms, setPage }) {
   if (expiredContracts.length) notifs.push({ icon: "📛", title: `${expiredContracts.length} müşterinin sözleşmesi bitti (yenileme)`, sub: expiredContracts.map(c => c.name).join(", "), page: "clients", sev: "high" });
   if (soonContracts.length) notifs.push({ icon: "📆", title: `${soonContracts.length} müşterinin sözleşmesi 30 gün içinde bitiyor`, sub: soonContracts.map(c => `${c.name} (${new Date(c.contractEnd).toLocaleDateString("tr-TR")})`).join(", "), page: "clients", sev: "mid" });
 
+  // Her bildirime benzersiz anahtar (içerik değişince yeniden uyarır)
+  const keyOf = (n) => `${n.icon}|${n.title}`;
+  const allKeys = notifs.map(keyOf);
+  // Okunmamış = henüz okundu listesinde olmayanlar
+  const unreadCount = notifs.filter(n => !readKeys.includes(keyOf(n))).length;
   const count = notifs.length;
+
+  // Zil açılınca görünen tüm bildirimleri okundu say (rozet söner)
+  const markAllRead = () => {
+    const merged = Array.from(new Set([...readKeys, ...allKeys]));
+    setReadKeys(merged);
+    try { localStorage.setItem(readStoreKey, JSON.stringify(merged)); } catch (e) {}
+  };
+  const toggleOpen = () => {
+    setOpen(o => {
+      const next = !o;
+      if (next) markAllRead(); // açarken okundu işaretle
+      return next;
+    });
+  };
+
   const sevColor = (s) => s === "high" ? T.redText : s === "mid" ? T.amberText : T.indigoText;
   const sevBg = (s) => s === "high" ? T.redDim : s === "mid" ? T.amberDim : T.indigoDim;
 
   return (
     <div ref={boxRef} style={{ position: "relative" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ position: "relative", background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 10, width: 40, height: 40, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <button onClick={toggleOpen} style={{ position: "relative", background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 10, width: 40, height: 40, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
         🔔
-        {count > 0 && <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: "#EF4444", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{count}</span>}
+        {unreadCount > 0 && <span style={{ position: "absolute", top: -6, right: -6, minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9, background: "#EF4444", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</span>}
       </button>
 
       {open && (
@@ -6996,7 +7037,7 @@ export default function App() {
           {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'leads' ? '📞 Soğuk Arama' : page === 'pricing' ? '💰 Fiyatlar' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
         </div>
         <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} />
-        <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} />
+        <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
       </div>
       <div style={{flex:1,overflow:"auto",padding:28}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData}/>}
