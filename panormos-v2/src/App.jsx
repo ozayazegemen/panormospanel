@@ -978,6 +978,97 @@ function printClientDetail(client, perms) {
   setTimeout(() => w.print(), 300);
 }
 
+// Müşteriye gönderilecek AYLIK RAPOR (müşteri dostu — finans/şifre yok)
+function printMonthlyReport(client) {
+  const now = new Date();
+  const monthName = TR_MONTHS[now.getMonth()];
+  const year = now.getFullYear();
+  const pubs = (client.publishesList || []).filter(p => { if (!p.publishedAt) return false; const d = new Date(p.publishedAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+
+  // Platform ve tür kırılımı
+  const byPlatform = {}; const byType = {};
+  pubs.forEach(p => { byPlatform[p.platform] = (byPlatform[p.platform] || 0) + 1; byType[p.contentType] = (byType[p.contentType] || 0) + 1; });
+
+  // Anlaşma
+  const quota = client.quotaDetail && Object.keys(client.quotaDetail).length > 0 ? client.quotaDetail : {};
+  const quotaTotal = Object.values(quota).reduce((s, pt) => s + Object.values(pt).reduce((a, b) => a + (b || 0), 0), 0);
+
+  const platRows = Object.entries(byPlatform).map(([p, c]) => `<tr><td>${platLabel(p)}</td><td class="c b">${c}</td></tr>`).join("") || `<tr><td colspan="2" class="c" style="color:#999">Bu ay paylaşım yapılmadı</td></tr>`;
+  const typeRows = Object.entries(byType).map(([t, c]) => `<tr><td>${typeLabel(t)}</td><td class="c b">${c}</td></tr>`).join("") || `<tr><td colspan="2" class="c" style="color:#999">—</td></tr>`;
+
+  // Günlük paylaşım listesi
+  const pubListRows = pubs.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt)).map(p => {
+    const d = new Date(p.publishedAt);
+    return `<tr><td>${d.toLocaleDateString("tr-TR")} ${d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</td><td>${platLabel(p.platform)}</td><td>${typeLabel(p.contentType)}</td></tr>`;
+  }).join("") || `<tr><td colspan="3" class="c" style="color:#999">Kayıt yok</td></tr>`;
+
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${client.name} Aylık Rapor</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:0;color:#1a1a1a}
+    .page{max-width:800px;margin:0 auto;padding:30px}
+    .hero{background:linear-gradient(135deg,#1A2B3F,#2d4a6b);color:#fff;border-radius:16px;padding:32px;margin-bottom:24px}
+    .logo{font-size:20px;font-weight:700}.logo .m{color:#F25124}
+    .hero h1{font-size:26px;margin-top:16px;font-weight:800}
+    .hero .period{font-size:15px;opacity:0.85;margin-top:4px}
+    .hero .big{font-size:48px;font-weight:800;margin-top:16px;color:#F8906E}
+    .hero .biglbl{font-size:13px;opacity:0.8}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .box{background:#f7f7f9;border-radius:12px;padding:18px;border-top:3px solid #F25124}
+    .box h3{font-size:13px;color:#F25124;text-transform:uppercase;margin-bottom:12px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    td{padding:7px 8px;border-bottom:1px solid #eaeaea}
+    td.c{text-align:center}td.b{font-weight:700;color:#1A2B3F}
+    .full{background:#fff;border:1px solid #eee;border-radius:12px;padding:18px;margin-bottom:20px}
+    .full h3{font-size:13px;color:#1A2B3F;text-transform:uppercase;margin-bottom:12px}
+    .full th{background:#1A2B3F;color:#fff;padding:8px;text-align:left;font-size:11px}
+    .full td{border:1px solid #eee}
+    .agree{background:#eef7f0;border-radius:12px;padding:16px 18px;margin-bottom:20px;font-size:14px;color:#0a7a4a;text-align:center;font-weight:600}
+    .footer{text-align:center;font-size:12px;color:#999;margin-top:26px;padding-top:16px;border-top:1px solid #eee}
+    .footer .co{color:#F25124;font-weight:700}
+    @media print{.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}.full th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body><div class="page">
+    <div class="hero">
+      <div class="logo">panormos <span class="m">medya.</span></div>
+      <h1>${client.name}</h1>
+      <div class="period">${monthName} ${year} — Aylık Sosyal Medya Raporu</div>
+      <div class="big">${pubs.length}</div>
+      <div class="biglbl">bu ay yapılan toplam paylaşım</div>
+    </div>
+
+    ${quotaTotal > 0 ? `<div class="agree">📋 Anlaşma: Aylık ${quotaTotal} içerik · Bu ay ${pubs.length} içerik paylaşıldı ${pubs.length >= quotaTotal ? "✓ Hedef tamamlandı!" : `(${quotaTotal - pubs.length} kaldı)`}</div>` : ""}
+
+    <div class="row2">
+      <div class="box">
+        <h3>📱 Platforma Göre</h3>
+        <table><tbody>${platRows}</tbody></table>
+      </div>
+      <div class="box">
+        <h3>🎬 İçerik Türüne Göre</h3>
+        <table><tbody>${typeRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="full">
+      <h3>📅 Paylaşım Takvimi (${monthName})</h3>
+      <table>
+        <thead><tr><th>Tarih & Saat</th><th>Platform</th><th>İçerik Türü</th></tr></thead>
+        <tbody>${pubListRows}</tbody>
+      </table>
+    </div>
+
+    <div class="footer">
+      Bu rapor <span class="co">Panormos Medya</span> tarafından hazırlanmıştır.<br>
+      İş birliğiniz için teşekkür ederiz · panormosmedya.com
+    </div>
+  </div></body></html>`;
+
+  const w = window.open("", "_blank", "width=1000,height=850");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
 function MessagingPanel({clientId, clientName, onClose}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -1621,6 +1712,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       </FormField>
       <FormField label="📊 Aylık Paylaşım Anlaşması (nerede, ne kadar)"><QuotaEditor value={form.quotaDetail} onChange={q=>setForm(f=>({...f,quotaDetail:q}))} /></FormField>
       <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
+      <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
         const colors=["#6366F1","#EC4899","#10B981","#F59E0B","#F97316"];
@@ -1635,7 +1727,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026",
+          monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
         }).select().single();
         if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         if(data){
@@ -1669,6 +1761,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       </FormField>
       <FormField label="📊 Aylık Paylaşım Anlaşması (nerede, ne kadar)"><QuotaEditor value={form.quotaDetail} onChange={q=>setForm(f=>({...f,quotaDetail:q}))} /></FormField>
       <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
+      <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
         const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
@@ -1681,10 +1774,10 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          monthly_fee: parseInt(form.monthlyFee)||0,
+          monthly_fee: parseInt(form.monthlyFee)||0, contract_end: form.contractEnd||null,
         }).eq('id', form.id);
         if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0}:c));
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,contractEnd:form.contractEnd||null}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -1834,8 +1927,9 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
         <Btn onClick={()=>printClientDetail(client, perms)} style={{fontSize:11,padding:"5px 10px"}}>🖨️ Yazdır</Btn>
+        <Btn onClick={()=>printMonthlyReport(client)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📄 Aylık Rapor</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
-        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
@@ -1896,7 +1990,14 @@ function ClientOverview({client, perms}) {
       {perms.finance && <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} />}
       <StatCard label="Bu Ay Paylaşım" value={totalThisMonth} sub={hasQuota?`Anlaşma: ${quotaTotal}`:"Gerçekleşen"} color={totalExcess>0?T.amberText:undefined} />
       <StatCard label="Medya Dosyası" value={client.media.length} />
-      <StatCard label="Sözleşme Başlangıç" value={client.contractStart} />
+      {(()=>{
+        if(!client.contractEnd) return <StatCard label="Sözleşme Başlangıç" value={client.contractStart} />;
+        const end = new Date(client.contractEnd);
+        const days = Math.ceil((end - new Date())/86400000);
+        const col = days<0 ? T.redText : days<=30 ? T.amberText : T.greenText;
+        const sub = days<0 ? `${Math.abs(days)} gün önce bitti` : days===0 ? "Bugün bitiyor" : `${days} gün kaldı`;
+        return <StatCard label="Sözleşme Bitiş" value={end.toLocaleDateString("tr-TR")} sub={sub} color={col} />;
+      })()}
     </div>
 
     {/* Paylaşım Sayımı — detaylı anlaşma karşılaştırması (madde 9) */}
@@ -2007,10 +2108,21 @@ function ClientPosts({client, setClients}) {
 
   return <div>
     {client.posts.length > 0 && (
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, fontWeight: 600 }}>✅ {counts.approved} Onaylı</span>
         <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.amberDim, color: T.amberText, fontWeight: 600 }}>🔄 {counts.revision} Revize</span>
         <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.bgSurface, color: T.textMuted, fontWeight: 600 }}>⏳ {counts.pending} Beklemede</span>
+        {counts.pending > 0 && (
+          <button onClick={()=>{
+            const pend = client.posts.filter(p=>(p.approval||"pending")==="pending");
+            let msg = `Merhaba ${client.name},\n\nAşağıdaki içerikleri onayınıza sunuyoruz:\n\n`;
+            pend.forEach((p,i)=>{ msg += `${i+1}) ${platformConfig[p.platform]?.label||p.platform} · ${p.type}\n   ${p.title}${p.description?"\n   "+p.description:""}${p.date?"\n   📅 "+p.date:""}\n\n`; });
+            msg += `Onaylıyor musunuz? Revize talebiniz varsa lütfen belirtin. 🙏\n\nPanormos Medya`;
+            const phone = (client.phone||"").replace(/\D/g,"").replace(/^0/,"90");
+            const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(url, "_blank");
+          }} style={{ marginLeft:"auto", fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", cursor: "pointer" }}>📱 Onaya Gönder (WhatsApp)</button>
+        )}
       </div>
     )}
     <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -3534,6 +3646,8 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
 function RevenueChart() {
   const [payments, setPayments] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [incomes, setIncomes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -3543,6 +3657,10 @@ function RevenueChart() {
         setPayments(p || []);
         const { data: e } = await supabase.from('accounting_entries').select('amount,month_ref');
         setEntries(e || []);
+        const { data: ex } = await supabase.from('company_expenses').select('amount,expense_date');
+        setExpenses(ex || []);
+        const { data: inc } = await supabase.from('company_incomes').select('amount,income_date');
+        setIncomes(inc || []);
       } catch (err) { /* tablo yoksa boş */ }
       setLoading(false);
     })();
@@ -3555,10 +3673,15 @@ function RevenueChart() {
     const dd = new Date(base.getFullYear(), base.getMonth() - i, 1);
     months.push(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}`);
   }
+  const toMonthRef = (dateStr) => dateStr ? String(dateStr).slice(0, 7) : "";
 
   const data = months.map(m => {
-    const income = payments.filter(p => p.month_ref === m).reduce((s, p) => s + Number(p.amount || 0), 0);
-    const expense = entries.filter(e => e.month_ref === m).reduce((s, e) => s + Number(e.amount || 0), 0);
+    // Gelir = müşteri ödemeleri + diğer gelirler
+    const income = payments.filter(p => p.month_ref === m).reduce((s, p) => s + Number(p.amount || 0), 0)
+      + incomes.filter(i => toMonthRef(i.income_date) === m).reduce((s, i) => s + Number(i.amount || 0), 0);
+    // Gider = SGK/vergi/maaş + kategorili giderler
+    const expense = entries.filter(e => e.month_ref === m).reduce((s, e) => s + Number(e.amount || 0), 0)
+      + expenses.filter(x => toMonthRef(x.expense_date) === m).reduce((s, x) => s + Number(x.amount || 0), 0);
     return { m, income, expense, net: income - expense };
   });
 
@@ -3566,13 +3689,14 @@ function RevenueChart() {
   const totalIncome = data.reduce((s, d) => s + d.income, 0);
   const totalExpense = data.reduce((s, d) => s + d.expense, 0);
   const totalNet = totalIncome - totalExpense;
+  const margin = totalIncome > 0 ? Math.round((totalNet / totalIncome) * 100) : 0;
 
   const chartH = 160;
 
   return (
     <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginTop: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>📊 Gelir - Gider (Son 6 Ay)</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>📊 Gelir - Gider - Kâr/Zarar (Son 6 Ay)</div>
         <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
           <span style={{ color: T.textMuted }}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#10B981", marginRight: 5 }} />Gelir</span>
           <span style={{ color: T.textMuted }}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#EF4444", marginRight: 5 }} />Gider</span>
@@ -3580,20 +3704,22 @@ function RevenueChart() {
       </div>
 
       {/* Özet */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 18 }}>
         <div><div style={{ fontSize: 11, color: T.textMuted }}>Toplam Gelir</div><div style={{ fontSize: 17, fontWeight: 700, color: T.greenText }}>{fmtMoney(totalIncome)}</div></div>
         <div><div style={{ fontSize: 11, color: T.textMuted }}>Toplam Gider</div><div style={{ fontSize: 17, fontWeight: 700, color: T.redText }}>{fmtMoney(totalExpense)}</div></div>
-        <div><div style={{ fontSize: 11, color: T.textMuted }}>Net</div><div style={{ fontSize: 17, fontWeight: 700, color: totalNet >= 0 ? T.greenText : T.redText }}>{fmtMoney(totalNet)}</div></div>
+        <div><div style={{ fontSize: 11, color: T.textMuted }}>Net Kâr/Zarar</div><div style={{ fontSize: 17, fontWeight: 700, color: totalNet >= 0 ? T.greenText : T.redText }}>{fmtMoney(totalNet)}</div></div>
+        <div><div style={{ fontSize: 11, color: T.textMuted }}>Kâr Marjı</div><div style={{ fontSize: 17, fontWeight: 700, color: margin >= 0 ? T.greenText : T.redText }}>%{margin}</div></div>
       </div>
 
       {loading ? (
         <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Yükleniyor...</div>
       ) : totalIncome === 0 && totalExpense === 0 ? (
-        <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Henüz gelir/gider kaydı yok. Muhasebe sekmesinden ödeme girdikçe grafik dolacak.</div>
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Henüz gelir/gider kaydı yok. Muhasebe sekmesinden ödeme/gider girdikçe grafik dolacak.</div>
       ) : (
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: chartH + 30 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: chartH + 46 }}>
           {data.map((d, i) => (
             <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: d.net >= 0 ? T.greenText : T.redText }}>{d.net !== 0 ? (d.net > 0 ? "+" : "") + (Math.abs(d.net) >= 1000 ? (d.net / 1000).toFixed(0) + "b" : d.net) : ""}</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: chartH, width: "100%", justifyContent: "center" }}>
                 <div title={`Gelir: ${fmtMoney(d.income)}`} style={{ width: "38%", maxWidth: 26, height: `${Math.max(2, (d.income / maxVal) * chartH)}px`, background: "linear-gradient(180deg,#10B981,#059669)", borderRadius: "4px 4px 0 0", transition: "height 0.3s" }} />
                 <div title={`Gider: ${fmtMoney(d.expense)}`} style={{ width: "38%", maxWidth: 26, height: `${Math.max(2, (d.expense / maxVal) * chartH)}px`, background: "linear-gradient(180deg,#EF4444,#DC2626)", borderRadius: "4px 4px 0 0", transition: "height 0.3s" }} />
@@ -5651,7 +5777,7 @@ async function loadAllData() {
     socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
-    monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
+    monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null,
     posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
       id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description, approval: p.approval || 'pending', approvalNote: p.approval_note || '',
     })),
@@ -5852,6 +5978,27 @@ function NotificationBell({ clients, tasks, perms, setPage }) {
   }
 
   if (agreedLeads.length) notifs.push({ icon: "✅", title: `${agreedLeads.length} anlaşılan potansiyel taşınmayı bekliyor`, sub: agreedLeads.map(l => l.business_name).join(", "), page: "leads", sev: "mid" });
+
+  // ── Görev bazlı uyarılar ──
+  // Teslim tarihi geçmiş, hâlâ tamamlanmamış görevler
+  const overdueTasks = tasks.filter(t => {
+    if (!t.due || t.due === "—" || t.due.length < 8) return false;
+    if (t.col === "done" || t.col === "published") return false;
+    return t.due < todayStr;
+  });
+  if (overdueTasks.length) notifs.push({ icon: "⏰", title: `${overdueTasks.length} görevin teslim tarihi geçti`, sub: overdueTasks.map(t => t.title).join(", "), page: "tasks", sev: "high" });
+
+  // Bugün paylaşım günü olan ama bugün henüz paylaşım yapılmamış müşteriler
+  const publishedTodayIds = new Set();
+  clients.forEach(c => (c.publishesList || []).forEach(p => { if (p.publishedAt && String(p.publishedAt).slice(0, 10) === todayStr) publishedTodayIds.add(c.id); }));
+  const pendingPublishToday = todayPublish.filter(c => !publishedTodayIds.has(c.id));
+  if (pendingPublishToday.length) notifs.push({ icon: "🔔", title: `${pendingPublishToday.length} müşterinin bugünkü paylaşımı henüz yapılmadı`, sub: pendingPublishToday.map(c => c.name).join(", "), page: "tasks", sev: "mid" });
+
+  // Sözleşmesi yaklaşan / biten müşteriler (yenileme)
+  const expiredContracts = clients.filter(c => { if (!c.contractEnd) return false; return new Date(c.contractEnd) < today; });
+  const soonContracts = clients.filter(c => { if (!c.contractEnd) return false; const d = new Date(c.contractEnd); const days = Math.ceil((d - today) / 86400000); return days >= 0 && days <= 30; });
+  if (expiredContracts.length) notifs.push({ icon: "📛", title: `${expiredContracts.length} müşterinin sözleşmesi bitti (yenileme)`, sub: expiredContracts.map(c => c.name).join(", "), page: "clients", sev: "high" });
+  if (soonContracts.length) notifs.push({ icon: "📆", title: `${soonContracts.length} müşterinin sözleşmesi 30 gün içinde bitiyor`, sub: soonContracts.map(c => `${c.name} (${new Date(c.contractEnd).toLocaleDateString("tr-TR")})`).join(", "), page: "clients", sev: "mid" });
 
   const count = notifs.length;
   const sevColor = (s) => s === "high" ? T.redText : s === "mid" ? T.amberText : T.indigoText;
