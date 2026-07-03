@@ -2030,7 +2030,8 @@ function IdeasPage() {
 
   const load = async () => {
     const { data } = await supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false });
-    setIdeas(data || []);
+    const sorted = (data || []).sort((a,b)=>(a.title||"").localeCompare(b.title||"","tr",{sensitivity:"base"}));
+    setIdeas(sorted);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -2660,7 +2661,8 @@ function DriveFilesPage({ clients }) {
 
   const load = async () => {
     const { data } = await supabase.from('drive_files').select('*').order('uploaded_at', { ascending: false });
-    setFilesList(data || []);
+    const sorted = (data || []).sort((a,b)=>(a.name||"").localeCompare(b.name||"","tr",{sensitivity:"base"}));
+    setFilesList(sorted);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -3978,7 +3980,8 @@ function LeadsPage({ refreshData }) {
 
   const load = async () => {
     const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
-    setLeads(data || []);
+    const sorted = (data || []).sort((a,b)=>(a.business_name||"").localeCompare(b.business_name||"","tr",{sensitivity:"base"}));
+    setLeads(sorted);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -5307,6 +5310,11 @@ async function loadAllData() {
     id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "", clientId: t.client_id || null,
     type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
   }));
+
+  // Alfabetik sıralama (Türkçe) — tüm sayfalara yansır
+  clients.sort((a,b)=>(a.name||"").localeCompare(b.name||"","tr",{sensitivity:"base"}));
+  staff.sort((a,b)=>(a.name||"").localeCompare(b.name||"","tr",{sensitivity:"base"}));
+  tasks.sort((a,b)=>(a.title||"").localeCompare(b.title||"","tr",{sensitivity:"base"}));
 
   return { clients, staff, tasks, allClients: clientsRaw || [], allStaff: staffRaw || [] };
 }
