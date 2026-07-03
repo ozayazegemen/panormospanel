@@ -976,6 +976,17 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
     if (files.length === 0) return;
     
     setUploading(true);
+
+    // Yükleyen çalışanı bul (oturumdan) — her iki yöntemde de kullanılır
+    let uploaderId = null, uploaderName = "";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: st } = await supabase.from('staff').select('id,name').eq('auth_id', user.id).limit(1);
+        if (st && st[0]) { uploaderId = st[0].id; uploaderName = st[0].name; }
+      }
+    } catch(e) {}
+    const nowIso = () => new Date().toISOString();
     
     if (useGoogleDrive) {
       try {
@@ -983,16 +994,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
         const token = await getGoogleAccessToken();
         // Panormos klasörünü bul/oluştur
         const folderId = await getPanormosFolder(token);
-
-        // Yükleyen çalışanı bul (oturumdan)
-        let uploaderId = null, uploaderName = "";
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            const { data: st } = await supabase.from('staff').select('id,name').eq('auth_id', user.id).limit(1);
-            if (st && st[0]) { uploaderId = st[0].id; uploaderName = st[0].name; }
-          }
-        } catch(e) {}
 
         let successCount = 0;
         for (const file of files) {
@@ -1008,12 +1009,13 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
               date: new Date().toLocaleDateString("tr-TR"),
               storage_path: link,
               storage_type: 'google_drive',
+              uploader_id: uploaderId, uploader_name: uploaderName, uploaded_at: nowIso(),
             });
             // Ekip görünürlüğü için drive_files tablosuna da kaydet
             await supabase.from('drive_files').insert({
               name: file.name, link, file_id: driveFile.id,
               uploader_id: uploaderId, uploader_name: uploaderName,
-              client_id: clientId, uploaded_at: new Date().toISOString(),
+              client_id: clientId, uploaded_at: nowIso(),
             });
             successCount++;
           } catch (err) {
@@ -1050,6 +1052,15 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
             date: new Date().toLocaleDateString("tr-TR"),
             storage_path: data.path,
             storage_type: 'supabase',
+            uploader_id: uploaderId, uploader_name: uploaderName, uploaded_at: nowIso(),
+          });
+          // Merkezi Dosyalar sayfasında da görünsün (public URL ile)
+          let publicUrl = "";
+          try { publicUrl = supabase.storage.from('client-media').getPublicUrl(data.path).data.publicUrl || ""; } catch(e) {}
+          await supabase.from('drive_files').insert({
+            name: file.name, link: publicUrl, file_id: data.path,
+            uploader_id: uploaderId, uploader_name: uploaderName,
+            client_id: clientId, uploaded_at: nowIso(),
           });
         }
       } catch (err) {
@@ -1059,6 +1070,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
     
     setUploading(false);
     setFiles([]);
+    alert(files.length + " dosya yüklendi!");
     onUploadComplete?.();
   };
   
@@ -1963,6 +1975,12 @@ function ClientMedia({client}) {
           <div style={{padding:"8px 10px"}}>
             <div style={{fontSize:11,fontWeight:500,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
             <div style={{fontSize:10,color:T.textMuted,marginTop:2}}>{m.size} · Aç →</div>
+            {(m.uploaderName || m.uploadedAt) && (
+              <div style={{fontSize:9,color:T.textMuted,marginTop:4,paddingTop:4,borderTop:`1px solid ${T.border}`}}>
+                {m.uploaderName && <div>👤 {m.uploaderName}</div>}
+                {m.uploadedAt && <div style={{marginTop:1}}>🕐 {new Date(m.uploadedAt).toLocaleDateString("tr-TR")} {new Date(m.uploadedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}</div>}
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -5274,6 +5292,7 @@ async function loadAllData() {
     media: (mediaRaw || []).filter(m => m.client_id === c.id).map(m => ({
       id: m.id, name: m.name, type: m.type, size: m.size, date: m.date,
       storagePath: m.storage_path, storageType: m.storage_type,
+      uploaderName: m.uploader_name || "", uploadedAt: m.uploaded_at || null,
     })),
   }));
 
