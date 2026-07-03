@@ -2353,12 +2353,14 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [filterStaff,setFilterStaff]=useState("all");    // kişiye göre filtre
   const [reportModal,setReportModal]=useState(null);     // görev raporu
   const [columnModal,setColumnModal]=useState(null);     // kolon "tümünü gör" modalı
+  const [approvalModal,setApprovalModal]=useState(null);  // onaya gönder (WhatsApp) modalı
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
     {id:"inprogress",label:"Başlandı",color:"#7DA4C7"},
     {id:"review",label:"İncelemede",color:T.amber},
     {id:"done",label:"Tamamlandı",color:T.green},
+    {id:"approval",label:"Onaya Gönderildi",color:"#25D366"},
     {id:"published",label:"Paylaşım Yapıldı",color:"#A855F7"},
   ];
 
@@ -2383,9 +2385,37 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       setPublishModal({ taskId:id, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", content_type:"post" });
       return;
     }
+    // "Onaya Gönderildi" kolonuna taşınıyorsa müşteri seç + WhatsApp
+    if(newCol==="approval"){
+      const t = tasks.find(x=>x.id===id);
+      setApprovalModal({ taskId:id, client_id: t?.clientId||"", task:t });
+      return;
+    }
     setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol}:t));
     if(selectedTask && selectedTask.id===id){ setSelectedTask({...selectedTask,col:newCol}); }
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
+  };
+
+  // Onaya gönder: WhatsApp mesajı aç + görevi approval kolonuna taşı
+  const confirmApproval = async (sendWhatsapp) => {
+    const am = approvalModal;
+    const cli = clients.find(c => c.id === am.client_id);
+    if(sendWhatsapp){
+      if(!cli){ alert("Lütfen müşteri seçin"); return; }
+      const t = am.task || {};
+      let msg = `Merhaba ${cli.name},\n\nAşağıdaki içeriği onayınıza sunuyoruz:\n\n📌 ${t.title||"İçerik"}`;
+      if(t.type) msg += `\n🎨 Tür: ${t.type}`;
+      if(t.due && t.due!=="—") msg += `\n📅 Planlanan: ${t.due}`;
+      msg += `\n\nOnaylıyor musunuz? Revize talebiniz varsa lütfen belirtin. 🙏\n\nPanormos Medya`;
+      const phone = (cli.phone||"").replace(/\D/g,"").replace(/^0/,"90");
+      const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(url, "_blank");
+    }
+    // Görevi approval kolonuna taşı + müşteriyi kaydet
+    await supabase.from('tasks').update({ col: "approval", client_id: am.client_id||null }).eq('id', am.taskId);
+    setTasks(prev=>prev.map(t=>t.id===am.taskId?{...t,col:"approval",clientId:am.client_id||null,client:cli?.name||t.client}:t));
+    if(selectedTask && selectedTask.id===am.taskId){ setSelectedTask({...selectedTask,col:"approval"}); }
+    setApprovalModal(null);
   };
 
   // Paylaşımı onayla → publishes kaydı + görevi published yap
@@ -2592,7 +2622,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     <div style={{display:"flex",gap:8,marginBottom:16}}>
       <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
       <Btn onClick={()=>{
-        const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",published:"Paylaşım Yapıldı"};
+        const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",approval:"Onaya Gönderildi",published:"Paylaşım Yapıldı"};
         const rows = tasks.map(t => ({
           "Görev": t.title,
           "Müşteri": t.client || "—",
@@ -2678,7 +2708,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       ))}
     </div>
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
         const allTasks = getAllColTasks(col.id);
@@ -2804,6 +2834,32 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       <FormField label="Son tarih"><Input type="date" value={editForm.due||""} onChange={e=>setEditForm(f=>({...f,due:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setEditModal(false)} onSave={saveEdit} />
     </Modal>}
+
+    {/* Onaya Gönder (WhatsApp) Modalı */}
+    {approvalModal && (()=>{
+      const cli = clients.find(c=>c.id===approvalModal.client_id);
+      const hasPhone = cli && (cli.phone||"").replace(/\D/g,"").length>=10;
+      return (
+      <Modal title="📤 Onaya Gönder" onClose={()=>setApprovalModal(null)}>
+        <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>Bu içeriği müşteriye <strong style={{color:"#25D366"}}>WhatsApp</strong> ile onaya gönder. Görev "Onaya Gönderildi" kolonuna taşınacak.</div>
+        <FormField label="İçerik (Görev)">
+          <div style={{padding:"10px 12px",background:T.bgInput,borderRadius:8,fontSize:13,color:T.textPrimary}}>{approvalModal.task?.title||"—"}</div>
+        </FormField>
+        <FormField label="Müşteri">
+          <Select value={approvalModal.client_id||""} onChange={e=>setApprovalModal(m=>({...m,client_id:e.target.value}))}>
+            <option value="">Seç...</option>
+            {clients.map(c=><option key={c.id} value={c.id}>{c.name}{(c.phone||"").replace(/\D/g,"").length>=10?"":" (telefon yok)"}</option>)}
+          </Select>
+        </FormField>
+        {cli && !hasPhone && <div style={{fontSize:11,color:T.amberText,marginBottom:12}}>⚠️ Bu müşterinin kayıtlı telefonu yok. WhatsApp numarayı elle isteyecek. (Müşteriyi düzenleyip telefon ekleyebilirsiniz)</div>}
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20,flexWrap:"wrap"}}>
+          <Btn onClick={()=>setApprovalModal(null)}>Vazgeç</Btn>
+          <Btn onClick={()=>confirmApproval(false)} style={{fontSize:12}}>Sadece Taşı</Btn>
+          <Btn variant="primary" onClick={()=>confirmApproval(true)} style={{background:"#25D366",border:"none"}}>📱 WhatsApp'a Gönder ve Taşı</Btn>
+        </div>
+      </Modal>
+      );
+    })()}
 
     {/* Paylaşım Yapıldı Modalı */}
     {publishModal && <Modal title="📤 Paylaşım Yapıldı" onClose={()=>setPublishModal(null)}>
