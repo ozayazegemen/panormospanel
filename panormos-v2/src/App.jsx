@@ -2109,6 +2109,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [publishModal,setPublishModal]=useState(null);   // paylaşım yapıldı modalı
   const [filterStaff,setFilterStaff]=useState("all");    // kişiye göre filtre
   const [reportModal,setReportModal]=useState(null);     // görev raporu
+  const [columnModal,setColumnModal]=useState(null);     // kolon "tümünü gör" modalı
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
@@ -2236,6 +2237,49 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     const idx = staff.findIndex(s => s.id === sid);
     const COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
     return idx >= 0 ? COLORS[idx % COLORS.length] : T.textMuted;
+  };
+
+  // Görevin paylaşım tarihi (publishes'tan) — "Paylaşım Yapıldı" haftalık sıfırlama için
+  const publishDateByTask = {};
+  clients.forEach(c => (c.publishesList || []).forEach(p => {
+    if (p.taskId) {
+      if (!publishDateByTask[p.taskId] || new Date(p.publishedAt) > new Date(publishDateByTask[p.taskId])) {
+        publishDateByTask[p.taskId] = p.publishedAt;
+      }
+    }
+  }));
+  // Bu haftanın başı (Pazartesi 00:00)
+  const weekStart = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd); })();
+
+  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta)
+  const getColTasks = (colId) => {
+    let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
+    if (colId === "published") {
+      list = list.filter(t => { const pd = publishDateByTask[t.id]; return pd && new Date(pd) >= weekStart; });
+    }
+    return list;
+  };
+
+  // Tek görev kartı (hem kolonda hem modalda kullanılır)
+  const taskCardEl = (task) => {
+    const assignee = task.assignedTo ? staff.find(s => s.id === task.assignedTo) : null;
+    const acolor = staffColor(task.assignedTo);
+    return (
+      <div key={task.id} onClick={() => { setSelectedTask(task); setColumnModal(null); }} style={{ background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", borderLeft: `3px solid ${acolor}`, transition: "all 0.12s" }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: T.textPrimary, marginBottom: 6 }}>{task.title}</div>
+        {assignee && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: acolor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff" }}>{assignee.initials}</div>
+            <span style={{ fontSize: 10, color: T.textSecondary }}>{assignee.name}</span>
+          </div>
+        )}
+        {task.assignedAt && <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 5 }}>📌 {fmtDateTime(task.assignedAt)}</div>}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: priorityConfig[task.priority]?.bg, color: priorityConfig[task.priority]?.color }}>{priorityConfig[task.priority]?.label}</span>
+          {task.client && <span style={{ fontSize: 9, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 80 }}>{task.client}</span>}
+        </div>
+      </div>
+    );
   };
 
   return <div>
@@ -2391,35 +2435,38 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
       {cols.map(col=>{
-        const colTasks = tasks.filter(t=>t.col===col.id && (filterStaff==="all" || t.assignedTo===filterStaff));
+        const colTasks = getColTasks(col.id);
+        const shown = colTasks.slice(0, 6);
+        const hiddenCount = colTasks.length - shown.length;
         return (
         <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
-            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}</span>
+            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}{col.id==="published" && <span style={{fontSize:8,color:T.textMuted,marginLeft:4}}>(bu hafta)</span>}</span>
             <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{colTasks.length}</span>
           </div>
-          {colTasks.map(task=>{
-            const assignee = task.assignedTo ? staff.find(s=>s.id===task.assignedTo) : null;
-            const acolor = staffColor(task.assignedTo);
-            return (
-            <div key={task.id} onClick={()=>setSelectedTask(task)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${acolor}`,transition:"all 0.12s"}}>
-              <div style={{fontSize:12,fontWeight:500,color:T.textPrimary,marginBottom:6}}>{task.title}</div>
-              {assignee && (
-                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
-                  <div style={{width:18,height:18,borderRadius:"50%",background:acolor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{assignee.initials}</div>
-                  <span style={{fontSize:10,color:T.textSecondary}}>{assignee.name}</span>
-                </div>
-              )}
-              {task.assignedAt && <div style={{fontSize:9,color:T.textMuted,marginBottom:5}}>📌 {fmtDateTime(task.assignedAt)}</div>}
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
-                <span style={{fontSize:10,fontWeight:600,padding:"2px 6px",borderRadius:4,background:priorityConfig[task.priority]?.bg,color:priorityConfig[task.priority]?.color}}>{priorityConfig[task.priority]?.label}</span>
-                {task.client && <span style={{fontSize:9,color:T.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{task.client}</span>}
-              </div>
-            </div>
-          );})}
+          {colTasks.length===0 && <div style={{fontSize:10,color:T.textMuted,textAlign:"center",padding:"12px 0"}}>—</div>}
+          {shown.map(taskCardEl)}
+          {hiddenCount>0 && (
+            <button onClick={()=>setColumnModal({colId:col.id,label:col.label,color:col.color})} style={{marginTop:2,padding:"8px",borderRadius:8,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+              + {hiddenCount} tane daha (detay)
+            </button>
+          )}
         </div>
       );})}
     </div>
+
+    {/* Kolon "Tümünü Gör" Modalı */}
+    {columnModal && (()=>{
+      const list = getColTasks(columnModal.colId);
+      return (
+        <Modal title={`${columnModal.label} — Tüm Görevler (${list.length})`} onClose={()=>setColumnModal(null)} width={560}>
+          {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Bu kolon her Pazartesi sıfırlanır — sadece bu haftaki paylaşımlar gösterilir.</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:480,overflowY:"auto"}}>
+            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : list.map(taskCardEl)}
+          </div>
+        </Modal>
+      );
+    })()}
 
     {/* Görev Raporu Modalı (günlük/haftalık/aylık) */}
     {reportModal && (()=>{
