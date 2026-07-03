@@ -6216,6 +6216,7 @@ function LandingPage({ onEnter }) {
   .lp .sec-head{margin-bottom:64px;max-width:720px}
   .lp .sec-label{font-family:'Space Grotesk';font-size:14px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:18px;display:block}
   .lp .sec-head h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.08;letter-spacing:-0.02em;margin-bottom:20px}
+  .lp #lp-surec .sec-head h2{background:var(--grad);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:lpshine 6s linear infinite}
   .lp .sec-head p{font-size:17px;color:var(--muted)}
   .lp .services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   .lp .service{position:relative;padding:32px;border-radius:22px;background:var(--surface);border:1px solid var(--line);overflow:hidden;transition:transform .3s,border-color .3s}
@@ -6234,6 +6235,9 @@ function LandingPage({ onEnter }) {
   .lp .s7{--accent:linear-gradient(135deg,#EC4899,#F25124);--accent-soft:rgba(236,72,153,0.1);--accent-line:rgba(236,72,153,0.25)}
   .lp .s8{--accent:linear-gradient(135deg,#6366F1,#06B6D4);--accent-soft:rgba(99,102,241,0.1);--accent-line:rgba(99,102,241,0.25)}
   .lp .s9{--accent:linear-gradient(135deg,#8B5CF6,#EC4899);--accent-soft:rgba(139,92,246,0.1);--accent-line:rgba(139,92,246,0.25)}
+  .lp .s10{--accent:linear-gradient(135deg,#F25124,#EC4899);--accent-soft:rgba(242,81,36,0.1);--accent-line:rgba(242,81,36,0.25)}
+  .lp .s11{--accent:linear-gradient(135deg,#06B6D4,#8B5CF6);--accent-soft:rgba(6,182,212,0.1);--accent-line:rgba(6,182,212,0.25)}
+  .lp .s12{--accent:linear-gradient(135deg,#F59E0B,#EC4899);--accent-soft:rgba(245,158,11,0.1);--accent-line:rgba(245,158,11,0.25)}
   .lp .process{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
   .lp .step{padding:32px 28px 32px 0;position:relative;border-top:1px solid var(--line2)}
   .lp .step .snum{font-family:'Space Grotesk';font-weight:700;font-size:15px;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:16px;display:block}
@@ -6306,8 +6310,8 @@ function LandingPage({ onEnter }) {
 
       <div className="marquee" aria-hidden="true">
         <div className="marquee-track">
-          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Menü Çekimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Drone Çekim<span className="star">✦</span></span>
-          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Menü Çekimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Drone Çekim<span className="star">✦</span></span>
+          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Logo Tasarım<span className="star">✦</span>Kurumsal Kimlik<span className="star">✦</span>Dijital Baskı<span className="star">✦</span>Promosyon<span className="star">✦</span></span>
+          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Logo Tasarım<span className="star">✦</span>Kurumsal Kimlik<span className="star">✦</span>Dijital Baskı<span className="star">✦</span>Promosyon<span className="star">✦</span></span>
         </div>
       </div>
 
@@ -6315,15 +6319,18 @@ function LandingPage({ onEnter }) {
         <div className="wrap">
           <div className="sec-head reveal"><span className="sec-label">Hizmetlerimiz</span><h2>Markanı büyüten tüm hizmetler</h2><p>Sosyal medyadan reklama, çekimden tasarıma — dijitalde ihtiyacın olan her şey tek çatı altında.</p></div>
           <div className="services-grid">
-            <div className="service s1 reveal"><div className="icon">📱</div><h3>Sosyal Medya Yönetimi</h3><p>Instagram, Facebook ve TikTok hesaplarını profesyonelce yönetiyor; düzenli paylaşım, story ve etkileşimle takipçini gerçek müşteriye dönüştürüyoruz.</p></div>
+            <div className="service s1 reveal"><div className="icon">📱</div><h3>Sosyal Medya Yönetimi</h3><p>Instagram, Facebook ve YouTube hesaplarını profesyonelce yönetiyor; düzenli paylaşım, story ve etkileşimle takipçini gerçek müşteriye dönüştürüyoruz.</p></div>
             <div className="service s2 reveal"><div className="icon">🎯</div><h3>Meta Reklam Kurulumu</h3><p>Facebook ve Instagram reklamlarını doğru hedef kitleye, doğru bütçeyle kurup yönetiyoruz. Satış ve bilinirliğini ölçülebilir şekilde artırıyoruz.</p></div>
             <div className="service s3 reveal"><div className="icon">🔍</div><h3>SEO & Google Optimizasyonu</h3><p>Web sitenin Google'da üst sıralarda çıkması için SEO çalışması ve Google İşletme kurulumu yaparak seni müşterilerine ulaştırıyoruz.</p></div>
             <div className="service s4 reveal"><div className="icon">🎬</div><h3>Tanıtım Filmleri</h3><p>Markanı en etkileyici şekilde anlatan profesyonel tanıtım ve reklam filmleri çekiyor, kurgusuyla birlikte teslim ediyoruz.</p></div>
             <div className="service s5 reveal"><div className="icon">📸</div><h3>Ürün Çekimleri</h3><p>Ürünlerini en iyi gösteren profesyonel fotoğraf çekimleri; e-ticaret ve sosyal medya için yüksek kaliteli görseller.</p></div>
             <div className="service s6 reveal"><div className="icon">🍽️</div><h3>Menü & Mekan Çekimleri</h3><p>Restoran, kafe ve işletmeler için iştah açan menü fotoğrafları ve mekanını en güzel yansıtan atmosfer çekimleri.</p></div>
-            <div className="service s7 reveal"><div className="icon">🎨</div><h3>Grafik Tasarım</h3><p>Logo, kurumsal kimlik, sosyal medya görselleri, afiş ve katalog — markanı yansıtan özgün ve akılda kalıcı tasarımlar.</p></div>
+            <div className="service s7 reveal"><div className="icon">🎨</div><h3>Grafik Tasarım</h3><p>Sosyal medya görselleri, afiş, katalog ve dijital tasarımlar — markanı yansıtan özgün ve akılda kalıcı çalışmalar.</p></div>
             <div className="service s8 reveal"><div className="icon">✍️</div><h3>İçerik & Metin Üretimi</h3><p>Markanın diline uygun etkili metinler, reklam sloganları ve sosyal medya içerikleriyle mesajını doğru iletiyoruz.</p></div>
             <div className="service s9 reveal"><div className="icon">🚁</div><h3>Drone & Özel Çekim</h3><p>Havadan drone çekimleri ve özel prodüksiyonlarla markana fark yaratan, sıra dışı görseller kazandırıyoruz.</p></div>
+            <div className="service s10 reveal"><div className="icon">✨</div><h3>Logo & Kurumsal Kimlik</h3><p>Markanın karakterini yansıtan özgün logo tasarımı ve baştan sona kurumsal kimlik çalışmasıyla akılda kalıcı bir marka yaratıyoruz.</p></div>
+            <div className="service s11 reveal"><div className="icon">🎁</div><h3>Promosyon Ürünler</h3><p>Kalem, tişört, kupa, çanta ve daha fazlası — markanı taşıyan özel tasarımlı promosyon ürünlerini hazırlıyoruz.</p></div>
+            <div className="service s12 reveal"><div className="icon">🖨️</div><h3>Dijital Baskı</h3><p>Kartvizit, broşür, afiş, tabela ve tüm baskı işlerini yüksek kalitede tasarlayıp basıma hazır hale getiriyoruz.</p></div>
           </div>
         </div>
       </section>
@@ -6332,10 +6339,10 @@ function LandingPage({ onEnter }) {
         <div className="wrap">
           <div className="sec-head reveal"><span className="sec-label">Nasıl Çalışırız</span><h2>Fikirden sonuca, dört adımda</h2><p>Şeffaf ve düzenli bir süreçle her aşamada yanındayız.</p></div>
           <div className="process">
-            <div className="step reveal"><span className="snum">Adım 01</span><h4>Tanışma & Analiz</h4><p>Markanı, hedeflerini ve rakiplerini analiz ederek yol haritanı çıkarıyoruz.</p></div>
-            <div className="step reveal"><span className="snum">Adım 02</span><h4>Strateji & Plan</h4><p>Sana özel içerik takvimi ve reklam stratejisi oluşturuyoruz.</p></div>
-            <div className="step reveal"><span className="snum">Adım 03</span><h4>Üretim & Paylaşım</h4><p>İçerikleri üretip onayınla düzenli olarak yayınlıyoruz.</p></div>
-            <div className="step reveal"><span className="snum">Adım 04</span><h4>Ölçüm & Raporlama</h4><p>Sonuçları düzenli raporlarla paylaşıp sürekli iyileştiriyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Keşif & Analiz</span><h4>Markanı Tanıyoruz</h4><p>Hedef kitleni, rakiplerini ve sektörünü analiz ederek markana özel dijital büyüme stratejisi çıkarıyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Strateji & Kurgu</span><h4>Yol Haritanı Çiziyoruz</h4><p>Sosyal medya içerik takvimi, reklam planı ve SEO stratejisiyle büyümenin temelini atıyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Üretim & Yayın</span><h4>İçerikleri Hayata Geçiriyoruz</h4><p>Profesyonel çekim, tasarım ve içeriklerle markanı düzenli olarak dijitalde görünür kılıyoruz.</p></div>
+            <div className="step reveal"><span className="snum">Ölçüm & Büyüme</span><h4>Sonuçları Büyütüyoruz</h4><p>Detaylı raporlar ve sürekli optimizasyonla etkileşimini, takipçini ve satışını artırıyoruz.</p></div>
           </div>
         </div>
       </section>
