@@ -6793,6 +6793,13 @@ export default function App() {
   const knownMsgIdsRef = useRef(null);
   const pageRef = useRef("dashboard");
   const [dataLoading, setDataLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [page, setPage] = useState(() => {
     const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'staff'];
     const hash = window.location.hash.replace('#', '');
@@ -6985,17 +6992,24 @@ export default function App() {
     reports: isAdmin || currentStaff.perm_reports === true, // Sosyal medya raporlama
   };
 
-  return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif"}}>
-    <div style={{width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column"}}>
-      <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{marginBottom:6}}>
+  return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif",position:"relative"}}>
+    {/* Mobilde drawer açıkken arka plan karartma */}
+    {isMobile && drawerOpen && <div onClick={()=>setDrawerOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:90}} />}
+
+    <div style={{
+      width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",
+      ...(isMobile ? {position:"fixed",top:0,left:0,bottom:0,zIndex:100,transform:drawerOpen?"translateX(0)":"translateX(-100%)",transition:"transform 0.25s ease",boxShadow:drawerOpen?"4px 0 24px rgba(0,0,0,0.4)":"none"} : {})
+    }}>
+      <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{marginBottom:0}}>
           <div style={{fontSize:20,fontWeight:700,color:"#1A2B3F",letterSpacing:"-0.02em"}}>panormos</div>
           <div style={{fontSize:18,fontWeight:700,color:"#F25124",letterSpacing:"-0.02em"}}>medya.</div>
         </div>
+        {isMobile && <button onClick={()=>setDrawerOpen(false)} style={{background:"none",border:"none",color:T.textMuted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>}
       </div>
       <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
         {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports)).map(item=>(
-          <div key={item.id} onClick={()=>setPage(item.id)} style={{
+          <div key={item.id} onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
             border:`1px solid ${page===item.id?T.indigo+"88":"transparent"}`,
@@ -7031,15 +7045,16 @@ export default function App() {
       </div>
     </div>
 
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{padding:"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
-        <div style={{fontSize:18,fontWeight:700,color:T.textPrimary,flexShrink:0}}>
-          {page === 'dashboard' ? '🏠 Ana Sayfa' : page === 'clients' ? '🏢 Müşteriler' : page === 'leads' ? '📞 Soğuk Arama' : page === 'pricing' ? '💰 Fiyatlar' : page === 'calendar' ? '📅 İçerik Takvimi' : page === 'ideas' ? '💡 Fikirler' : page === 'tasks' ? '📋 Görevler' : page === 'messages' ? '💬 Mesajlar' : page === 'accounting' ? '🧮 Muhasebe' : '👥 Çalışanlar'}
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+      <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
+        {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
+        <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
-        <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} />
+        {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
       </div>
-      <div style={{flex:1,overflow:"auto",padding:28}}>
+      <div style={{flex:1,overflow:"auto",padding:isMobile?14:28}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
