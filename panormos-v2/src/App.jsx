@@ -2112,17 +2112,6 @@ function ClientPosts({client, setClients}) {
         <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, fontWeight: 600 }}>✅ {counts.approved} Onaylı</span>
         <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.amberDim, color: T.amberText, fontWeight: 600 }}>🔄 {counts.revision} Revize</span>
         <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.bgSurface, color: T.textMuted, fontWeight: 600 }}>⏳ {counts.pending} Beklemede</span>
-        {counts.pending > 0 && (
-          <button onClick={()=>{
-            const pend = client.posts.filter(p=>(p.approval||"pending")==="pending");
-            let msg = `Merhaba ${client.name},\n\nAşağıdaki içerikleri onayınıza sunuyoruz:\n\n`;
-            pend.forEach((p,i)=>{ msg += `${i+1}) ${platformConfig[p.platform]?.label||p.platform} · ${p.type}\n   ${p.title}${p.description?"\n   "+p.description:""}${p.date?"\n   📅 "+p.date:""}\n\n`; });
-            msg += `Onaylıyor musunuz? Revize talebiniz varsa lütfen belirtin. 🙏\n\nPanormos Medya`;
-            const phone = (client.phone||"").replace(/\D/g,"").replace(/^0/,"90");
-            const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-            window.open(url, "_blank");
-          }} style={{ marginLeft:"auto", fontSize: 12, fontWeight: 600, padding: "6px 14px", borderRadius: 8, background: "#25D366", color: "#fff", border: "none", cursor: "pointer" }}>📱 Onaya Gönder (WhatsApp)</button>
-        )}
       </div>
     )}
     <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -2397,34 +2386,10 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
   };
 
-  // Onaya gönder: dosya yükle + WhatsApp mesajı (link ile) + görevi taşı
-  const confirmApproval = async (sendWhatsapp) => {
+  // Onaya gönder: görevi approval kolonuna taşı (müşteri seçili)
+  const confirmApproval = async () => {
     const am = approvalModal;
     const cli = clients.find(c => c.id === am.client_id);
-    if(sendWhatsapp && !cli){ alert("Lütfen müşteri seçin"); return; }
-
-    // Dosya yüklendiyse önce yükle, linkini al
-    let fileLink = am.fileLink || "";
-    if(am.file && !fileLink){
-      setApprovalUploading(true);
-      try {
-        const r = await uploadAccountingDoc(am.file, "onay");
-        fileLink = r.url;
-      } catch(e){ setApprovalUploading(false); alert("Dosya yüklenemedi: "+e.message); return; }
-      setApprovalUploading(false);
-    }
-
-    if(sendWhatsapp){
-      const t = am.task || {};
-      let msg = `Merhaba ${cli.name},\n\nAşağıdaki içeriği onayınıza sunuyoruz:\n\n📌 ${t.title||"İçerik"}`;
-      if(t.type) msg += `\n🎨 Tür: ${t.type}`;
-      if(t.due && t.due!=="—") msg += `\n📅 Planlanan: ${t.due}`;
-      if(fileLink) msg += `\n\n🎬 İçeriği görmek için: ${fileLink}`;
-      msg += `\n\nOnaylıyor musunuz? Revize talebiniz varsa lütfen belirtin. 🙏\n\nPanormos Medya`;
-      const phone = (cli.phone||"").replace(/\D/g,"").replace(/^0/,"90");
-      const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
-      window.open(url, "_blank");
-    }
     await supabase.from('tasks').update({ col: "approval", client_id: am.client_id||null }).eq('id', am.taskId);
     setTasks(prev=>prev.map(t=>t.id===am.taskId?{...t,col:"approval",clientId:am.client_id||null,client:cli?.name||t.client}:t));
     if(selectedTask && selectedTask.id===am.taskId){ setSelectedTask({...selectedTask,col:"approval"}); }
@@ -2848,32 +2813,23 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       <ModalActions onClose={()=>setEditModal(false)} onSave={saveEdit} />
     </Modal>}
 
-    {/* Onaya Gönder (WhatsApp) Modalı */}
+    {/* Onaya Gönder Modalı (basit — sadece müşteri seç ve taşı) */}
     {approvalModal && (()=>{
-      const cli = clients.find(c=>c.id===approvalModal.client_id);
-      const hasPhone = cli && (cli.phone||"").replace(/\D/g,"").length>=10;
       return (
-      <Modal title="📤 Onaya Gönder" onClose={()=>setApprovalModal(null)}>
-        <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>Bu içeriği müşteriye <strong style={{color:"#25D366"}}>WhatsApp</strong> ile onaya gönder. Görev "Onaya Gönderildi" kolonuna taşınacak.</div>
+      <Modal title="📤 Onaya Gönderildi" onClose={()=>setApprovalModal(null)}>
+        <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>İçerik müşteri onayına gönderildi olarak işaretlenecek. İçeriği (video/görsel) müşteriye WhatsApp'tan kendiniz iletin, onay gelince "Paylaşım Yapıldı"ya taşıyın.</div>
         <FormField label="İçerik (Görev)">
           <div style={{padding:"10px 12px",background:T.bgInput,borderRadius:8,fontSize:13,color:T.textPrimary}}>{approvalModal.task?.title||"—"}</div>
         </FormField>
         <FormField label="Müşteri">
           <Select value={approvalModal.client_id||""} onChange={e=>setApprovalModal(m=>({...m,client_id:e.target.value}))}>
             <option value="">Seç...</option>
-            {clients.map(c=><option key={c.id} value={c.id}>{c.name}{(c.phone||"").replace(/\D/g,"").length>=10?"":" (telefon yok)"}</option>)}
+            {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
         </FormField>
-        <FormField label="🎬 İçerik Dosyası (video/görsel/PDF — müşteriye link gider)">
-          <input type="file" accept="video/*,image/*,.pdf" onChange={e=>setApprovalModal(m=>({...m,file:e.target.files[0],fileLink:""}))} style={{width:"100%",fontSize:12,color:T.textSecondary,padding:"8px",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8}} />
-          {approvalModal.file && <div style={{fontSize:11,color:T.greenText,marginTop:4}}>✓ {approvalModal.file.name} {approvalUploading && "· yükleniyor..."}</div>}
-          <div style={{fontSize:10,color:T.textMuted,marginTop:4}}>Dosya yüklenip linki WhatsApp mesajına eklenir. Müşteri linke tıklayıp içeriği görür.</div>
-        </FormField>
-        {cli && !hasPhone && <div style={{fontSize:11,color:T.amberText,marginBottom:12}}>⚠️ Bu müşterinin kayıtlı telefonu yok. WhatsApp numarayı elle isteyecek. (Müşteriyi düzenleyip telefon ekleyebilirsiniz)</div>}
-        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20,flexWrap:"wrap"}}>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
           <Btn onClick={()=>setApprovalModal(null)}>Vazgeç</Btn>
-          <Btn onClick={()=>confirmApproval(false)} style={{fontSize:12}} disabled={approvalUploading}>Sadece Taşı</Btn>
-          <Btn variant="primary" onClick={()=>confirmApproval(true)} style={{background:"#25D366",border:"none"}} disabled={approvalUploading}>{approvalUploading?"Yükleniyor...":"📱 WhatsApp'a Gönder ve Taşı"}</Btn>
+          <Btn variant="primary" onClick={confirmApproval}>✅ Onaya Gönderildi Olarak İşaretle</Btn>
         </div>
       </Modal>
       );
@@ -4992,8 +4948,31 @@ function AccountingCari({ clients }) {
                 </div>
                 {isOpen && (
                   <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${T.border}` }}>
-                    <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}>
-                      <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,padding:"6px 12px"}}>+ Bu Müşteriye Ödeme Ekle</Btn>
+                    {/* Son ödeme tarihi + WhatsApp hatırlatma */}
+                    <div style={{display:"flex",gap:10,alignItems:"flex-end",marginTop:14,flexWrap:"wrap",padding:"12px",background:T.bgInput,borderRadius:10}}>
+                      <div style={{flex:1,minWidth:160}}>
+                        <div style={{fontSize:10,color:T.textMuted,fontWeight:600,marginBottom:5,textTransform:"uppercase"}}>📆 Son Ödeme Tarihi</div>
+                        <input type="date" defaultValue={cs.client.paymentDueDate||""} onChange={async(e)=>{
+                          const val = e.target.value||null;
+                          await supabase.from('clients').update({payment_due_date: val}).eq('id', cs.client.id);
+                          cs.client.paymentDueDate = val;
+                        }} style={{width:"100%",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px",color:T.textPrimary,fontSize:12,outline:"none",boxSizing:"border-box"}} />
+                      </div>
+                      <Btn onClick={()=>{
+                        const c = cs.client;
+                        const bakiye = cs.balance;
+                        let msg = `Merhaba ${c.name},\n\n`;
+                        msg += `📄 Bu aya ait faturanız oluşturulmuştur. 💰\n`;
+                        msg += `Aylık Tutar: ${fmtMoney(c.monthlyFee||0)}\n`;
+                        msg += `📊 Güncel Bakiye: ${fmtMoney(cs.totalPaid)}\n`;
+                        if(bakiye>0) msg += `⚠️ Kalan Borç: ${fmtMoney(bakiye)}\n`;
+                        if(c.paymentDueDate) msg += `📆 Son Ödeme Tarihi: ${new Date(c.paymentDueDate).toLocaleDateString("tr-TR")}\n`;
+                        msg += `\nİyi çalışmalar dileriz.\n\nPanormos Medya Ekibi`;
+                        const phone = (c.phone||"").replace(/\D/g,"").replace(/^0/,"90");
+                        if(phone.length<10){ alert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
+                        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+                      }} style={{background:"#25D366",color:"#fff",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📱 WhatsApp Hatırlatma</Btn>
+                      <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
                     </div>
                     <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylık Ödeme Durumu</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
@@ -5851,7 +5830,7 @@ async function loadAllData() {
     socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
-    monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null,
+    monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
     posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
       id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description, approval: p.approval || 'pending', approvalNote: p.approval_note || '',
     })),
