@@ -2005,7 +2005,7 @@ function IdeasPage() {
 // ─────────────────────────────────────────────
 // TASKS PAGE
 // ─────────────────────────────────────────────
-function TasksPage({tasks,setTasks,clients,staff}) {
+function TasksPage({tasks,setTasks,clients,staff,refreshData}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({});
   const [selectedTask,setSelectedTask]=useState(null);
@@ -2064,6 +2064,8 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:"published"}:t));
     if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:"published"}); }
     setPublishModal(null);
+    // Müşteri verilerini yenile (takvim + paylaşım sayımı güncellensin)
+    if(refreshData) await refreshData();
   };
 
   // Görevi yeniden ata (atama tarihini otomatik güncelle)
@@ -5403,7 +5405,7 @@ export default function App() {
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
-        {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff}/>}
+        {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
