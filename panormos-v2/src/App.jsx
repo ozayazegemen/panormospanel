@@ -2005,7 +2005,7 @@ function IdeasPage() {
 // ─────────────────────────────────────────────
 // TASKS PAGE
 // ─────────────────────────────────────────────
-function TasksPage({tasks,setTasks,clients,staff,refreshData}) {
+function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}) {
   const [modal,setModal]=useState(false);
   const [form,setForm]=useState({});
   const [selectedTask,setSelectedTask]=useState(null);
@@ -2117,20 +2117,91 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData}) {
   const doneTasks = tasks.filter(t => t.col === "done").length;
   const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
+  // ── Çalışan bazlı istatistikler ──
+  const isAdminView = perms?.isAdmin;
+  const allPublishes = clients.flatMap(c => (c.publishesList || []).map(p => ({ ...p })));
+  const computeStats = (sid) => {
+    const myTasks = tasks.filter(t => t.assignedTo === sid);
+    const done = myTasks.filter(t => t.col === "done" || t.col === "published").length;
+    const active = myTasks.filter(t => t.col === "inprogress" || t.col === "review").length;
+    const todo = myTasks.filter(t => t.col === "todo").length;
+    const published = myTasks.filter(t => t.col === "published").length;
+    const publishCount = allPublishes.filter(p => p.publisherId === sid).length;
+    const rate = myTasks.length > 0 ? Math.round(done / myTasks.length * 100) : 0;
+    return { total: myTasks.length, done, active, todo, published, publishCount, rate };
+  };
+  // Yönetici herkesi görür; çalışan sadece kendini
+  const visibleStaff = isAdminView ? staff : staff.filter(s => s.id === currentStaff?.id);
+  // Üst özet çubuğu: yönetici=global, çalışan=kendi görevleri
+  const viewTasks = isAdminView ? tasks : tasks.filter(t => t.assignedTo === currentStaff?.id);
+  const viewDone = viewTasks.filter(t => t.col === "done" || t.col === "published").length;
+  const viewPercent = viewTasks.length > 0 ? Math.round(viewDone / viewTasks.length * 100) : 0;
+
+  const staffColorLocal = (sid) => {
+    const idx = staff.findIndex(s => s.id === sid);
+    const COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
+    return idx >= 0 ? COLORS[idx % COLORS.length] : T.textMuted;
+  };
+
   return <div>
-    <div style={{marginBottom:20,padding:"16px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12}}>
+    <div style={{marginBottom:16,padding:"16px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-        <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>Toplam Tamamlanma Oranı</span>
-        <span style={{fontSize:14,fontWeight:700,color:T.amber}}>{progressPercent}%</span>
+        <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{isAdminView ? "Toplam Tamamlanma Oranı" : "Benim Tamamlanma Oranım"}</span>
+        <span style={{fontSize:14,fontWeight:700,color:T.amber}}>{viewPercent}%</span>
       </div>
       <div style={{height:12,background:T.bgSurface,borderRadius:6,overflow:"hidden",border:`1px solid ${T.border}`}}>
-        <div style={{height:"100%",width:`${progressPercent}%`,background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,borderRadius:6,transition:"width 0.6s ease",boxShadow:`0 0 20px ${T.amber}66`}} />
+        <div style={{height:"100%",width:`${viewPercent}%`,background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,borderRadius:6,transition:"width 0.6s ease",boxShadow:`0 0 20px ${T.amber}66`}} />
       </div>
       <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:T.textMuted}}>
-        <span>✓ {doneTasks}</span>
-        <span>→ {tasks.filter(t => t.col === "inprogress").length}</span>
-        <span>◐ {tasks.filter(t => t.col === "review").length}</span>
-        <span>○ {tasks.filter(t => t.col === "todo").length}</span>
+        <span>✓ {viewTasks.filter(t => t.col === "done" || t.col === "published").length} tamamlandı</span>
+        <span>→ {viewTasks.filter(t => t.col === "inprogress").length} başlandı</span>
+        <span>◐ {viewTasks.filter(t => t.col === "review").length} incelemede</span>
+        <span>○ {viewTasks.filter(t => t.col === "todo").length} yapılacak</span>
+      </div>
+    </div>
+
+    {/* Çalışan İstatistikleri */}
+    <div style={{marginBottom:20}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <span style={{fontSize:13,fontWeight:700,color:T.textPrimary}}>📊 {isAdminView ? "Çalışan İstatistikleri" : "İstatistiklerim"}</span>
+        {isAdminView && (
+          <Btn onClick={()=>{
+            const rows = staff.map(s=>{ const st=computeStats(s.id); return {
+              "Çalışan": s.name, "Toplam Görev": st.total, "Tamamlanan": st.done, "Aktif": st.active,
+              "Yapılacak": st.todo, "Paylaşım Yapıldı": st.publishCount, "Tamamlanma %": st.rate+"%",
+            };});
+            if(typeof exportPerfectExcel==="function") exportPerfectExcel("Calisan-Istatistikleri", rows);
+            else printData("Çalışan İstatistikleri", rows);
+          }} style={{fontSize:11,padding:"5px 10px"}}>📊 Excel</Btn>
+        )}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:12}}>
+        {visibleStaff.map(s=>{
+          const st = computeStats(s.id);
+          const col = staffColorLocal(s.id);
+          return (
+            <div key={s.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${col}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>{s.initials}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                  <div style={{fontSize:10,color:T.textMuted}}>{s.role}</div>
+                </div>
+                <div style={{fontSize:18,fontWeight:800,color:col}}>{st.rate}%</div>
+              </div>
+              <div style={{height:6,background:T.bgSurface,borderRadius:3,overflow:"hidden",marginBottom:12}}>
+                <div style={{height:"100%",width:`${st.rate}%`,background:col,borderRadius:3,transition:"width 0.5s"}} />
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>{st.total}</div><div style={{fontSize:9,color:T.textMuted}}>TOPLAM GÖREV</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.greenText}}>{st.done}</div><div style={{fontSize:9,color:T.textMuted}}>TAMAMLANAN</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:"#7DA4C7"}}>{st.active}</div><div style={{fontSize:9,color:T.textMuted}}>AKTİF</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:"#A855F7"}}>{st.publishCount}</div><div style={{fontSize:9,color:T.textMuted}}>PAYLAŞIM</div></div>
+              </div>
+            </div>
+          );
+        })}
+        {visibleStaff.length===0 && <div style={{fontSize:12,color:T.textMuted,padding:20}}>İstatistik için çalışan bulunamadı.</div>}
       </div>
     </div>
 
@@ -5405,7 +5476,7 @@ export default function App() {
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="ideas"&&<IdeasPage/>}
-        {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData}/>}
+        {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
