@@ -873,6 +873,111 @@ function printClientCalendar(client, year, month, publishesByDate) {
   setTimeout(() => w.print(), 300);
 }
 
+// Müşteri detay sayfasını yazdır (tüm bilgiler + paylaşım sayımı)
+function printClientDetail(client, perms) {
+  const now = new Date();
+  const thisMonthPub = (client.publishesList || []).filter(p => { if (!p.publishedAt) return false; const d = new Date(p.publishedAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+  // Anlaşma karşılaştırması
+  const quota = client.quotaDetail && Object.keys(client.quotaDetail).length > 0 ? client.quotaDetail : {};
+  const actual = {};
+  thisMonthPub.forEach(p => { if (!actual[p.platform]) actual[p.platform] = {}; actual[p.platform][p.contentType] = (actual[p.platform][p.contentType] || 0) + 1; });
+  const platSet = new Set([...Object.keys(quota), ...Object.keys(actual)]);
+  let compRowsHtml = "";
+  platSet.forEach(plat => {
+    const typeSet = new Set([...Object.keys(quota[plat] || {}), ...Object.keys(actual[plat] || {})]);
+    typeSet.forEach(tp => {
+      const q = quota[plat]?.[tp] || 0; const a = actual[plat]?.[tp] || 0; const over = a - q;
+      const durum = over > 0 ? `+${over} fazla` : (q > 0 && a >= q ? "✓ tamam" : (q > 0 ? `${q - a} kaldı` : "—"));
+      compRowsHtml += `<tr><td>${platLabel(plat)}</td><td>${typeLabel(tp)}</td><td class="c">${q || "—"}</td><td class="c b">${a}</td><td class="c">${durum}</td></tr>`;
+    });
+  });
+  if (!compRowsHtml) compRowsHtml = `<tr><td colspan="5" style="text-align:center;color:#888">Anlaşma tanımlanmamış / bu ay paylaşım yok</td></tr>`;
+
+  const totalInv = (client.invoices || []).reduce((s, i) => s + (i.total || 0), 0);
+  const paidInv = (client.invoices || []).filter(i => i.status === "paid").reduce((s, i) => s + (i.total || 0), 0);
+
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${client.name}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:26px;color:#1a1a1a}
+    .header{border-bottom:3px solid #F25124;padding-bottom:14px;margin-bottom:18px}
+    .logo{font-size:22px;font-weight:700}.logo .p{color:#1A2B3F}.logo .m{color:#F25124}
+    h1{font-size:18px;margin-top:8px;color:#222}
+    .sub{font-size:13px;color:#777;margin-top:2px}
+    .meta{font-size:11px;color:#aaa;margin-top:6px}
+    .section{margin:18px 0}
+    .section h2{font-size:13px;color:#F25124;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;border-bottom:1px solid #eee;padding-bottom:5px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px}
+    .row{font-size:13px;padding:4px 0;display:flex;justify-content:space-between;border-bottom:1px dotted #eee}
+    .row .k{color:#888}.row .v{color:#222;font-weight:600;text-align:right}
+    table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px}
+    th{background:#1A2B3F;color:#fff;padding:8px;text-align:left;font-size:11px}
+    td{border:1px solid #e5e5e5;padding:7px 8px}
+    td.c{text-align:center}td.b{font-weight:700}
+    .cards{display:flex;gap:12px;margin-bottom:8px}
+    .card{flex:1;background:#f7f7f9;border-radius:8px;padding:12px 14px;border-left:3px solid #F25124}
+    .card .lbl{font-size:10px;color:#888;text-transform:uppercase}
+    .card .val{font-size:18px;font-weight:700;color:#222;margin-top:2px}
+    .footer{margin-top:24px;font-size:11px;color:#aaa;text-align:center;border-top:1px solid #e0e0e0;padding-top:10px}
+    @media print{body{padding:14px}th{background:#1A2B3F!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body>
+    <div class="header">
+      <div class="logo"><span class="p">panormos</span> <span class="m">medya.</span></div>
+      <h1>${client.name}</h1>
+      <div class="sub">${client.category || ""}</div>
+      <div class="meta">Yazdırma Tarihi: ${now.toLocaleString("tr-TR")}</div>
+    </div>
+
+    <div class="cards">
+      ${perms && perms.finance ? `<div class="card"><div class="lbl">Aylık Paket</div><div class="val">${fmtMoney(client.monthlyFee)}</div></div>` : ""}
+      <div class="card"><div class="lbl">Bu Ay Paylaşım</div><div class="val">${thisMonthPub.length}</div></div>
+      <div class="card"><div class="lbl">Medya Dosyası</div><div class="val">${(client.media || []).length}</div></div>
+      <div class="card"><div class="lbl">Sözleşme Başlangıç</div><div class="val">${client.contractStart || "—"}</div></div>
+    </div>
+
+    <div class="section">
+      <h2>İşletme Bilgileri</h2>
+      <div class="grid">
+        <div class="row"><span class="k">Telefon</span><span class="v">${client.phone || "—"}</span></div>
+        <div class="row"><span class="k">Sosyal Medya</span><span class="v">${client.socialMedia || "—"}</span></div>
+        <div class="row"><span class="k">Sosyal Medya Şifresi</span><span class="v">${client.socialPassword || "—"}</span></div>
+        <div class="row"><span class="k">Şehir / İlçe</span><span class="v">${client.city || "—"} ${client.district || ""}</span></div>
+        <div class="row"><span class="k">Vergi No</span><span class="v">${client.taxNumber || "—"}</span></div>
+        <div class="row"><span class="k">Vergi Dairesi</span><span class="v">${client.taxOffice || "—"}</span></div>
+        <div class="row"><span class="k">Adres</span><span class="v">${client.address || "—"}</span></div>
+        <div class="row"><span class="k">Paylaşım Günleri</span><span class="v">${(client.publishDays || []).join(", ") || "—"}</span></div>
+        <div class="row"><span class="k">Çekim Günleri</span><span class="v">${(client.shootDays || []).join(", ") || "—"}</span></div>
+        <div class="row"><span class="k">Paylaşım Saatleri</span><span class="v">${(client.publishTimes || []).join(", ") || "—"}</span></div>
+      </div>
+      ${client.description ? `<div style="margin-top:10px;font-size:12px"><span style="color:#888">Açıklama:</span> ${client.description}</div>` : ""}
+    </div>
+
+    <div class="section">
+      <h2>Bu Ayki Paylaşım Sayımı (Anlaşma Karşılaştırması)</h2>
+      <table>
+        <thead><tr><th>Platform</th><th>İçerik</th><th style="text-align:center">Anlaşma</th><th style="text-align:center">Yapılan</th><th style="text-align:center">Durum</th></tr></thead>
+        <tbody>${compRowsHtml}</tbody>
+      </table>
+    </div>
+
+    ${perms && perms.finance ? `<div class="section">
+      <h2>Mali Özet</h2>
+      <div class="grid">
+        <div class="row"><span class="k">Toplam Fatura</span><span class="v">${fmtMoney(totalInv)}</span></div>
+        <div class="row"><span class="k">Tahsil Edilen</span><span class="v">${fmtMoney(paidInv)}</span></div>
+        <div class="row"><span class="k">Kalan</span><span class="v">${fmtMoney(totalInv - paidInv)}</span></div>
+      </div>
+    </div>` : ""}
+
+    <div class="footer">Panormos Medya Yönetim Paneli · panormosmedya.com</div>
+  </body></html>`;
+
+  const w = window.open("", "_blank", "width=1000,height=800");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 300);
+}
+
 function MessagingPanel({clientId, clientName, onClose}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -1728,6 +1833,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         {safeTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
         {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
+        <Btn onClick={()=>printClientDetail(client, perms)} style={{fontSize:11,padding:"5px 10px"}}>🖨️ Yazdır</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
         {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
