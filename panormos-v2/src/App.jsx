@@ -3116,7 +3116,35 @@ function ReportsPage({ clients, perms }) {
         <StatCard label="Bu Ay Girilmemiş" value={missingThisMonth} color={missingThisMonth > 0 ? T.amberText : T.greenText} />
       </div>
 
-      <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 14 }}>Rapor girmek için bir müşteri seçin. Veriler <strong style={{ color: T.textPrimary }}>Meta Business Suite → İstatistikler</strong>'den alınır.</div>
+      {/* Nasıl yapılır rehberi */}
+      <div style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.08))", border: `1px solid ${T.border}`, borderRadius: 14, padding: "18px 20px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          <span style={{ fontSize: 18 }}>📖</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>Rapor Nasıl Hazırlanır? (5 Adım)</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12 }}>
+          {[
+            { n: "1", t: "Meta'ya Gir", d: "Meta Business Suite'i aç, sol menüden \"İstatistikler\"e tıkla." },
+            { n: "2", t: "Ayı Seç", d: "Tarih aralığını \"Son 30 gün\" (veya ilgili ay) olarak ayarla." },
+            { n: "3", t: "Sayıları Not Al", d: "Takipçi, erişim, beğeni, kaydetme gibi rakamları kağıda/nota yaz." },
+            { n: "4", t: "Panele Gir", d: "Aşağıdan müşteriyi seç → \"Yeni Ay Ekle\" → sayıları kutulara yaz → Kaydet." },
+            { n: "5", t: "PDF Gönder", d: "Rapor otomatik oluşur. \"PDF\" butonuyla indir, müşteriye WhatsApp'tan gönder." },
+          ].map(s => (
+            <div key={s.n} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <div style={{ flexShrink: 0, width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{s.n}</div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, marginBottom: 2 }}>{s.t}</div>
+                <div style={{ fontSize: 11.5, color: T.textMuted, lineHeight: 1.5 }}>{s.d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}`, fontSize: 11.5, color: T.textMuted }}>
+          💡 <strong style={{ color: T.textSecondary }}>İpucu:</strong> Panel her ay geçen ayla otomatik karşılaştırır (örn. "Takipçi ▲ +340 %89"). Sadece doğru sayıları girmen yeterli — grafikleri ve karşılaştırmayı panel kendi yapar.
+        </div>
+      </div>
+
+      <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 14 }}>👇 Rapor girmek için bir müşteri seçin.</div>
 
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
