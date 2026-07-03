@@ -1825,20 +1825,83 @@ function TasksPage({tasks,setTasks,clients,staff}) {
   const [form,setForm]=useState({});
   const [selectedTask,setSelectedTask]=useState(null);
   const [deleteModal,setDeleteModal]=useState(null);
+  const [editModal,setEditModal]=useState(false);        // görev düzenleme
+  const [editForm,setEditForm]=useState({});
+  const [publishModal,setPublishModal]=useState(null);   // paylaşım yapıldı modalı
+  const [filterStaff,setFilterStaff]=useState("all");    // kişiye göre filtre
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
-    {id:"inprogress",label:"Devam Ediyor",color:"#7DA4C7"},
+    {id:"inprogress",label:"Başlandı",color:"#7DA4C7"},
     {id:"review",label:"İncelemede",color:T.amber},
     {id:"done",label:"Tamamlandı",color:T.green},
+    {id:"published",label:"Paylaşım Yapıldı",color:"#A855F7"},
   ];
 
+  // Çalışana özel renk (kişiye göre ayırma)
+  const STAFF_COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
+  const staffColor = (sid) => {
+    if(!sid) return T.textMuted;
+    const idx = staff.findIndex(s=>s.id===sid);
+    return idx>=0 ? STAFF_COLORS[idx % STAFF_COLORS.length] : T.textMuted;
+  };
+
+  const fmtDateTime = (iso) => {
+    if(!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleDateString("tr-TR") + " " + d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+  };
+
   const moveTask=async (id, newCol)=>{
-    setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol}:t));
-    if(selectedTask && selectedTask.id===id){
-      setSelectedTask({...selectedTask,col:newCol});
+    // "Paylaşım Yapıldı" kolonuna taşınıyorsa önce paylaşım bilgilerini sor
+    if(newCol==="published"){
+      const t = tasks.find(x=>x.id===id);
+      setPublishModal({ taskId:id, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", content_type:"post" });
+      return;
     }
+    setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol}:t));
+    if(selectedTask && selectedTask.id===id){ setSelectedTask({...selectedTask,col:newCol}); }
     await supabase.from('tasks').update({ col: newCol }).eq('id', id);
+  };
+
+  // Paylaşımı onayla → publishes kaydı + görevi published yap
+  const confirmPublish = async () => {
+    const pm = publishModal;
+    if(!pm.client_id){ alert("Lütfen paylaşım yapılan müşteriyi seçin"); return; }
+    if(!pm.publisher_id){ alert("Lütfen paylaşımı yapan çalışanı seçin"); return; }
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase.from('publishes').insert({
+      task_id: pm.taskId, client_id: parseInt(pm.client_id), publisher_id: pm.publisher_id,
+      platform: pm.platform, content_type: pm.content_type, published_at: nowIso,
+    });
+    if(error){ alert("Paylaşım kaydedilemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırın."); return; }
+    await supabase.from('tasks').update({ col: "published" }).eq('id', pm.taskId);
+    setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:"published"}:t));
+    if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:"published"}); }
+    setPublishModal(null);
+  };
+
+  // Görevi yeniden ata (atama tarihini otomatik güncelle)
+  const reassignTask = async (taskId, newAssignee) => {
+    const val = newAssignee || null;
+    const assignedAt = val ? new Date().toISOString() : null;
+    await supabase.from('tasks').update({ assigned_to: val, assigned_at: assignedAt }).eq('id', taskId);
+    setTasks(prev=>prev.map(t=>t.id===taskId?{...t,assignedTo:val,assignedAt}:t));
+    if(selectedTask && selectedTask.id===taskId){ setSelectedTask({...selectedTask,assignedTo:val,assignedAt}); }
+  };
+
+  // Görev düzenlemeyi kaydet
+  const saveEdit = async () => {
+    if(!editForm.title){ alert("Başlık boş olamaz"); return; }
+    const cid = clients.find(c=>c.name===editForm.client)?.id || null;
+    const { error } = await supabase.from('tasks').update({
+      title: editForm.title, type: editForm.type, priority: editForm.priority,
+      due_date: editForm.due||"—", client_id: cid,
+    }).eq('id', editForm.id);
+    if(error){ alert("Güncellenemedi: "+error.message); return; }
+    setTasks(prev=>prev.map(t=>t.id===editForm.id?{...t,title:editForm.title,type:editForm.type,priority:editForm.priority,due:editForm.due,client:editForm.client,clientId:cid}:t));
+    setSelectedTask(s=>s&&s.id===editForm.id?{...s,title:editForm.title,type:editForm.type,priority:editForm.priority,due:editForm.due,client:editForm.client,clientId:cid}:s);
+    setEditModal(false);
   };
 
   const deleteTask = async (taskId) => {
@@ -1887,10 +1950,12 @@ function TasksPage({tasks,setTasks,clients,staff}) {
     <div style={{display:"flex",gap:8,marginBottom:16}}>
       <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
       <Btn onClick={()=>{
-        const colLabels={todo:"Yapılacak",inprogress:"Devam Ediyor",review:"İncelemede",done:"Tamamlandı"};
+        const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",published:"Paylaşım Yapıldı"};
         const rows = tasks.map(t => ({
           "Görev": t.title,
           "Müşteri": t.client || "—",
+          "Atanan": staff.find(s=>s.id===t.assignedTo)?.name || "—",
+          "Atanma Tarihi": t.assignedAt ? fmtDateTime(t.assignedAt) : "—",
           "Durum": colLabels[t.col] || t.col,
           "Öncelik": priorityConfig[t.priority]?.label || "—",
           "Son Tarih": t.due || "—",
@@ -1908,21 +1973,21 @@ function TasksPage({tasks,setTasks,clients,staff}) {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Müşteri</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.client||"—"}</div></div>
+            <div style={{display:"flex",gap:12}}>
+              <div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Tür</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.type||"—"}</div></div>
+              <div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Son Tarih</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.due||"—"}</div></div>
+            </div>
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>👤 Atanan Kişi</div>
-              <Select value={selectedTask.assignedTo||""} onChange={async e=>{
-                const val = e.target.value || null;
-                await supabase.from('tasks').update({assigned_to: val}).eq('id', selectedTask.id);
-                setTasks(prev=>prev.map(t=>t.id===selectedTask.id?{...t,assignedTo:val}:t));
-                setSelectedTask({...selectedTask,assignedTo:val});
-              }}>
+              <Select value={selectedTask.assignedTo||""} onChange={e=>reassignTask(selectedTask.id, e.target.value)}>
                 <option value="">Atanmadı</option>
                 {staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
               </Select>
+              {selectedTask.assignedAt && <div style={{fontSize:11,color:T.amberText,marginTop:6}}>📌 Atandı: {fmtDateTime(selectedTask.assignedAt)}</div>}
             </div>
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                 {cols.map(c=>(
-                  <button key={c.id} onClick={()=>moveTask(selectedTask.id, c.id)} style={{padding:"6px",fontSize:10,fontWeight:600,borderRadius:6,background:selectedTask.col===c.id?T.amber:T.bgSurface,color:selectedTask.col===c.id?T.white:T.textMuted,border:`1px solid ${T.border}`,cursor:"pointer"}}>
+                  <button key={c.id} onClick={()=>moveTask(selectedTask.id, c.id)} style={{padding:"7px 4px",fontSize:10,fontWeight:600,borderRadius:6,background:selectedTask.col===c.id?T.amber:T.bgSurface,color:selectedTask.col===c.id?T.white:T.textMuted,border:`1px solid ${T.border}`,cursor:"pointer"}}>
                     {c.label}
                   </button>
                 ))}
@@ -1931,6 +1996,7 @@ function TasksPage({tasks,setTasks,clients,staff}) {
           </div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
             <button onClick={()=>{setDeleteModal({taskId:selectedTask.id,reason:"",note:""});}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.redDim,color:T.redText,border:"none",cursor:"pointer"}}>🗑 Sil</button>
+            <button onClick={()=>{setEditForm({id:selectedTask.id,title:selectedTask.title,client:selectedTask.client,type:selectedTask.type||"Tasarım",priority:selectedTask.priority||"mid",due:selectedTask.due||""});setEditModal(true);}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.bgSurface,color:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>✏️ Düzenle</button>
             <button onClick={()=>setSelectedTask(null)} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
           </div>
         </div>
@@ -1958,33 +2024,97 @@ function TasksPage({tasks,setTasks,clients,staff}) {
       </div>
     )}
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-      {cols.map(col=>(
+    {/* Kişiye göre filtre */}
+    <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+      <span style={{fontSize:11,color:T.textMuted,fontWeight:600,marginRight:4}}>Kişi:</span>
+      <button onClick={()=>setFilterStaff("all")} style={{fontSize:11,fontWeight:filterStaff==="all"?600:400,padding:"5px 12px",borderRadius:8,background:filterStaff==="all"?T.amber:T.bgInput,color:filterStaff==="all"?"#fff":T.textSecondary,border:`1px solid ${filterStaff==="all"?T.amber:T.border}`,cursor:"pointer"}}>Tümü</button>
+      {staff.map(s=>(
+        <button key={s.id} onClick={()=>setFilterStaff(s.id)} style={{fontSize:11,fontWeight:filterStaff===s.id?600:400,padding:"5px 10px",borderRadius:8,background:filterStaff===s.id?staffColor(s.id):T.bgInput,color:filterStaff===s.id?"#fff":T.textSecondary,border:`1px solid ${filterStaff===s.id?staffColor(s.id):T.border}`,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+          <span style={{width:10,height:10,borderRadius:"50%",background:staffColor(s.id),display:"inline-block"}} />{s.name}
+        </button>
+      ))}
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+      {cols.map(col=>{
+        const colTasks = tasks.filter(t=>t.col===col.id && (filterStaff==="all" || t.assignedTo===filterStaff));
+        return (
         <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
             <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}</span>
-            <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{tasks.filter(t=>t.col===col.id).length}</span>
+            <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{colTasks.length}</span>
           </div>
-          {tasks.filter(t=>t.col===col.id).map(task=>{
+          {colTasks.map(task=>{
             const assignee = task.assignedTo ? staff.find(s=>s.id===task.assignedTo) : null;
+            const acolor = staffColor(task.assignedTo);
             return (
-            <div key={task.id} onClick={()=>setSelectedTask(task)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${priorityConfig[task.priority]?.color}`,transition:"all 0.12s"}}>
+            <div key={task.id} onClick={()=>setSelectedTask(task)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",borderLeft:`3px solid ${acolor}`,transition:"all 0.12s"}}>
               <div style={{fontSize:12,fontWeight:500,color:T.textPrimary,marginBottom:6}}>{task.title}</div>
               {assignee && (
-                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
-                  <div style={{width:18,height:18,borderRadius:"50%",background:assignee.color||T.amber,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{assignee.initials}</div>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
+                  <div style={{width:18,height:18,borderRadius:"50%",background:acolor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{assignee.initials}</div>
                   <span style={{fontSize:10,color:T.textSecondary}}>{assignee.name}</span>
                 </div>
               )}
+              {task.assignedAt && <div style={{fontSize:9,color:T.textMuted,marginBottom:5}}>📌 {fmtDateTime(task.assignedAt)}</div>}
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
                 <span style={{fontSize:10,fontWeight:600,padding:"2px 6px",borderRadius:4,background:priorityConfig[task.priority]?.bg,color:priorityConfig[task.priority]?.color}}>{priorityConfig[task.priority]?.label}</span>
-                <span style={{fontSize:10,color:T.textMuted}}>{task.due}</span>
+                {task.client && <span style={{fontSize:9,color:T.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{task.client}</span>}
               </div>
             </div>
           );})}
         </div>
-      ))}
+      );})}
     </div>
+
+    {/* Görev Düzenleme Modalı */}
+    {editModal && <Modal title="Görevi Düzenle" onClose={()=>setEditModal(false)}>
+      <FormField label="Başlık"><Input value={editForm.title||""} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} /></FormField>
+      <FormField label="Müşteri"><Select value={editForm.client||""} onChange={e=>setEditForm(f=>({...f,client:e.target.value}))}><option value="">—</option>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
+      <FormField label="Tür"><Select value={editForm.type||"Tasarım"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
+      <FormField label="Öncelik"><Select value={editForm.priority||"mid"} onChange={e=>setEditForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
+      <FormField label="Son tarih"><Input type="date" value={editForm.due||""} onChange={e=>setEditForm(f=>({...f,due:e.target.value}))} /></FormField>
+      <ModalActions onClose={()=>setEditModal(false)} onSave={saveEdit} />
+    </Modal>}
+
+    {/* Paylaşım Yapıldı Modalı */}
+    {publishModal && <Modal title="📤 Paylaşım Yapıldı" onClose={()=>setPublishModal(null)}>
+      <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>Paylaşım bilgilerini girin. Tarih ve saat <strong style={{color:T.amberText}}>otomatik</strong> kaydedilecek.</div>
+      <FormField label="Paylaşım Yapılan Müşteri">
+        <Select value={publishModal.client_id||""} onChange={e=>setPublishModal(m=>({...m,client_id:e.target.value}))}>
+          <option value="">Seç...</option>
+          {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Paylaşımı Yapan Çalışan">
+        <Select value={publishModal.publisher_id||""} onChange={e=>setPublishModal(m=>({...m,publisher_id:e.target.value}))}>
+          <option value="">Seç...</option>
+          {staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Platform">
+        <Select value={publishModal.platform} onChange={e=>setPublishModal(m=>({...m,platform:e.target.value}))}>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="youtube">YouTube</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="x">X (Twitter)</option>
+        </Select>
+      </FormField>
+      <FormField label="İçerik Türü">
+        <Select value={publishModal.content_type} onChange={e=>setPublishModal(m=>({...m,content_type:e.target.value}))}>
+          <option value="post">Post</option>
+          <option value="reels">Reels</option>
+          <option value="carousel">Kaydırmalı Post (Carousel)</option>
+          <option value="story">Hikaye (Story)</option>
+        </Select>
+      </FormField>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
+        <Btn onClick={()=>setPublishModal(null)}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={confirmPublish}>✅ Paylaşımı Kaydet</Btn>
+      </div>
+    </Modal>}
 
     {modal&&<Modal title="Yeni görev" onClose={()=>setModal(false)}>
       <FormField label="Başlık">
@@ -2000,14 +2130,16 @@ function TasksPage({tasks,setTasks,clients,staff}) {
       <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(false)} onSave={async()=>{
         if(!form.title)return;
+        const cid = clients.find(c=>c.name===form.client)?.id || null;
+        const assignedAt = form.assignedTo ? new Date().toISOString() : null;
         const { data, error } = await supabase.from('tasks').insert({
           title: form.title, type: form.type||"Tasarım",
           priority: form.priority||"mid", due_date: form.due||"—", col: "todo",
-          assigned_to: form.assignedTo || null,
+          assigned_to: form.assignedTo || null, assigned_at: assignedAt, client_id: cid,
         }).select().single();
-        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nFIKIR-GOREV-SQL kodunu çalıştırıp assigned_to sütununu eklediğinizden emin olun."); return; }
+        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp gerekli sütunları eklediğinizden emin olun."); return; }
         if(data){
-          setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",col:"todo",due:form.due,priority:form.priority||"mid",type:form.type||"Tasarım",assignedTo:form.assignedTo||null}]);
+          setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",clientId:cid,col:"todo",due:form.due,priority:form.priority||"mid",type:form.type||"Tasarım",assignedTo:form.assignedTo||null,assignedAt}]);
         }
         setModal(false);
       }} />
@@ -4590,8 +4722,8 @@ async function loadAllData() {
   }));
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
-    id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "",
-    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo", assignedTo: t.assigned_to || null,
+    id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "", clientId: t.client_id || null,
+    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
   }));
 
   return { clients, staff, tasks, allClients: clientsRaw || [], allStaff: staffRaw || [] };
