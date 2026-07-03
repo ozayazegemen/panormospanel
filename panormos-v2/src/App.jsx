@@ -6197,21 +6197,23 @@ function LandingPage({ onEnter }) {
   .lp .sec-label{font-family:'Space Grotesk';font-size:14px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:18px;display:block}
   .lp .sec-head h2{font-family:'Space Grotesk';font-weight:700;font-size:clamp(32px,5vw,52px);line-height:1.08;letter-spacing:-0.02em;margin-bottom:20px}
   .lp .sec-head p{font-size:17px;color:var(--muted)}
-  .lp .services-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
-  .lp .service{position:relative;padding:38px;border-radius:22px;background:var(--surface);border:1px solid var(--line);overflow:hidden;transition:transform .3s,border-color .3s}
+  .lp .services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .lp .service{position:relative;padding:32px;border-radius:22px;background:var(--surface);border:1px solid var(--line);overflow:hidden;transition:transform .3s,border-color .3s}
   .lp .service::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .4s}
   .lp .service:hover{transform:translateY(-6px);border-color:var(--line2)}
   .lp .service:hover::before{transform:scaleX(1)}
-  .lp .service .num{font-family:'Space Grotesk';font-size:13px;font-weight:600;color:var(--muted2);margin-bottom:22px}
-  .lp .service .icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:22px;background:var(--accent-soft);border:1px solid var(--accent-line)}
-  .lp .service h3{font-family:'Space Grotesk';font-weight:600;font-size:24px;margin-bottom:12px;letter-spacing:-0.01em}
-  .lp .service p{font-size:15px;color:var(--muted);margin-bottom:20px}
-  .lp .service ul{list-style:none;display:flex;flex-wrap:wrap;gap:8px}
-  .lp .service li{font-size:12.5px;color:var(--muted);padding:5px 12px;border-radius:100px;background:rgba(255,255,255,0.03);border:1px solid var(--line)}
+  .lp .service .icon{width:52px;height:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:20px;background:var(--accent-soft);border:1px solid var(--accent-line)}
+  .lp .service h3{font-family:'Space Grotesk';font-weight:600;font-size:21px;margin-bottom:11px;letter-spacing:-0.01em}
+  .lp .service p{font-size:14.5px;color:var(--muted);line-height:1.6}
   .lp .s1{--accent:var(--grad2);--accent-soft:rgba(242,81,36,0.1);--accent-line:rgba(242,81,36,0.25)}
   .lp .s2{--accent:linear-gradient(135deg,#EC4899,#8B5CF6);--accent-soft:rgba(236,72,153,0.1);--accent-line:rgba(236,72,153,0.25)}
   .lp .s3{--accent:linear-gradient(135deg,#8B5CF6,#6366F1);--accent-soft:rgba(139,92,246,0.1);--accent-line:rgba(139,92,246,0.25)}
   .lp .s4{--accent:var(--grad3);--accent-soft:rgba(6,182,212,0.1);--accent-line:rgba(6,182,212,0.25)}
+  .lp .s5{--accent:linear-gradient(135deg,#F25124,#F59E0B);--accent-soft:rgba(245,158,11,0.1);--accent-line:rgba(245,158,11,0.25)}
+  .lp .s6{--accent:linear-gradient(135deg,#10B981,#06B6D4);--accent-soft:rgba(16,185,129,0.1);--accent-line:rgba(16,185,129,0.25)}
+  .lp .s7{--accent:linear-gradient(135deg,#EC4899,#F25124);--accent-soft:rgba(236,72,153,0.1);--accent-line:rgba(236,72,153,0.25)}
+  .lp .s8{--accent:linear-gradient(135deg,#6366F1,#06B6D4);--accent-soft:rgba(99,102,241,0.1);--accent-line:rgba(99,102,241,0.25)}
+  .lp .s9{--accent:linear-gradient(135deg,#8B5CF6,#EC4899);--accent-soft:rgba(139,92,246,0.1);--accent-line:rgba(139,92,246,0.25)}
   .lp .process{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
   .lp .step{padding:32px 28px 32px 0;position:relative;border-top:1px solid var(--line2)}
   .lp .step .snum{font-family:'Space Grotesk';font-weight:700;font-size:15px;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:16px;display:block}
@@ -6242,7 +6244,8 @@ function LandingPage({ onEnter }) {
   .lp .foot-bottom{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted2)}
   .lp .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
   .lp .reveal.in{opacity:1;transform:none}
-  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:400px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}}
+  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:400px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr 1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}}
+  @media(max-width:640px){.lp .services-grid{grid-template-columns:1fr}}
   @media(max-width:520px){.lp .process{grid-template-columns:1fr}.lp .stats{grid-template-columns:1fr 1fr;gap:32px 16px}.lp .contact-methods{flex-direction:column}.lp .cm{justify-content:center}}
   @media(prefers-reduced-motion:reduce){.lp *{animation:none!important;transition:none!important}.lp .reveal{opacity:1;transform:none}}
   .lp :focus-visible{outline:2px solid var(--pink);outline-offset:3px;border-radius:4px}
@@ -6270,7 +6273,7 @@ function LandingPage({ onEnter }) {
       <header id="lp-top">
         <div className="wrap">
           <div className="hero">
-            <span className="eyebrow"><span className="pulse"></span>Bandırma Merkezli Sosyal Medya Ajansı</span>
+            <span className="eyebrow"><span className="pulse"></span>Markanı dijitalde büyüten ajans</span>
             <h1>Markanı<br /><span className="rotator" id="lp-rotator">büyütürüz</span></h1>
             <p className="lead">Instagram yönetiminden reklam kampanyalarına, içerik üretiminden tasarıma — markanı dijitalde fark edilir kılacak her şeyi tek çatı altında topluyoruz.</p>
             <div className="hero-cta">
@@ -6283,19 +6286,24 @@ function LandingPage({ onEnter }) {
 
       <div className="marquee" aria-hidden="true">
         <div className="marquee-track">
-          <span className="marquee-item">Instagram Yönetimi<span className="star">✦</span>İçerik Üretimi<span className="star">✦</span>Reklam Yönetimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Video Prodüksiyon<span className="star">✦</span>Sosyal Medya Stratejisi<span className="star">✦</span></span>
-          <span className="marquee-item">Instagram Yönetimi<span className="star">✦</span>İçerik Üretimi<span className="star">✦</span>Reklam Yönetimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Video Prodüksiyon<span className="star">✦</span>Sosyal Medya Stratejisi<span className="star">✦</span></span>
+          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Menü Çekimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Drone Çekim<span className="star">✦</span></span>
+          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Menü Çekimi<span className="star">✦</span>Grafik Tasarım<span className="star">✦</span>Drone Çekim<span className="star">✦</span></span>
         </div>
       </div>
 
       <section id="lp-hizmetler">
         <div className="wrap">
-          <div className="sec-head reveal"><span className="sec-label">Hizmetlerimiz</span><h2>Markanı büyüten dört ana hizmet</h2><p>Her biri işini bilen ekiplerle; ölçülebilir sonuçlar ve gerçek etkileşim için.</p></div>
+          <div className="sec-head reveal"><span className="sec-label">Hizmetlerimiz</span><h2>Markanı büyüten tüm hizmetler</h2><p>Sosyal medyadan reklama, çekimden tasarıma — dijitalde ihtiyacın olan her şey tek çatı altında.</p></div>
           <div className="services-grid">
-            <div className="service s1 reveal"><div className="num">01</div><div className="icon">📱</div><h3>Instagram Yönetimi</h3><p>Hesabını profesyonelce yönetiyor, düzenli paylaşım ve etkileşimle takipçini gerçek müşteriye dönüştürüyoruz.</p><ul><li>İçerik takvimi</li><li>Story & Reels</li><li>Topluluk yönetimi</li><li>Analiz & raporlama</li></ul></div>
-            <div className="service s2 reveal"><div className="num">02</div><div className="icon">🎬</div><h3>İçerik Üretimi</h3><p>Fotoğraf, video ve reels çekimlerinden kurguya; markanı en iyi anlatan görselleri sıfırdan üretiyoruz.</p><ul><li>Reels & kısa video</li><li>Ürün çekimi</li><li>Kurgu & montaj</li><li>Senaryo</li></ul></div>
-            <div className="service s3 reveal"><div className="num">03</div><div className="icon">🎯</div><h3>Reklam Yönetimi</h3><p>Meta ve Instagram reklamlarını doğru kitleye, doğru bütçeyle yöneterek satış ve bilinirliğini artırıyoruz.</p><ul><li>Hedef kitle</li><li>Kampanya kurulumu</li><li>Bütçe optimizasyonu</li><li>Dönüşüm takibi</li></ul></div>
-            <div className="service s4 reveal"><div className="num">04</div><div className="icon">🎨</div><h3>Grafik Tasarım</h3><p>Logo'dan sosyal medya görsellerine kadar markanın kimliğini yansıtan özgün ve akılda kalıcı tasarımlar.</p><ul><li>Kurumsal kimlik</li><li>Sosyal medya görseli</li><li>Logo tasarım</li><li>Katalog & afiş</li></ul></div>
+            <div className="service s1 reveal"><div className="icon">📱</div><h3>Sosyal Medya Yönetimi</h3><p>Instagram, Facebook ve TikTok hesaplarını profesyonelce yönetiyor; düzenli paylaşım, story ve etkileşimle takipçini gerçek müşteriye dönüştürüyoruz.</p></div>
+            <div className="service s2 reveal"><div className="icon">🎯</div><h3>Meta Reklam Kurulumu</h3><p>Facebook ve Instagram reklamlarını doğru hedef kitleye, doğru bütçeyle kurup yönetiyoruz. Satış ve bilinirliğini ölçülebilir şekilde artırıyoruz.</p></div>
+            <div className="service s3 reveal"><div className="icon">🔍</div><h3>SEO & Google Optimizasyonu</h3><p>Web sitenin Google'da üst sıralarda çıkması için SEO çalışması ve Google İşletme kurulumu yaparak seni müşterilerine ulaştırıyoruz.</p></div>
+            <div className="service s4 reveal"><div className="icon">🎬</div><h3>Tanıtım Filmleri</h3><p>Markanı en etkileyici şekilde anlatan profesyonel tanıtım ve reklam filmleri çekiyor, kurgusuyla birlikte teslim ediyoruz.</p></div>
+            <div className="service s5 reveal"><div className="icon">📸</div><h3>Ürün Çekimleri</h3><p>Ürünlerini en iyi gösteren profesyonel fotoğraf çekimleri; e-ticaret ve sosyal medya için yüksek kaliteli görseller.</p></div>
+            <div className="service s6 reveal"><div className="icon">🍽️</div><h3>Menü & Mekan Çekimleri</h3><p>Restoran, kafe ve işletmeler için iştah açan menü fotoğrafları ve mekanını en güzel yansıtan atmosfer çekimleri.</p></div>
+            <div className="service s7 reveal"><div className="icon">🎨</div><h3>Grafik Tasarım</h3><p>Logo, kurumsal kimlik, sosyal medya görselleri, afiş ve katalog — markanı yansıtan özgün ve akılda kalıcı tasarımlar.</p></div>
+            <div className="service s8 reveal"><div className="icon">✍️</div><h3>İçerik & Metin Üretimi</h3><p>Markanın diline uygun etkili metinler, reklam sloganları ve sosyal medya içerikleriyle mesajını doğru iletiyoruz.</p></div>
+            <div className="service s9 reveal"><div className="icon">🚁</div><h3>Drone & Özel Çekim</h3><p>Havadan drone çekimleri ve özel prodüksiyonlarla markana fark yaratan, sıra dışı görseller kazandırıyoruz.</p></div>
           </div>
         </div>
       </section>
