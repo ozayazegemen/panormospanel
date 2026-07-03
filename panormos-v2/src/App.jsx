@@ -2251,7 +2251,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Bu haftanın başı (Pazartesi 00:00)
   const weekStart = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd); })();
 
-  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta)
+  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta gösterilir)
   const getColTasks = (colId) => {
     let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
     if (colId === "published") {
@@ -2259,6 +2259,8 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     }
     return list;
   };
+  // Kolonun TÜM görevleri (hafta filtresi yok) — detay modalı için
+  const getAllColTasks = (colId) => tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
 
   // Tek görev kartı (hem kolonda hem modalda kullanılır)
   const taskCardEl = (task) => {
@@ -2436,8 +2438,10 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
+        const allTasks = getAllColTasks(col.id);
         const shown = colTasks.slice(0, 6);
-        const hiddenCount = colTasks.length - shown.length;
+        // Gizli = (kolonda gösterilmeyenler) + (published'da eski haftalar)
+        const hiddenCount = allTasks.length - shown.length;
         return (
         <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
@@ -2457,10 +2461,10 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
     {/* Kolon "Tümünü Gör" Modalı */}
     {columnModal && (()=>{
-      const list = getColTasks(columnModal.colId);
+      const list = getAllColTasks(columnModal.colId);
       return (
         <Modal title={`${columnModal.label} — Tüm Görevler (${list.length})`} onClose={()=>setColumnModal(null)} width={560}>
-          {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Bu kolon her Pazartesi sıfırlanır — sadece bu haftaki paylaşımlar gösterilir.</div>}
+          {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Tahtada sadece bu haftaki paylaşımlar gösterilir (her Pazartesi sıfırlanır). Burada <strong style={{color:T.textPrimary}}>tüm zamanların</strong> paylaşımları listelenir.</div>}
           <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:480,overflowY:"auto"}}>
             {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : list.map(taskCardEl)}
           </div>
