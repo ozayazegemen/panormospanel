@@ -4334,6 +4334,7 @@ function AccountingCari({ clients }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [expanded, setExpanded] = useState(null);
+  const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from('client_payments').select('*').order('payment_date', { ascending: false });
@@ -4444,7 +4445,7 @@ function AccountingCari({ clients }) {
         <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Müşteri yok</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {clientStats.map(cs => {
+          {(showAll ? clientStats : clientStats.slice(0,6)).map(cs => {
             const isOpen = expanded === cs.client.id;
             return (
               <div key={cs.client.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -4500,6 +4501,11 @@ function AccountingCari({ clients }) {
               </div>
             );
           })}
+          {clientStats.length>6 && (
+            <button onClick={()=>setShowAll(v=>!v)} style={{marginTop:4,padding:"11px",borderRadius:10,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              {showAll ? "▲ Daha az göster" : `▼ Tümünü göster (${clientStats.length} müşteri)`}
+            </button>
+          )}
         </div>
       )}
 
