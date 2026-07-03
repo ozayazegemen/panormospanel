@@ -6118,6 +6118,20 @@ function playNotificationSound() {
 // ═══════════════════════════════════════════════════════════
 function LandingPage({ onEnter }) {
   useEffect(() => {
+    // Panel body/html/#root'a taşma kilidi koymuş olabilir — site için kaydırmayı serbest bırak
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById('root');
+    const prev = {
+      htmlH: html.style.height, htmlO: html.style.overflow,
+      bodyH: body.style.height, bodyO: body.style.overflow, bodyP: body.style.position,
+      rootH: root ? root.style.height : "", rootO: root ? root.style.overflow : "",
+    };
+    html.style.height = "auto"; html.style.overflow = "auto";
+    body.style.height = "auto"; body.style.overflow = "auto"; body.style.position = "static";
+    if (root) { root.style.height = "auto"; root.style.overflow = "visible"; }
+    window.scrollTo(0, 0);
+
     const nav = document.getElementById('lp-nav');
     const onScroll = () => { if (nav) nav.classList.toggle('scrolled', window.scrollY > 20); };
     window.addEventListener('scroll', onScroll);
@@ -6143,7 +6157,13 @@ function LandingPage({ onEnter }) {
     }, { threshold: 0.12 });
     document.querySelectorAll('.lp .reveal').forEach((el, i) => { el.style.transitionDelay = ((i % 4) * 0.08) + 's'; io.observe(el); });
 
-    return () => { window.removeEventListener('scroll', onScroll); if (toggle) toggle.removeEventListener('click', onToggle); clearInterval(iv); io.disconnect(); };
+    return () => {
+      window.removeEventListener('scroll', onScroll); if (toggle) toggle.removeEventListener('click', onToggle); clearInterval(iv); io.disconnect();
+      // Panel stilini geri yükle
+      html.style.height = prev.htmlH; html.style.overflow = prev.htmlO;
+      body.style.height = prev.bodyH; body.style.overflow = prev.bodyO; body.style.position = prev.bodyP;
+      if (root) { root.style.height = prev.rootH; root.style.overflow = prev.rootO; }
+    };
   }, []);
 
   const css = `
