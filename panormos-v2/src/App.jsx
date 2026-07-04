@@ -1715,7 +1715,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         <span style={{fontSize:20}}>🖨️</span>
         <span style={{fontSize:11,fontWeight:600,color:T.textSecondary}}>Yazdır</span>
       </div>
-      <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",publishDays:[],shootDays:[],publishTimes:[],platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>
+      <Btn variant="primary" onClick={()=>{setModal("addClient");setForm({name:"",category:"",phone:"",address:"",city:"",district:"",taxNumber:"",taxOffice:"",monthlyFee:"",workType:"monthly",publishDays:[],shootDays:[],publishTimes:[],platforms:[]});}} style={{flex:1}}>+ Yeni müşteri ekle</Btn>
     </div>
 
     <div style={{display:"flex",flexDirection:"column",gap:2}}>
@@ -1765,7 +1765,8 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       </div>
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
-      {perms.finance && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
+      <FormField label="💼 Çalışma Tipi"><div style={{display:"flex",gap:8}}>{[{v:"monthly",l:"Aylık Paket"},{v:"piece",l:"Parça Başı"},{v:"both",l:"İkisi"}].map(o=>(<button key={o.v} type="button" onClick={()=>setForm(f=>({...f,workType:o.v}))} style={{flex:1,padding:"9px",borderRadius:8,border:`1px solid ${(form.workType||"monthly")===o.v?T.indigo:T.border}`,background:(form.workType||"monthly")===o.v?T.indigoDim:T.bgInput,color:(form.workType||"monthly")===o.v?T.indigoText:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>{o.l}</button>))}</div></FormField>
+      {perms.finance && (form.workType||"monthly")!=="piece" && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1791,11 +1792,11 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          monthly_fee: parseInt(form.monthlyFee)||0, contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
+          monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
         }).select().single();
         if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         if(data){
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:[],contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
         }
         setModal(null);
       }} />
@@ -1814,7 +1815,8 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       </div>
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
-      {perms.finance && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
+      <FormField label="💼 Çalışma Tipi"><div style={{display:"flex",gap:8}}>{[{v:"monthly",l:"Aylık Paket"},{v:"piece",l:"Parça Başı"},{v:"both",l:"İkisi"}].map(o=>(<button key={o.v} type="button" onClick={()=>setForm(f=>({...f,workType:o.v}))} style={{flex:1,padding:"9px",borderRadius:8,border:`1px solid ${(form.workType||"monthly")===o.v?T.indigo:T.border}`,background:(form.workType||"monthly")===o.v?T.indigoDim:T.bgInput,color:(form.workType||"monthly")===o.v?T.indigoText:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>{o.l}</button>))}</div></FormField>
+      {perms.finance && (form.workType||"monthly")!=="piece" && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1838,10 +1840,10 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          monthly_fee: parseInt(form.monthlyFee)||0, contract_end: form.contractEnd||null,
+          monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_end: form.contractEnd||null,
         }).eq('id', form.id);
         if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,contractEnd:form.contractEnd||null}:c));
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -1993,7 +1995,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         <Btn onClick={()=>printClientDetail(client, perms)} style={{fontSize:11,padding:"5px 10px"}}>🖨️ Yazdır</Btn>
         <Btn onClick={()=>printMonthlyReport(client)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📄 Aylık Rapor</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
-        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",workType:client.workType||"monthly",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
@@ -2007,6 +2009,101 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
     
     {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);window.location.reload();}} />}
   </div>;
+}
+
+function PieceJobsSection({ client, perms }) {
+  const [jobs, setJobs] = useState(client.pieceJobs || []);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const curMonthRef = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
+
+  const reload = async () => {
+    const { data } = await supabase.from('piece_jobs').select('*').eq('client_id', client.id).order('due_date', { ascending: false });
+    setJobs((data || []).map(j => ({ id: j.id, title: j.title, quantity: j.quantity, amount: Number(j.amount || 0), dueDate: j.due_date, status: j.status || "pending", monthRef: j.month_ref })));
+  };
+
+  const save = async () => {
+    if (!form.title) { alert("İş adı gerekli"); return; }
+    setSaving(true);
+    const monthRef = form.dueDate ? String(form.dueDate).slice(0, 7) : curMonthRef;
+    const payload = { client_id: client.id, title: form.title, quantity: parseInt(form.quantity) || 1, amount: parseFloat(form.amount) || 0, due_date: form.dueDate || null, status: form.status || "pending", month_ref: monthRef };
+    let error;
+    if (form.id) { ({ error } = await supabase.from('piece_jobs').update(payload).eq('id', form.id)); }
+    else { ({ error } = await supabase.from('piece_jobs').insert(payload)); }
+    setSaving(false);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nPARCA-BASI-SQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({}); reload();
+  };
+  const del = async (id) => { if (!window.confirm("Bu iş silinsin mi?")) return; await supabase.from('piece_jobs').delete().eq('id', id); reload(); };
+  const toggle = async (job) => { const ns = job.status === "done" ? "pending" : "done"; await supabase.from('piece_jobs').update({ status: ns }).eq('id', job.id); reload(); };
+
+  const totalAmount = jobs.reduce((s, j) => s + j.amount, 0);
+  const doneAmount = jobs.filter(j => j.status === "done").reduce((s, j) => s + j.amount, 0);
+  const pendingCount = jobs.filter(j => j.status === "pending").length;
+
+  return (
+    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🧩 Parça Başı İşler</div>
+        <Btn variant="primary" onClick={() => { setForm({ status: "pending", quantity: 1, dueDate: "" }); setModal(true); }} style={{ fontSize: 11, padding: "5px 12px" }}>+ İş Ekle</Btn>
+      </div>
+
+      {jobs.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: "20px 0", fontSize: 13 }}>Henüz parça başı iş yok. "İş Ekle" ile ekleyin (örn: 2 Video, 3 Tasarım).</div>
+      ) : (
+        <>
+          {perms.finance && (
+            <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.bgInput, color: T.textSecondary, fontWeight: 600 }}>Toplam: {fmtMoney(totalAmount)}</span>
+              <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, fontWeight: 600 }}>✓ Tamamlanan: {fmtMoney(doneAmount)}</span>
+              {pendingCount > 0 && <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.amberDim, color: T.amberText, fontWeight: 600 }}>⏳ {pendingCount} bekleyen iş</span>}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {jobs.map(j => {
+              const done = j.status === "done";
+              return (
+                <div key={j.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 14px", background: T.bgInput, borderRadius: 10, borderLeft: `3px solid ${done ? T.green : T.amber}` }}>
+                  <button onClick={() => toggle(j)} title={done ? "Bekliyor yap" : "Tamamlandı yap"} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: `2px solid ${done ? T.green : T.borderLight}`, background: done ? T.green : "transparent", color: "#fff", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>{done ? "✓" : ""}</button>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none", opacity: done ? 0.6 : 1 }}>{j.quantity > 1 ? `${j.quantity}× ` : ""}{j.title}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>{j.dueDate ? `📅 ${new Date(j.dueDate).toLocaleDateString("tr-TR")}` : "Tarihsiz"}{perms.finance && j.amount > 0 ? ` · 💰 ${fmtMoney(j.amount)}` : ""}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: done ? T.greenDim : T.amberDim, color: done ? T.greenText : T.amberText }}>{done ? "Bitti" : "Bekliyor"}</span>
+                  <button onClick={() => { setForm({ id: j.id, title: j.title, quantity: j.quantity, amount: j.amount, dueDate: j.dueDate || "", status: j.status }); setModal(true); }} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 13 }}>✏️</button>
+                  <button onClick={() => del(j.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {modal && (
+        <Modal title={form.id ? "Parça Başı İş Düzenle" : "Yeni Parça Başı İş"} onClose={() => setModal(false)} width={480}>
+          <FormField label="İş Adı"><Input placeholder="Örn: Tanıtım Videosu, Logo Tasarımı" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: perms.finance ? "1fr 1fr" : "1fr", gap: 12 }}>
+            <FormField label="Adet"><Input type="number" placeholder="1" value={form.quantity ?? ""} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} /></FormField>
+            {perms.finance && <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount ?? ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>}
+          </div>
+          <FormField label="📅 Teslim Tarihi (isteğe bağlı)"><Input type="date" value={form.dueDate || ""} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></FormField>
+          <FormField label="Durum">
+            <div style={{ display: "flex", gap: 8 }}>
+              {[{ v: "pending", l: "⏳ Bekliyor" }, { v: "done", l: "✓ Tamamlandı" }].map(o => (
+                <button key={o.v} type="button" onClick={() => setForm(f => ({ ...f, status: o.v }))} style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${(form.status || "pending") === o.v ? T.indigo : T.border}`, background: (form.status || "pending") === o.v ? T.indigoDim : T.bgInput, color: (form.status || "pending") === o.v ? T.indigoText : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{o.l}</button>
+              ))}
+            </div>
+          </FormField>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Kaydediliyor..." : "Kaydet"}</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
 }
 
 function ClientOverview({client, perms}) {
@@ -2051,7 +2148,7 @@ function ClientOverview({client, perms}) {
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:perms.finance?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:20}}>
-      {perms.finance && <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} />}
+      {perms.finance && (client.workType!=="piece" ? <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} /> : <StatCard label="Çalışma Tipi" value="Parça Başı" color={T.indigoText} />)}
       <StatCard label="Bu Ay Paylaşım" value={totalThisMonth} sub={hasQuota?`Anlaşma: ${quotaTotal}`:"Gerçekleşen"} color={totalExcess>0?T.amberText:undefined} />
       <StatCard label="Medya Dosyası" value={client.media.length} />
       {(()=>{
@@ -2063,6 +2160,9 @@ function ClientOverview({client, perms}) {
         return <StatCard label="Sözleşme Bitiş" value={end.toLocaleDateString("tr-TR")} sub={sub} color={col} />;
       })()}
     </div>
+
+    {/* Parça başı işler (sadece parça başı / ikisi tipinde) */}
+    {(client.workType==="piece"||client.workType==="both") && <PieceJobsSection client={client} perms={perms} />}
 
     {/* Paylaşım Sayımı — detaylı anlaşma karşılaştırması (madde 9) */}
     <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16,marginBottom:16}}>
@@ -4024,6 +4124,7 @@ function RevenueChart() {
   const [entries, setEntries] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [incomes, setIncomes] = useState([]);
+  const [pieceJobs, setPieceJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -4037,6 +4138,8 @@ function RevenueChart() {
         setExpenses(ex || []);
         const { data: inc } = await supabase.from('company_incomes').select('amount,income_date');
         setIncomes(inc || []);
+        const { data: pj } = await supabase.from('piece_jobs').select('amount,month_ref,status');
+        setPieceJobs(pj || []);
       } catch (err) { /* tablo yoksa boş */ }
       setLoading(false);
     })();
@@ -4052,9 +4155,10 @@ function RevenueChart() {
   const toMonthRef = (dateStr) => dateStr ? String(dateStr).slice(0, 7) : "";
 
   const data = months.map(m => {
-    // Gelir = müşteri ödemeleri + diğer gelirler
+    // Gelir = müşteri ödemeleri + diğer gelirler + tamamlanan parça başı işler
     const income = payments.filter(p => p.month_ref === m).reduce((s, p) => s + Number(p.amount || 0), 0)
-      + incomes.filter(i => toMonthRef(i.income_date) === m).reduce((s, i) => s + Number(i.amount || 0), 0);
+      + incomes.filter(i => toMonthRef(i.income_date) === m).reduce((s, i) => s + Number(i.amount || 0), 0)
+      + pieceJobs.filter(j => j.status === "done" && j.month_ref === m).reduce((s, j) => s + Number(j.amount || 0), 0);
     // Gider = SGK/vergi/maaş + kategorili giderler
     const expense = entries.filter(e => e.month_ref === m).reduce((s, e) => s + Number(e.amount || 0), 0)
       + expenses.filter(x => toMonthRef(x.expense_date) === m).reduce((s, x) => s + Number(x.amount || 0), 0);
@@ -6160,6 +6264,7 @@ async function loadAllData() {
     { data: invoicesRaw },
     { data: mediaRaw },
     { data: publishesRaw },
+    { data: pieceJobsRaw },
   ] = await Promise.all([
     supabase.from('clients').select('*'),
     supabase.from('staff').select('*'),
@@ -6168,6 +6273,7 @@ async function loadAllData() {
     supabase.from('invoices').select('*'),
     supabase.from('media').select('*'),
     supabase.from('publishes').select('*'),
+    supabase.from('piece_jobs').select('*'),
   ]);
 
   const clients = (clientsRaw || []).filter(c => !c.deleted_at).map(c => ({
@@ -6178,6 +6284,10 @@ async function loadAllData() {
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
+    workType: c.work_type || "monthly",
+    pieceJobs: (pieceJobsRaw || []).filter(j => j.client_id === c.id).map(j => ({
+      id: j.id, title: j.title, quantity: j.quantity, amount: Number(j.amount || 0), dueDate: j.due_date, status: j.status || "pending", monthRef: j.month_ref,
+    })).sort((a, b) => (b.dueDate || "").localeCompare(a.dueDate || "")),
     posts: (postsRaw || []).filter(p => p.client_id === c.id).map(p => ({
       id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description, approval: p.approval || 'pending', approvalNote: p.approval_note || '',
     })),
