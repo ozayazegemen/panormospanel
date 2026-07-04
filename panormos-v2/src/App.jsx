@@ -2960,7 +2960,8 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       ))}
     </div>
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:10}}>
+    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:6}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(150px,1fr))",gap:10,minWidth:7*150+60}}>
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
         const allTasks = getAllColTasks(col.id);
@@ -2982,6 +2983,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           )}
         </div>
       );})}
+    </div>
     </div>
 
     {/* Kolon "Tümünü Gör" Modalı */}
@@ -4162,6 +4164,37 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       }} style={{fontSize:12,padding:"7px 14px",whiteSpace:"nowrap"}}>🖨️ Yazdır</Btn>
     </div>
 
+    {/* ☀️ Bugünün Özeti (sabah özeti panosu) */}
+    {(()=>{
+      const dueToday = tasks.filter(t=>t.due===todayStr && t.col!=="done" && t.col!=="published");
+      const overdue = tasks.filter(t=>t.due && t.due!=="—" && t.due.length>=8 && t.due<todayStr && t.col!=="done" && t.col!=="published");
+      const inRevision = tasks.filter(t=>t.col==="revision");
+      const pendingApproval = tasks.filter(t=>t.col==="approval");
+      const items = [
+        {icon:"📅",label:"Bugün Paylaşım",val:todayPublish.length,color:T.amberText,page:"calendar"},
+        {icon:"📷",label:"Bugün Çekim",val:todayShoot.length+todayExtraShoot.length,color:"#F9A8D4",page:"calendar"},
+        {icon:"⏰",label:"Bugün Teslim",val:dueToday.length,color:T.indigoText,page:"tasks"},
+        {icon:"🔴",label:"Geciken Görev",val:overdue.length,color:T.redText,page:"tasks"},
+        {icon:"🔄",label:"Revizede",val:inRevision.length,color:"#F87171",page:"tasks"},
+        {icon:"📤",label:"Onay Bekleyen",val:pendingApproval.length,color:"#25D366",page:"tasks"},
+      ];
+      const greeting = (()=>{ const h=today.getHours(); if(h<12) return "Günaydın ☀️"; if(h<18) return "İyi çalışmalar 👋"; return "İyi akşamlar 🌙"; })();
+      return (
+        <div style={{background:`linear-gradient(135deg, ${T.bgCard}, rgba(99,102,241,0.08))`,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px",marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.textPrimary,marginBottom:12}}>{greeting} — İşte bugünün özeti:</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:10}}>
+            {items.map((it,i)=>(
+              <div key={i} onClick={()=>setPage(it.page)} style={{background:T.bgInput,borderRadius:10,padding:"12px 14px",cursor:"pointer",transition:"transform .15s",display:"flex",flexDirection:"column",gap:3}}
+                onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+                <div style={{fontSize:22,fontWeight:800,color:it.val>0?it.color:T.textMuted,lineHeight:1}}>{it.val}</div>
+                <div style={{fontSize:11,color:T.textMuted}}>{it.icon} {it.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })()}
+
     {/* Finansal Özet - sadece yetkili görür */}
     {perms.finance && (
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
@@ -4473,6 +4506,7 @@ const NAV=[
   {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
+  {id:"yearly",label:"Yıllık Özet",icon:"📊"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
 
@@ -6559,7 +6593,139 @@ async function loadAllData() {
 // ─────────────────────────────────────────────
 // GLOBAL ARAMA - müşteri, potansiyel, görev, fikir
 // ─────────────────────────────────────────────
-function GlobalSearch({ clients, tasks, setPage }) {
+// ─────────────────────────────────────────────
+// YILLIK ÖZET + YEDEKLEME (yönetici)
+// ─────────────────────────────────────────────
+function YearlyBackupPage({ clients, staff, tasks, perms }) {
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [payments, setPayments] = useState([]);
+  const [pieceJobs, setPieceJobs] = useState([]);
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [backing, setBacking] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [p, pj, inc, ex, en] = await Promise.all([
+          supabase.from('client_payments').select('amount,month_ref'),
+          supabase.from('piece_jobs').select('amount,month_ref,status'),
+          supabase.from('company_incomes').select('amount,income_date'),
+          supabase.from('company_expenses').select('amount,expense_date'),
+          supabase.from('accounting_entries').select('amount,month_ref'),
+        ]);
+        setPayments(p.data || []); setPieceJobs(pj.data || []); setIncomes(inc.data || []); setExpenses(ex.data || []); setEntries(en.data || []);
+      } catch (e) {}
+      setLoading(false);
+    })();
+  }, []);
+
+  const yStr = String(year);
+  const monthInYear = (ref) => ref && ref.startsWith(yStr);
+  const dateInYear = (d) => d && String(d).startsWith(yStr);
+
+  // Aylık gelir/gider (12 ay)
+  const months = Array.from({ length: 12 }, (_, i) => `${yStr}-${String(i + 1).padStart(2, "0")}`);
+  const monthData = months.map(m => {
+    const income = payments.filter(p => p.month_ref === m).reduce((s, p) => s + Number(p.amount || 0), 0)
+      + incomes.filter(i => String(i.income_date || "").slice(0, 7) === m).reduce((s, i) => s + Number(i.amount || 0), 0)
+      + pieceJobs.filter(j => j.status === "done" && j.month_ref === m).reduce((s, j) => s + Number(j.amount || 0), 0);
+    const expense = entries.filter(e => e.month_ref === m).reduce((s, e) => s + Number(e.amount || 0), 0)
+      + expenses.filter(x => String(x.expense_date || "").slice(0, 7) === m).reduce((s, x) => s + Number(x.amount || 0), 0);
+    return { m, income, expense, net: income - expense };
+  });
+  const totalIncome = monthData.reduce((s, d) => s + d.income, 0);
+  const totalExpense = monthData.reduce((s, d) => s + d.expense, 0);
+  const totalNet = totalIncome - totalExpense;
+  const bestMonth = monthData.reduce((best, d) => d.income > (best?.income || 0) ? d : best, null);
+  const maxInc = Math.max(1, ...monthData.map(d => d.income));
+
+  // Tüm veriyi yedekle (JSON indir)
+  const backupAll = async () => {
+    setBacking(true);
+    try {
+      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'client_payments', 'company_incomes', 'company_expenses', 'accounting_entries', 'piece_jobs', 'social_reports', 'publishes', 'client_invoices'];
+      const backup = { exportedAt: new Date().toISOString(), tables: {} };
+      for (const t of tables) {
+        try { const { data } = await supabase.from(t).select('*'); backup.tables[t] = data || []; } catch (e) { backup.tables[t] = []; }
+      }
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `panormos-yedek-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e) { alert("Yedekleme hatası: " + e.message); }
+    setBacking(false);
+  };
+
+  // Excel'e aktar (özet)
+  const exportExcel = () => {
+    const sheets = [
+      { name: "Aylık Özet", title: `${year} Aylık Gelir-Gider`, rows: monthData.map(d => ({ "Ay": TR_MONTHS[parseInt(d.m.split("-")[1]) - 1], "Gelir": d.income, "Gider": d.expense, "Net Kâr/Zarar": d.net })) },
+      { name: "Müşteriler", title: "Müşteri Listesi", rows: clients.map(c => ({ "Müşteri": c.name, "Kategori": c.category || "", "Telefon": c.phone || "", "Aylık Ücret": c.monthlyFee || 0, "Çalışma Tipi": c.workType === "piece" ? "Parça Başı" : c.workType === "both" ? "İkisi" : "Aylık" })) },
+    ];
+    exportPerfectExcel(sheets, `panormos-ozet-${year}.xlsx`);
+  };
+
+  const availableYears = [];
+  for (let y = new Date().getFullYear(); y >= 2024; y--) availableYears.push(y);
+
+  return (
+    <div>
+      {/* Yedekleme kartı */}
+      <div style={{ background: `linear-gradient(135deg, ${T.bgCard}, rgba(16,185,129,0.06))`, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 6 }}>💾 Yedekleme & Dışa Aktarma</div>
+        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Tüm verilerini (müşteriler, ödemeler, görevler, raporlar...) tek dosyada yedekle. Düzenli yedek almanı öneririz.</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Btn variant="primary" onClick={backupAll} disabled={backing} style={{ background: "#10B981", border: "none" }}>{backing ? "Yedekleniyor..." : "💾 Tam Yedek Al (JSON)"}</Btn>
+          <Btn onClick={exportExcel}>📊 Excel Özet İndir</Btn>
+        </div>
+      </div>
+
+      {/* Yıllık özet */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>📊 {year} Yıllık Özet</div>
+        <select value={year} onChange={e => setYear(parseInt(e.target.value))} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", color: T.textPrimary, fontSize: 13, outline: "none" }}>
+          {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div> : (
+        <>
+          {/* Özet kartları */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 20 }}>
+            <StatCard label="Aktif Müşteri" value={clients.length} />
+            <StatCard label="Çalışan" value={staff.length} />
+            {perms.finance && <StatCard label={`${year} Toplam Gelir`} value={fmtMoney(totalIncome)} color={T.greenText} />}
+            {perms.finance && <StatCard label={`${year} Toplam Gider`} value={fmtMoney(totalExpense)} color={T.redText} />}
+            {perms.finance && <StatCard label={`${year} Net Kâr/Zarar`} value={fmtMoney(totalNet)} color={totalNet >= 0 ? T.greenText : T.redText} />}
+            {perms.finance && bestMonth && bestMonth.income > 0 && <StatCard label="En İyi Ay" value={TR_MONTHS[parseInt(bestMonth.m.split("-")[1]) - 1]} sub={fmtMoney(bestMonth.income)} color={T.indigoText} />}
+          </div>
+
+          {/* Aylık gelir grafiği */}
+          {perms.finance && totalIncome > 0 && (
+            <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 18 }}>📈 {year} Aylık Gelir Dağılımı</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 180 }}>
+                {monthData.map((d, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                    <div style={{ fontSize: 8, fontWeight: 700, color: T.textSecondary }}>{d.income >= 1000 ? (d.income / 1000).toFixed(0) + "b" : (d.income || "")}</div>
+                    <div title={`${TR_MONTHS[i]}: ${fmtMoney(d.income)}`} style={{ width: "70%", maxWidth: 32, height: `${Math.max(2, (d.income / maxInc) * 150)}px`, background: "linear-gradient(180deg,#10B981,#059669)", borderRadius: "4px 4px 0 0", transition: "height .4s" }} />
+                    <div style={{ fontSize: 9, color: T.textMuted }}>{TR_MONTHS[i].slice(0, 3)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function GlobalSearch({ clients, tasks, setPage, allStaff }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [leads, setLeads] = useState([]);
@@ -6606,6 +6772,11 @@ function GlobalSearch({ clients, tasks, setPage }) {
     ideas.forEach(i => {
       if ((i.title || "").toLocaleLowerCase("tr-TR").includes(term) || (i.description || "").toLocaleLowerCase("tr-TR").includes(term)) {
         results.push({ type: "Fikir", icon: "💡", label: i.title, sub: i.description || "", page: "ideas", color: "#F59E0B" });
+      }
+    });
+    (allStaff || []).forEach(s => {
+      if ((s.name || "").toLocaleLowerCase("tr-TR").includes(term) || (s.role || "").toLocaleLowerCase("tr-TR").includes(term)) {
+        results.push({ type: "Çalışan", icon: "👤", label: s.name, sub: s.role || "", page: "staff", color: "#14B8A6" });
       }
     });
   }
@@ -7140,7 +7311,7 @@ export default function App() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'staff'];
+    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -7163,7 +7334,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'staff'];
+      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -7352,7 +7523,7 @@ export default function App() {
         {isMobile && <button onClick={()=>setDrawerOpen(false)} style={{background:"none",border:"none",color:T.textMuted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>}
       </div>
       <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
-        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports)).map(item=>(
+        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports) && (item.id !== 'yearly' || perms.finance || perms.isAdmin)).map(item=>(
           <div key={item.id} onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
@@ -7393,9 +7564,9 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
-        {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} />}
+        {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
       </div>
       <div style={{flex:1,overflow:"auto",padding:isMobile?14:28}}>
@@ -7408,6 +7579,7 @@ export default function App() {
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
         {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
+        {page==="yearly"&&<YearlyBackupPage clients={clients} staff={staff} tasks={tasks} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
