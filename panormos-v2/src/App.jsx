@@ -468,21 +468,25 @@ function ClientCalendar({ client }) {
           const dateStr = cell.currentMonth ? `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(cell.day).padStart(2, "0")}` : null;
           const dayPosts = dateStr ? (postsByDate[dateStr] || []) : [];
           const dayPublishes = dateStr ? (publishesByDate[dateStr] || []) : [];
+          const isExtraShoot = dateStr ? (client.extraShoots||[]).some(s=>s.date===dateStr) : false;
+          const extraShootTitle = isExtraShoot ? (client.extraShoots||[]).find(s=>s.date===dateStr)?.title : "";
           const isToday = cell.currentMonth && cell.day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
 
           let bg = T.bgCard, borderCol = T.border;
           if (isPublish && isShoot) { bg = "rgba(168,85,247,0.12)"; borderCol = "#A855F7"; }
           else if (isPublish) { bg = "rgba(242,81,36,0.12)"; borderCol = `${T.amber}66`; }
           else if (isShoot) { bg = "rgba(236,72,153,0.12)"; borderCol = "#EC489966"; }
+          if (isExtraShoot) { bg = "rgba(168,85,247,0.18)"; borderCol = "#A855F7"; }
           if (dayPublishes.length > 0) { bg = "rgba(16,185,129,0.14)"; borderCol = "#10B98188"; }
 
           return (
-            <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, isPublish, isShoot, dayPosts, dayPublishes, dateStr}); }} style={{
+            <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, isPublish, isShoot, dayPosts, dayPublishes, dateStr, isExtraShoot, extraShootTitle}); }} style={{
               minHeight: 66, borderRadius: 8, padding: "6px 7px", background: cell.currentMonth ? bg : "transparent",
               border: `1px solid ${isToday ? T.amber : (cell.currentMonth ? borderCol : "transparent")}`, opacity: cell.currentMonth ? 1 : 0.3,
               cursor: cell.currentMonth ? "pointer" : "default",
             }}>
               <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? T.amberText : T.textSecondary, marginBottom: 3 }}>{cell.day}</div>
+              {isExtraShoot && <div style={{ fontSize: 8, fontWeight: 700, color: "#C4B5FD", marginBottom: 1 }}>📸 Ek Çekim</div>}
               {isPublish && <div style={{ fontSize: 8, fontWeight: 700, color: T.amberText, marginBottom: 1 }}>📅 Paylaşım</div>}
               {isShoot && <div style={{ fontSize: 8, fontWeight: 700, color: "#F9A8D4" }}>📷 Çekim</div>}
               {dayPublishes.map((p, pi) => (
@@ -3115,6 +3119,18 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
       <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
+      <div style={{background:T.bgInput,borderRadius:10,padding:"12px 14px",marginBottom:4}}>
+        <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+          <input type="checkbox" checked={form.isExtraShoot||false} onChange={e=>setForm(f=>({...f,isExtraShoot:e.target.checked}))} style={{width:17,height:17,accentColor:"#EC4899",cursor:"pointer"}} />
+          <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>📷 Bu bir ek çekim (belirli tarih)</span>
+        </label>
+        {form.isExtraShoot && (
+          <div style={{marginTop:10}}>
+            <div style={{fontSize:11,color:T.textMuted,marginBottom:5}}>Çekim tarihi — müşteri takvimine, genel takvime ve "bugün" listesine eklenir</div>
+            <Input type="date" value={form.shootDate||""} onChange={e=>setForm(f=>({...f,shootDate:e.target.value}))} />
+          </div>
+        )}
+      </div>
       <ModalActions onClose={()=>setModal(false)} onSave={async()=>{
         if(!form.title)return;
         const cid = clients.find(c=>c.name===form.client)?.id || null;
@@ -3127,6 +3143,13 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         if(error){ alert("Görev eklenemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp gerekli sütunları eklediğinizden emin olun."); return; }
         if(data){
           setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",clientId:cid,col:"todo",due:form.due,priority:form.priority||"mid",type:form.type||"Tasarım",assignedTo:form.assignedTo||null,assignedAt}]);
+          // Ek çekim ise müşterinin ek çekimlerine ekle (her yere yansısın)
+          if(form.isExtraShoot && form.shootDate && cid){
+            const cl = clients.find(c=>c.id===cid);
+            const newShoots = [...(cl?.extraShoots||[]), { date: form.shootDate, title: form.title, taskId: data.id }];
+            await supabase.from('clients').update({ extra_shoots: newShoots }).eq('id', cid);
+            if(refreshData) refreshData();
+          }
         }
         setModal(false);
       }} />
@@ -3559,10 +3582,12 @@ function CalendarPage({clients}) {
       {cells.map((cell,i)=>{
         const weekday = getWeekday(i);
         const isToday = isRealToday(cell.day, cell.currentMonth);
+        const dateStr = cell.currentMonth ? `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}` : "";
         const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => getWeekdayIndex(d) === weekday)) : [];
         const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => getWeekdayIndex(d) === weekday)) : [];
-        const hasContent = publishClients.length > 0 || shootClients.length > 0;
-        return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, weekday, publishClients, shootClients}); }} style={{
+        const extraShootClients = cell.currentMonth ? clients.filter(c => (c.extraShoots||[]).some(s => s.date === dateStr)).map(c => ({ ...c, _shootTitle: (c.extraShoots||[]).find(s=>s.date===dateStr)?.title })) : [];
+        const hasContent = publishClients.length > 0 || shootClients.length > 0 || extraShootClients.length > 0;
+        return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, weekday, publishClients, shootClients, extraShootClients}); }} style={{
           minHeight:90,
           background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
           border:`1px solid ${isToday?"#223A5988":T.border}`,
@@ -3577,10 +3602,13 @@ function CalendarPage({clients}) {
           {publishClients.slice(0,2).map((c,ci)=>(
             <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{(c.publishTimes&&c.publishTimes.length>0)?c.publishTimes[0]+" ":""}{c.name}</div>
           ))}
+          {extraShootClients.slice(0,2).map((c,ci)=>(
+            <div key={"e"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(168,85,247,0.2)",color:"#C4B5FD",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid #A855F7`,fontWeight:600}}>📸 {c.name}</div>
+          ))}
           {shootClients.slice(0,2).map((c,ci)=>(
             <div key={"s"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>📷 {c.name}</div>
           ))}
-          {(publishClients.length+shootClients.length)>4 && <div style={{fontSize:9,color:T.textMuted}}>+{publishClients.length+shootClients.length-4}</div>}
+          {(publishClients.length+shootClients.length+extraShootClients.length)>6 && <div style={{fontSize:9,color:T.textMuted}}>+{publishClients.length+shootClients.length+extraShootClients.length-6}</div>}
         </div>;
       })}
     </div>
@@ -3588,10 +3616,29 @@ function CalendarPage({clients}) {
     {/* Gün Detay Modalı */}
     {selectedDay && (
       <Modal title={`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} — ${["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][selectedDay.weekday]}`} onClose={()=>setSelectedDay(null)} width={560}>
-        {selectedDay.publishClients.length === 0 && selectedDay.shootClients.length === 0 ? (
+        {selectedDay.publishClients.length === 0 && selectedDay.shootClients.length === 0 && (selectedDay.extraShootClients||[]).length === 0 ? (
           <div style={{textAlign:"center",color:T.textMuted,fontSize:13,padding:"30px 0"}}>Bu gün için planlanmış paylaşım veya çekim yok 📭</div>
         ) : (
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {/* Ek Çekimler (belirli tarihli) */}
+            {(selectedDay.extraShootClients||[]).length > 0 && (
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#C4B5FD",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📸 Ek Çekim ({selectedDay.extraShootClients.length})</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {selectedDay.extraShootClients.map(c=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(168,85,247,0.12)",borderRadius:10,borderLeft:`3px solid #A855F7`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{c._shootTitle || "Ek çekim"}{c.phone?" · "+c.phone:""}</div>
+                      </div>
+                      <span style={{fontSize:10,fontWeight:600,padding:"3px 10px",borderRadius:6,background:"rgba(168,85,247,0.2)",color:"#C4B5FD"}}>Ek Çekim</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Paylaşımlar */}
             {selectedDay.publishClients.length > 0 && (
               <div>
@@ -4027,6 +4074,8 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
   };
   const todayPublish = clients.filter(c => c.publishDays.some(d => wdIndex(d) === wd));
   const todayShoot = clients.filter(c => c.shootDays.some(d => wdIndex(d) === wd));
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const todayExtraShoot = clients.filter(c => (c.extraShoots||[]).some(s => s.date === todayStr)).map(c => ({ ...c, _shootTitle: (c.extraShoots||[]).find(s=>s.date===todayStr)?.title }));
   const todayName = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd];
   const [todayModal, setTodayModal] = useState(null); // "publish" | "shoot" | null
 
@@ -4129,6 +4178,20 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
           )}
         </div>
       </div>
+      {/* Bugünkü ek çekimler (belirli tarihli) */}
+      {todayExtraShoot.length > 0 && (
+        <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+          <div style={{fontSize:11,color:"#C4B5FD",fontWeight:600,marginBottom:8}}>📸 EK ÇEKİM ({todayExtraShoot.length})</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {todayExtraShoot.map(c=>(
+              <div key={c.id} onClick={()=>setPage("clients")} style={{fontSize:12,color:T.textPrimary,padding:"8px 10px",background:"rgba(168,85,247,0.14)",borderRadius:6,borderLeft:`2px solid #A855F7`,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>📸 <strong>{c.name}</strong>{c._shootTitle?` — ${c._shootTitle}`:""}</span>
+                <span style={{fontSize:10,color:"#C4B5FD",fontWeight:600}}>Ek Çekim</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
 
     {/* Bugün detay modalı */}
@@ -6350,6 +6413,7 @@ async function loadAllData() {
     publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
     workType: c.work_type || "monthly",
+    extraShoots: Array.isArray(c.extra_shoots) ? c.extra_shoots : [],
     pieceJobs: (pieceJobsRaw || []).filter(j => j.client_id === c.id).map(j => ({
       id: j.id, title: j.title, quantity: j.quantity, amount: Number(j.amount || 0), dueDate: j.due_date, status: j.status || "pending", monthRef: j.month_ref,
     })).sort((a, b) => (b.dueDate || "").localeCompare(a.dueDate || "")),
