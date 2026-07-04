@@ -1767,6 +1767,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
       <FormField label="💼 Çalışma Tipi"><div style={{display:"flex",gap:8}}>{[{v:"monthly",l:"Aylık Paket"},{v:"piece",l:"Parça Başı"},{v:"both",l:"İkisi"}].map(o=>(<button key={o.v} type="button" onClick={()=>setForm(f=>({...f,workType:o.v}))} style={{flex:1,padding:"9px",borderRadius:8,border:`1px solid ${(form.workType||"monthly")===o.v?T.indigo:T.border}`,background:(form.workType||"monthly")===o.v?T.indigoDim:T.bgInput,color:(form.workType||"monthly")===o.v?T.indigoText:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>{o.l}</button>))}</div></FormField>
       {perms.finance && <FormField label={(form.workType||"monthly")==="piece" ? "Anlaşılan Toplam Ücret (₺)" : "Aylık ücret (₺)"}><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
+      {(form.workType==="piece"||form.workType==="both") && <FormField label="🧩 Parça Başı İşler (isteğe bağlı — sonra detaydan da eklenebilir)"><PieceJobsFormEditor jobs={form.pieceJobsNew||[]} onChange={list=>setForm(f=>({...f,pieceJobsNew:list}))} showAmount={perms.finance} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1796,7 +1797,14 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         }).select().single();
         if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         if(data){
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:[],contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
+          // Formda eklenen parça başı işleri kaydet
+          let savedJobs = [];
+          if((form.pieceJobsNew||[]).length>0){
+            const rows = form.pieceJobsNew.map(j=>({ client_id:data.id, title:j.title, quantity:j.quantity, amount:j.amount, due_date:j.dueDate||null, status:j.status||"pending", month_ref: j.dueDate?String(j.dueDate).slice(0,7):(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;})() }));
+            const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
+            savedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
+          }
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
         }
         setModal(null);
       }} />
@@ -1817,6 +1825,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
       <FormField label="💼 Çalışma Tipi"><div style={{display:"flex",gap:8}}>{[{v:"monthly",l:"Aylık Paket"},{v:"piece",l:"Parça Başı"},{v:"both",l:"İkisi"}].map(o=>(<button key={o.v} type="button" onClick={()=>setForm(f=>({...f,workType:o.v}))} style={{flex:1,padding:"9px",borderRadius:8,border:`1px solid ${(form.workType||"monthly")===o.v?T.indigo:T.border}`,background:(form.workType||"monthly")===o.v?T.indigoDim:T.bgInput,color:(form.workType||"monthly")===o.v?T.indigoText:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>{o.l}</button>))}</div></FormField>
       {perms.finance && <FormField label={(form.workType||"monthly")==="piece" ? "Anlaşılan Toplam Ücret (₺)" : "Aylık ücret (₺)"}><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
+      {(form.workType==="piece"||form.workType==="both") && <FormField label="🧩 Parça Başı İşler (isteğe bağlı — sonra detaydan da eklenebilir)"><PieceJobsFormEditor jobs={form.pieceJobsNew||[]} onChange={list=>setForm(f=>({...f,pieceJobsNew:list}))} showAmount={perms.finance} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1843,7 +1852,14 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_end: form.contractEnd||null,
         }).eq('id', form.id);
         if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null}:c));
+        // Formda eklenen yeni parça başı işleri kaydet (varsa)
+        let addedJobs = [];
+        if((form.pieceJobsNew||[]).length>0){
+          const rows = form.pieceJobsNew.map(j=>({ client_id:form.id, title:j.title, quantity:j.quantity, amount:j.amount, due_date:j.dueDate||null, status:j.status||"pending", month_ref: j.dueDate?String(j.dueDate).slice(0,7):(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;})() }));
+          const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
+          addedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
+        }
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -2009,6 +2025,48 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
     
     {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);window.location.reload();}} />}
   </div>;
+}
+
+// Formda parça başı iş ekleme (DB'ye yazmaz, listeyi parent'a döner)
+const PIECE_CATEGORIES = ["Tasarım", "Menü Çekimi", "Video Çekimi", "Drone Çekimi", "Kurumsal Kimlik", "Video Kurgu"];
+function PieceJobsFormEditor({ jobs, onChange, showAmount }) {
+  const [draft, setDraft] = useState({ title: "", quantity: 1, amount: "", dueDate: "" });
+  const add = () => {
+    if (!draft.title) { alert("İş adı seçin veya yazın"); return; }
+    onChange([...jobs, { ...draft, quantity: parseInt(draft.quantity) || 1, amount: parseFloat(draft.amount) || 0, status: "pending" }]);
+    setDraft({ title: "", quantity: 1, amount: "", dueDate: "" });
+  };
+  const remove = (i) => onChange(jobs.filter((_, idx) => idx !== i));
+
+  return (
+    <div style={{ background: T.bgInput, borderRadius: 10, padding: 12 }}>
+      {/* Eklenen işler */}
+      {jobs.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {jobs.map((j, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", background: T.bgCard, borderRadius: 8, borderLeft: `3px solid ${T.amber}` }}>
+              <span style={{ flex: 1, fontSize: 13, color: T.textPrimary }}>{j.quantity > 1 ? `${j.quantity}× ` : ""}{j.title}{showAmount && j.amount > 0 ? ` · ${fmtMoney(j.amount)}` : ""}{j.dueDate ? ` · 📅 ${new Date(j.dueDate).toLocaleDateString("tr-TR")}` : ""}</span>
+              <button type="button" onClick={() => remove(i)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* Kategori butonları */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        {PIECE_CATEGORIES.map(cat => (
+          <button key={cat} type="button" onClick={() => setDraft(d => ({ ...d, title: cat }))} style={{ padding: "6px 12px", borderRadius: 100, border: `1px solid ${draft.title === cat ? T.indigo : T.border}`, background: draft.title === cat ? T.indigoDim : T.bgCard, color: draft.title === cat ? T.indigoText : T.textSecondary, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>{cat}</button>
+        ))}
+      </div>
+      {/* Giriş alanları */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+        <input placeholder="İş adı" value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} style={{ flex: 2, minWidth: 120, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", color: T.textPrimary, fontSize: 12, outline: "none" }} />
+        <input type="number" placeholder="Adet" value={draft.quantity} onChange={e => setDraft(d => ({ ...d, quantity: e.target.value }))} style={{ width: 60, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", color: T.textPrimary, fontSize: 12, outline: "none" }} />
+        {showAmount && <input type="number" placeholder="₺" value={draft.amount} onChange={e => setDraft(d => ({ ...d, amount: e.target.value }))} style={{ width: 80, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", color: T.textPrimary, fontSize: 12, outline: "none" }} />}
+        <input type="date" value={draft.dueDate} onChange={e => setDraft(d => ({ ...d, dueDate: e.target.value }))} style={{ width: 130, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", color: T.textPrimary, fontSize: 12, outline: "none" }} />
+        <button type="button" onClick={add} style={{ background: T.indigo, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Ekle</button>
+      </div>
+    </div>
+  );
 }
 
 function PieceJobsSection({ client, perms }) {
