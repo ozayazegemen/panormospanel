@@ -7012,8 +7012,13 @@ export default function App() {
       setSession(session);
       setAuthLoading(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(prev => {
+        // Sekme değişiminde token yenilenir; aynı kullanıcıysa mevcut oturumu KORU
+        // (böylece panel yeniden yüklenmez, bulunduğun sayfada kalırsın)
+        if (prev && newSession && prev.user?.id === newSession.user?.id) return prev;
+        return newSession;
+      });
     });
     return () => listener.subscription.unsubscribe();
   }, []);
