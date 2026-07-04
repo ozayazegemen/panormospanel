@@ -1766,7 +1766,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
       <FormField label="💼 Çalışma Tipi"><div style={{display:"flex",gap:8}}>{[{v:"monthly",l:"Aylık Paket"},{v:"piece",l:"Parça Başı"},{v:"both",l:"İkisi"}].map(o=>(<button key={o.v} type="button" onClick={()=>setForm(f=>({...f,workType:o.v}))} style={{flex:1,padding:"9px",borderRadius:8,border:`1px solid ${(form.workType||"monthly")===o.v?T.indigo:T.border}`,background:(form.workType||"monthly")===o.v?T.indigoDim:T.bgInput,color:(form.workType||"monthly")===o.v?T.indigoText:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>{o.l}</button>))}</div></FormField>
-      {perms.finance && (form.workType||"monthly")!=="piece" && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
+      {perms.finance && <FormField label={(form.workType||"monthly")==="piece" ? "Anlaşılan Toplam Ücret (₺)" : "Aylık ücret (₺)"}><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -1816,7 +1816,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="Vergi Numarası"><Input placeholder="12345678901" value={form.taxNumber||""} onChange={e=>setForm(f=>({...f,taxNumber:e.target.value}))} /></FormField>
       <FormField label="Vergi Dairesi"><Input placeholder="Istanbul Vergi Dairesi" value={form.taxOffice||""} onChange={e=>setForm(f=>({...f,taxOffice:e.target.value}))} /></FormField>
       <FormField label="💼 Çalışma Tipi"><div style={{display:"flex",gap:8}}>{[{v:"monthly",l:"Aylık Paket"},{v:"piece",l:"Parça Başı"},{v:"both",l:"İkisi"}].map(o=>(<button key={o.v} type="button" onClick={()=>setForm(f=>({...f,workType:o.v}))} style={{flex:1,padding:"9px",borderRadius:8,border:`1px solid ${(form.workType||"monthly")===o.v?T.indigo:T.border}`,background:(form.workType||"monthly")===o.v?T.indigoDim:T.bgInput,color:(form.workType||"monthly")===o.v?T.indigoText:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>{o.l}</button>))}</div></FormField>
-      {perms.finance && (form.workType||"monthly")!=="piece" && <FormField label="Aylık ücret (₺)"><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
+      {perms.finance && <FormField label={(form.workType||"monthly")==="piece" ? "Anlaşılan Toplam Ücret (₺)" : "Aylık ücret (₺)"}><Input type="number" placeholder="0" value={form.monthlyFee||""} onChange={e=>setForm(f=>({...f,monthlyFee:e.target.value}))} /></FormField>}
       <FormField label="📅 Paylaşım günleri"><DaySelector selected={Array.isArray(form.publishDays)?form.publishDays:[]} onChange={days=>setForm(f=>({...f,publishDays:days}))} activeColor={T.amber} /></FormField>
       <FormField label="🕐 Paylaşım saatleri"><TimeSelector times={form.publishTimes||[]} onChange={t=>setForm(f=>({...f,publishTimes:t}))} /></FormField>
       <FormField label="📷 Çekim günleri"><DaySelector selected={Array.isArray(form.shootDays)?form.shootDays:[]} onChange={days=>setForm(f=>({...f,shootDays:days}))} activeColor="#EC4899" /></FormField>
@@ -2083,6 +2083,13 @@ function PieceJobsSection({ client, perms }) {
 
       {modal && (
         <Modal title={form.id ? "Parça Başı İş Düzenle" : "Yeni Parça Başı İş"} onClose={() => setModal(false)} width={480}>
+          <FormField label="Hazır Kategoriler (tıkla seç)">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {["Tasarım", "Menü Çekimi", "Video Çekimi", "Drone Çekimi", "Kurumsal Kimlik", "Video Kurgu"].map(cat => (
+                <button key={cat} type="button" onClick={() => setForm(f => ({ ...f, title: cat }))} style={{ padding: "7px 14px", borderRadius: 100, border: `1px solid ${form.title === cat ? T.indigo : T.border}`, background: form.title === cat ? T.indigoDim : T.bgInput, color: form.title === cat ? T.indigoText : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{cat}</button>
+              ))}
+            </div>
+          </FormField>
           <FormField label="İş Adı"><Input placeholder="Örn: Tanıtım Videosu, Logo Tasarımı" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
           <div style={{ display: "grid", gridTemplateColumns: perms.finance ? "1fr 1fr" : "1fr", gap: 12 }}>
             <FormField label="Adet"><Input type="number" placeholder="1" value={form.quantity ?? ""} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} /></FormField>
