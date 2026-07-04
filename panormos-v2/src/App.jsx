@@ -2576,6 +2576,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [reportModal,setReportModal]=useState(null);     // görev raporu
   const [columnModal,setColumnModal]=useState(null);     // kolon "tümünü gör" modalı
   const [approvalModal,setApprovalModal]=useState(null);  // onaya gönder (WhatsApp) modalı
+  const [revisionModal,setRevisionModal]=useState(null);  // revize modalı
   const [approvalUploading,setApprovalUploading]=useState(false);
 
   const cols=[
@@ -2583,6 +2584,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     {id:"inprogress",label:"Başlandı",color:"#7DA4C7"},
     {id:"review",label:"İncelemede",color:T.amber},
     {id:"done",label:"Tamamlandı",color:T.green},
+    {id:"revision",label:"Revize",color:"#EF4444"},
     {id:"approval",label:"Onaya Gönderildi",color:"#25D366"},
     {id:"published",label:"Paylaşım Yapıldı",color:"#A855F7"},
   ];
@@ -2649,6 +2651,19 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   };
 
   // Görevi yeniden ata (atama tarihini otomatik güncelle)
+  // Revize al: görevi "revision" kolonuna taşı + kim/ne zaman/açıklama kaydet
+  const confirmRevision = async () => {
+    const rm = revisionModal;
+    if(!rm.note || !rm.note.trim()){ alert("Lütfen revize açıklaması yazın"); return; }
+    const nowIso = new Date().toISOString();
+    const by = currentStaff?.name || "Bilinmeyen";
+    const { error } = await supabase.from('tasks').update({ col: "revision", revision_note: rm.note.trim(), revision_by: by, revision_at: nowIso }).eq('id', rm.taskId);
+    if(error){ alert("Revize kaydedilemedi: "+error.message+"\n\nREVIZE-SQL kodunu çalıştırın."); return; }
+    setTasks(prev=>prev.map(t=>t.id===rm.taskId?{...t,col:"revision",revisionNote:rm.note.trim(),revisionBy:by,revisionAt:nowIso}:t));
+    if(selectedTask && selectedTask.id===rm.taskId){ setSelectedTask({...selectedTask,col:"revision",revisionNote:rm.note.trim(),revisionBy:by,revisionAt:nowIso}); }
+    setRevisionModal(null);
+  };
+
   const reassignTask = async (taskId, newAssignee) => {
     const val = newAssignee || null;
     const assignedAt = val ? new Date().toISOString() : null;
@@ -2760,6 +2775,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           </div>
         )}
         {task.assignedAt && <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 5 }}>📌 {fmtDateTime(task.assignedAt)}</div>}
+        {task.col==="revision" && task.revisionNote && <div style={{ fontSize: 9, color: "#F87171", marginBottom: 5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔄 {task.revisionNote}</div>}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
           <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: priorityConfig[task.priority]?.bg, color: priorityConfig[task.priority]?.color }}>{priorityConfig[task.priority]?.label}</span>
           {task.client && <span style={{ fontSize: 9, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 80 }}>{task.client}</span>}
@@ -2833,7 +2849,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     <div style={{display:"flex",gap:8,marginBottom:16}}>
       <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
       <Btn onClick={()=>{
-        const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",approval:"Onaya Gönderildi",published:"Paylaşım Yapıldı"};
+        const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",revision:"Revize",approval:"Onaya Gönderildi",published:"Paylaşım Yapıldı"};
         const rows = tasks.map(t => ({
           "Görev": t.title,
           "Müşteri": t.client || "—",
@@ -2868,6 +2884,13 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               </Select>
               {selectedTask.assignedAt && <div style={{fontSize:11,color:T.amberText,marginTop:6}}>📌 Atandı: {fmtDateTime(selectedTask.assignedAt)}</div>}
             </div>
+            {selectedTask.revisionNote && (
+              <div style={{background:"rgba(239,68,68,0.1)",border:`1px solid rgba(239,68,68,0.3)`,borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:11,color:"#F87171",fontWeight:700,marginBottom:6,textTransform:"uppercase"}}>🔄 Revize Talebi</div>
+                <div style={{fontSize:13,color:T.textPrimary,marginBottom:8,lineHeight:1.5}}>{selectedTask.revisionNote}</div>
+                <div style={{fontSize:11,color:T.textMuted}}>✍️ {selectedTask.revisionBy||"—"}{selectedTask.revisionAt?` · ${fmtDateTime(selectedTask.revisionAt)}`:""}</div>
+              </div>
+            )}
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                 {cols.map(c=>(
@@ -2878,8 +2901,9 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               </div>
             </div>
           </div>
-          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
             <button onClick={()=>{setDeleteModal({taskId:selectedTask.id,reason:"",note:""});}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.redDim,color:T.redText,border:"none",cursor:"pointer"}}>🗑 Sil</button>
+            <button onClick={()=>setRevisionModal({taskId:selectedTask.id,note:""})} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:"rgba(239,68,68,0.15)",color:"#F87171",border:"none",cursor:"pointer"}}>🔄 Revize</button>
             <button onClick={()=>{setEditForm({id:selectedTask.id,title:selectedTask.title,client:selectedTask.client,type:selectedTask.type||"Tasarım",priority:selectedTask.priority||"mid",due:selectedTask.due||""});setEditModal(true);}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.bgSurface,color:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>✏️ Düzenle</button>
             <button onClick={()=>setSelectedTask(null)} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
           </div>
@@ -2908,6 +2932,23 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       </div>
     )}
 
+    {/* Revize Modalı */}
+    {revisionModal && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}} onClick={()=>setRevisionModal(null)}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:440}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:15,fontWeight:700,color:T.textPrimary,marginBottom:6}}>🔄 Revize Al</div>
+          <div style={{fontSize:12,color:T.textMuted,marginBottom:16,lineHeight:1.5}}>Görev "Revize" kolonuna taşınacak. Revizeyi <strong style={{color:T.textPrimary}}>{currentStaff?.name}</strong> olarak, şu an ({new Date().toLocaleDateString("tr-TR")} {new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}) kaydedilecek.</div>
+          <FormField label="Revize Açıklaması (ne değişmeli?)">
+            <Textarea placeholder="Örn: Logo daha büyük olsun, arka plan mavi yapılsın..." value={revisionModal.note} onChange={e=>setRevisionModal({...revisionModal,note:e.target.value})} minHeight={90} />
+          </FormField>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
+            <Btn onClick={()=>setRevisionModal(null)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={confirmRevision} style={{background:"#EF4444",border:"none"}}>🔄 Revize Olarak İşaretle</Btn>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* Kişiye göre filtre */}
     <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
       <span style={{fontSize:11,color:T.textMuted,fontWeight:600,marginRight:4}}>Kişi:</span>
@@ -2919,7 +2960,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       ))}
     </div>
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:10}}>
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
         const allTasks = getAllColTasks(col.id);
@@ -6501,6 +6542,7 @@ async function loadAllData() {
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
     id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "", clientId: t.client_id || null,
     type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
+    revisionNote: t.revision_note || "", revisionBy: t.revision_by || "", revisionAt: t.revision_at || null,
   }));
 
   // Alfabetik sıralama (Türkçe) — tüm sayfalara yansır
