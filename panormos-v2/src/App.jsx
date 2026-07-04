@@ -5193,6 +5193,62 @@ async function uploadAccountingDoc(file, prefix) {
   return { url, name: file.name };
 }
 
+// Müşteri carisine fatura yükleme + listeleme
+function ClientInvoiceUpload({ clientId, clientName }) {
+  const [invoices, setInvoices] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const load = async () => {
+    const { data } = await supabase.from('client_invoices').select('*').eq('client_id', clientId).order('uploaded_at', { ascending: false });
+    setInvoices(data || []);
+  };
+  useEffect(() => { load(); }, [clientId]);
+
+  const onFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const r = await uploadAccountingDoc(file, "faturalar");
+      const { error } = await supabase.from('client_invoices').insert({ client_id: clientId, file_url: r.url, file_name: r.name, month_ref: (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;})() });
+      if (error) { alert("Fatura kaydedilemedi: " + error.message + "\n\nSTORAGE-POLITIKA-SQL kodunu çalıştırın."); }
+      else { load(); }
+    } catch (err) { alert("Yükleme hatası: " + err.message + "\n\nSTORAGE-POLITIKA-SQL kodunu çalıştırın."); }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const del = async (id) => { if (!window.confirm("Bu fatura silinsin mi?")) return; await supabase.from('client_invoices').delete().eq('id', id); load(); };
+
+  return (
+    <div style={{ marginTop: 12, padding: "12px", background: T.bgInput, borderRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: invoices.length ? 10 : 0, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🧾 Faturalar ({invoices.length})</div>
+        <div>
+          <input ref={fileRef} type="file" accept=".pdf,image/*" onChange={onFile} style={{ display: "none" }} />
+          <Btn variant="primary" onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading} style={{ fontSize: 11, padding: "6px 12px" }}>{uploading ? "Yükleniyor..." : "📎 Fatura Yükle (PDF)"}</Btn>
+        </div>
+      </div>
+      {invoices.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {invoices.map(inv => (
+            <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: T.bgCard, borderRadius: 8 }}>
+              <span style={{ fontSize: 16 }}>🧾</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <a href={inv.file_url} target="_blank" rel="noopener" style={{ fontSize: 13, color: T.indigoText, fontWeight: 600, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{inv.file_name}</a>
+                <div style={{ fontSize: 10, color: T.textMuted }}>{inv.uploaded_at ? new Date(inv.uploaded_at).toLocaleDateString("tr-TR") : ""}</div>
+              </div>
+              <a href={inv.file_url} target="_blank" rel="noopener" style={{ fontSize: 11, color: T.textSecondary, textDecoration: "none", padding: "4px 8px", background: T.bgSurface, borderRadius: 6 }}>Aç</a>
+              <button onClick={() => del(inv.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AccountingSpending() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -5553,6 +5609,8 @@ function AccountingCari({ clients }) {
                       }} style={{background:"#25D366",color:"#fff",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📱 WhatsApp Hatırlatma</Btn>
                       <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
                     </div>
+                    {/* Fatura yükleme */}
+                    <ClientInvoiceUpload clientId={cs.client.id} clientName={cs.client.name} />
                     <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylık Ödeme Durumu</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
                       {cs.months.map(m => {
