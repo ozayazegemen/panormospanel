@@ -516,13 +516,13 @@ function ClientCalendar({ client }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {selectedDay.dayPublishes && selectedDay.dayPublishes.length > 0 && (
                 <div style={{ padding: "14px 16px", background: "rgba(16,185,129,0.1)", borderRadius: 10, borderLeft: "3px solid #10B981" }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: T.greenText, marginBottom: 8 }}>✅ Yapılan Paylaşımlar ({selectedDay.dayPublishes.length})</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.greenText, marginBottom: 8 }}>✅ Yapılan Paylaşımlar ({selectedDay.dayPublishes.reduce((s,p)=>s+(p.quantity||1),0)})</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                     {selectedDay.dayPublishes.map((p, pi) => {
-                      const ctLabel = {post:"Post",reels:"Reels",carousel:"Kaydırmalı Post",story:"Hikaye"}[p.contentType]||p.contentType;
+                      const ctLabel = {post:"Post",reels:"Reels",carousel:"Kaydırmalı Post",story:"Hikaye",video:"Video"}[p.contentType]||p.contentType;
                       return (
                         <div key={pi} style={{ padding: "8px 12px", background: T.bgInput, borderRadius: 8, fontSize: 12 }}>
-                          <div style={{ color: T.textPrimary, fontWeight: 600 }}>{platformConfig[p.platform]?.label || p.platform} · {ctLabel}</div>
+                          <div style={{ color: T.textPrimary, fontWeight: 600 }}>{(p.quantity||1)>1?`${p.quantity}× `:""}{platformConfig[p.platform]?.label || p.platform} · {ctLabel}</div>
                           <div style={{ color: T.textMuted, fontSize: 11, marginTop: 2 }}>🕐 {new Date(p.publishedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}</div>
                         </div>
                       );
@@ -884,7 +884,7 @@ function printClientDetail(client, perms) {
   // Anlaşma karşılaştırması
   const quota = client.quotaDetail && Object.keys(client.quotaDetail).length > 0 ? client.quotaDetail : {};
   const actual = {};
-  thisMonthPub.forEach(p => { if (!actual[p.platform]) actual[p.platform] = {}; actual[p.platform][p.contentType] = (actual[p.platform][p.contentType] || 0) + 1; });
+  thisMonthPub.forEach(p => { if (!actual[p.platform]) actual[p.platform] = {}; actual[p.platform][p.contentType] = (actual[p.platform][p.contentType] || 0) + (p.quantity||1); });
   const platSet = new Set([...Object.keys(quota), ...Object.keys(actual)]);
   let compRowsHtml = "";
   platSet.forEach(plat => {
@@ -934,7 +934,7 @@ function printClientDetail(client, perms) {
 
     <div class="cards">
       ${perms && perms.finance ? `<div class="card"><div class="lbl">Aylık Paket</div><div class="val">${fmtMoney(client.monthlyFee)}</div></div>` : ""}
-      <div class="card"><div class="lbl">Bu Ay Paylaşım</div><div class="val">${thisMonthPub.length}</div></div>
+      <div class="card"><div class="lbl">Bu Ay Paylaşım</div><div class="val">${thisMonthPub.reduce((s,p)=>s+(p.quantity||1),0)}</div></div>
       <div class="card"><div class="lbl">Medya Dosyası</div><div class="val">${(client.media || []).length}</div></div>
       <div class="card"><div class="lbl">Sözleşme Başlangıç</div><div class="val">${client.contractStart || "—"}</div></div>
     </div>
@@ -991,7 +991,7 @@ function printMonthlyReport(client) {
 
   // Platform ve tür kırılımı
   const byPlatform = {}; const byType = {};
-  pubs.forEach(p => { byPlatform[p.platform] = (byPlatform[p.platform] || 0) + 1; byType[p.contentType] = (byType[p.contentType] || 0) + 1; });
+  pubs.forEach(p => { const q=p.quantity||1; byPlatform[p.platform] = (byPlatform[p.platform] || 0) + q; byType[p.contentType] = (byType[p.contentType] || 0) + q; });
 
   // Anlaşma
   const quota = client.quotaDetail && Object.keys(client.quotaDetail).length > 0 ? client.quotaDetail : {};
@@ -1036,11 +1036,11 @@ function printMonthlyReport(client) {
       <div class="logo">panormos <span class="m">medya.</span></div>
       <h1>${client.name}</h1>
       <div class="period">${monthName} ${year} — Aylık Sosyal Medya Raporu</div>
-      <div class="big">${pubs.length}</div>
+      <div class="big">${pubs.reduce((s,p)=>s+(p.quantity||1),0)}</div>
       <div class="biglbl">bu ay yapılan toplam paylaşım</div>
     </div>
 
-    ${quotaTotal > 0 ? `<div class="agree">📋 Anlaşma: Aylık ${quotaTotal} içerik · Bu ay ${pubs.length} içerik paylaşıldı ${pubs.length >= quotaTotal ? "✓ Hedef tamamlandı!" : `(${quotaTotal - pubs.length} kaldı)`}</div>` : ""}
+    ${quotaTotal > 0 ? `<div class="agree">📋 Anlaşma: Aylık ${quotaTotal} içerik · Bu ay ${pubs.reduce((s,p)=>s+(p.quantity||1),0)} içerik paylaşıldı ${pubs.reduce((s,p)=>s+(p.quantity||1),0) >= quotaTotal ? "✓ Hedef tamamlandı!" : `(${quotaTotal - pubs.reduce((s,p)=>s+(p.quantity||1),0)} kaldı)`}</div>` : ""}
 
     <div class="row2">
       <div class="box">
@@ -2187,13 +2187,13 @@ function ClientOverview({client, perms}) {
     const d = new Date(p.publishedAt);
     return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
   });
-  const totalThisMonth = thisMonthPublishes.length;
+  const totalThisMonth = thisMonthPublishes.reduce((s,p)=>s+(p.quantity||1),0);
 
-  // Gerçekleşen: platform+tür bazında say  actual[platform][type] = adet
+  // Gerçekleşen: platform+tür bazında say  actual[platform][type] = adet (quantity toplanır)
   const actual = {};
   thisMonthPublishes.forEach(p=>{
     if(!actual[p.platform]) actual[p.platform]={};
-    actual[p.platform][p.contentType] = (actual[p.platform][p.contentType]||0)+1;
+    actual[p.platform][p.contentType] = (actual[p.platform][p.contentType]||0)+(p.quantity||1);
   });
 
   // Anlaşma (detaylı kota)
@@ -2607,7 +2607,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     // "Paylaşım Yapıldı" kolonuna taşınıyorsa önce paylaşım bilgilerini sor
     if(newCol==="published"){
       const t = tasks.find(x=>x.id===id);
-      setPublishModal({ taskId:id, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", content_type:"post" });
+      setPublishModal({ taskId:id, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", counts:{} });
       return;
     }
     // "Onaya Gönderildi" kolonuna taşınıyorsa müşteri seç + WhatsApp
@@ -2636,12 +2636,17 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     const pm = publishModal;
     if(!pm.client_id){ alert("Lütfen paylaşım yapılan müşteriyi seçin"); return; }
     if(!pm.publisher_id){ alert("Lütfen paylaşımı yapan çalışanı seçin"); return; }
+    const counts = pm.counts || {};
+    const total = Object.values(counts).reduce((s,n)=>s+(n||0),0);
+    if(total < 1){ alert("Lütfen en az 1 içerik adedi girin (örn: 3 Post)"); return; }
     const nowIso = new Date().toISOString();
-    const { error } = await supabase.from('publishes').insert({
+    // Her içerik türü için, adedi kadar quantity ile bir kayıt oluştur
+    const rows = Object.entries(counts).filter(([k,n])=>(n||0)>0).map(([content_type,qty])=>({
       task_id: pm.taskId, client_id: pm.client_id, publisher_id: pm.publisher_id,
-      platform: pm.platform, content_type: pm.content_type, published_at: nowIso,
-    });
-    if(error){ alert("Paylaşım kaydedilemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırın."); return; }
+      platform: pm.platform, content_type, quantity: qty, published_at: nowIso,
+    }));
+    const { error } = await supabase.from('publishes').insert(rows);
+    if(error){ alert("Paylaşım kaydedilemedi: "+error.message+"\n\nPAYLASIM-ADET-SQL kodunu çalıştırın."); return; }
     await supabase.from('tasks').update({ col: "published" }).eq('id', pm.taskId);
     setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:"published"}:t));
     if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:"published"}); }
@@ -3136,13 +3141,22 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           <option value="x">X (Twitter)</option>
         </Select>
       </FormField>
-      <FormField label="İçerik Türü">
-        <Select value={publishModal.content_type} onChange={e=>setPublishModal(m=>({...m,content_type:e.target.value}))}>
-          <option value="post">Post</option>
-          <option value="reels">Reels</option>
-          <option value="carousel">Kaydırmalı Post (Carousel)</option>
-          <option value="story">Hikaye (Story)</option>
-        </Select>
+      <FormField label="İçerik Türü ve Adedi (kaç tane paylaşıldı?)">
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:8}}>Bir görevde birden fazla içerik olabilir. Her türden kaç adet paylaşıldıysa sayıyı girin.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {[{k:"post",l:"📷 Post"},{k:"reels",l:"🎬 Reels"},{k:"carousel",l:"🖼️ Carousel"},{k:"story",l:"⭕ Hikaye"},{k:"video",l:"🎥 Video"}].map(ct=>{
+            const counts = publishModal.counts||{};
+            return (
+              <div key={ct.k} style={{display:"flex",alignItems:"center",gap:8,background:T.bgInput,borderRadius:8,padding:"7px 10px"}}>
+                <span style={{flex:1,fontSize:12,color:T.textPrimary}}>{ct.l}</span>
+                <button type="button" onClick={()=>setPublishModal(m=>({...m,counts:{...(m.counts||{}),[ct.k]:Math.max(0,((m.counts||{})[ct.k]||0)-1)}}))} style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSecondary,cursor:"pointer",fontSize:14,fontWeight:700,padding:0}}>−</button>
+                <span style={{minWidth:20,textAlign:"center",fontSize:14,fontWeight:700,color:(counts[ct.k]||0)>0?T.amberText:T.textMuted}}>{counts[ct.k]||0}</span>
+                <button type="button" onClick={()=>setPublishModal(m=>({...m,counts:{...(m.counts||{}),[ct.k]:((m.counts||{})[ct.k]||0)+1}}))} style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSecondary,cursor:"pointer",fontSize:14,fontWeight:700,padding:0}}>+</button>
+              </div>
+            );
+          })}
+        </div>
+        {(()=>{ const c=publishModal.counts||{}; const tot=Object.values(c).reduce((s,n)=>s+(n||0),0); return <div style={{marginTop:10,fontSize:12,fontWeight:600,color:tot>0?T.greenText:T.textMuted,textAlign:"right"}}>Toplam: {tot} paylaşım</div>; })()}
       </FormField>
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
         <Btn onClick={()=>setPublishModal(null)}>Vazgeç</Btn>
@@ -6554,7 +6568,7 @@ async function loadAllData() {
       id: p.id, date: p.date, platform: p.platform, type: p.type, title: p.title, status: p.status, description: p.description, approval: p.approval || 'pending', approvalNote: p.approval_note || '',
     })),
     publishesList: (publishesRaw || []).filter(p => p.client_id === c.id).map(p => ({
-      id: p.id, taskId: p.task_id, publisherId: p.publisher_id, platform: p.platform, contentType: p.content_type, publishedAt: p.published_at,
+      id: p.id, taskId: p.task_id, publisherId: p.publisher_id, platform: p.platform, contentType: p.content_type, quantity: p.quantity || 1, publishedAt: p.published_at,
     })),
     invoices: (invoicesRaw || []).filter(i => i.client_id === c.id).map(i => ({
       id: i.id, no: i.no, date: i.date, amount: i.amount, vat: i.vat, total: i.total, status: i.status, desc: i.description,
