@@ -2468,7 +2468,7 @@ function ClientInvoices({client}) {
 // ─────────────────────────────────────────────
 // IDEAS PAGE (YENİ)
 // ─────────────────────────────────────────────
-function IdeasPage() {
+function IdeasPage({ currentStaff }) {
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -2486,8 +2486,9 @@ function IdeasPage() {
     if (!form.title) return;
     const { error } = await supabase.from('ideas').insert({
       title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
+      created_by: currentStaff?.name || "",
     });
-    if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nDUZELTMELER-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
+    if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
     setModal(false); setForm({});
     load();
   };
@@ -2513,6 +2514,7 @@ function IdeasPage() {
           "Başlık": i.title,
           "Açıklama": i.description || "—",
           "Kategori": i.category || "—",
+          "Ekleyen": i.created_by || "—",
           "Durum": statusLabels[i.status] || i.status,
         }));
         printData("Fikir Listesi", rows);
@@ -2532,6 +2534,7 @@ function IdeasPage() {
               <Badge status={idea.status} />
             </div>
             <div style={{fontSize:12,color:T.textMuted,marginBottom:12,whiteSpace:"pre-wrap"}}>{idea.description}</div>
+            {idea.created_by && <div style={{fontSize:11,color:T.indigoText,marginBottom:10,fontWeight:600}}>👤 {idea.created_by}{idea.created_at?` · ${new Date(idea.created_at).toLocaleDateString("tr-TR")}`:""}</div>}
             <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between"}}>
               {idea.category ? <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span> : <span/>}
               <button onClick={()=>deleteIdea(idea.id)} style={{background:"none",border:"none",color:T.redText,cursor:"pointer",fontSize:13}}>🗑</button>
@@ -7589,7 +7592,7 @@ export default function App() {
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
-        {page==="ideas"&&<IdeasPage/>}
+        {page==="ideas"&&<IdeasPage currentStaff={currentStaff}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
         {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
