@@ -3799,6 +3799,150 @@ function CalendarPage({clients}) {
 }
 
 // ─────────────────────────────────────────────
+// HAFTALIK ÇEKİM PLANI — tüm çalışanlar ekleyip düzenleyebilir
+// ─────────────────────────────────────────────
+const SHOOT_DAY_NAMES = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"];
+
+function ShootPlanPage({ clients, currentStaff }) {
+  const [shoots, setShoots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [editId, setEditId] = useState(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const load = async () => {
+    const { data, error } = await supabase.from('shoot_plans').select('*').is('deleted_at', null).order('shoot_date', { ascending: true }).order('shoot_time', { ascending: true });
+    if (!error) setShoots(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const fmtISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  const todayISO = fmtISO(new Date());
+
+  const weekStart = (() => {
+    const d = new Date();
+    const wd = (d.getDay() + 6) % 7;
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd);
+    monday.setDate(monday.getDate() + weekOffset * 7);
+    return monday;
+  })();
+  const weekDays = Array.from({ length: 7 }, (_, i) => { const dd = new Date(weekStart); dd.setDate(dd.getDate() + i); return dd; });
+  const weekEnd = weekDays[6];
+
+  const shootsByDate = {};
+  shoots.forEach(s => { (shootsByDate[s.shoot_date] = shootsByDate[s.shoot_date] || []).push(s); });
+
+  const clientName = (id) => clients.find(c => c.id === id)?.name || "—";
+
+  const openAdd = (dateStr) => { setEditId(null); setForm({ client_id: clients[0]?.id || "", shoot_date: dateStr || todayISO, shoot_time: "10:00", note: "" }); setModal(true); };
+  const openEdit = (s) => { setEditId(s.id); setForm({ client_id: s.client_id, shoot_date: s.shoot_date, shoot_time: (s.shoot_time || "").slice(0, 5), note: s.note || "" }); setModal(true); };
+  const closeModal = () => { setModal(false); setEditId(null); setForm({}); };
+
+  const save = async () => {
+    if (!form.client_id) { alert("Lütfen müşteri seçin"); return; }
+    if (!form.shoot_date) { alert("Lütfen tarih girin"); return; }
+    if (!form.shoot_time) { alert("Lütfen saat girin"); return; }
+    if (editId) {
+      const { error } = await supabase.from('shoot_plans').update({
+        client_id: form.client_id, shoot_date: form.shoot_date, shoot_time: form.shoot_time, note: form.note || "",
+      }).eq('id', editId);
+      if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    } else {
+      const { error } = await supabase.from('shoot_plans').insert({
+        client_id: form.client_id, shoot_date: form.shoot_date, shoot_time: form.shoot_time, note: form.note || "",
+        created_by: currentStaff?.name || "",
+      });
+      if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSupabase'de 'shoot_plans' tablosunun oluşturulduğundan emin olun."); return; }
+    }
+    closeModal();
+    load();
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm("Bu çekim silinsin mi?")) return;
+    await supabase.from('shoot_plans').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    load();
+  };
+
+  const weekTotal = weekDays.reduce((s, d) => s + (shootsByDate[fmtISO(d)]?.length || 0), 0);
+
+  return <div>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Btn onClick={() => setWeekOffset(o => o - 1)}>◀</Btn>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, minWidth: 190, textAlign: "center" }}>
+          {weekStart.toLocaleDateString("tr-TR")} – {weekEnd.toLocaleDateString("tr-TR")}
+        </div>
+        <Btn onClick={() => setWeekOffset(o => o + 1)}>▶</Btn>
+        {weekOffset !== 0 && <Btn onClick={() => setWeekOffset(0)} style={{ fontSize: 11 }}>Bu hafta</Btn>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 12, color: T.textMuted }}>📷 Bu hafta <b style={{ color: T.textPrimary }}>{weekTotal}</b> çekim</span>
+        <Btn variant="primary" onClick={() => openAdd()}>+ Çekim Ekle</Btn>
+      </div>
+    </div>
+
+    {loading ? (
+      <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>
+    ) : (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
+        {weekDays.map((d, i) => {
+          const dateStr = fmtISO(d);
+          const isToday = dateStr === todayISO;
+          const dayShoots = (shootsByDate[dateStr] || []).slice().sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
+          return (
+            <Card key={dateStr} style={{ padding: 14, border: isToday ? `1px solid ${T.amber}` : undefined }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? T.amberText : T.textPrimary }}>{SHOOT_DAY_NAMES[i]}</div>
+                  <div style={{ fontSize: 10, color: T.textMuted }}>{d.toLocaleDateString("tr-TR")}{isToday ? " · Bugün" : ""}</div>
+                </div>
+                <button onClick={() => openAdd(dateStr)} title="Bu güne çekim ekle" style={{ background: T.bgSurface, border: `1px solid ${T.border}`, color: T.textSecondary, borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, lineHeight: 1 }}>+</button>
+              </div>
+              {dayShoots.length === 0 ? (
+                <div style={{ fontSize: 11, color: T.textMuted, textAlign: "center", padding: "14px 0" }}>Çekim yok</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {dayShoots.map(s => (
+                    <div key={s.id} onClick={() => openEdit(s)} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: T.amberText }}>🕐 {(s.shoot_time || "").slice(0, 5)}</span>
+                        <button onClick={(e) => { e.stopPropagation(); remove(s.id); }} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 12 }}>🗑</button>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName(s.client_id)}</div>
+                      {s.note && <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>{s.note}</div>}
+                      {s.created_by && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 5 }}>👤 {s.created_by}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    )}
+
+    {modal && <Modal title={editId ? "Çekimi Düzenle" : "Yeni Çekim Ekle"} onClose={closeModal} width={480}>
+      <FormField label="Müşteri">
+        <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}>
+          <option value="">Seçin...</option>
+          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+      </FormField>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}><FormField label="Tarih"><Input type="date" value={form.shoot_date || ""} onChange={e => setForm(f => ({ ...f, shoot_date: e.target.value }))} /></FormField></div>
+        <div style={{ flex: 1 }}><FormField label="Saat"><Input type="time" value={form.shoot_time || ""} onChange={e => setForm(f => ({ ...f, shoot_time: e.target.value }))} /></FormField></div>
+      </div>
+      {form.shoot_date && <div style={{ fontSize: 11, color: T.textMuted, marginTop: -6, marginBottom: 12 }}>📅 {SHOOT_DAY_NAMES[(new Date(form.shoot_date).getDay() + 6) % 7]}</div>}
+      <FormField label="Not (opsiyonel)"><Input placeholder="Örn: Drone çekimi, mekan detayları vb." value={form.note || ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></FormField>
+      <ModalActions onClose={closeModal} onSave={save} />
+    </Modal>}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
 // STAFF PAGE
 // ─────────────────────────────────────────────
 
@@ -4559,6 +4703,7 @@ const NAV=[
   {id:"leads",label:"Soğuk Arama",icon:"📞"},
   {id:"pricing",label:"Fiyatlar",icon:"💰"},
   {id:"calendar",label:"Takvim",icon:"📅"},
+  {id:"shootplan",label:"Çekim Planı",icon:"🎬"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"reports",label:"Raporlar",icon:"📊"},
@@ -7623,7 +7768,7 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shootplan' ? (isMobile?'🎬':'🎬 Haftalık Çekim Planı') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
@@ -7634,6 +7779,7 @@ export default function App() {
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
+        {page==="shootplan"&&<ShootPlanPage clients={clients} currentStaff={currentStaff}/>}
         {page==="ideas"&&<IdeasPage currentStaff={currentStaff}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
