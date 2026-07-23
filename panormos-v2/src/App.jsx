@@ -2758,16 +2758,44 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Bu haftanın başı (Pazartesi 00:00)
   const weekStart = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd); })();
 
-  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta gösterilir)
+  // Paylaşım tarihine göre yeniden eskiye sıralama (published kolonu için)
+  const sortByPublishDateDesc = (list) => list.slice().sort((a, b) => {
+    const da = publishDateByTask[a.id] ? new Date(publishDateByTask[a.id]).getTime() : 0;
+    const db = publishDateByTask[b.id] ? new Date(publishDateByTask[b.id]).getTime() : 0;
+    return db - da;
+  });
+
+  // Paylaşım tarihini göreceli gruba çevirir: Bugün / Dün / Bu Hafta / Geçen Hafta / Bu Ay / Daha Eski
+  const publishDateGroup = (iso) => {
+    if (!iso) return "Tarihsiz";
+    const startOfDay = (dt) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const today = startOfDay(new Date());
+    const day = startOfDay(new Date(iso));
+    const diffDays = Math.round((today - day) / 86400000);
+    if (diffDays <= 0) return "Bugün";
+    if (diffDays === 1) return "Dün";
+    if (diffDays <= 7) return "Bu Hafta";
+    if (diffDays <= 14) return "Geçen Hafta";
+    if (diffDays <= 30) return "Bu Ay";
+    return "Daha Eski";
+  };
+  const PUBLISH_GROUP_ORDER = ["Bugün", "Dün", "Bu Hafta", "Geçen Hafta", "Bu Ay", "Daha Eski", "Tarihsiz"];
+
+  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta gösterilir, en yeni paylaşım en üstte)
   const getColTasks = (colId) => {
     let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
     if (colId === "published") {
       list = list.filter(t => { const pd = publishDateByTask[t.id]; return pd && new Date(pd) >= weekStart; });
+      list = sortByPublishDateDesc(list);
     }
     return list;
   };
   // Kolonun TÜM görevleri (hafta filtresi yok) — detay modalı için
-  const getAllColTasks = (colId) => tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
+  const getAllColTasks = (colId) => {
+    let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
+    if (colId === "published") list = sortByPublishDateDesc(list);
+    return list;
+  };
 
   // Tek görev kartı (hem kolonda hem modalda kullanılır)
   const taskCardEl = (task) => {
@@ -3000,8 +3028,22 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       return (
         <Modal title={`${columnModal.label} — Tüm Görevler (${list.length})`} onClose={()=>setColumnModal(null)} width={560}>
           {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Tahtada sadece bu haftaki paylaşımlar gösterilir (her Pazartesi sıfırlanır). Burada <strong style={{color:T.textPrimary}}>tüm zamanların</strong> paylaşımları listelenir.</div>}
-          <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:480,overflowY:"auto"}}>
-            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : list.map(taskCardEl)}
+          <div style={{display:"flex",flexDirection:"column",gap:14,maxHeight:480,overflowY:"auto"}}>
+            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : (
+              columnModal.colId==="published" ? (()=>{
+                const groups = {};
+                list.forEach(t=>{
+                  const g = publishDateGroup(publishDateByTask[t.id]);
+                  (groups[g] = groups[g] || []).push(t);
+                });
+                return PUBLISH_GROUP_ORDER.filter(g=>groups[g] && groups[g].length>0).map(g=>(
+                  <div key={g}>
+                    <div style={{fontSize:10,fontWeight:700,color:T.textMuted,textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>{g} <span style={{opacity:0.7}}>({groups[g].length})</span></div>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>{groups[g].map(taskCardEl)}</div>
+                  </div>
+                ));
+              })() : list.map(taskCardEl)
+            )}
           </div>
         </Modal>
       );
