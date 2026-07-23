@@ -2758,44 +2758,16 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Bu haftanın başı (Pazartesi 00:00)
   const weekStart = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd); })();
 
-  // Paylaşım tarihine göre yeniden eskiye sıralama (published kolonu için)
-  const sortByPublishDateDesc = (list) => list.slice().sort((a, b) => {
-    const da = publishDateByTask[a.id] ? new Date(publishDateByTask[a.id]).getTime() : 0;
-    const db = publishDateByTask[b.id] ? new Date(publishDateByTask[b.id]).getTime() : 0;
-    return db - da;
-  });
-
-  // Paylaşım tarihini göreceli gruba çevirir: Bugün / Dün / Bu Hafta / Geçen Hafta / Bu Ay / Daha Eski
-  const publishDateGroup = (iso) => {
-    if (!iso) return "Tarihsiz";
-    const startOfDay = (dt) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
-    const today = startOfDay(new Date());
-    const day = startOfDay(new Date(iso));
-    const diffDays = Math.round((today - day) / 86400000);
-    if (diffDays <= 0) return "Bugün";
-    if (diffDays === 1) return "Dün";
-    if (diffDays <= 7) return "Bu Hafta";
-    if (diffDays <= 14) return "Geçen Hafta";
-    if (diffDays <= 30) return "Bu Ay";
-    return "Daha Eski";
-  };
-  const PUBLISH_GROUP_ORDER = ["Bugün", "Dün", "Bu Hafta", "Geçen Hafta", "Bu Ay", "Daha Eski", "Tarihsiz"];
-
-  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta gösterilir, en yeni paylaşım en üstte)
+  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta gösterilir)
   const getColTasks = (colId) => {
     let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
     if (colId === "published") {
       list = list.filter(t => { const pd = publishDateByTask[t.id]; return pd && new Date(pd) >= weekStart; });
-      list = sortByPublishDateDesc(list);
     }
     return list;
   };
   // Kolonun TÜM görevleri (hafta filtresi yok) — detay modalı için
-  const getAllColTasks = (colId) => {
-    let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
-    if (colId === "published") list = sortByPublishDateDesc(list);
-    return list;
-  };
+  const getAllColTasks = (colId) => tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
 
   // Tek görev kartı (hem kolonda hem modalda kullanılır)
   const taskCardEl = (task) => {
@@ -3028,22 +3000,8 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       return (
         <Modal title={`${columnModal.label} — Tüm Görevler (${list.length})`} onClose={()=>setColumnModal(null)} width={560}>
           {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Tahtada sadece bu haftaki paylaşımlar gösterilir (her Pazartesi sıfırlanır). Burada <strong style={{color:T.textPrimary}}>tüm zamanların</strong> paylaşımları listelenir.</div>}
-          <div style={{display:"flex",flexDirection:"column",gap:14,maxHeight:480,overflowY:"auto"}}>
-            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : (
-              columnModal.colId==="published" ? (()=>{
-                const groups = {};
-                list.forEach(t=>{
-                  const g = publishDateGroup(publishDateByTask[t.id]);
-                  (groups[g] = groups[g] || []).push(t);
-                });
-                return PUBLISH_GROUP_ORDER.filter(g=>groups[g] && groups[g].length>0).map(g=>(
-                  <div key={g}>
-                    <div style={{fontSize:10,fontWeight:700,color:T.textMuted,textTransform:"uppercase",letterSpacing:0.5,marginBottom:6}}>{g} <span style={{opacity:0.7}}>({groups[g].length})</span></div>
-                    <div style={{display:"flex",flexDirection:"column",gap:8}}>{groups[g].map(taskCardEl)}</div>
-                  </div>
-                ));
-              })() : list.map(taskCardEl)
-            )}
+          <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:480,overflowY:"auto"}}>
+            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : list.map(taskCardEl)}
           </div>
         </Modal>
       );
@@ -3795,150 +3753,6 @@ function CalendarPage({clients}) {
         )}
       </Modal>
     )}
-  </div>;
-}
-
-// ─────────────────────────────────────────────
-// HAFTALIK ÇEKİM PLANI — tüm çalışanlar ekleyip düzenleyebilir
-// ─────────────────────────────────────────────
-const SHOOT_DAY_NAMES = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"];
-
-function ShootPlanPage({ clients, currentStaff }) {
-  const [shoots, setShoots] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({});
-  const [editId, setEditId] = useState(null);
-  const [weekOffset, setWeekOffset] = useState(0);
-
-  const load = async () => {
-    const { data, error } = await supabase.from('shoot_plans').select('*').is('deleted_at', null).order('shoot_date', { ascending: true }).order('shoot_time', { ascending: true });
-    if (!error) setShoots(data || []);
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-
-  const fmtISO = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  const todayISO = fmtISO(new Date());
-
-  const weekStart = (() => {
-    const d = new Date();
-    const wd = (d.getDay() + 6) % 7;
-    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd);
-    monday.setDate(monday.getDate() + weekOffset * 7);
-    return monday;
-  })();
-  const weekDays = Array.from({ length: 7 }, (_, i) => { const dd = new Date(weekStart); dd.setDate(dd.getDate() + i); return dd; });
-  const weekEnd = weekDays[6];
-
-  const shootsByDate = {};
-  shoots.forEach(s => { (shootsByDate[s.shoot_date] = shootsByDate[s.shoot_date] || []).push(s); });
-
-  const clientName = (id) => clients.find(c => c.id === id)?.name || "—";
-
-  const openAdd = (dateStr) => { setEditId(null); setForm({ client_id: clients[0]?.id || "", shoot_date: dateStr || todayISO, shoot_time: "10:00", note: "" }); setModal(true); };
-  const openEdit = (s) => { setEditId(s.id); setForm({ client_id: s.client_id, shoot_date: s.shoot_date, shoot_time: (s.shoot_time || "").slice(0, 5), note: s.note || "" }); setModal(true); };
-  const closeModal = () => { setModal(false); setEditId(null); setForm({}); };
-
-  const save = async () => {
-    if (!form.client_id) { alert("Lütfen müşteri seçin"); return; }
-    if (!form.shoot_date) { alert("Lütfen tarih girin"); return; }
-    if (!form.shoot_time) { alert("Lütfen saat girin"); return; }
-    if (editId) {
-      const { error } = await supabase.from('shoot_plans').update({
-        client_id: form.client_id, shoot_date: form.shoot_date, shoot_time: form.shoot_time, note: form.note || "",
-      }).eq('id', editId);
-      if (error) { alert("Kaydedilemedi: " + error.message); return; }
-    } else {
-      const { error } = await supabase.from('shoot_plans').insert({
-        client_id: form.client_id, shoot_date: form.shoot_date, shoot_time: form.shoot_time, note: form.note || "",
-        created_by: currentStaff?.name || "",
-      });
-      if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSupabase'de 'shoot_plans' tablosunun oluşturulduğundan emin olun."); return; }
-    }
-    closeModal();
-    load();
-  };
-
-  const remove = async (id) => {
-    if (!window.confirm("Bu çekim silinsin mi?")) return;
-    await supabase.from('shoot_plans').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-    load();
-  };
-
-  const weekTotal = weekDays.reduce((s, d) => s + (shootsByDate[fmtISO(d)]?.length || 0), 0);
-
-  return <div>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Btn onClick={() => setWeekOffset(o => o - 1)}>◀</Btn>
-        <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, minWidth: 190, textAlign: "center" }}>
-          {weekStart.toLocaleDateString("tr-TR")} – {weekEnd.toLocaleDateString("tr-TR")}
-        </div>
-        <Btn onClick={() => setWeekOffset(o => o + 1)}>▶</Btn>
-        {weekOffset !== 0 && <Btn onClick={() => setWeekOffset(0)} style={{ fontSize: 11 }}>Bu hafta</Btn>}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 12, color: T.textMuted }}>📷 Bu hafta <b style={{ color: T.textPrimary }}>{weekTotal}</b> çekim</span>
-        <Btn variant="primary" onClick={() => openAdd()}>+ Çekim Ekle</Btn>
-      </div>
-    </div>
-
-    {loading ? (
-      <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>
-    ) : (
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
-        {weekDays.map((d, i) => {
-          const dateStr = fmtISO(d);
-          const isToday = dateStr === todayISO;
-          const dayShoots = (shootsByDate[dateStr] || []).slice().sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
-          return (
-            <Card key={dateStr} style={{ padding: 14, border: isToday ? `1px solid ${T.amber}` : undefined }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? T.amberText : T.textPrimary }}>{SHOOT_DAY_NAMES[i]}</div>
-                  <div style={{ fontSize: 10, color: T.textMuted }}>{d.toLocaleDateString("tr-TR")}{isToday ? " · Bugün" : ""}</div>
-                </div>
-                <button onClick={() => openAdd(dateStr)} title="Bu güne çekim ekle" style={{ background: T.bgSurface, border: `1px solid ${T.border}`, color: T.textSecondary, borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, lineHeight: 1 }}>+</button>
-              </div>
-              {dayShoots.length === 0 ? (
-                <div style={{ fontSize: 11, color: T.textMuted, textAlign: "center", padding: "14px 0" }}>Çekim yok</div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {dayShoots.map(s => (
-                    <div key={s.id} onClick={() => openEdit(s)} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: T.amberText }}>🕐 {(s.shoot_time || "").slice(0, 5)}</span>
-                        <button onClick={(e) => { e.stopPropagation(); remove(s.id); }} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 12 }}>🗑</button>
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: T.textPrimary, marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName(s.client_id)}</div>
-                      {s.note && <div style={{ fontSize: 10, color: T.textMuted, marginTop: 2 }}>{s.note}</div>}
-                      {s.created_by && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 5 }}>👤 {s.created_by}</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-    )}
-
-    {modal && <Modal title={editId ? "Çekimi Düzenle" : "Yeni Çekim Ekle"} onClose={closeModal} width={480}>
-      <FormField label="Müşteri">
-        <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}>
-          <option value="">Seçin...</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </Select>
-      </FormField>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ flex: 1 }}><FormField label="Tarih"><Input type="date" value={form.shoot_date || ""} onChange={e => setForm(f => ({ ...f, shoot_date: e.target.value }))} /></FormField></div>
-        <div style={{ flex: 1 }}><FormField label="Saat"><Input type="time" value={form.shoot_time || ""} onChange={e => setForm(f => ({ ...f, shoot_time: e.target.value }))} /></FormField></div>
-      </div>
-      {form.shoot_date && <div style={{ fontSize: 11, color: T.textMuted, marginTop: -6, marginBottom: 12 }}>📅 {SHOOT_DAY_NAMES[(new Date(form.shoot_date).getDay() + 6) % 7]}</div>}
-      <FormField label="Not (opsiyonel)"><Input placeholder="Örn: Drone çekimi, mekan detayları vb." value={form.note || ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></FormField>
-      <ModalActions onClose={closeModal} onSave={save} />
-    </Modal>}
   </div>;
 }
 
@@ -4703,7 +4517,6 @@ const NAV=[
   {id:"leads",label:"Soğuk Arama",icon:"📞"},
   {id:"pricing",label:"Fiyatlar",icon:"💰"},
   {id:"calendar",label:"Takvim",icon:"📅"},
-  {id:"shootplan",label:"Çekim Planı",icon:"🎬"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"reports",label:"Raporlar",icon:"📊"},
@@ -4747,7 +4560,8 @@ const PRINT_STYLES = `
   .pkg .pb { padding:14px; }
   .pkg .price { font-size:24px; font-weight:800; text-align:center; color:#1A2B3F; }
   .pkg.pop .price { color:#F25124; }
-  .pkg .pn { font-size:9px; color:#8A8F98; text-align:center; margin-bottom:12px; }
+  .pkg .pn { font-size:9px; color:#8A8F98; text-align:center; margin-bottom:4px; }
+  .pkg .vat { font-size:11px; color:#0A7A4A; font-weight:800; text-align:center; margin-bottom:12px; background:#EAF7F0; border-radius:5px; padding:4px 6px; }
   .pkg ul { list-style:none; }
   .pkg li { font-size:10px; line-height:1.5; padding:3px 0; padding-left:16px; position:relative; }
   .pkg li:before { content:"✓"; color:#10B981; font-weight:800; position:absolute; left:0; }
@@ -4760,8 +4574,35 @@ const PRINT_STYLES = `
   .footer .t { font-weight:800; font-size:13px; margin-bottom:3px; }
   .footer .c { font-size:11px; line-height:1.7; }
   .terms { font-size:9px; color:#8A8F98; margin-top:14px; line-height:1.5; }
-  @media print { body { padding:16px; } .head,.pkg.pop .ph,.pkg .ph,th,.footer { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  @media print { body { padding:16px; } .head,.pkg.pop .ph,.pkg .ph,.pkg .vat,th,.footer { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 `;
+
+// ── Teklif / fiyat listesi ayarları (panelden düzenlenir) ──
+const QUOTE_SETTINGS = {
+  phone: "0 (536) 471 60 12",
+  email: "info@panormosmedya.com",
+  web: "panormosmedya.com",
+  vat_rate: 20,
+  list_footer_title: "Teklifimizi incelediğiniz için teşekkür ederiz",
+  list_footer_text: "Size özel paket için bizimle iletişime geçin.",
+  quote_footer_title: "Teklifimizi incelediğiniz için teşekkür ederiz",
+  quote_footer_text: "Başlamak için bizimle iletişime geçin.",
+};
+async function loadQuoteSettings() {
+  try {
+    const { data } = await supabase.from('panel_settings').select('*');
+    (data || []).forEach(r => {
+      if (r.key === 'vat_rate') QUOTE_SETTINGS.vat_rate = Number(r.value) || 20;
+      else if (r.key in QUOTE_SETTINGS) QUOTE_SETTINGS[r.key] = r.value || "";
+    });
+  } catch (e) { /* tablo yoksa varsayılanlar kullanılır */ }
+}
+// KDV dahil tutar
+const withVat = (n) => Number(n || 0) * (1 + (QUOTE_SETTINGS.vat_rate || 20) / 100);
+// Eski "KDV hariç" ifadesini nottan temizle
+const cleanPriceNote = (s) => String(s || "").replace(/[·\-|]?\s*KDV\s*hari[çc]/gi, "").replace(/[\s·\-|]+$/,"").trim();
+// PDF alt bilgi kutusu
+const footerHTML = (title, text) => `<div class="footer"><div><div class="t">${title}</div><div style="font-size:11px;">${text}</div></div><div class="c"><strong>Tel:</strong> ${QUOTE_SETTINGS.phone}<br><strong>E-posta:</strong> ${QUOTE_SETTINGS.email}<br><strong>Web:</strong> ${QUOTE_SETTINGS.web}</div></div>`;
 
 function printPricingCatalog(packages, addons) {
   const now = new Date().toLocaleDateString("tr-TR");
@@ -4773,8 +4614,9 @@ function printPricingCatalog(packages, addons) {
         <div class="tl">${p.tagline || ''}</div>
       </div>
       <div class="pb">
-        <div class="price">${fmtMoney(Number(p.price))}</div>
-        <div class="pn">${p.price_note || ''}</div>
+        <div class="price">${fmtMoney(Number(p.price))} <span style="font-size:13px;font-weight:700;">+ KDV</span></div>
+        <div class="pn">${cleanPriceNote(p.price_note)}</div>
+        <div class="vat">KDV Dahil Toplam: ${fmtMoney(withVat(p.price))}</div>
         <ul>${(p.features || []).map(f => `<li>${f}</li>`).join("")}</ul>
       </div>
     </div>`).join("");
@@ -4788,8 +4630,8 @@ function printPricingCatalog(packages, addons) {
     <div class="intro">İşletmenizin sosyal medya hesaplarını profesyonel ekibimize emanet edin. İçerik üretiminden reklam yönetimine kadar tüm süreci sizin için yönetiyoruz.</div>
     <div class="pkgs">${pkgHTML}</div>
     ${addonHTML}
-    <div class="footer"><div><div class="t">Teklifi beğendiniz mi?</div><div style="font-size:11px;">Hemen başlayalım, size özel paket için iletişime geçin.</div></div><div class="c"><strong>Tel:</strong> 0(5XX) XXX XX XX<br><strong>E-posta:</strong> info@panormosmedya.com<br><strong>Web:</strong> panormosmedya.com</div></div>
-    <div class="terms">Fiyatlara KDV dahil değildir. · Reklam bütçeleri pakete dahil değildir. · Paketler ihtiyaca göre özelleştirilebilir.</div>
+    ${footerHTML(QUOTE_SETTINGS.list_footer_title, QUOTE_SETTINGS.list_footer_text)}
+    <div class="terms">Belirtilen paket fiyatlarına %${QUOTE_SETTINGS.vat_rate} KDV eklenmiştir; toplam tutarlar KDV dahildir. · Reklam bütçeleri pakete dahil değildir. · Paketler ihtiyaca göre özelleştirilebilir.</div>
   </body></html>`;
   openPrintWindow(html);
 }
@@ -4807,13 +4649,14 @@ function printQuote(quote, addonList) {
     <div class="intro">Sayın <strong>${quote.business_name}</strong> yetkilisi, işletmeniz için hazırladığımız sosyal medya yönetim teklifimiz aşağıdadır.</div>
     <div class="pkgs"><div class="pkg pop" style="max-width:340px;">
       <div class="ph"><div class="tag">SEÇİLEN PAKET</div><div class="nm">${quote.package_name || 'Özel Paket'}</div><div class="tl">&nbsp;</div></div>
-      <div class="pb"><div class="price">${fmtMoney(Number(quote.price))}</div><div class="pn">aylık · KDV hariç</div>
+      <div class="pb"><div class="price">${fmtMoney(Number(quote.price))} <span style="font-size:13px;font-weight:700;">+ KDV</span></div><div class="pn">aylık</div>
+      <div class="vat">KDV Dahil Toplam: ${fmtMoney(withVat(quote.price))}</div>
       <ul>${(quote.features || []).map(f => `<li>${f}</li>`).join("")}</ul></div>
     </div></div>
     ${addonHTML}
     ${quote.note ? `<h2>Not</h2><div class="intro">${quote.note}</div>` : ''}
-    <div class="footer"><div><div class="t">Onaylıyor musunuz?</div><div style="font-size:11px;">Başlamak için bizimle iletişime geçin.</div></div><div class="c"><strong>Tel:</strong> 0(5XX) XXX XX XX<br><strong>E-posta:</strong> info@panormosmedya.com<br><strong>Web:</strong> panormosmedya.com</div></div>
-    <div class="terms">Fiyatlara KDV dahil değildir. · Minimum sözleşme süresi 3 aydır. · Reklam bütçeleri pakete dahil değildir. · Bu teklif 30 gün geçerlidir.</div>
+    ${footerHTML(QUOTE_SETTINGS.quote_footer_title, QUOTE_SETTINGS.quote_footer_text)}
+    <div class="terms">Belirtilen fiyata %${QUOTE_SETTINGS.vat_rate} KDV eklenmiştir; toplam tutar KDV dahildir. · Minimum sözleşme süresi 3 aydır. · Reklam bütçeleri pakete dahil değildir. · Bu teklif 30 gün geçerlidir.</div>
   </body></html>`;
   openPrintWindow(html);
 }
@@ -4841,6 +4684,7 @@ function PricingPage() {
       setAddons(a || []);
       const { data: q } = await supabase.from('pricing_quotes').select('*').order('created_at', { ascending: false });
       setQuotes(q || []);
+      await loadQuoteSettings();
     } catch (e) { /* tablo yoksa */ }
     setLoading(false);
   };
@@ -4850,6 +4694,7 @@ function PricingPage() {
     { id: "packages", lbl: "📦 Paketler" },
     { id: "addons", lbl: "➕ Ek Hizmetler" },
     { id: "quotes", lbl: "📄 Teklifler" },
+    { id: "settings", lbl: "⚙️ Teklif Ayarları" },
   ];
 
   if (loading) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
@@ -4865,6 +4710,62 @@ function PricingPage() {
       {tab === "packages" && <PricingPackages packages={packages} addons={addons} reload={load} />}
       {tab === "addons" && <PricingAddons addons={addons} reload={load} />}
       {tab === "quotes" && <PricingQuotes packages={packages} addons={addons} quotes={quotes} reload={load} />}
+      {tab === "settings" && <QuoteSettingsTab reload={load} />}
+    </div>
+  );
+}
+
+// ═══════════════ TEKLİF AYARLARI (PDF alt bilgisi, telefon, KDV) ═══════════════
+function QuoteSettingsTab({ reload }) {
+  const [form, setForm] = useState({ ...QUOTE_SETTINGS });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    const rows = Object.entries(form).map(([key, value]) => ({ key, value: String(value) }));
+    const { error } = await supabase.from('panel_settings').upsert(rows, { onConflict: 'key' });
+    setSaving(false);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nTEKLIF-AYARLARI-SQL kodunu Supabase'de çalıştırın."); return; }
+    Object.assign(QUOTE_SETTINGS, { ...form, vat_rate: Number(form.vat_rate) || 20 });
+    setSaved(true); setTimeout(() => setSaved(false), 2500);
+    if (reload) reload();
+  };
+
+  const priceSample = 20000;
+  const sampleTotal = priceSample * (1 + (Number(form.vat_rate) || 20) / 100);
+
+  return (
+    <div style={{ maxWidth: 640 }}>
+      <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 18, lineHeight: 1.6, background: T.bgInput, borderRadius: 10, padding: "12px 14px" }}>
+        Buradaki bilgiler <strong style={{ color: T.textPrimary }}>fiyat listesi ve teklif PDF'lerinde</strong> görünür. İstediğin zaman değiştirebilirsin.
+      </div>
+
+      <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 10 }}>📞 İletişim Bilgileri</div>
+      <FormField label="Telefon"><Input placeholder="0 (536) 471 60 12" value={form.phone || ""} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></FormField>
+      <FormField label="E-posta"><Input placeholder="info@panormosmedya.com" value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></FormField>
+      <FormField label="Web Sitesi"><Input placeholder="panormosmedya.com" value={form.web || ""} onChange={e => setForm(f => ({ ...f, web: e.target.value }))} /></FormField>
+
+      <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "22px 0 10px" }}>🧾 KDV</div>
+      <FormField label="KDV Oranı (%)">
+        <Input type="number" placeholder="20" value={form.vat_rate ?? ""} onChange={e => setForm(f => ({ ...f, vat_rate: e.target.value }))} />
+      </FormField>
+      <div style={{ fontSize: 12, color: T.greenText, background: T.greenDim, borderRadius: 8, padding: "10px 12px", marginBottom: 18 }}>
+        Örnek: <strong>{fmtMoney(priceSample)} + KDV</strong> → KDV Dahil Toplam: <strong>{fmtMoney(sampleTotal)}</strong>
+      </div>
+
+      <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "22px 0 10px" }}>📄 Fiyat Listesi Alt Yazısı</div>
+      <FormField label="Başlık"><Input placeholder="Teklifimizi incelediğiniz için teşekkür ederiz" value={form.list_footer_title || ""} onChange={e => setForm(f => ({ ...f, list_footer_title: e.target.value }))} /></FormField>
+      <FormField label="Açıklama"><Input placeholder="Size özel paket için bizimle iletişime geçin." value={form.list_footer_text || ""} onChange={e => setForm(f => ({ ...f, list_footer_text: e.target.value }))} /></FormField>
+
+      <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "22px 0 10px" }}>📝 Teklif Alt Yazısı</div>
+      <FormField label="Başlık"><Input placeholder="Teklifimizi incelediğiniz için teşekkür ederiz" value={form.quote_footer_title || ""} onChange={e => setForm(f => ({ ...f, quote_footer_title: e.target.value }))} /></FormField>
+      <FormField label="Açıklama"><Input placeholder="Başlamak için bizimle iletişime geçin." value={form.quote_footer_text || ""} onChange={e => setForm(f => ({ ...f, quote_footer_text: e.target.value }))} /></FormField>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 20 }}>
+        <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Kaydediliyor..." : "💾 Ayarları Kaydet"}</Btn>
+        {saved && <span style={{ fontSize: 12, color: T.greenText, fontWeight: 600 }}>✓ Kaydedildi</span>}
+      </div>
     </div>
   );
 }
@@ -4890,7 +4791,7 @@ function PricingPackages({ packages, addons, reload }) {
   const [form, setForm] = useState({});
   const [editId, setEditId] = useState(null);
 
-  const openAdd = () => { setEditId(null); setForm({ name: "", tagline: "", price: "", price_note: "aylık · KDV hariç", features: [""], is_popular: false }); setModal(true); };
+  const openAdd = () => { setEditId(null); setForm({ name: "", tagline: "", price: "", price_note: "aylık", features: [""], is_popular: false }); setModal(true); };
   const openEdit = (p) => { setEditId(p.id); setForm({ name: p.name, tagline: p.tagline, price: p.price, price_note: p.price_note, features: p.features || [], is_popular: p.is_popular }); setModal(true); };
 
   const save = async () => {
@@ -4926,8 +4827,9 @@ function PricingPackages({ packages, addons, reload }) {
                 <div style={{ fontSize: 10, color: "rgba(255,255,255,0.85)" }}>{p.tagline}</div>
               </div>
               <div style={{ padding: 16 }}>
-                <div style={{ fontSize: 24, fontWeight: 800, color: p.is_popular ? T.amberText : T.textPrimary, textAlign: "center" }}>{fmtMoney(Number(p.price))}</div>
-                <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", marginBottom: 12 }}>{p.price_note}</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: p.is_popular ? T.amberText : T.textPrimary, textAlign: "center" }}>{fmtMoney(Number(p.price))} <span style={{fontSize:13,fontWeight:700}}>+ KDV</span></div>
+                <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", marginBottom: 4 }}>{cleanPriceNote(p.price_note)}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: T.greenText, textAlign: "center", marginBottom: 12 }}>KDV Dahil: {fmtMoney(withVat(p.price))}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
                   {(p.features || []).map((f, i) => (
                     <div key={i} style={{ fontSize: 11.5, color: T.textSecondary, display: "flex", gap: 6 }}><span style={{ color: T.greenText, fontWeight: 700 }}>✓</span>{f}</div>
@@ -4949,7 +4851,7 @@ function PricingPackages({ packages, addons, reload }) {
           <FormField label="Kısa Açıklama"><Input placeholder="Örn: En çok tercih edilen" value={form.tagline || ""} onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))} /></FormField>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <FormField label="Aylık Fiyat (₺)"><Input type="number" placeholder="0" value={form.price || ""} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></FormField>
-            <FormField label="Fiyat Notu"><Input placeholder="aylık · KDV hariç" value={form.price_note || ""} onChange={e => setForm(f => ({ ...f, price_note: e.target.value }))} /></FormField>
+            <FormField label="Fiyat Notu"><Input placeholder="aylık" value={form.price_note || ""} onChange={e => setForm(f => ({ ...f, price_note: e.target.value }))} /></FormField>
           </div>
           <FormField label="Özellikler"><FeatureEditor features={form.features} onChange={fs => setForm(f => ({ ...f, features: fs }))} /></FormField>
           <div onClick={() => setForm(f => ({ ...f, is_popular: !f.is_popular }))} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bgInput, borderRadius: 8, cursor: "pointer", marginTop: 8 }}>
@@ -7768,7 +7670,7 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shootplan' ? (isMobile?'🎬':'🎬 Haftalık Çekim Planı') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
@@ -7779,7 +7681,6 @@ export default function App() {
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
-        {page==="shootplan"&&<ShootPlanPage clients={clients} currentStaff={currentStaff}/>}
         {page==="ideas"&&<IdeasPage currentStaff={currentStaff}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
