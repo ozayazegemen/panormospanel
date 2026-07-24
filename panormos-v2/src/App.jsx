@@ -3268,6 +3268,224 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 }
 
 // ─────────────────────────────────────────────
+// ÇEKİM PLANLAMA (tüm çalışanlar kullanabilir)
+// ─────────────────────────────────────────────
+const SHOOT_REPEAT = [
+  { v: "once", l: "Tek Seferlik" },
+  { v: "daily", l: "Günlük" },
+  { v: "weekly", l: "Haftalık" },
+  { v: "monthly", l: "Aylık" },
+];
+const SHOOT_PRESETS = ["Menü Çekimi", "Ürün Çekimi", "Mekan Çekimi", "Video Çekimi", "Drone Çekimi", "Tanıtım Filmi", "Reels Çekimi"];
+
+function ShootsPage({ clients, staff, currentStaff, refreshData }) {
+  const [shoots, setShoots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
+  const [showPast, setShowPast] = useState(false);
+
+  const load = async () => {
+    const { data } = await supabase.from('shoots').select('*').order('shoot_date', { ascending: true });
+    setShoots(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const openAdd = () => {
+    setForm({ client_id: "", title: "", shoot_date: todayStr, shoot_time: "10:00", location: "", assigned_to: currentStaff?.id || "", repeat_type: "once", repeat_count: 4, note: "" });
+    setModal(true);
+  };
+
+  // Tekrarlı çekimler için tarih listesi üret
+  const buildDates = (startStr, type, count) => {
+    const list = [startStr];
+    if (type === "once") return list;
+    const n = Math.min(Math.max(parseInt(count) || 1, 1), 24);
+    const base = new Date(startStr + "T00:00:00");
+    for (let i = 1; i < n; i++) {
+      const d = new Date(base);
+      if (type === "daily") d.setDate(base.getDate() + i);
+      else if (type === "weekly") d.setDate(base.getDate() + i * 7);
+      else if (type === "monthly") d.setMonth(base.getMonth() + i);
+      list.push(d.toISOString().slice(0, 10));
+    }
+    return list;
+  };
+
+  const save = async () => {
+    if (!form.client_id) { alert("Lütfen müşteri seçin"); return; }
+    if (!form.title) { alert("Lütfen çekim adı girin veya hazır olanlardan seçin"); return; }
+    if (!form.shoot_date) { alert("Lütfen tarih seçin"); return; }
+    setSaving(true);
+    const dates = buildDates(form.shoot_date, form.repeat_type, form.repeat_count);
+    const rows = dates.map(d => ({
+      client_id: form.client_id, title: form.title, shoot_date: d, shoot_time: form.shoot_time || "",
+      location: form.location || "", assigned_to: form.assigned_to || null, repeat_type: form.repeat_type || "once",
+      note: form.note || "", status: "planned", created_by: currentStaff?.name || "",
+    }));
+    const { error } = await supabase.from('shoots').insert(rows);
+    setSaving(false);
+    if (error) { alert("Çekim kaydedilemedi: " + error.message + "\n\nCEKIM-PLANLAMA-SQL kodunu Supabase'de çalıştırın."); return; }
+    setModal(false); setForm({});
+    load();
+    if (refreshData) refreshData();
+  };
+
+  const toggleDone = async (s) => {
+    const ns = s.status === "done" ? "planned" : "done";
+    await supabase.from('shoots').update({ status: ns }).eq('id', s.id);
+    load();
+  };
+  const del = async (id) => {
+    if (!window.confirm("Bu çekim silinsin mi?")) return;
+    await supabase.from('shoots').delete().eq('id', id);
+    load(); if (refreshData) refreshData();
+  };
+
+  const clientName = (id) => clients.find(c => c.id === id)?.name || "—";
+  const clientOf = (id) => clients.find(c => c.id === id);
+  const staffName = (id) => staff.find(s => s.id === id)?.name || "";
+
+  // Filtrele + grupla
+  const filtered = shoots.filter(s => {
+    if (!showPast && s.shoot_date < todayStr && s.status !== "planned") return false;
+    if (!showPast && s.shoot_date < todayStr) return false;
+    if (!q) return true;
+    const term = q.toLocaleLowerCase("tr-TR");
+    return (s.title || "").toLocaleLowerCase("tr-TR").includes(term) || clientName(s.client_id).toLocaleLowerCase("tr-TR").includes(term);
+  });
+
+  const dayLabel = (dStr) => {
+    const d = new Date(dStr + "T00:00:00"); const n = new Date();
+    const diff = Math.round((d - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000);
+    if (diff === 0) return "🔥 Bugün";
+    if (diff === 1) return "☀️ Yarın";
+    if (diff < 0) return "🗄️ Geçmiş";
+    if (diff <= 7) return "📆 Bu Hafta";
+    if (diff <= 30) return "🗓️ Bu Ay";
+    return "📁 Sonraki";
+  };
+  const groups = {};
+  filtered.forEach(s => { const g = dayLabel(s.shoot_date); (groups[g] = groups[g] || []).push(s); });
+  const order = ["🗄️ Geçmiş", "🔥 Bugün", "☀️ Yarın", "📆 Bu Hafta", "🗓️ Bu Ay", "📁 Sonraki"];
+
+  const todayCount = shoots.filter(s => s.shoot_date === todayStr && s.status === "planned").length;
+  const weekCount = shoots.filter(s => { const d = new Date(s.shoot_date + "T00:00:00"); const n = new Date(); const diff = Math.round((d - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000); return diff >= 0 && diff <= 7 && s.status === "planned"; }).length;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Bugünkü Çekim" value={todayCount} color={todayCount > 0 ? T.amberText : undefined} />
+        <StatCard label="Bu Hafta" value={weekCount} color={T.indigoText} />
+        <StatCard label="Toplam Planlı" value={shoots.filter(s => s.status === "planned").length} />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <input placeholder="🔍 Çekim veya müşteri ara..." value={q} onChange={e => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: T.textPrimary, outline: "none" }} />
+        <Btn onClick={() => setShowPast(v => !v)} style={{ fontSize: 12 }}>{showPast ? "Geçmişi Gizle" : "Geçmişi Göster"}</Btn>
+        <Btn variant="primary" onClick={openAdd}>+ Yeni Çekim</Btn>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.textMuted, padding: 50 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
+            <div style={{ fontSize: 14, color: T.textPrimary, fontWeight: 600 }}>Planlı çekim yok</div>
+            <div style={{ fontSize: 12, marginTop: 6 }}>"+ Yeni Çekim" ile müşteri seçip çekim planlayın.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {order.filter(g => groups[g]).map(g => (
+              <div key={g}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.border}` }}>{g} <span style={{ color: T.textMuted, fontWeight: 400 }}>({groups[g].length})</span></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {groups[g].map(s => {
+                    const cli = clientOf(s.client_id);
+                    const done = s.status === "done";
+                    return (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, borderLeft: `3px solid ${done ? T.green : (cli?.accentColor || "#EC4899")}`, opacity: done ? 0.65 : 1 }}>
+                        <button onClick={() => toggleDone(s)} title={done ? "Planlıya al" : "Tamamlandı yap"} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: `2px solid ${done ? T.green : T.borderLight}`, background: done ? T.green : "transparent", color: "#fff", cursor: "pointer", fontSize: 12, padding: 0 }}>{done ? "✓" : ""}</button>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none" }}>📷 {s.title}</div>
+                          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                            {clientName(s.client_id)} · {new Date(s.shoot_date + "T00:00:00").toLocaleDateString("tr-TR")}{s.shoot_time ? ` · 🕐 ${s.shoot_time}` : ""}
+                            {s.location ? ` · 📍 ${s.location}` : ""}
+                            {s.assigned_to ? ` · 👤 ${staffName(s.assigned_to)}` : ""}
+                          </div>
+                          {s.note && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3, fontStyle: "italic" }}>📝 {s.note}</div>}
+                        </div>
+                        {cli?.phone && <a href={`https://wa.me/${(cli.phone || "").replace(/\D/g, "").replace(/^0/, "90")}`} target="_blank" rel="noopener" style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#25D366", padding: "5px 10px", borderRadius: 6, textDecoration: "none" }}>WhatsApp</a>}
+                        <button onClick={() => del(s.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 15 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      {modal && (
+        <Modal title="📷 Yeni Çekim Planla" onClose={() => setModal(false)} width={540}>
+          <FormField label="Müşteri">
+            <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}>
+              <option value="">Seç...</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </FormField>
+
+          <FormField label="Çekim Türü (hazır seçenekler)">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {SHOOT_PRESETS.map(p => (
+                <button key={p} type="button" onClick={() => setForm(f => ({ ...f, title: p }))} style={{ padding: "6px 12px", borderRadius: 100, border: `1px solid ${form.title === p ? T.indigo : T.border}`, background: form.title === p ? T.indigoDim : T.bgInput, color: form.title === p ? T.indigoText : T.textSecondary, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>{p}</button>
+              ))}
+            </div>
+          </FormField>
+          <FormField label="Çekim Adı"><Input placeholder="Örn: Menü Çekimi" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FormField label="📅 Tarih"><Input type="date" value={form.shoot_date || ""} onChange={e => setForm(f => ({ ...f, shoot_date: e.target.value }))} /></FormField>
+            <FormField label="🕐 Saat"><Input type="time" value={form.shoot_time || ""} onChange={e => setForm(f => ({ ...f, shoot_time: e.target.value }))} /></FormField>
+          </div>
+
+          <FormField label="🔁 Tekrar">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {SHOOT_REPEAT.map(r => (
+                <button key={r.v} type="button" onClick={() => setForm(f => ({ ...f, repeat_type: r.v }))} style={{ flex: 1, minWidth: 90, padding: "9px", borderRadius: 8, border: `1px solid ${(form.repeat_type || "once") === r.v ? T.indigo : T.border}`, background: (form.repeat_type || "once") === r.v ? T.indigoDim : T.bgInput, color: (form.repeat_type || "once") === r.v ? T.indigoText : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{r.l}</button>
+              ))}
+            </div>
+          </FormField>
+          {form.repeat_type && form.repeat_type !== "once" && (
+            <FormField label="Kaç kez tekrarlansın? (en fazla 24)">
+              <Input type="number" min="1" max="24" value={form.repeat_count ?? 4} onChange={e => setForm(f => ({ ...f, repeat_count: e.target.value }))} />
+            </FormField>
+          )}
+
+          <FormField label="📍 Yer (isteğe bağlı)"><Input placeholder="Örn: İşletme adresi" value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></FormField>
+          <FormField label="👤 Sorumlu Çalışan">
+            <Select value={form.assigned_to || ""} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
+              <option value="">Seç...</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="📝 Not (isteğe bağlı)"><Input placeholder="Özel istekler, ekipman notu..." value={form.note || ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></FormField>
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Kaydediliyor..." : "📷 Çekimi Planla"}</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // SOSYAL MEDYA RAPORLARI (Meta verileri elle girilir)
 // ─────────────────────────────────────────────
 const REPORT_METRICS = [
@@ -4567,6 +4785,7 @@ const NAV=[
   {id:"leads",label:"Soğuk Arama",icon:"📞"},
   {id:"pricing",label:"Fiyatlar",icon:"💰"},
   {id:"calendar",label:"Takvim",icon:"📅"},
+  {id:"shoots",label:"Çekimler",icon:"📷"},
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"reports",label:"Raporlar",icon:"📊"},
@@ -6682,6 +6901,7 @@ async function loadAllData() {
     { data: mediaRaw },
     { data: publishesRaw },
     { data: pieceJobsRaw },
+    { data: shootsRaw },
   ] = await Promise.all([
     supabase.from('clients').select('*'),
     supabase.from('staff').select('*'),
@@ -6691,6 +6911,7 @@ async function loadAllData() {
     supabase.from('media').select('*'),
     supabase.from('publishes').select('*'),
     supabase.from('piece_jobs').select('*'),
+    supabase.from('shoots').select('*'),
   ]);
 
   const clients = (clientsRaw || []).filter(c => !c.deleted_at).map(c => ({
@@ -6702,7 +6923,10 @@ async function loadAllData() {
     publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
     workType: c.work_type || "monthly",
-    extraShoots: Array.isArray(c.extra_shoots) ? c.extra_shoots : [],
+    extraShoots: [
+      ...(Array.isArray(c.extra_shoots) ? c.extra_shoots : []),
+      ...((shootsRaw || []).filter(s => s.client_id === c.id && s.status !== "cancelled").map(s => ({ date: s.shoot_date, title: s.title + (s.shoot_time ? ` (${s.shoot_time})` : ""), shootId: s.id }))),
+    ],
     pieceJobs: (pieceJobsRaw || []).filter(j => j.client_id === c.id).map(j => ({
       id: j.id, title: j.title, quantity: j.quantity, amount: Number(j.amount || 0), dueDate: j.due_date, status: j.status || "pending", monthRef: j.month_ref,
     })).sort((a, b) => (b.dueDate || "").localeCompare(a.dueDate || "")),
@@ -7467,7 +7691,7 @@ export default function App() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
+    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -7490,7 +7714,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
+      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
@@ -7720,7 +7944,7 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
@@ -7731,6 +7955,7 @@ export default function App() {
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
+        {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
         {page==="ideas"&&<IdeasPage currentStaff={currentStaff}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
