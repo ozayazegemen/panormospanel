@@ -3307,7 +3307,8 @@ function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel) {
     .empty{text-align:center;color:#c3c8d0;font-size:11px;padding:8px 0}
     .foot{margin-top:18px;font-size:10px;color:#8A8F98;text-align:center;border-top:1px solid #eee;padding-top:12px}
     .foot .co{color:#F25124;font-weight:700}
-    @media print{body{padding:12px}.hero,.dh,.it,.it .tm{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:landscape}}
+    @media print{body{padding:8mm}.hero,.dh,.it,.it .tm{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    @page{size:A4 landscape;margin:0}
   </style></head><body>
     <div class="hero">
       <div class="logo">panormos <span class="m">medya.</span></div>
@@ -4988,40 +4989,45 @@ function openPrintWindow(html) {
 }
 
 const PRINT_STYLES = `
+  @page { size: A4 portrait; margin: 0; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:32px; }
-  .head { background:#1A2B3F; border-radius:10px; padding:26px 28px; margin-bottom:24px; }
-  .logo { font-size:17px; font-weight:800; color:#fff; margin-bottom:10px; }
+  .head { background:#1A2B3F; border-radius:10px; padding:18px 22px; margin-bottom:14px; }
+  .logo { font-size:15px; font-weight:800; color:#fff; margin-bottom:7px; }
   .logo .m { color:#F25124; }
-  .head h1 { color:#fff; font-size:24px; margin-bottom:4px; }
-  .head .sub { color:#C7CDD6; font-size:12px; }
-  .intro { font-size:13px; line-height:1.6; margin-bottom:22px; color:#374151; }
-  .pkgs { display:flex; gap:14px; margin-bottom:20px; }
-  .pkg { flex:1; border:1px solid #E5E7EB; border-radius:10px; overflow:hidden; }
+  .head h1 { color:#fff; font-size:20px; margin-bottom:3px; }
+  .head .sub { color:#C7CDD6; font-size:11px; }
+  .intro { font-size:11.5px; line-height:1.5; margin-bottom:13px; color:#374151; }
+  .pkgs { display:flex; gap:10px; margin-bottom:12px; }
+  .pkg { flex:1; border:1px solid #E5E7EB; border-radius:9px; overflow:hidden; page-break-inside:avoid; }
   .pkg.pop { border:2px solid #F25124; }
-  .pkg .ph { background:#1A2B3F; color:#fff; padding:12px; text-align:center; }
+  .pkg .ph { background:#1A2B3F; color:#fff; padding:9px; text-align:center; }
   .pkg.pop .ph { background:#F25124; }
-  .pkg .ph .tag { font-size:8px; letter-spacing:0.5px; opacity:0.9; }
-  .pkg .ph .nm { font-size:14px; font-weight:800; margin:2px 0; }
-  .pkg .ph .tl { font-size:9px; opacity:0.85; }
-  .pkg .pb { padding:14px; }
-  .pkg .price { font-size:24px; font-weight:800; text-align:center; color:#1A2B3F; }
+  .pkg .ph .tag { font-size:7.5px; letter-spacing:0.5px; opacity:0.9; }
+  .pkg .ph .nm { font-size:13px; font-weight:800; margin:2px 0; }
+  .pkg .ph .tl { font-size:8.5px; opacity:0.85; }
+  .pkg .pb { padding:11px; }
+  .pkg .price { font-size:20px; font-weight:800; text-align:center; color:#1A2B3F; }
   .pkg.pop .price { color:#F25124; }
-  .pkg .pn { font-size:9px; color:#8A8F98; text-align:center; margin-bottom:4px; }
-  .pkg .vat { font-size:11px; color:#0A7A4A; font-weight:800; text-align:center; margin-bottom:12px; background:#EAF7F0; border-radius:5px; padding:4px 6px; }
+  .pkg .pn { font-size:8.5px; color:#8A8F98; text-align:center; margin-bottom:3px; }
+  .pkg .vat { font-size:10px; color:#0A7A4A; font-weight:800; text-align:center; margin-bottom:9px; background:#EAF7F0; border-radius:5px; padding:3px 5px; }
   .pkg ul { list-style:none; }
-  .pkg li { font-size:10px; line-height:1.5; padding:3px 0; padding-left:16px; position:relative; }
+  .pkg li { font-size:9px; line-height:1.42; padding:2px 0; padding-left:13px; position:relative; }
   .pkg li:before { content:"✓"; color:#10B981; font-weight:800; position:absolute; left:0; }
-  h2 { font-size:16px; color:#1A2B3F; margin:22px 0 12px; }
-  table { width:100%; border-collapse:collapse; }
-  th { background:#1A2B3F; color:#fff; padding:9px 12px; text-align:left; font-size:11px; }
-  td { padding:8px 12px; border-bottom:1px solid #E5E7EB; font-size:11px; }
+  h2 { font-size:14px; color:#1A2B3F; margin:13px 0 8px; }
+  table { width:100%; border-collapse:collapse; page-break-inside:avoid; }
+  th { background:#1A2B3F; color:#fff; padding:6px 10px; text-align:left; font-size:10px; }
+  td { padding:5px 10px; border-bottom:1px solid #E5E7EB; font-size:10px; }
   tr:nth-child(even) td { background:#F5F6F8; }
-  .footer { background:#F25124; color:#fff; border-radius:8px; padding:16px 20px; margin-top:22px; display:flex; justify-content:space-between; }
-  .footer .t { font-weight:800; font-size:13px; margin-bottom:3px; }
-  .footer .c { font-size:11px; line-height:1.7; }
-  .terms { font-size:9px; color:#8A8F98; margin-top:14px; line-height:1.5; }
-  @media print { body { padding:16px; } .head,.pkg.pop .ph,.pkg .ph,.pkg .vat,th,.footer { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  .footer { background:#F25124; color:#fff; border-radius:8px; padding:12px 16px; margin-top:13px; display:flex; justify-content:space-between; page-break-inside:avoid; }
+  .footer .t { font-weight:800; font-size:12px; margin-bottom:2px; }
+  .footer .c { font-size:10px; line-height:1.6; }
+  .terms { font-size:8px; color:#8A8F98; margin-top:8px; line-height:1.45; page-break-inside:avoid; }
+  @media print {
+    html, body { height:auto; }
+    body { padding:12mm 11mm; }
+    .head,.pkg.pop .ph,.pkg .ph,.pkg .vat,th,tr:nth-child(even) td,.footer { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
 `;
 
 // ── Teklif / fiyat listesi ayarları (panelden düzenlenir) ──
