@@ -3267,6 +3267,63 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   </div>;
 }
 
+// Haftalık çekim programı yazdırma
+function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel) {
+  const cName = (id) => clients.find(c => c.id === id)?.name || "—";
+  const sName = (id) => staff.find(s => s.id === id)?.name || "";
+  const cellRows = weekDays.map((d, i) => {
+    const list = shoots.filter(s => s.shoot_date === d.str).sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
+    const items = list.length
+      ? list.map(s => `<div class="it ${s.status === 'done' ? 'done' : ''}">
+          ${s.shoot_time ? `<span class="tm">${s.shoot_time}</span>` : ""}
+          <strong>${s.title}</strong><br>
+          <span class="cl">${cName(s.client_id)}</span>
+          ${s.assigned_to ? `<br><span class="st">👤 ${sName(s.assigned_to)}</span>` : ""}
+          ${s.location ? `<br><span class="st">📍 ${s.location}</span>` : ""}
+        </div>`).join("")
+      : `<div class="empty">—</div>`;
+    return `<td><div class="dh">${wdNames[i]}<br><span class="dn">${d.date.getDate()}.${String(d.date.getMonth() + 1).padStart(2, "0")}</span></div>${items}</td>`;
+  }).join("");
+
+  const total = weekDays.reduce((s, d) => s + shoots.filter(x => x.shoot_date === d.str).length, 0);
+
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Haftalık Çekim Programı</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:24px;color:#1a1a1a}
+    .hero{background:linear-gradient(135deg,#1A2B3F,#3a2d6b);color:#fff;border-radius:14px;padding:24px 28px;margin-bottom:20px}
+    .logo{font-size:18px;font-weight:700}.logo .m{color:#F8906E}
+    .hero h1{font-size:22px;margin-top:10px;font-weight:800}
+    .hero .p{font-size:13px;opacity:.85;margin-top:3px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    td{border:1px solid #E2E5EA;vertical-align:top;padding:8px;width:14.28%}
+    .dh{background:#1A2B3F;color:#fff;font-size:11px;font-weight:700;text-align:center;border-radius:6px;padding:6px 3px;margin-bottom:8px}
+    .dh .dn{font-size:15px;font-weight:800}
+    .it{background:#F5F6F8;border-left:3px solid #EC4899;border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:10.5px;line-height:1.45}
+    .it.done{opacity:.55;border-left-color:#10B981}
+    .it .tm{display:inline-block;background:#F25124;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;margin-bottom:3px}
+    .it .cl{color:#4a5568}
+    .it .st{color:#8A8F98;font-size:9.5px}
+    .empty{text-align:center;color:#c3c8d0;font-size:11px;padding:8px 0}
+    .foot{margin-top:18px;font-size:10px;color:#8A8F98;text-align:center;border-top:1px solid #eee;padding-top:12px}
+    .foot .co{color:#F25124;font-weight:700}
+    @media print{body{padding:12px}.hero,.dh,.it,.it .tm{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{size:landscape}}
+  </style></head><body>
+    <div class="hero">
+      <div class="logo">panormos <span class="m">medya.</span></div>
+      <h1>Haftalık Çekim Programı</h1>
+      <div class="p">${weekLabel} · Toplam ${total} çekim</div>
+    </div>
+    <table><tr>${cellRows}</tr></table>
+    <div class="foot"><span class="co">Panormos Medya</span> · panormosmedya.com</div>
+  </body></html>`;
+
+  const w = window.open("", "_blank", "width=1200,height=820");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
 // ─────────────────────────────────────────────
 // ÇEKİM PLANLAMA (tüm çalışanlar kullanabilir)
 // ─────────────────────────────────────────────
@@ -3286,6 +3343,8 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
   const [showPast, setShowPast] = useState(false);
+  const [view, setView] = useState("week");      // "week" | "list"
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const load = async () => {
     const { data } = await supabase.from('shoots').select('*').order('shoot_date', { ascending: true });
@@ -3296,8 +3355,12 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const openAdd = () => {
-    setForm({ client_id: "", title: "", shoot_date: todayStr, shoot_time: "10:00", location: "", assigned_to: currentStaff?.id || "", repeat_type: "once", repeat_count: 4, note: "" });
+  const openAdd = (presetDate) => {
+    setForm({ client_id: "", title: "", shoot_date: presetDate || todayStr, shoot_time: "10:00", location: "", assigned_to: currentStaff?.id || "", repeat_type: "once", repeat_count: 4, note: "" });
+    setModal(true);
+  };
+  const openEdit = (s) => {
+    setForm({ id: s.id, client_id: s.client_id || "", title: s.title || "", shoot_date: s.shoot_date || "", shoot_time: s.shoot_time || "", location: s.location || "", assigned_to: s.assigned_to || "", repeat_type: "once", note: s.note || "" });
     setModal(true);
   };
 
@@ -3322,6 +3385,18 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     if (!form.title) { alert("Lütfen çekim adı girin veya hazır olanlardan seçin"); return; }
     if (!form.shoot_date) { alert("Lütfen tarih seçin"); return; }
     setSaving(true);
+    // Düzenleme: tek kaydı güncelle
+    if (form.id) {
+      const { error } = await supabase.from('shoots').update({
+        client_id: form.client_id, title: form.title, shoot_date: form.shoot_date, shoot_time: form.shoot_time || "",
+        location: form.location || "", assigned_to: form.assigned_to || null, note: form.note || "",
+      }).eq('id', form.id);
+      setSaving(false);
+      if (error) { alert("Güncellenemedi: " + error.message); return; }
+      setModal(false); setForm({}); load();
+      if (refreshData) refreshData();
+      return;
+    }
     const dates = buildDates(form.shoot_date, form.repeat_type, form.repeat_count);
     const rows = dates.map(d => ({
       client_id: form.client_id, title: form.title, shoot_date: d, shoot_time: form.shoot_time || "",
@@ -3377,6 +3452,21 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
   const todayCount = shoots.filter(s => s.shoot_date === todayStr && s.status === "planned").length;
   const weekCount = shoots.filter(s => { const d = new Date(s.shoot_date + "T00:00:00"); const n = new Date(); const diff = Math.round((d - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000); return diff >= 0 && diff <= 7 && s.status === "planned"; }).length;
 
+  // ── Haftalık takvim ──
+  const weekDays = (() => {
+    const n = new Date();
+    const wd = (n.getDay() + 6) % 7; // Pazartesi = 0
+    const monday = new Date(n.getFullYear(), n.getMonth(), n.getDate() - wd + weekOffset * 7);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      return { date: d, str: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` };
+    });
+  })();
+  const WD_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+  const shootsOfDay = (dStr) => shoots.filter(s => s.shoot_date === dStr).sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
+  const weekLabel = `${weekDays[0].date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} – ${weekDays[6].date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}`;
+  const weekTotal = weekDays.reduce((s, d) => s + shootsOfDay(d.str).length, 0);
+
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 18 }}>
@@ -3385,10 +3475,72 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
         <StatCard label="Toplam Planlı" value={shoots.filter(s => s.status === "planned").length} />
       </div>
 
+      {/* Görünüm seçici */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 4, background: T.bgInput, borderRadius: 10, padding: 4 }}>
+          {[{ v: "week", l: "🗓️ Haftalık Takvim" }, { v: "list", l: "📋 Liste" }].map(o => (
+            <button key={o.v} onClick={() => setView(o.v)} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: view === o.v ? T.bgCard : "transparent", color: view === o.v ? T.textPrimary : T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{o.l}</button>
+          ))}
+        </div>
+        <div style={{ flex: 1 }} />
+        {view === "week" && <Btn onClick={() => printShootWeek(weekDays, WD_NAMES, shoots, clients, staff, weekLabel)} style={{ fontSize: 12 }}>🖨️ Haftayı Yazdır</Btn>}
+        <Btn variant="primary" onClick={() => openAdd()}>+ Yeni Çekim</Btn>
+      </div>
+
+      {/* HAFTALIK TAKVİM */}
+      {view === "week" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+            <Btn onClick={() => setWeekOffset(w => w - 1)} style={{ fontSize: 12 }}>◀ Önceki Hafta</Btn>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{weekLabel}</div>
+              <div style={{ fontSize: 11, color: T.textMuted }}>{weekTotal} çekim{weekOffset === 0 ? " · bu hafta" : ""}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {weekOffset !== 0 && <Btn onClick={() => setWeekOffset(0)} style={{ fontSize: 12 }}>Bugün</Btn>}
+              <Btn onClick={() => setWeekOffset(w => w + 1)} style={{ fontSize: 12 }}>Sonraki Hafta ▶</Btn>
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(150px,1fr))", gap: 8, minWidth: 7 * 150 + 50 }}>
+              {weekDays.map((d, i) => {
+                const list = shootsOfDay(d.str);
+                const isToday = d.str === todayStr;
+                return (
+                  <div key={i} style={{ background: isToday ? "rgba(236,72,153,0.08)" : T.bgCard, border: `1px solid ${isToday ? "#EC489966" : T.border}`, borderRadius: 12, padding: 10, minHeight: 170, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ paddingBottom: 8, borderBottom: `1px solid ${T.border}`, marginBottom: 2 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? "#F9A8D4" : T.textSecondary }}>{WD_NAMES[i]}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? "#F9A8D4" : T.textPrimary }}>{d.date.getDate()}</div>
+                    </div>
+                    {list.length === 0 && <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", padding: "10px 0" }}>—</div>}
+                    {list.map(s => {
+                      const cli = clientOf(s.client_id);
+                      const done = s.status === "done";
+                      return (
+                        <div key={s.id} onClick={() => openEdit(s)} title="Düzenlemek için tıkla" style={{ background: T.bgInput, borderRadius: 8, padding: "7px 9px", borderLeft: `3px solid ${done ? T.green : (cli?.accentColor || "#EC4899")}`, cursor: "pointer", opacity: done ? 0.6 : 1 }}>
+                          {s.shoot_time && <div style={{ fontSize: 10, fontWeight: 700, color: T.amberText }}>🕐 {s.shoot_time}</div>}
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none" }}>{s.title}</div>
+                          <div style={{ fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName(s.client_id)}</div>
+                          {s.assigned_to && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>👤 {staffName(s.assigned_to)}</div>}
+                        </div>
+                      );
+                    })}
+                    <button onClick={() => openAdd(d.str)} style={{ marginTop: "auto", padding: "6px", borderRadius: 8, border: `1px dashed ${T.borderLight}`, background: "transparent", color: T.textMuted, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>+ Ekle</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10 }}>💡 Çekime tıklayarak düzenleyebilirsin. Gün altındaki "+ Ekle" ile o güne hızlı çekim ekle.</div>
+        </div>
+      )}
+
+      {/* LİSTE GÖRÜNÜMÜ */}
+      {view === "list" && <>
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <input placeholder="🔍 Çekim veya müşteri ara..." value={q} onChange={e => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: T.textPrimary, outline: "none" }} />
         <Btn onClick={() => setShowPast(v => !v)} style={{ fontSize: 12 }}>{showPast ? "Geçmişi Gizle" : "Geçmişi Göster"}</Btn>
-        <Btn variant="primary" onClick={openAdd}>+ Yeni Çekim</Btn>
       </div>
 
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>
@@ -3420,6 +3572,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
                           {s.note && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3, fontStyle: "italic" }}>📝 {s.note}</div>}
                         </div>
                         {cli?.phone && <a href={`https://wa.me/${(cli.phone || "").replace(/\D/g, "").replace(/^0/, "90")}`} target="_blank" rel="noopener" style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#25D366", padding: "5px 10px", borderRadius: 6, textDecoration: "none" }}>WhatsApp</a>}
+                        <button onClick={() => openEdit(s)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 14 }}>✏️</button>
                         <button onClick={() => del(s.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 15 }}>✕</button>
                       </div>
                     );
@@ -3429,9 +3582,10 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
             ))}
           </div>
         )}
+      </>}
 
       {modal && (
-        <Modal title="📷 Yeni Çekim Planla" onClose={() => setModal(false)} width={540}>
+        <Modal title={form.id ? "✏️ Çekimi Düzenle" : "📷 Yeni Çekim Planla"} onClose={() => setModal(false)} width={540}>
           <FormField label="Müşteri">
             <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}>
               <option value="">Seç...</option>
@@ -3453,14 +3607,14 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
             <FormField label="🕐 Saat"><Input type="time" value={form.shoot_time || ""} onChange={e => setForm(f => ({ ...f, shoot_time: e.target.value }))} /></FormField>
           </div>
 
-          <FormField label="🔁 Tekrar">
+          {!form.id && <FormField label="🔁 Tekrar">
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {SHOOT_REPEAT.map(r => (
                 <button key={r.v} type="button" onClick={() => setForm(f => ({ ...f, repeat_type: r.v }))} style={{ flex: 1, minWidth: 90, padding: "9px", borderRadius: 8, border: `1px solid ${(form.repeat_type || "once") === r.v ? T.indigo : T.border}`, background: (form.repeat_type || "once") === r.v ? T.indigoDim : T.bgInput, color: (form.repeat_type || "once") === r.v ? T.indigoText : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{r.l}</button>
               ))}
             </div>
-          </FormField>
-          {form.repeat_type && form.repeat_type !== "once" && (
+          </FormField>}
+          {!form.id && form.repeat_type && form.repeat_type !== "once" && (
             <FormField label="Kaç kez tekrarlansın? (en fazla 24)">
               <Input type="number" min="1" max="24" value={form.repeat_count ?? 4} onChange={e => setForm(f => ({ ...f, repeat_count: e.target.value }))} />
             </FormField>
@@ -3477,7 +3631,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
             <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
-            <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Kaydediliyor..." : "📷 Çekimi Planla"}</Btn>
+            <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Kaydediliyor..." : (form.id ? "💾 Güncelle" : "📷 Çekimi Planla")}</Btn>
           </div>
         </Modal>
       )}
