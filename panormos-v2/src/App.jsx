@@ -3008,7 +3008,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
         const allTasks = getAllColTasks(col.id);
-        const shown = colTasks.slice(0, col.id === "published" ? 10 : 6);
+        const shown = colTasks.slice(0, 5);
         // Gizli = (kolonda gösterilmeyenler) + (published'da eski kayıtlar)
         const hiddenCount = allTasks.length - shown.length;
         return (
@@ -3027,8 +3027,8 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               ))
             : shown.map(taskCardEl)}
           {hiddenCount>0 && (
-            <button onClick={()=>setColumnModal({colId:col.id,label:col.label,color:col.color})} style={{marginTop:2,padding:"8px",borderRadius:8,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>
-              + {hiddenCount} tane daha (detay)
+            <button onClick={()=>setColumnModal({colId:col.id,label:col.label,color:col.color})} style={{marginTop:4,padding:"9px",borderRadius:8,border:`1px solid ${col.color}55`,background:`${col.color}18`,color:col.color,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              📋 Tümünü Gör ({allTasks.length})
             </button>
           )}
         </div>
