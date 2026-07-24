@@ -1510,7 +1510,7 @@ function Btn({children,onClick,variant="ghost",style={}}) {
 
 function Modal({title,onClose,children,width=500}) {
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={onClose}>
-    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+    <div className="pm-modal" style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{title}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
@@ -7846,6 +7846,54 @@ function LandingPage({ onEnter }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// TELEFON / TABLET UYUMU — genel responsive kurallar
+// ═══════════════════════════════════════════════════════════
+const RESPONSIVE_CSS = `
+/* ---------- TABLET (≤1024px) ---------- */
+@media (max-width: 1024px) {
+  [style*="repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+  [style*="repeat(5, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+  [style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* ---------- TELEFON (≤760px) ---------- */
+@media (max-width: 760px) {
+  [style*="repeat(6, 1fr)"],
+  [style*="repeat(5, 1fr)"],
+  [style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
+  [style*="repeat(2, 1fr)"] { grid-template-columns: 1fr !important; }
+  [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+  /* Takvim hücreleri daralsın (7 kolon korunur) */
+  [style*="repeat(7, 1fr)"] { gap: 3px !important; }
+
+  /* Modallar tam ekrana yakın, rahat okunur */
+  .pm-modal { width: 96% !important; max-width: 96% !important; padding: 18px 16px !important; max-height: 90vh !important; }
+
+  /* iOS'ta yazarken otomatik yakınlaşmayı engelle */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Tablolar taşmasın */
+  table { font-size: 11px !important; }
+
+  /* Uzun içerikler yatay kaydırılabilsin */
+  .pm-scroll-x { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+
+  /* Butonlar parmakla rahat basılsın */
+  button { min-height: 34px; }
+}
+
+/* ---------- KÜÇÜK TELEFON (≤430px) ---------- */
+@media (max-width: 430px) {
+  [style*="repeat(4, 1fr)"],
+  [style*="repeat(5, 1fr)"],
+  [style*="repeat(6, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+  .pm-modal { padding: 14px 12px !important; }
+}
+`;
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [showLogin, setShowLogin] = useState(() => {
@@ -7861,10 +7909,10 @@ export default function App() {
   const knownMsgIdsRef = useRef(null);
   const pageRef = useRef("dashboard");
   const [dataLoading, setDataLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 1000);
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
+    const onResize = () => setIsMobile(window.innerWidth < 1000);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -8066,6 +8114,7 @@ export default function App() {
   };
 
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif",position:"relative"}}>
+    <style>{RESPONSIVE_CSS}</style>
     {/* Mobilde drawer açıkken arka plan karartma */}
     {isMobile && drawerOpen && <div onClick={()=>setDrawerOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:90}} />}
 
