@@ -2758,11 +2758,45 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Bu haftanın başı (Pazartesi 00:00)
   const weekStart = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd); })();
 
-  // Bir kolonun görevlerini getir (published kolonu sadece bu hafta gösterilir)
+  // ── Paylaşım tarih grupları (bugün / dün / son 7 gün / 2 hafta / 1 ay) ──
+  const PUBLISH_BUCKETS = [
+    { key: "today", label: "Bugün", icon: "🔥", max: 0 },
+    { key: "yest", label: "Dün", icon: "🕐", max: 1 },
+    { key: "week", label: "Son 7 Gün", icon: "📆", max: 7 },
+    { key: "week2", label: "Son 2 Hafta", icon: "🗓️", max: 14 },
+    { key: "month", label: "Son 1 Ay", icon: "📁", max: 30 },
+    { key: "older", label: "Daha Eski", icon: "🗄️", max: Infinity },
+  ];
+  const daysAgoOf = (dateStr) => {
+    if (!dateStr) return Infinity;
+    const d = new Date(dateStr), n = new Date();
+    const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const n0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    return Math.round((n0 - d0) / 86400000);
+  };
+  const bucketOfTask = (taskId) => {
+    const diff = daysAgoOf(publishDateByTask[taskId]);
+    return PUBLISH_BUCKETS.find(b => diff <= b.max) || PUBLISH_BUCKETS[PUBLISH_BUCKETS.length - 1];
+  };
+  const groupPublished = (list) => {
+    const sorted = [...list].sort((a, b) => {
+      const da = publishDateByTask[a.id] ? new Date(publishDateByTask[a.id]).getTime() : 0;
+      const db = publishDateByTask[b.id] ? new Date(publishDateByTask[b.id]).getTime() : 0;
+      return db - da; // yeniden eskiye
+    });
+    return PUBLISH_BUCKETS.map(b => ({ ...b, items: sorted.filter(t => bucketOfTask(t.id).key === b.key) })).filter(g => g.items.length);
+  };
+
+  // Bir kolonun görevlerini getir (published kolonu son 30 gün gösterilir)
   const getColTasks = (colId) => {
     let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
     if (colId === "published") {
-      list = list.filter(t => { const pd = publishDateByTask[t.id]; return pd && new Date(pd) >= weekStart; });
+      list = list.filter(t => daysAgoOf(publishDateByTask[t.id]) <= 30);
+      list.sort((a, b) => {
+        const da = publishDateByTask[a.id] ? new Date(publishDateByTask[a.id]).getTime() : 0;
+        const db = publishDateByTask[b.id] ? new Date(publishDateByTask[b.id]).getTime() : 0;
+        return db - da;
+      });
     }
     return list;
   };
@@ -2783,6 +2817,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           </div>
         )}
         {task.assignedAt && <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 5 }}>📌 {fmtDateTime(task.assignedAt)}</div>}
+        {task.col==="published" && publishDateByTask[task.id] && <div style={{ fontSize: 9, color: "#C4B5FD", marginBottom: 5, fontWeight: 600 }}>✅ {fmtDateTime(publishDateByTask[task.id])}</div>}
         {task.col==="revision" && task.revisionNote && <div style={{ fontSize: 9, color: "#F87171", marginBottom: 5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔄 {task.revisionNote}</div>}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
           <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: priorityConfig[task.priority]?.bg, color: priorityConfig[task.priority]?.color }}>{priorityConfig[task.priority]?.label}</span>
@@ -2973,17 +3008,24 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
         const allTasks = getAllColTasks(col.id);
-        const shown = colTasks.slice(0, 6);
-        // Gizli = (kolonda gösterilmeyenler) + (published'da eski haftalar)
+        const shown = colTasks.slice(0, col.id === "published" ? 10 : 6);
+        // Gizli = (kolonda gösterilmeyenler) + (published'da eski kayıtlar)
         const hiddenCount = allTasks.length - shown.length;
         return (
         <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
-            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}{col.id==="published" && <span style={{fontSize:8,color:T.textMuted,marginLeft:4}}>(bu hafta)</span>}</span>
+            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}{col.id==="published" && <span style={{fontSize:8,color:T.textMuted,marginLeft:4}}>(son 30 gün)</span>}</span>
             <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{colTasks.length}</span>
           </div>
           {colTasks.length===0 && <div style={{fontSize:10,color:T.textMuted,textAlign:"center",padding:"12px 0"}}>—</div>}
-          {shown.map(taskCardEl)}
+          {col.id==="published"
+            ? groupPublished(shown).map(g=>(
+                <div key={g.key}>
+                  <div style={{fontSize:9,fontWeight:700,color:T.textMuted,margin:"2px 0 6px",textTransform:"uppercase",letterSpacing:"0.04em"}}>{g.icon} {g.label} ({g.items.length})</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>{g.items.map(taskCardEl)}</div>
+                </div>
+              ))
+            : shown.map(taskCardEl)}
           {hiddenCount>0 && (
             <button onClick={()=>setColumnModal({colId:col.id,label:col.label,color:col.color})} style={{marginTop:2,padding:"8px",borderRadius:8,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>
               + {hiddenCount} tane daha (detay)
@@ -2999,9 +3041,17 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       const list = getAllColTasks(columnModal.colId);
       return (
         <Modal title={`${columnModal.label} — Tüm Görevler (${list.length})`} onClose={()=>setColumnModal(null)} width={560}>
-          {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Tahtada sadece bu haftaki paylaşımlar gösterilir (her Pazartesi sıfırlanır). Burada <strong style={{color:T.textPrimary}}>tüm zamanların</strong> paylaşımları listelenir.</div>}
+          {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Tahtada son 30 günün paylaşımları gösterilir. Burada <strong style={{color:T.textPrimary}}>tüm zamanların</strong> paylaşımları tarihe göre gruplanır.</div>}
           <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:480,overflowY:"auto"}}>
-            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div> : list.map(taskCardEl)}
+            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div>
+              : columnModal.colId==="published"
+                ? groupPublished(list).map(g=>(
+                    <div key={g.key}>
+                      <div style={{fontSize:11,fontWeight:700,color:T.textSecondary,margin:"6px 0 8px",paddingBottom:6,borderBottom:`1px solid ${T.border}`}}>{g.icon} {g.label} <span style={{color:T.textMuted,fontWeight:400}}>({g.items.length})</span></div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>{g.items.map(taskCardEl)}</div>
+                    </div>
+                  ))
+                : list.map(taskCardEl)}
           </div>
         </Modal>
       );
