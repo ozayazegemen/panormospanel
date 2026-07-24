@@ -3268,7 +3268,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 }
 
 // Haftalık çekim programı yazdırma
-function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel) {
+function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel, asPdf) {
   const cName = (id) => clients.find(c => c.id === id)?.name || "—";
   const sName = (id) => staff.find(s => s.id === id)?.name || "";
   const cellRows = weekDays.map((d, i) => {
@@ -3319,6 +3319,7 @@ function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel) {
     <div class="foot"><span class="co">Panormos Medya</span> · panormosmedya.com</div>
   </body></html>`;
 
+  if (asPdf) { downloadPdfFromHTML(html, `Haftalik-Cekim-Programi-${new Date().toISOString().slice(0,10)}.pdf`, "landscape"); return; }
   const w = window.open("", "_blank", "width=1200,height=820");
   if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html); w.document.close(); w.focus();
@@ -3484,7 +3485,8 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
           ))}
         </div>
         <div style={{ flex: 1 }} />
-        {view === "week" && <Btn onClick={() => printShootWeek(weekDays, WD_NAMES, shoots, clients, staff, weekLabel)} style={{ fontSize: 12 }}>🖨️ Haftayı Yazdır</Btn>}
+        {view === "week" && <Btn onClick={() => printShootWeek(weekDays, WD_NAMES, shoots, clients, staff, weekLabel)} style={{ fontSize: 12 }}>🖨️ Yazdır</Btn>}
+        {view === "week" && <Btn onClick={() => printShootWeek(weekDays, WD_NAMES, shoots, clients, staff, weekLabel, true)} style={{ fontSize: 12 }}>📥 PDF İndir</Btn>}
         <Btn variant="primary" onClick={() => openAdd()}>+ Yeni Çekim</Btn>
       </div>
 
@@ -4988,6 +4990,45 @@ function openPrintWindow(html) {
   setTimeout(doPrint, 600);
 }
 
+// ── PDF olarak indirme (html2pdf CDN'den yüklenir) ──
+async function ensureHtml2Pdf() {
+  if (window.html2pdf) return true;
+  return new Promise((resolve) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    s.onload = () => resolve(!!window.html2pdf);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
+async function downloadPdfFromHTML(html, filename, orientation = "portrait") {
+  const ok = await ensureHtml2Pdf();
+  if (!ok) {
+    alert("PDF oluşturucu yüklenemedi (internet bağlantısı?).\n\nYazdır butonunu kullanıp açılan pencerede 'Hedef: PDF olarak kaydet' seçebilirsiniz.");
+    return;
+  }
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const styles = Array.from(doc.querySelectorAll("style")).map(s => s.outerHTML).join("");
+  const holder = document.createElement("div");
+  holder.style.cssText = `position:fixed;left:-10000px;top:0;background:#fff;color:#1F2937;font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:26px;width:${orientation === "landscape" ? 1123 : 794}px;`;
+  holder.innerHTML = styles + doc.body.innerHTML;
+  document.body.appendChild(holder);
+  try {
+    await window.html2pdf().set({
+      margin: 0,
+      filename,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: orientation === "landscape" ? 1123 : 794 },
+      jsPDF: { unit: "mm", format: "a4", orientation },
+      pagebreak: { mode: ["avoid-all", "css"] },
+    }).from(holder).save();
+  } catch (e) {
+    alert("PDF oluşturulamadı: " + (e?.message || e));
+  }
+  document.body.removeChild(holder);
+}
+
 const PRINT_STYLES = `
   @page { size: A4 portrait; margin: 0; }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -5057,7 +5098,7 @@ const cleanPriceNote = (s) => String(s || "").replace(/[·\-|]?\s*KDV\s*hari[çc
 // PDF alt bilgi kutusu
 const footerHTML = (title, text) => `<div class="footer"><div><div class="t">${title}</div><div style="font-size:11px;">${text}</div></div><div class="c"><strong>Tel:</strong> ${QUOTE_SETTINGS.phone}<br><strong>E-posta:</strong> ${QUOTE_SETTINGS.email}<br><strong>Web:</strong> ${QUOTE_SETTINGS.web}</div></div>`;
 
-function printPricingCatalog(packages, addons) {
+function printPricingCatalog(packages, addons, asPdf) {
   const now = new Date().toLocaleDateString("tr-TR");
   const pkgHTML = packages.map(p => `
     <div class="pkg ${p.is_popular ? 'pop' : ''}">
@@ -5086,10 +5127,11 @@ function printPricingCatalog(packages, addons) {
     ${footerHTML(QUOTE_SETTINGS.list_footer_title, QUOTE_SETTINGS.list_footer_text)}
     <div class="terms">Belirtilen paket fiyatlarına %${QUOTE_SETTINGS.vat_rate} KDV eklenmiştir; toplam tutarlar KDV dahildir. · Reklam bütçeleri pakete dahil değildir. · Paketler ihtiyaca göre özelleştirilebilir.</div>
   </body></html>`;
+  if (asPdf) { downloadPdfFromHTML(html, `Panormos-Fiyat-Listesi-${new Date().toISOString().slice(0,10)}.pdf`); return; }
   openPrintWindow(html);
 }
 
-function printQuote(quote, addonList) {
+function printQuote(quote, addonList, asPdf) {
   const now = new Date().toLocaleDateString("tr-TR");
   const selectedAddons = (quote.addons || []);
   const addonHTML = selectedAddons.length ? `
@@ -5111,6 +5153,7 @@ function printQuote(quote, addonList) {
     ${footerHTML(QUOTE_SETTINGS.quote_footer_title, QUOTE_SETTINGS.quote_footer_text)}
     <div class="terms">Belirtilen fiyata %${QUOTE_SETTINGS.vat_rate} KDV eklenmiştir; toplam tutar KDV dahildir. · Minimum sözleşme süresi 3 aydır. · Reklam bütçeleri pakete dahil değildir. · Bu teklif 30 gün geçerlidir.</div>
   </body></html>`;
+  if (asPdf) { downloadPdfFromHTML(html, `Teklif-${(quote.client_name || "Musteri").replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${new Date().toISOString().slice(0,10)}.pdf`); return; }
   openPrintWindow(html);
 }
 
@@ -5265,7 +5308,8 @@ function PricingPackages({ packages, addons, reload }) {
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
         <Btn variant="primary" onClick={openAdd}>+ Paket Ekle</Btn>
-        <Btn onClick={() => printPricingCatalog(packages, addons)} style={{ background: T.indigoDim, color: T.indigoText }}>🖨️ Fiyat Listesini Yazdır</Btn>
+        <Btn onClick={() => printPricingCatalog(packages, addons)} style={{ background: T.indigoDim, color: T.indigoText }}>🖨️ Yazdır</Btn>
+        <Btn onClick={() => printPricingCatalog(packages, addons, true)} style={{ background: T.greenDim, color: T.greenText }}>📥 PDF İndir</Btn>
       </div>
 
       {packages.length === 0 ? (
@@ -5419,6 +5463,7 @@ function PricingQuotes({ packages, addons, quotes, reload }) {
                   {Object.entries(QUOTE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
                 <Btn onClick={() => printQuote(q, addons)} style={{ fontSize: 12, padding: "6px 12px", background: T.indigoDim, color: T.indigoText }}>🖨️ Yazdır</Btn>
+                <Btn onClick={() => printQuote(q, addons, true)} style={{ fontSize: 12, padding: "6px 12px", background: T.greenDim, color: T.greenText }}>📥 PDF</Btn>
                 <Btn onClick={() => del(q.id)} style={{ fontSize: 12, padding: "6px 12px", background: T.redDim, color: T.redText }}>🗑</Btn>
               </div>
             );
