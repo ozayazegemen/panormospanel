@@ -3370,6 +3370,128 @@ const SHOOT_REPEAT = [
 ];
 const SHOOT_PRESETS = ["Menü Çekimi", "Ürün Çekimi", "Mekan Çekimi", "Video Çekimi", "Drone Çekimi", "Tanıtım Filmi", "Reels Çekimi"];
 
+// ─────────────────────────────────────────────
+// HAVA DURUMU (Open-Meteo — ücretsiz, API anahtarsız)
+// ─────────────────────────────────────────────
+const WEATHER_CITIES = [
+  { name: "Bandırma", lat: 40.3517, lon: 27.9769 },
+  { name: "Balıkesir", lat: 39.6484, lon: 27.8826 },
+  { name: "Erdek", lat: 40.3967, lon: 27.7975 },
+  { name: "Gönen", lat: 40.1050, lon: 27.6539 },
+  { name: "İstanbul", lat: 41.0082, lon: 28.9784 },
+  { name: "İzmir", lat: 38.4237, lon: 27.1428 },
+  { name: "Bursa", lat: 40.1826, lon: 29.0665 },
+  { name: "Çanakkale", lat: 40.1553, lon: 26.4142 },
+  { name: "Ankara", lat: 39.9334, lon: 32.8597 },
+  { name: "Antalya", lat: 36.8969, lon: 30.7133 },
+];
+
+// WMO hava kodu → etiket + ikon
+function weatherInfo(code) {
+  if (code === 0) return { icon: "☀️", label: "Açık / Güneşli" };
+  if (code === 1) return { icon: "🌤️", label: "Az Bulutlu" };
+  if (code === 2) return { icon: "⛅", label: "Parçalı Bulutlu" };
+  if (code === 3) return { icon: "☁️", label: "Kapalı / Bulutlu" };
+  if (code === 45 || code === 48) return { icon: "🌫️", label: "Sisli" };
+  if (code >= 51 && code <= 57) return { icon: "🌦️", label: "Çisenti" };
+  if (code >= 61 && code <= 67) return { icon: "🌧️", label: "Yağmurlu" };
+  if (code >= 71 && code <= 77) return { icon: "❄️", label: "Karlı" };
+  if (code >= 80 && code <= 82) return { icon: "🌧️", label: "Sağanak Yağış" };
+  if (code >= 85 && code <= 86) return { icon: "🌨️", label: "Kar Sağanağı" };
+  if (code >= 95) return { icon: "⛈️", label: "Gök Gürültülü Fırtına" };
+  return { icon: "🌡️", label: "—" };
+}
+
+function WeatherWidget({ compact }) {
+  const [cityIdx, setCityIdx] = useState(() => {
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("weatherCity") : null;
+    const i = WEATHER_CITIES.findIndex(c => c.name === saved);
+    return i >= 0 ? i : 0;
+  });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+
+  const city = WEATHER_CITIES[cityIdx];
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setErr(false);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max&timezone=Europe%2FIstanbul&forecast_days=5`;
+    fetch(url)
+      .then(r => r.json())
+      .then(j => { if (alive) { setData(j); setLoading(false); } })
+      .catch(() => { if (alive) { setErr(true); setLoading(false); } });
+    return () => { alive = false; };
+  }, [cityIdx]);
+
+  const changeCity = (i) => {
+    setCityIdx(i);
+    try { localStorage.setItem("weatherCity", WEATHER_CITIES[i].name); } catch (e) {}
+  };
+
+  const citySelect = (
+    <select value={cityIdx} onChange={e => changeCity(parseInt(e.target.value))}
+      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, padding: "5px 10px", color: "#fff", fontSize: 12, fontWeight: 600, outline: "none", cursor: "pointer" }}>
+      {WEATHER_CITIES.map((c, i) => <option key={i} value={i} style={{ color: "#1a1a1a" }}>{c.name}</option>)}
+    </select>
+  );
+
+  const wrap = (children) => (
+    <div style={{ background: "linear-gradient(135deg, #2563EB, #0EA5E9)", borderRadius: 14, padding: compact ? "14px 16px" : "18px 20px", color: "#fff", boxShadow: "0 4px 14px rgba(37,99,235,0.25)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.04em" }}>🌤️ Hava Durumu</div>
+        {citySelect}
+      </div>
+      {children}
+    </div>
+  );
+
+  if (loading) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Yükleniyor...</div>);
+  if (err || !data?.current) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Hava durumu alınamadı (internet?). Tekrar deneyin.</div>);
+
+  const cur = data.current;
+  const info = weatherInfo(cur.weather_code);
+  const daily = data.daily;
+  const TR_DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+
+  return wrap(
+    <>
+      {/* Şu an */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: compact ? 12 : 16 }}>
+        <div style={{ fontSize: compact ? 42 : 52, lineHeight: 1 }}>{info.icon}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: compact ? 30 : 38, fontWeight: 800, lineHeight: 1 }}>{Math.round(cur.temperature_2m)}°</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 3 }}>{info.label}</div>
+        </div>
+        <div style={{ textAlign: "right", fontSize: 11.5, opacity: 0.92, lineHeight: 1.7 }}>
+          <div>🌡️ Hissedilen {Math.round(cur.apparent_temperature)}°</div>
+          <div>💨 Rüzgar {Math.round(cur.wind_speed_10m)} km/s</div>
+          <div>💧 Nem %{cur.relative_humidity_2m}</div>
+        </div>
+      </div>
+
+      {/* Sonraki günler */}
+      <div style={{ display: "flex", gap: 6, borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: 12 }}>
+        {daily.time.slice(0, 5).map((t, i) => {
+          const di = weatherInfo(daily.weather_code[i]);
+          const d = new Date(t + "T00:00:00");
+          const isToday = i === 0;
+          return (
+            <div key={i} style={{ flex: 1, textAlign: "center", background: isToday ? "rgba(255,255,255,0.18)" : "transparent", borderRadius: 8, padding: "6px 3px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.9 }}>{isToday ? "Bugün" : TR_DAYS[d.getDay()]}</div>
+              <div style={{ fontSize: 20, margin: "3px 0" }}>{di.icon}</div>
+              <div style={{ fontSize: 11, fontWeight: 700 }}>{Math.round(daily.temperature_2m_max[i])}°</div>
+              <div style={{ fontSize: 9.5, opacity: 0.75 }}>{Math.round(daily.temperature_2m_min[i])}°</div>
+              {daily.precipitation_probability_max[i] > 20 && <div style={{ fontSize: 9, opacity: 0.9, marginTop: 2 }}>💧%{daily.precipitation_probability_max[i]}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function ShootsPage({ clients, staff, currentStaff, refreshData }) {
   const [shoots, setShoots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -3504,6 +3626,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
 
   return (
     <div>
+      <div style={{ marginBottom: 18 }}><WeatherWidget compact /></div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 18 }}>
         <StatCard label="Bugünkü Çekim" value={todayCount} color={todayCount > 0 ? T.amberText : undefined} />
         <StatCard label="Bu Hafta" value={weekCount} color={T.indigoText} />
@@ -4684,6 +4807,9 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
         </div>
       );
     })()}
+
+    {/* Hava Durumu */}
+    <div style={{marginBottom:16}}><WeatherWidget /></div>
 
     {/* Finansal Özet - sadece yetkili görür */}
     {perms.finance && (
