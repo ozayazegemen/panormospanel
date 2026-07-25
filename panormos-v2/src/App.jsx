@@ -3411,13 +3411,14 @@ function WeatherWidget({ compact }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(false);
+  const [selDay, setSelDay] = useState(0); // seçili gün indexi (0 = bugün)
 
   const city = WEATHER_CITIES[cityIdx];
 
   useEffect(() => {
     let alive = true;
     setLoading(true); setErr(false);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max,sunrise,sunset&timezone=Europe%2FIstanbul&forecast_days=5`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max,sunrise,sunset,relative_humidity_2m_max&timezone=Europe%2FIstanbul&forecast_days=7`;
     fetch(url)
       .then(r => r.json())
       .then(j => { if (alive) { setData(j); setLoading(false); } })
@@ -3427,6 +3428,7 @@ function WeatherWidget({ compact }) {
 
   const changeCity = (i) => {
     setCityIdx(i);
+    setSelDay(0);
     try { localStorage.setItem("weatherCity", WEATHER_CITIES[i].name); } catch (e) {}
   };
 
@@ -3451,61 +3453,80 @@ function WeatherWidget({ compact }) {
   if (err || !data?.current) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Hava durumu alınamadı (internet?). Tekrar deneyin.</div>);
 
   const cur = data.current;
-  const info = weatherInfo(cur.weather_code);
   const daily = data.daily;
-  const TR_DAYS = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+  const TR_DAYS = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+  const TR_DAYS_SHORT = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+  const hm = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const addMin = (iso, m) => { const d = new Date(new Date(iso).getTime() + m * 60000); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+
+  // Seçili günün bilgileri
+  const dInfo = weatherInfo(daily.weather_code[selDay]);
+  const isTodaySel = selDay === 0;
+  const selDate = new Date(daily.time[selDay] + "T00:00:00");
+  const dayTitle = isTodaySel ? "Bugün" : selDate.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
+  const sr = daily.sunrise?.[selDay], ss = daily.sunset?.[selDay];
+  // Şu an gösterilecek sıcaklık: bugünse anlık, değilse günün max'ı
+  const bigTemp = isTodaySel ? Math.round(cur.temperature_2m) : Math.round(daily.temperature_2m_max[selDay]);
 
   return wrap(
     <>
-      {/* Şu an */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: compact ? 12 : 16 }}>
-        <div style={{ fontSize: compact ? 42 : 52, lineHeight: 1 }}>{info.icon}</div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: compact ? 30 : 38, fontWeight: 800, lineHeight: 1 }}>{Math.round(cur.temperature_2m)}°</div>
-          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 3 }}>{info.label}</div>
-        </div>
-        <div style={{ textAlign: "right", fontSize: 11.5, opacity: 0.92, lineHeight: 1.7 }}>
-          <div>🌡️ Hissedilen {Math.round(cur.apparent_temperature)}°</div>
-          <div>💨 Rüzgar {Math.round(cur.wind_speed_10m)} km/s</div>
-          <div>💧 Nem %{cur.relative_humidity_2m}</div>
+      {/* Seçili günün büyük detayı */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.95, marginBottom: 8 }}>{dayTitle}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ fontSize: compact ? 42 : 52, lineHeight: 1 }}>{dInfo.icon}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: compact ? 30 : 38, fontWeight: 800, lineHeight: 1 }}>{bigTemp}°</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 3 }}>{dInfo.label}</div>
+          </div>
+          <div style={{ textAlign: "right", fontSize: 11.5, opacity: 0.92, lineHeight: 1.7 }}>
+            <div>🔺 Yük {Math.round(daily.temperature_2m_max[selDay])}° · 🔻 Düş {Math.round(daily.temperature_2m_min[selDay])}°</div>
+            {isTodaySel && <div>🌡️ Hissedilen {Math.round(cur.apparent_temperature)}°</div>}
+            <div>💨 Rüzgar {Math.round(isTodaySel ? cur.wind_speed_10m : daily.wind_speed_10m_max[selDay])} km/s</div>
+            <div>💧 {isTodaySel ? `Nem %${cur.relative_humidity_2m}` : `Yağış %${daily.precipitation_probability_max[selDay] || 0}`}</div>
+          </div>
         </div>
       </div>
 
-      {/* Gün doğumu / batımı / altın saatler */}
-      {daily.sunrise && daily.sunset && (() => {
-        const hm = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
-        const addMin = (iso, m) => { const d = new Date(new Date(iso).getTime() + m * 60000); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
-        const sr = daily.sunrise[0], ss = daily.sunset[0];
-        return (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-            <div style={{ background: "rgba(255,255,255,0.13)", borderRadius: 10, padding: "8px 11px" }}>
-              <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 600 }}>🌅 Gün Doğumu · {hm(sr)}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>✨ Altın Saat: {hm(sr)}–{addMin(sr, 60)}</div>
-            </div>
-            <div style={{ background: "rgba(255,255,255,0.13)", borderRadius: 10, padding: "8px 11px" }}>
-              <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 600 }}>🌇 Gün Batımı · {hm(ss)}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>✨ Altın Saat: {addMin(ss, -60)}–{hm(ss)}</div>
-            </div>
+      {/* Gün doğumu / batımı / altın saat */}
+      {sr && ss && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: 10, padding: "9px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.9, fontWeight: 600 }}>🌅 Gün Doğumu · {hm(sr)}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 3 }}>✨ Altın Saat</div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>{hm(sr)} – {addMin(sr, 60)}</div>
           </div>
-        );
-      })()}
+          <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: 10, padding: "9px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.9, fontWeight: 600 }}>🌇 Gün Batımı · {hm(ss)}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 3 }}>✨ Altın Saat</div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>{addMin(ss, -60)} – {hm(ss)}</div>
+          </div>
+        </div>
+      )}
 
-      {/* Sonraki günler */}
-      <div style={{ display: "flex", gap: 6, borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: 12 }}>
-        {daily.time.slice(0, 5).map((t, i) => {
-          const di = weatherInfo(daily.weather_code[i]);
-          const d = new Date(t + "T00:00:00");
-          const isToday = i === 0;
-          return (
-            <div key={i} style={{ flex: 1, textAlign: "center", background: isToday ? "rgba(255,255,255,0.18)" : "transparent", borderRadius: 8, padding: "6px 3px" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.9 }}>{isToday ? "Bugün" : TR_DAYS[d.getDay()]}</div>
-              <div style={{ fontSize: 20, margin: "3px 0" }}>{di.icon}</div>
-              <div style={{ fontSize: 11, fontWeight: 700 }}>{Math.round(daily.temperature_2m_max[i])}°</div>
-              <div style={{ fontSize: 9.5, opacity: 0.75 }}>{Math.round(daily.temperature_2m_min[i])}°</div>
-              {daily.precipitation_probability_max[i] > 20 && <div style={{ fontSize: 9, opacity: 0.9, marginTop: 2 }}>💧%{daily.precipitation_probability_max[i]}</div>}
-            </div>
-          );
-        })}
+      {/* 7 günlük şerit — tıklanabilir */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: 10 }}>
+        <div style={{ fontSize: 10, opacity: 0.75, fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>7 Günlük Tahmin · güne tıkla</div>
+        <div style={{ display: "flex", gap: 5, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2 }}>
+          {daily.time.map((t, i) => {
+            const di = weatherInfo(daily.weather_code[i]);
+            const d = new Date(t + "T00:00:00");
+            const active = i === selDay;
+            return (
+              <button key={i} onClick={() => setSelDay(i)} style={{
+                flex: "1 0 auto", minWidth: 52, textAlign: "center", borderRadius: 10, padding: "8px 4px", cursor: "pointer",
+                background: active ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)",
+                border: active ? "1px solid rgba(255,255,255,0.6)" : "1px solid transparent", color: "#fff",
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.95 }}>{i === 0 ? "Bugün" : TR_DAYS_SHORT[d.getDay()]}</div>
+                <div style={{ fontSize: 20, margin: "4px 0" }}>{di.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: 800 }}>{Math.round(daily.temperature_2m_max[i])}°</div>
+                <div style={{ fontSize: 9.5, opacity: 0.72 }}>{Math.round(daily.temperature_2m_min[i])}°</div>
+                {daily.precipitation_probability_max[i] > 20 && <div style={{ fontSize: 8.5, opacity: 0.9, marginTop: 2 }}>💧{daily.precipitation_probability_max[i]}%</div>}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </>
   );
