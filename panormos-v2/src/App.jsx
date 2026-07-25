@@ -2485,13 +2485,28 @@ function IdeasPage({ currentStaff, clients }) {
 
   const saveIdea = async () => {
     if (!form.title) return;
-    const { error } = await supabase.from('ideas').insert({
-      title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
-      created_by: currentStaff?.name || "", client_name: form.client_name || "",
-    });
-    if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
+    if (form.id) {
+      // Düzenleme
+      const { error } = await supabase.from('ideas').update({
+        title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
+        client_name: form.client_name || "",
+      }).eq('id', form.id);
+      if (error) { alert("Fikir güncellenemedi: " + error.message); return; }
+    } else {
+      // Yeni ekleme
+      const { error } = await supabase.from('ideas').insert({
+        title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
+        created_by: currentStaff?.name || "", client_name: form.client_name || "",
+      });
+      if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
+    }
     setModal(false); setForm({});
     load();
+  };
+
+  const editIdea = (idea) => {
+    setForm({ id: idea.id, title: idea.title || "", description: idea.description || "", category: idea.category || "", status: idea.status || "planned", client_name: idea.client_name || "" });
+    setModal(true);
   };
 
   const deleteIdea = async (id) => {
@@ -2546,14 +2561,17 @@ function IdeasPage({ currentStaff, clients }) {
             {idea.created_by && <div style={{fontSize:11,color:T.textMuted,marginBottom:10,fontWeight:600}}>👤 {idea.created_by}{idea.created_at?` · ${new Date(idea.created_at).toLocaleDateString("tr-TR")}`:""}</div>}
             <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between"}}>
               {idea.category ? <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span> : <span/>}
-              <button onClick={()=>deleteIdea(idea.id)} style={{background:"none",border:"none",color:T.redText,cursor:"pointer",fontSize:13}}>🗑</button>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <button onClick={()=>editIdea(idea)} title="Düzenle" style={{background:"none",border:"none",color:T.textMuted,cursor:"pointer",fontSize:13}}>✏️</button>
+                <button onClick={()=>deleteIdea(idea.id)} title="Sil" style={{background:"none",border:"none",color:T.redText,cursor:"pointer",fontSize:13}}>🗑</button>
+              </div>
             </div>
           </Card>
         ))}
       </div>
     )}
 
-    {modal && <Modal title="Yeni Fikir Ekle" onClose={()=>setModal(false)} width={700}>
+    {modal && <Modal title={form.id ? "✏️ Fikri Düzenle" : "Yeni Fikir Ekle"} onClose={()=>setModal(false)} width={700}>
       <FormField label="Başlık">
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <Input placeholder="Fikrin başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
