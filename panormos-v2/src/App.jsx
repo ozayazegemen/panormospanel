@@ -3417,7 +3417,7 @@ function WeatherWidget({ compact }) {
   useEffect(() => {
     let alive = true;
     setLoading(true); setErr(false);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max&timezone=Europe%2FIstanbul&forecast_days=5`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max,sunrise,sunset&timezone=Europe%2FIstanbul&forecast_days=5`;
     fetch(url)
       .then(r => r.json())
       .then(j => { if (alive) { setData(j); setLoading(false); } })
@@ -3470,6 +3470,25 @@ function WeatherWidget({ compact }) {
           <div>💧 Nem %{cur.relative_humidity_2m}</div>
         </div>
       </div>
+
+      {/* Gün doğumu / batımı / altın saatler */}
+      {daily.sunrise && daily.sunset && (() => {
+        const hm = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+        const addMin = (iso, m) => { const d = new Date(new Date(iso).getTime() + m * 60000); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+        const sr = daily.sunrise[0], ss = daily.sunset[0];
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+            <div style={{ background: "rgba(255,255,255,0.13)", borderRadius: 10, padding: "8px 11px" }}>
+              <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 600 }}>🌅 Gün Doğumu · {hm(sr)}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>✨ Altın Saat: {hm(sr)}–{addMin(sr, 60)}</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.13)", borderRadius: 10, padding: "8px 11px" }}>
+              <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 600 }}>🌇 Gün Batımı · {hm(ss)}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 2 }}>✨ Altın Saat: {addMin(ss, -60)}–{hm(ss)}</div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Sonraki günler */}
       <div style={{ display: "flex", gap: 6, borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: 12 }}>
@@ -5177,43 +5196,17 @@ async function ensureHtml2Pdf() {
 }
 
 async function downloadPdfFromHTML(html, filename, orientation = "portrait") {
-  const ok = await ensureHtml2Pdf();
-  if (!ok) {
-    alert("PDF oluşturucu yüklenemedi (internet bağlantısı?).\n\nYazdır butonunu kullanıp açılan pencerede 'Hedef: PDF olarak kaydet' seçebilirsiniz.");
-    return;
-  }
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const styles = Array.from(doc.querySelectorAll("style")).map(s => s.textContent).join("\n");
-  // A4 en-boy (px, 96dpi): portrait 794×1123, landscape 1123×794
-  const width = orientation === "landscape" ? 1123 : 794;
-
-  const holder = document.createElement("div");
-  holder.style.cssText = `position:fixed; left:0; top:0; z-index:2147483647; background:#ffffff; width:${width}px; padding:${orientation === "landscape" ? "24px" : "0"}; overflow:visible;`;
-  const styleEl = document.createElement("style");
-  styleEl.textContent = styles;
-  holder.appendChild(styleEl);
-  const content = document.createElement("div");
-  content.style.cssText = "background:#ffffff; color:#1F2937; width:100%;";
-  content.innerHTML = doc.body.innerHTML;
-  holder.appendChild(content);
-  document.body.appendChild(holder);
-
-  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
-  await new Promise(r => setTimeout(r, 350));
-
-  try {
-    await window.html2pdf().set({
-      margin: orientation === "landscape" ? [6, 6, 6, 6] : [8, 8, 8, 8],
-      filename,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width, windowWidth: width, scrollX: 0, scrollY: 0 },
-      jsPDF: { unit: "mm", format: "a4", orientation },
-      pagebreak: { mode: ["avoid-all", "css"] },
-    }).from(holder).save();
-  } catch (e) {
-    alert("PDF oluşturulamadı: " + (e?.message || e) + "\n\nYazdır butonunu kullanıp 'PDF olarak kaydet' de yapabilirsiniz.");
-  }
-  document.body.removeChild(holder);
+  // En güvenilir yöntem: yazdırma penceresi aç, kullanıcı "PDF olarak kaydet" desin.
+  // (html2pdf bazı tarayıcılarda boş çıkıyor; tarayıcı motoru şaşmaz.)
+  const w = window.open("", "_blank");
+  if (!w) { alert("PDF penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  // Başlığı dosya adı yap (yazdırırken önerilen ad olur)
+  const titled = html.replace(/<title>.*?<\/title>/i, `<title>${filename.replace(/\.pdf$/i, "")}</title>`);
+  w.document.write(titled);
+  w.document.close();
+  w.focus();
+  // İçerik ve fontlar yüklensin, sonra yazdır (kullanıcı Hedef: PDF seçer)
+  setTimeout(() => { try { w.print(); } catch (e) {} }, 500);
 }
 
 const PRINT_STYLES = `
