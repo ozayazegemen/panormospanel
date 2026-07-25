@@ -3362,7 +3362,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     setModal(true);
   };
   const openEdit = (s) => {
-    setForm({ id: s.id, client_id: s.client_id || "", title: s.title || "", shoot_date: s.shoot_date || "", shoot_time: s.shoot_time || "", location: s.location || "", assigned_to: s.assigned_to || "", repeat_type: "once", note: s.note || "" });
+    setForm({ id: s.id, client_id: s.client_id || "", title: s.title || "", shoot_date: s.shoot_date || "", shoot_time: s.shoot_time || "", location: s.location || "", assigned_to: s.assigned_to || "", repeat_type: "once", note: s.note || "", status: s.status || "planned" });
     setModal(true);
   };
 
@@ -3391,7 +3391,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     if (form.id) {
       const { error } = await supabase.from('shoots').update({
         client_id: form.client_id, title: form.title, shoot_date: form.shoot_date, shoot_time: form.shoot_time || "",
-        location: form.location || "", assigned_to: form.assigned_to || null, note: form.note || "",
+        location: form.location || "", assigned_to: form.assigned_to || null, note: form.note || "", status: form.status || "planned",
       }).eq('id', form.id);
       setSaving(false);
       if (error) { alert("Güncellenemedi: " + error.message); return; }
@@ -3521,11 +3521,17 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
                       const cli = clientOf(s.client_id);
                       const done = s.status === "done";
                       return (
-                        <div key={s.id} onClick={() => openEdit(s)} title="Düzenlemek için tıkla" style={{ background: T.bgInput, borderRadius: 8, padding: "7px 9px", borderLeft: `3px solid ${done ? T.green : (cli?.accentColor || "#EC4899")}`, cursor: "pointer", opacity: done ? 0.6 : 1 }}>
-                          {s.shoot_time && <div style={{ fontSize: 10, fontWeight: 700, color: T.amberText }}>🕐 {s.shoot_time}</div>}
-                          <div style={{ fontSize: 11.5, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none" }}>{s.title}</div>
-                          <div style={{ fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName(s.client_id)}</div>
-                          {s.assigned_to && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>👤 {staffName(s.assigned_to)}</div>}
+                        <div key={s.id} style={{ background: T.bgInput, borderRadius: 8, padding: "7px 9px", borderLeft: `3px solid ${done ? T.green : (cli?.accentColor || "#EC4899")}`, opacity: done ? 0.65 : 1, position: "relative" }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                            <button onClick={(e) => { e.stopPropagation(); toggleDone(s); }} title={done ? "Planlıya al" : "Tamamlandı işaretle"} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, border: `2px solid ${done ? T.green : T.borderLight}`, background: done ? T.green : "transparent", color: "#fff", cursor: "pointer", fontSize: 10, padding: 0, marginTop: 1 }}>{done ? "✓" : ""}</button>
+                            <div onClick={() => openEdit(s)} title="Düzenlemek için tıkla" style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
+                              {s.shoot_time && <div style={{ fontSize: 10, fontWeight: 700, color: done ? T.green : T.amberText }}>🕐 {s.shoot_time}</div>}
+                              <div style={{ fontSize: 11.5, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none" }}>{s.title}</div>
+                              <div style={{ fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName(s.client_id)}</div>
+                              {s.assigned_to && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>👤 {staffName(s.assigned_to)}</div>}
+                              {done && <div style={{ fontSize: 9, color: T.green, fontWeight: 700, marginTop: 2 }}>✓ Çekildi</div>}
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
@@ -3631,6 +3637,15 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
             </Select>
           </FormField>
           <FormField label="📝 Not (isteğe bağlı)"><Input placeholder="Özel istekler, ekipman notu..." value={form.note || ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></FormField>
+          {form.id && (
+            <FormField label="Durum">
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ v: "planned", l: "📷 Planlandı" }, { v: "done", l: "✓ Çekildi (Tamamlandı)" }].map(o => (
+                  <button key={o.v} type="button" onClick={() => setForm(f => ({ ...f, status: o.v }))} style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${(form.status || "planned") === o.v ? (o.v === "done" ? T.green : T.indigo) : T.border}`, background: (form.status || "planned") === o.v ? (o.v === "done" ? T.greenDim : T.indigoDim) : T.bgInput, color: (form.status || "planned") === o.v ? (o.v === "done" ? T.greenText : T.indigoText) : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{o.l}</button>
+                ))}
+              </div>
+            </FormField>
+          )}
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
             <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
