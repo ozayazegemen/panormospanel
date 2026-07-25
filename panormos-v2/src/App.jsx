@@ -2468,11 +2468,12 @@ function ClientInvoices({client}) {
 // ─────────────────────────────────────────────
 // IDEAS PAGE (YENİ)
 // ─────────────────────────────────────────────
-function IdeasPage({ currentStaff }) {
+function IdeasPage({ currentStaff, clients }) {
   const [ideas, setIdeas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
+  const [filterClient, setFilterClient] = useState("all");
 
   const load = async () => {
     const { data } = await supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false });
@@ -2486,7 +2487,7 @@ function IdeasPage({ currentStaff }) {
     if (!form.title) return;
     const { error } = await supabase.from('ideas').insert({
       title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
-      created_by: currentStaff?.name || "",
+      created_by: currentStaff?.name || "", client_name: form.client_name || "",
     });
     if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
     setModal(false); setForm({});
@@ -2506,12 +2507,13 @@ function IdeasPage({ currentStaff }) {
       <StatCard label="Tamamlanan" value={ideas.filter(i=>i.status==="completed").length} color={T.greenText} />
     </div>
 
-    <div style={{display:"flex",gap:10,marginBottom:20}}>
-      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",description:"",status:"planned",category:""});}}>💡 Yeni Fikir Ekle</Btn>
+    <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",description:"",status:"planned",category:"",client_name:""});}}>💡 Yeni Fikir Ekle</Btn>
       <Btn onClick={()=>{
         const statusLabels={planned:"Planlandı",in_progress:"Devam Ediyor",completed:"Tamamlandı"};
         const rows = ideas.map(i => ({
           "Başlık": i.title,
+          "Müşteri": i.client_name || "Genel",
           "Açıklama": i.description || "—",
           "Kategori": i.category || "—",
           "Ekleyen": i.created_by || "—",
@@ -2519,6 +2521,12 @@ function IdeasPage({ currentStaff }) {
         }));
         printData("Fikir Listesi", rows);
       }}>🖨️ Yazdır</Btn>
+      <div style={{flex:1}} />
+      <Select value={filterClient} onChange={e=>setFilterClient(e.target.value)} style={{maxWidth:220}}>
+        <option value="all">🏢 Tüm Müşteriler</option>
+        <option value="__none__">Genel (müşterisiz)</option>
+        {(clients||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+      </Select>
     </div>
 
     {loading ? (
@@ -2527,14 +2535,15 @@ function IdeasPage({ currentStaff }) {
       <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Henüz fikir yok. "💡 Yeni Fikir Ekle" ile başla!</div>
     ) : (
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
-        {ideas.map(idea => (
+        {ideas.filter(idea => filterClient==="all" || (filterClient==="__none__" ? !idea.client_name : idea.client_name===filterClient)).map(idea => (
           <Card key={idea.id} style={{padding:20}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:8}}>
               <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,flex:1}}>{idea.title}</div>
               <Badge status={idea.status} />
             </div>
+            {idea.client_name && <div style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:6,background:T.indigoDim,color:T.indigoText,marginBottom:10}}>🏢 {idea.client_name}</div>}
             <div style={{fontSize:12,color:T.textMuted,marginBottom:12,whiteSpace:"pre-wrap"}}>{idea.description}</div>
-            {idea.created_by && <div style={{fontSize:11,color:T.indigoText,marginBottom:10,fontWeight:600}}>👤 {idea.created_by}{idea.created_at?` · ${new Date(idea.created_at).toLocaleDateString("tr-TR")}`:""}</div>}
+            {idea.created_by && <div style={{fontSize:11,color:T.textMuted,marginBottom:10,fontWeight:600}}>👤 {idea.created_by}{idea.created_at?` · ${new Date(idea.created_at).toLocaleDateString("tr-TR")}`:""}</div>}
             <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between"}}>
               {idea.category ? <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span> : <span/>}
               <button onClick={()=>deleteIdea(idea.id)} style={{background:"none",border:"none",color:T.redText,cursor:"pointer",fontSize:13}}>🗑</button>
@@ -2556,6 +2565,12 @@ function IdeasPage({ currentStaff }) {
           <Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={200} />
           <div style={{position:"absolute",bottom:8,right:8}}><EmojiButton onSelect={(em)=>setForm(f=>({...f,description:(f.description||"")+em}))} size={20} /></div>
         </div>
+      </FormField>
+      <FormField label="🏢 Hangi Müşteri İçin? (isteğe bağlı)">
+        <Select value={form.client_name||""} onChange={e=>setForm(f=>({...f,client_name:e.target.value}))}>
+          <option value="">Genel / Müşteri seçilmedi</option>
+          {(clients||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+        </Select>
       </FormField>
       <FormField label="Kategori"><Input placeholder="Video, Social, Audio, vb." value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
       <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Devam Ediyor</option><option value="completed">Tamamlandı</option></Select></FormField>
@@ -8249,7 +8264,7 @@ export default function App() {
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
-        {page==="ideas"&&<IdeasPage currentStaff={currentStaff}/>}
+        {page==="ideas"&&<IdeasPage currentStaff={currentStaff} clients={clients}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
         {page==="files"&&<DriveFilesPage clients={clients}/>}
         {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
