@@ -5183,22 +5183,36 @@ async function downloadPdfFromHTML(html, filename, orientation = "portrait") {
     return;
   }
   const doc = new DOMParser().parseFromString(html, "text/html");
-  const styles = Array.from(doc.querySelectorAll("style")).map(s => s.outerHTML).join("");
+  const styles = Array.from(doc.querySelectorAll("style")).map(s => s.textContent).join("\n");
+  const width = orientation === "landscape" ? 1123 : 794;
+
+  // Görünür ama sayfanın en üstünde, beyaz zeminde bir kapsayıcı oluştur (motor doğru yakalasın)
   const holder = document.createElement("div");
-  holder.style.cssText = `position:fixed;left:-10000px;top:0;background:#fff;color:#1F2937;font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:26px;width:${orientation === "landscape" ? 1123 : 794}px;`;
-  holder.innerHTML = styles + doc.body.innerHTML;
+  holder.style.cssText = `position:fixed; left:0; top:0; z-index:2147483647; background:#ffffff; width:${width}px; min-height:100px; overflow:visible;`;
+  const styleEl = document.createElement("style");
+  styleEl.textContent = styles;
+  holder.appendChild(styleEl);
+  const content = document.createElement("div");
+  content.style.cssText = "background:#ffffff; color:#1F2937;";
+  content.innerHTML = doc.body.innerHTML;
+  holder.appendChild(content);
   document.body.appendChild(holder);
+
+  // İçeriğin (emoji, yazı tipleri, arka planlar) çizilmesi için kısa bekleme
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+  await new Promise(r => setTimeout(r, 350));
+
   try {
     await window.html2pdf().set({
       margin: 0,
       filename,
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: orientation === "landscape" ? 1123 : 794 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width, windowWidth: width, scrollX: 0, scrollY: 0 },
       jsPDF: { unit: "mm", format: "a4", orientation },
       pagebreak: { mode: ["avoid-all", "css"] },
-    }).from(holder).save();
+    }).from(content).save();
   } catch (e) {
-    alert("PDF oluşturulamadı: " + (e?.message || e));
+    alert("PDF oluşturulamadı: " + (e?.message || e) + "\n\nYazdır butonunu kullanıp 'PDF olarak kaydet' de yapabilirsiniz.");
   }
   document.body.removeChild(holder);
 }
