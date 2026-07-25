@@ -3323,25 +3323,25 @@ function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel, as
   const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Haftalık Çekim Programı</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:24px;color:#1a1a1a}
-    .hero{background:linear-gradient(135deg,#1A2B3F,#3a2d6b);color:#fff;border-radius:14px;padding:24px 28px;margin-bottom:20px}
-    .logo{font-size:18px;font-weight:700}.logo .m{color:#F8906E}
-    .hero h1{font-size:22px;margin-top:10px;font-weight:800}
-    .hero .p{font-size:13px;opacity:.85;margin-top:3px}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:0;color:#1a1a1a}
+    .hero{background:linear-gradient(135deg,#1A2B3F,#3a2d6b);color:#fff;border-radius:12px;padding:16px 22px;margin-bottom:14px}
+    .logo{font-size:16px;font-weight:700}.logo .m{color:#F8906E}
+    .hero h1{font-size:19px;margin-top:7px;font-weight:800}
+    .hero .p{font-size:12px;opacity:.85;margin-top:3px}
     table{width:100%;border-collapse:collapse;table-layout:fixed}
-    td{border:1px solid #E2E5EA;vertical-align:top;padding:8px;width:14.28%}
-    .dh{background:#1A2B3F;color:#fff;font-size:11px;font-weight:700;text-align:center;border-radius:6px;padding:6px 3px;margin-bottom:8px}
-    .dh .dn{font-size:15px;font-weight:800}
-    .it{background:#F5F6F8;border-left:3px solid #EC4899;border-radius:6px;padding:6px 8px;margin-bottom:6px;font-size:10.5px;line-height:1.45}
+    td{border:1px solid #E2E5EA;vertical-align:top;padding:6px;width:14.28%}
+    .dh{background:#1A2B3F;color:#fff;font-size:10px;font-weight:700;text-align:center;border-radius:5px;padding:5px 2px;margin-bottom:6px}
+    .dh .dn{font-size:14px;font-weight:800}
+    .it{background:#F5F6F8;border-left:3px solid #EC4899;border-radius:5px;padding:5px 7px;margin-bottom:5px;font-size:9.5px;line-height:1.4}
     .it.done{opacity:.55;border-left-color:#10B981}
-    .it .tm{display:inline-block;background:#F25124;color:#fff;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;margin-bottom:3px}
+    .it .tm{display:inline-block;background:#F25124;color:#fff;border-radius:4px;padding:1px 5px;font-size:8.5px;font-weight:700;margin-bottom:3px}
     .it .cl{color:#4a5568}
-    .it .st{color:#8A8F98;font-size:9.5px}
-    .empty{text-align:center;color:#c3c8d0;font-size:11px;padding:8px 0}
-    .foot{margin-top:18px;font-size:10px;color:#8A8F98;text-align:center;border-top:1px solid #eee;padding-top:12px}
+    .it .st{color:#8A8F98;font-size:9px}
+    .empty{text-align:center;color:#c3c8d0;font-size:10px;padding:6px 0}
+    .foot{margin-top:14px;font-size:9.5px;color:#8A8F98;text-align:center;border-top:1px solid #eee;padding-top:10px}
     .foot .co{color:#F25124;font-weight:700}
-    @media print{body{padding:8mm}.hero,.dh,.it,.it .tm{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-    @page{size:A4 landscape;margin:0}
+    @media print{body{padding:0}.hero,.dh,.it,.it .tm{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    @page{size:A4 landscape;margin:8mm}
   </style></head><body>
     <div class="hero">
       <div class="logo">panormos <span class="m">medya.</span></div>
@@ -5184,33 +5184,32 @@ async function downloadPdfFromHTML(html, filename, orientation = "portrait") {
   }
   const doc = new DOMParser().parseFromString(html, "text/html");
   const styles = Array.from(doc.querySelectorAll("style")).map(s => s.textContent).join("\n");
+  // A4 en-boy (px, 96dpi): portrait 794×1123, landscape 1123×794
   const width = orientation === "landscape" ? 1123 : 794;
 
-  // Görünür ama sayfanın en üstünde, beyaz zeminde bir kapsayıcı oluştur (motor doğru yakalasın)
   const holder = document.createElement("div");
-  holder.style.cssText = `position:fixed; left:0; top:0; z-index:2147483647; background:#ffffff; width:${width}px; min-height:100px; overflow:visible;`;
+  holder.style.cssText = `position:fixed; left:0; top:0; z-index:2147483647; background:#ffffff; width:${width}px; padding:${orientation === "landscape" ? "24px" : "0"}; overflow:visible;`;
   const styleEl = document.createElement("style");
   styleEl.textContent = styles;
   holder.appendChild(styleEl);
   const content = document.createElement("div");
-  content.style.cssText = "background:#ffffff; color:#1F2937;";
+  content.style.cssText = "background:#ffffff; color:#1F2937; width:100%;";
   content.innerHTML = doc.body.innerHTML;
   holder.appendChild(content);
   document.body.appendChild(holder);
 
-  // İçeriğin (emoji, yazı tipleri, arka planlar) çizilmesi için kısa bekleme
   try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
   await new Promise(r => setTimeout(r, 350));
 
   try {
     await window.html2pdf().set({
-      margin: 0,
+      margin: orientation === "landscape" ? [6, 6, 6, 6] : [8, 8, 8, 8],
       filename,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width, windowWidth: width, scrollX: 0, scrollY: 0 },
       jsPDF: { unit: "mm", format: "a4", orientation },
       pagebreak: { mode: ["avoid-all", "css"] },
-    }).from(content).save();
+    }).from(holder).save();
   } catch (e) {
     alert("PDF oluşturulamadı: " + (e?.message || e) + "\n\nYazdır butonunu kullanıp 'PDF olarak kaydet' de yapabilirsiniz.");
   }
