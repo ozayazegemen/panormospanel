@@ -4917,7 +4917,33 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 // ─────────────────────────────────────────────
 // ANA SAYFA (DASHBOARD)
 // ─────────────────────────────────────────────
-function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allStaff, refreshData}) {
+// ─── Ana sayfa karşılama ───
+// 08:30–10:00 arası "Günaydın", diğer saatlerde "Hoş geldin"; yanında giriş yapan kişinin adı.
+// Motive edici cümle gün içinde değişir (günün saatine göre seçilir).
+const MOTIVATION_LINES = [
+  "Güne taze başlıyoruz; ilk görevi bitirmek günün ritmini belirler.",
+  "Her paylaşım bir müşterinin hikâyesi. Bugün kimin hikâyesini anlatıyoruz?",
+  "Küçük adımlar büyük markalar kurar.",
+  "Detaylar markayı yapar; bugün dokunduğun her şey fark ediliyor.",
+  "En zor işi önce hallet, gerisi kolay gelir.",
+  "İyi bir gün, iyi bir paylaşımla başlar.",
+  "Bugün ilerlemen dünkü hâlinden daha ileride. Devam.",
+  "Yorulmak normal, bırakmak değil.",
+  "Bitmeyenleri topla, yarına temiz başla.",
+  "Emeğin görünür oluyor. Bugün de fark yaratıyoruz.",
+  "Liste kısalıyor, müşteriler mutlu. Böyle devam.",
+  "Bir paylaşım daha, bir müşteri daha mutlu.",
+];
+function dashboardGreeting(name, now = new Date()) {
+  const t = now.getHours() * 60 + now.getMinutes();
+  const isMorning = t >= 8 * 60 + 30 && t < 10 * 60;
+  const first = (name || "").trim();
+  const salute = isMorning ? "Günaydın" : "Hoş geldin";
+  const seed = now.getFullYear() * 1000 + (now.getMonth() + 1) * 40 + now.getDate() + now.getHours();
+  return { title: first ? `${salute}, ${first}` : salute, line: MOTIVATION_LINES[seed % MOTIVATION_LINES.length] };
+}
+
+function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allStaff, refreshData, currentStaff}) {
   const totalRevenue = clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const paidRevenue = clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="paid").reduce((ss,i)=>ss+i.total,0),0);
   const pendingRevenue = totalRevenue - paidRevenue;
@@ -4962,8 +4988,11 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
     {/* Karşılama */}
     <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
       <div>
-        <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>Hoş geldin 👋</div>
-        <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+        {(() => { const g = dashboardGreeting(currentStaff?.name, today); return <>
+          <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>{g.title}</div>
+          <div style={{fontSize:13,color:T.textSecondary,marginTop:6,fontStyle:"italic"}}>{g.line}</div>
+          <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+        </>; })()}
       </div>
       <Btn onClick={()=>{
         const rows=[];
@@ -8828,7 +8857,7 @@ export default function App() {
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
       </div>
       <div style={{flex:1,overflow:"auto",padding:isMobile?14:28}}>
-        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData}/>}
+        {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData} currentStaff={currentStaff}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="pricing"&&<PricingPage/>}
