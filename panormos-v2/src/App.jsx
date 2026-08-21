@@ -8677,31 +8677,27 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // 30 dakika hareketsizlik sonrası otomatik çıkış
+  // Günlük oturum: giriş yapılan gün boyunca açık kalır; yeni gün başlayınca (04:00 sonrası) tekrar giriş ister
   useEffect(() => {
     if (!session) return;
-    const TIMEOUT = 30 * 60 * 1000; // 30 dakika
-    let timer;
+    const dayKey = (d = new Date()) => { const x = new Date(d.getTime() - 4 * 60 * 60 * 1000); return `${x.getFullYear()}-${x.getMonth() + 1}-${x.getDate()}`; };
+    const stored = localStorage.getItem("panormos_login_day");
+    if (!stored) { localStorage.setItem("panormos_login_day", dayKey()); }
 
-    const logout = async () => {
-      await supabase.auth.signOut();
-      alert("30 dakika işlem yapılmadığı için oturumunuz kapatıldı. Lütfen tekrar giriş yapın.");
-      window.location.reload();
+    const check = async () => {
+      const d = localStorage.getItem("panormos_login_day");
+      if (d && d !== dayKey()) {
+        localStorage.removeItem("panormos_login_day");
+        await supabase.auth.signOut();
+        window.location.reload();
+      }
     };
-
-    const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(logout, TIMEOUT);
-    };
-
-    const events = ["mousedown", "keydown", "scroll", "touchstart", "click"];
-    events.forEach(e => window.addEventListener(e, resetTimer));
-    resetTimer(); // başlat
-
-    return () => {
-      clearTimeout(timer);
-      events.forEach(e => window.removeEventListener(e, resetTimer));
-    };
+    check();
+    const onVisible = () => { if (document.visibilityState === "visible") check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", check);
+    const timer = setInterval(check, 5 * 60 * 1000);
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", check); clearInterval(timer); };
   }, [session]);
 
   useEffect(() => {
@@ -8868,7 +8864,7 @@ export default function App() {
             <div style={{fontSize:10,color:T.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{perms.isAdmin?"Yönetici":currentStaff.role||"Çalışan"}</div>
           </div>
         </div>
-        <button onClick={async()=>{ if(window.confirm("Çıkış yapmak istediğinize emin misiniz?")){ await supabase.auth.signOut(); window.location.reload(); } }} style={{
+        <button onClick={async()=>{ if(window.confirm("Çıkış yapmak istediğinize emin misiniz?")){ localStorage.removeItem("panormos_login_day"); await supabase.auth.signOut(); window.location.reload(); } }} style={{
           width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           padding:"9px 12px",borderRadius:10,background:T.bgSurface,border:`1px solid ${T.border}`,
           color:T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:600,transition:"all 0.12s",
