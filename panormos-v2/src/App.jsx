@@ -8574,6 +8574,39 @@ const RESPONSIVE_CSS = `
 }
 `;
 
+// ─── PWA: "Ana ekrana ekle" şeridi (sadece mobil tarayıcıda, uygulama olarak açılmamışsa) ───
+function InstallBanner() {
+  const [show, setShow] = useState(false);
+  const [promptEvt, setPromptEvt] = useState(null);
+  const isIOS = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  useEffect(() => {
+    const standalone = window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    const dismissed = localStorage.getItem("pwa_banner_dismissed");
+    if (standalone || dismissed) return;
+    setShow(true);
+    const h = (e) => { e.preventDefault(); setPromptEvt(e); };
+    window.addEventListener("beforeinstallprompt", h);
+    return () => window.removeEventListener("beforeinstallprompt", h);
+  }, []);
+  if (!show) return null;
+  const dismiss = () => { localStorage.setItem("pwa_banner_dismissed", "1"); setShow(false); };
+  const install = async () => { if (!promptEvt) return; promptEvt.prompt(); const r = await promptEvt.userChoice; if (r?.outcome === "accepted") dismiss(); };
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: T.amberDim, borderBottom: `1px solid ${T.amber}55`, fontSize: 12, color: T.textPrimary }}>
+      <img src="/icons/icon-192.png" alt="" style={{ width: 34, height: 34, borderRadius: 8, flexShrink: 0 }} />
+      <div style={{ flex: 1, lineHeight: 1.4 }}>
+        <div style={{ fontWeight: 700 }}>Paneli telefonuna uygulama olarak ekle</div>
+        {isIOS
+          ? <div style={{ color: T.textSecondary }}>Safari'de alttaki <strong>Paylaş</strong> simgesine bas → <strong>Ana Ekrana Ekle</strong></div>
+          : promptEvt ? <div style={{ color: T.textSecondary }}>Tek dokunuşla yükle, tam ekran açılır.</div>
+          : <div style={{ color: T.textSecondary }}>Chrome menüsü (⋮) → <strong>Ana ekrana ekle</strong></div>}
+      </div>
+      {promptEvt && !isIOS && <button onClick={install} style={{ fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 8, background: T.amber, color: "#fff", border: "none", cursor: "pointer" }}>Yükle</button>}
+      <button onClick={dismiss} style={{ background: "none", border: "none", color: T.textMuted, fontSize: 16, cursor: "pointer" }}>✕</button>
+    </div>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [showLogin, setShowLogin] = useState(() => {
@@ -8848,6 +8881,7 @@ export default function App() {
     </div>
 
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+      {isMobile && <InstallBanner />}
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
