@@ -5369,6 +5369,118 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
   );
 }
 
+// ═══════════════ ENVANTER ═══════════════
+const INVENTORY_CATEGORIES = [
+  { id: "kamera", label: "📷 Kamera" }, { id: "lens", label: "🔭 Lens" }, { id: "isik", label: "💡 Işık" },
+  { id: "ses", label: "🎙️ Ses" }, { id: "gimbal", label: "🎥 Gimbal / Tripod" }, { id: "drone", label: "🚁 Drone" },
+  { id: "bilgisayar", label: "💻 Bilgisayar / Tablet" }, { id: "depolama", label: "💾 Hafıza / Disk" },
+  { id: "aksesuar", label: "🔋 Batarya / Aksesuar" }, { id: "ofis", label: "🏢 Ofis Eşyası" }, { id: "diger", label: "📦 Diğer" },
+];
+const INVENTORY_STATUS = { aktif: { label: "Aktif", color: "#34D399" }, arizali: { label: "Arızalı", color: "#FCA5A5" }, serviste: { label: "Serviste", color: "#F8906E" }, kayip: { label: "Kayıp", color: "#9CA3AF" }, satildi: { label: "Satıldı", color: "#9CA3AF" } };
+const invCatLabel = (id) => INVENTORY_CATEGORIES.find(c => c.id === id)?.label || id;
+
+function InventoryPage({ perms }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [filterCat, setFilterCat] = useState("all");
+  const [search, setSearch] = useState("");
+
+  const load = async () => {
+    const { data, error } = await supabase.from('inventory').select('*').is('deleted_at', null).order('category').order('name');
+    if (error) alert("Envanter yüklenemedi: " + error.message + "\n\nENVANTER-SQL kodunu çalıştırın.");
+    setItems(data || []); setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!form.name) { alert("Ekipman adı zorunlu"); return; }
+    const row = { name: form.name, category: form.category || "diger", brand_model: form.brand_model || "", quantity: parseInt(form.quantity) || 1, serial_no: form.serial_no || "", status: form.status || "aktif", purchase_date: form.purchase_date || null, value: parseFloat(form.value) || 0, notes: form.notes || "" };
+    const { error } = form.id ? await supabase.from('inventory').update(row).eq('id', form.id) : await supabase.from('inventory').insert(row);
+    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    setModal(false); setForm({}); load();
+  };
+  const del = async (id) => { if (!window.confirm("Bu ekipman envanterden silinsin mi?")) return; await supabase.from('inventory').update({ deleted_at: new Date().toISOString() }).eq('id', id); load(); };
+  const quickQty = async (it, delta) => { const q = Math.max(0, (it.quantity || 0) + delta); await supabase.from('inventory').update({ quantity: q }).eq('id', it.id); setItems(prev => prev.map(x => x.id === it.id ? { ...x, quantity: q } : x)); };
+
+  const filtered = items.filter(i => (filterCat === "all" || i.category === filterCat) && (!search || `${i.name} ${i.brand_model} ${i.serial_no} ${i.notes}`.toLowerCase().includes(search.toLowerCase())));
+  const totalQty = items.filter(i => i.status === "aktif").reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalValue = items.reduce((s, i) => s + (Number(i.value) || 0) * (i.quantity || 0), 0);
+  const broken = items.filter(i => i.status === "arizali" || i.status === "serviste").length;
+  const byCat = {}; filtered.forEach(i => { (byCat[i.category] = byCat[i.category] || []).push(i); });
+
+  const exportExcel = async () => {
+    const rows = items.map(i => ({ "Ekipman": i.name, "Kategori": invCatLabel(i.category).replace(/^[^\w]+\s/, ""), "Marka / Model": i.brand_model, "Adet": i.quantity, "Seri No": i.serial_no, "Durum": INVENTORY_STATUS[i.status]?.label || i.status, "Alış Tarihi": i.purchase_date || "", "Birim Değer (₺)": Number(i.value) || 0, "Toplam Değer (₺)": (Number(i.value) || 0) * (i.quantity || 0), "Not": i.notes }));
+    await exportPerfectExcel([{ name: "Envanter", rows, title: "PANORMOS MEDYA — EKİPMAN ENVANTERİ" }], `panormos-envanter-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 16 }}>
+        <StatCard label="Toplam Ekipman (aktif)" value={totalQty} />
+        <StatCard label="Kalem Sayısı" value={items.length} />
+        <StatCard label="Arızalı / Serviste" value={broken} color={broken ? T.redText : T.greenText} />
+        {perms.finance && <StatCard label="Toplam Değer" value={fmtMoney(totalValue)} color={T.indigoText} />}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
+        <Btn variant="primary" onClick={() => { setForm({ category: "kamera", status: "aktif", quantity: 1 }); setModal(true); }}>+ Ekipman Ekle</Btn>
+        <Btn onClick={exportExcel} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel'e Aktar</Btn>
+        <div style={{ flex: 1 }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Ara…" style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: T.textPrimary, outline: "none", width: 180 }} />
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: T.textPrimary }}>
+          <option value="all">Tüm kategoriler</option>
+          {INVENTORY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </div>
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40, border: `1px dashed ${T.border}`, borderRadius: 12 }}>Henüz ekipman eklenmemiş. "+ Ekipman Ekle" ile başlayın.</div>
+        : INVENTORY_CATEGORIES.filter(c => byCat[c.id]).map(c => (
+          <div key={c.id} style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>{c.label} <span style={{ color: T.textMuted, fontWeight: 400 }}>· {byCat[c.id].reduce((s, i) => s + (i.quantity || 0), 0)} adet</span></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {byCat[c.id].map(it => {
+                const st = INVENTORY_STATUS[it.status] || INVENTORY_STATUS.aktif;
+                return (
+                  <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${st.color}` }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{it.name}{it.brand_model ? <span style={{ color: T.textMuted, fontWeight: 400 }}> · {it.brand_model}</span> : null}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{[it.serial_no && `SN: ${it.serial_no}`, it.purchase_date && `Alış: ${it.purchase_date}`, perms.finance && Number(it.value) > 0 && fmtMoney(it.value) + " / adet", it.notes].filter(Boolean).join(" · ")}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: st.color + "22", color: st.color }}>{st.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <button onClick={() => quickQty(it, -1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.border}`, background: T.bgSurface, color: T.textSecondary, cursor: "pointer" }}>−</button>
+                      <div style={{ minWidth: 36, textAlign: "center", fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{it.quantity}</div>
+                      <button onClick={() => quickQty(it, 1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.border}`, background: T.bgSurface, color: T.textSecondary, cursor: "pointer" }}>+</button>
+                    </div>
+                    <Btn onClick={() => { setForm({ ...it }); setModal(true); }} style={{ fontSize: 11, padding: "5px 10px" }}>✏️</Btn>
+                    <button onClick={() => del(it.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      {modal && (
+        <Modal title={form.id ? "Ekipmanı Düzenle" : "Ekipman Ekle"} onClose={() => setModal(false)} width={560}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <FormField label="Ekipman Adı *"><Input placeholder="Örn: Sony A7 IV" value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FormField>
+            <FormField label="Kategori"><Select value={form.category || "diger"} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{INVENTORY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</Select></FormField>
+            <FormField label="Marka / Model"><Input value={form.brand_model || ""} onChange={e => setForm(f => ({ ...f, brand_model: e.target.value }))} /></FormField>
+            <FormField label="Adet"><Input type="number" value={form.quantity ?? 1} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} /></FormField>
+            <FormField label="Seri No"><Input value={form.serial_no || ""} onChange={e => setForm(f => ({ ...f, serial_no: e.target.value }))} /></FormField>
+            <FormField label="Durum"><Select value={form.status || "aktif"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>{Object.entries(INVENTORY_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></FormField>
+            <FormField label="Alış Tarihi"><Input type="date" value={form.purchase_date || ""} onChange={e => setForm(f => ({ ...f, purchase_date: e.target.value }))} /></FormField>
+            <FormField label="Birim Değer (₺)"><Input type="number" value={form.value || ""} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} /></FormField>
+          </div>
+          <FormField label="Not"><Input placeholder="Örn: Çantada 2 yedek batarya ile" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={save} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
@@ -5382,6 +5494,7 @@ const NAV=[
   {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
+  {id:"inventory",label:"Envanter",icon:"🎒"},
   {id:"yearly",label:"Yıllık Özet",icon:"📊"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
 ];
@@ -6259,6 +6372,37 @@ const expCatLabel = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.label || 
 const expCatColor = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.color || "#8A8F98";
 
 // Ortak belge yükleme (Supabase Storage → public URL)
+// ═══════════════ FATURA OKUMA (Claude) ═══════════════
+function fileToBase64(file) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = () => rej(new Error("Dosya okunamadı")); r.readAsDataURL(file); });
+}
+async function extractInvoiceWithAI(file, kind, clientName) {
+  if (file.size > 4 * 1024 * 1024) throw new Error("Dosya 4 MB'dan büyük; daha küçük bir PDF/görsel yükleyin.");
+  const b64 = await fileToBase64(file);
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  const block = isPdf ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }
+                      : { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: b64 } };
+  const ask = kind === "expense"
+    ? `Bu bir GİDER faturası/fişi (Panormos Medya satın almış). Şu alanları JSON olarak çıkar:
+{"vendor":"satıcı/firma adı","invoice_no":"fatura/fiş no","date":"YYYY-MM-DD","amount":KDV hariç tutar (sayı),"vat":KDV tutarı (sayı),"total":KDV dahil genel toplam (sayı),"category":"yakit|yemek|kirtasiye|ofis|ekipman","description":"kısa açıklama (ne alınmış)"}`
+    : `Bu Panormos Medya'nın ${clientName ? `"${clientName}" adlı müşterisine` : "bir müşterisine"} kestiği SATIŞ faturası. Şu alanları JSON olarak çıkar:
+{"invoice_no":"fatura no","date":"YYYY-MM-DD","amount":KDV hariç tutar (sayı),"vat":KDV tutarı (sayı),"total":KDV dahil genel toplam (sayı),"month_ref":"hizmetin ait olduğu ay YYYY-MM (faturada dönem yazıyorsa onu, yoksa fatura tarihinin ayını kullan)","description":"hizmet açıklaması kısa"}`;
+  const text = await askClaude({
+    system: "Sen bir muhasebe asistanısın. Türk faturalarını okursun. SADECE geçerli JSON döndür; açıklama, markdown, kod bloğu yazma. Bulamadığın alanı boş string veya 0 yap. Tutarları nokta ondalıklı sayı olarak ver (1.234,56 -> 1234.56).",
+    messages: [{ role: "user", content: [block, { type: "text", text: ask }] }],
+    maxTokens: 600,
+  });
+  const clean = text.replace(/```json|```/g, "").trim();
+  const m = clean.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("Fatura okunamadı (JSON yok): " + clean.slice(0, 120));
+  const j = JSON.parse(m[0]);
+  const num = (v) => { if (typeof v === "number") return v; const t = String(v || "").replace(/[^\d,.\-]/g, ""); if (!t) return 0; return parseFloat(t.includes(",") && !t.includes(".") ? t.replace(",", ".") : t.replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")) || 0; };
+  j.amount = num(j.amount); j.vat = num(j.vat); j.total = num(j.total);
+  if (!j.total && j.amount) j.total = j.amount + j.vat;
+  if (!j.amount && j.total) j.amount = j.total - j.vat;
+  return j;
+}
+
 async function uploadAccountingDoc(file, prefix) {
   const path = `${prefix}/${Date.now()}-${file.name}`;
   const { data, error } = await supabase.storage.from('client-media').upload(path, file);
@@ -6268,10 +6412,12 @@ async function uploadAccountingDoc(file, prefix) {
   return { url, name: file.name };
 }
 
-// Müşteri carisine fatura yükleme + listeleme
-function ClientInvoiceUpload({ clientId, clientName }) {
+// Müşteri carisine fatura yükleme + AI okuma + ödendi işaretleme
+function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
   const [invoices, setInvoices] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [stage, setStage] = useState("");
+  const [draft, setDraft] = useState(null); // {file, url, name, fields}
   const fileRef = useRef(null);
 
   const load = async () => {
@@ -6282,43 +6428,113 @@ function ClientInvoiceUpload({ clientId, clientName }) {
 
   const onFile = async (e) => {
     const file = e.target.files[0];
+    if (fileRef.current) fileRef.current.value = "";
     if (!file) return;
     setUploading(true);
     try {
+      setStage("Yükleniyor…");
       const r = await uploadAccountingDoc(file, "faturalar");
-      const { error } = await supabase.from('client_invoices').insert({ client_id: clientId, file_url: r.url, file_name: r.name, month_ref: (()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;})() });
-      if (error) { alert("Fatura kaydedilemedi: " + error.message + "\n\nSTORAGE-POLITIKA-SQL kodunu çalıştırın."); }
-      else { load(); }
+      setStage("Fatura okunuyor…");
+      let fields = {};
+      try { fields = await extractInvoiceWithAI(file, "sale", clientName); } catch (ex) { alert("Fatura otomatik okunamadı, bilgileri elle girin.\n" + ex.message); }
+      const d = new Date();
+      setDraft({ url: r.url, name: r.name, fields: {
+        invoice_no: fields.invoice_no || "", invoice_date: fields.date || d.toISOString().slice(0, 10),
+        amount: fields.amount || "", vat: fields.vat || "", total: fields.total || "",
+        month_ref: fields.month_ref || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        description: fields.description || "",
+      }});
     } catch (err) { alert("Yükleme hatası: " + err.message + "\n\nSTORAGE-POLITIKA-SQL kodunu çalıştırın."); }
-    setUploading(false);
-    if (fileRef.current) fileRef.current.value = "";
+    setUploading(false); setStage("");
   };
 
-  const del = async (id) => { if (!window.confirm("Bu fatura silinsin mi?")) return; await supabase.from('client_invoices').delete().eq('id', id); load(); };
+  const saveDraft = async () => {
+    const f = draft.fields;
+    const total = parseFloat(f.total) || 0;
+    if (!total) { alert("Toplam tutar zorunlu"); return; }
+    const { error } = await supabase.from('client_invoices').insert({
+      client_id: clientId, file_url: draft.url, file_name: draft.name,
+      invoice_no: f.invoice_no || "", invoice_date: f.invoice_date || null,
+      amount: parseFloat(f.amount) || 0, vat: parseFloat(f.vat) || 0, total,
+      month_ref: f.month_ref || null, description: f.description || "", status: "pending",
+    });
+    if (error) { alert("Fatura kaydedilemedi: " + error.message + "\n\nFATURA-SQL (client_invoices sütunları) kodunu çalıştırdığınızdan emin olun."); return; }
+    setDraft(null); load();
+  };
+
+  const markPaid = async (inv) => {
+    if (!window.confirm(`${inv.invoice_no || inv.file_name} — ${fmtMoney(inv.total)} ödendi olarak işaretlensin ve cariye ödeme kaydı düşülsün mü?`)) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: pay, error: e1 } = await supabase.from('client_payments').insert({
+      client_id: clientId, amount: Number(inv.total || 0), payment_date: today,
+      month_ref: inv.month_ref || today.slice(0, 7), method: "havale", notes: `Fatura ${inv.invoice_no || ""}`.trim(),
+    }).select().single();
+    if (e1) { alert("Ödeme kaydı oluşturulamadı: " + e1.message); return; }
+    const { error: e2 } = await supabase.from('client_invoices').update({ status: "paid", paid_at: today, payment_id: pay?.id || null }).eq('id', inv.id);
+    if (e2) { alert("Fatura güncellenemedi: " + e2.message); return; }
+    load(); onPaid && onPaid();
+  };
+
+  const markUnpaid = async (inv) => {
+    if (!window.confirm("Ödendi işareti kaldırılsın mı? (Bağlı ödeme kaydı da silinir)")) return;
+    if (inv.payment_id) await supabase.from('client_payments').delete().eq('id', inv.payment_id);
+    await supabase.from('client_invoices').update({ status: "pending", paid_at: null, payment_id: null }).eq('id', inv.id);
+    load(); onPaid && onPaid();
+  };
+
+  const del = async (inv) => {
+    if (!window.confirm("Bu fatura silinsin mi?" + (inv.payment_id ? " (Bağlı ödeme kaydı da silinir)" : ""))) return;
+    if (inv.payment_id) await supabase.from('client_payments').delete().eq('id', inv.payment_id);
+    await supabase.from('client_invoices').delete().eq('id', inv.id); load(); onPaid && onPaid();
+  };
+
+  const pending = invoices.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.total || 0), 0);
+  const F = draft?.fields;
+  const setF = (k, v) => setDraft(d => ({ ...d, fields: { ...d.fields, [k]: v } }));
 
   return (
     <div style={{ marginTop: 12, padding: "12px", background: T.bgInput, borderRadius: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: invoices.length ? 10 : 0, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🧾 Faturalar ({invoices.length})</div>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🧾 Faturalar ({invoices.length}){pending > 0 && <span style={{ color: T.amberText, marginLeft: 8 }}>· Bekleyen {fmtMoney(pending)}</span>}</div>
         <div>
           <input ref={fileRef} type="file" accept=".pdf,image/*" onChange={onFile} style={{ display: "none" }} />
-          <Btn variant="primary" onClick={() => fileRef.current && fileRef.current.click()} disabled={uploading} style={{ fontSize: 11, padding: "6px 12px" }}>{uploading ? "Yükleniyor..." : "📎 Fatura Yükle (PDF)"}</Btn>
+          <Btn variant="primary" onClick={() => !uploading && fileRef.current && fileRef.current.click()} style={{ fontSize: 11, padding: "6px 12px", opacity: uploading ? 0.7 : 1 }}>{uploading ? `⏳ ${stage}` : "📎 Fatura Yükle (PDF) → otomatik oku"}</Btn>
         </div>
       </div>
       {invoices.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {invoices.map(inv => (
-            <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: T.bgCard, borderRadius: 8 }}>
+          {invoices.map(inv => {
+            const paid = inv.status === "paid";
+            return (
+            <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: T.bgCard, borderRadius: 8, borderLeft: `3px solid ${paid ? T.green : T.amber}` }}>
               <span style={{ fontSize: 16 }}>🧾</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <a href={inv.file_url} target="_blank" rel="noopener" style={{ fontSize: 13, color: T.indigoText, fontWeight: 600, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{inv.file_name}</a>
-                <div style={{ fontSize: 10, color: T.textMuted }}>{inv.uploaded_at ? new Date(inv.uploaded_at).toLocaleDateString("tr-TR") : ""}</div>
+                <a href={inv.file_url} target="_blank" rel="noopener" style={{ fontSize: 13, color: T.indigoText, fontWeight: 600, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{inv.invoice_no ? `Fatura ${inv.invoice_no}` : inv.file_name}{inv.description ? ` · ${inv.description}` : ""}</a>
+                <div style={{ fontSize: 10, color: T.textMuted }}>{inv.invoice_date || (inv.uploaded_at ? new Date(inv.uploaded_at).toLocaleDateString("tr-TR") : "")}{inv.month_ref ? ` · ${monthRefLabel(inv.month_ref)}` : ""}{paid && inv.paid_at ? ` · ✓ ${inv.paid_at} ödendi` : ""}</div>
               </div>
-              <a href={inv.file_url} target="_blank" rel="noopener" style={{ fontSize: 11, color: T.textSecondary, textDecoration: "none", padding: "4px 8px", background: T.bgSurface, borderRadius: 6 }}>Aç</a>
-              <button onClick={() => del(inv.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
-            </div>
-          ))}
+              {Number(inv.total) > 0 && <div style={{ textAlign: "right" }}><div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{fmtMoney(inv.total)}</div>{Number(inv.vat) > 0 && <div style={{ fontSize: 10, color: T.textMuted }}>KDV {fmtMoney(inv.vat)}</div>}</div>}
+              {Number(inv.total) > 0 && (paid
+                ? <button onClick={() => markUnpaid(inv)} title="Ödendi işaretini kaldır" style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 6, background: T.greenDim, color: T.greenText, border: "none", cursor: "pointer" }}>✓ Ödendi</button>
+                : <button onClick={() => markPaid(inv)} style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 6, background: T.amber, color: "#fff", border: "none", cursor: "pointer" }}>Ödendi İşaretle</button>)}
+              <button onClick={() => del(inv)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+            </div>);
+          })}
         </div>
+      )}
+      {draft && (
+        <Modal title={`Fatura Kontrol — ${clientName}`} onClose={() => setDraft(null)} width={560}>
+          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>Faturadan okunan bilgiler aşağıda. Kontrol edip Kaydet'e basın. <a href={draft.url} target="_blank" rel="noopener" style={{ color: T.indigoText }}>📄 PDF'i aç</a></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <FormField label="Fatura No"><Input value={F.invoice_no} onChange={e => setF("invoice_no", e.target.value)} /></FormField>
+            <FormField label="Fatura Tarihi"><Input type="date" value={F.invoice_date} onChange={e => setF("invoice_date", e.target.value)} /></FormField>
+            <FormField label="KDV Hariç (₺)"><Input type="number" value={F.amount} onChange={e => setF("amount", e.target.value)} /></FormField>
+            <FormField label="KDV (₺)"><Input type="number" value={F.vat} onChange={e => setF("vat", e.target.value)} /></FormField>
+            <FormField label="Genel Toplam (₺)"><Input type="number" value={F.total} onChange={e => setF("total", e.target.value)} /></FormField>
+            <FormField label="Ait Olduğu Ay (YYYY-AA)"><Input value={F.month_ref} onChange={e => setF("month_ref", e.target.value)} placeholder="2026-08" /></FormField>
+          </div>
+          <FormField label="Açıklama"><Input value={F.description} onChange={e => setF("description", e.target.value)} /></FormField>
+          <ModalActions onClose={() => setDraft(null)} onSave={saveDraft} saveLabel="Kaydet (Bekliyor)" />
+        </Modal>
       )}
     </div>
   );
@@ -6332,6 +6548,19 @@ function AccountingSpending() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [filterCat, setFilterCat] = useState("all");
+  const [aiBusy, setAiBusy] = useState(false);
+  const aiFileRef = useRef(null);
+  const onAiFile = async (e) => {
+    const f = e.target.files[0]; if (aiFileRef.current) aiFileRef.current.value = ""; if (!f) return;
+    setAiBusy(true);
+    try {
+      const j = await extractInvoiceWithAI(f, "expense");
+      const cat = EXPENSE_CATEGORIES.find(c => c.id === j.category) ? j.category : "ofis";
+      setForm({ category: cat, title: [j.vendor, j.description].filter(Boolean).join(" - "), amount: j.total || j.amount || "", expense_date: j.date || new Date().toISOString().slice(0, 10), notes: j.invoice_no ? `Fatura no: ${j.invoice_no}` : "", vendor: j.vendor || "", invoice_no: j.invoice_no || "" });
+      setFile(f); setModal(true);
+    } catch (ex) { alert("Fatura okunamadı: " + ex.message); }
+    setAiBusy(false);
+  };
 
   const load = async () => {
     const { data } = await supabase.from('company_expenses').select('*').order('expense_date', { ascending: false });
@@ -6352,6 +6581,7 @@ function AccountingSpending() {
       category: form.category, title: form.title || "", amount: parseFloat(form.amount) || 0,
       expense_date: form.expense_date || new Date().toISOString().slice(0, 10),
       document_url: docUrl, document_name: docName, notes: form.notes || "",
+      vendor: form.vendor || "", invoice_no: form.invoice_no || "",
     });
     setUploading(false);
     if (error) { alert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
@@ -6387,6 +6617,8 @@ function AccountingSpending() {
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
         <Btn variant="primary" onClick={() => { setForm({ category: "yakit", expense_date: new Date().toISOString().slice(0, 10) }); setFile(null); setModal(true); }}>+ Gider Ekle</Btn>
+        <input ref={aiFileRef} type="file" accept=".pdf,image/*" onChange={onAiFile} style={{ display: "none" }} />
+        <Btn onClick={() => !aiBusy && aiFileRef.current?.click()} style={{ background: T.indigoDim, color: T.indigoText, opacity: aiBusy ? 0.7 : 1 }}>{aiBusy ? "⏳ Fatura okunuyor…" : "📄 PDF'den Gider Ekle (otomatik oku)"}</Btn>
         {filterCat !== "all" && <Btn onClick={() => setFilterCat("all")} style={{ fontSize: 12 }}>✕ Filtreyi Temizle ({expCatLabel(filterCat)})</Btn>}
       </div>
 
@@ -6685,7 +6917,7 @@ function AccountingCari({ clients }) {
                       <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
                     </div>
                     {/* Fatura yükleme */}
-                    <ClientInvoiceUpload clientId={cs.client.id} clientName={cs.client.name} />
+                    <ClientInvoiceUpload clientId={cs.client.id} clientName={cs.client.name} onPaid={load} />
                     <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylık Ödeme Durumu</div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
                       {cs.months.map(m => {
@@ -8637,6 +8869,7 @@ export default function App() {
         {page==="yearly"&&<YearlyBackupPage clients={clients} staff={staff} tasks={tasks} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
+        {page==="inventory"&&<InventoryPage perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
       </div>
     </div>
