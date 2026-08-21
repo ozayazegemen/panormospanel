@@ -1567,7 +1567,7 @@ function PermToggle({label, checked, onChange}) {
 // ─────────────────────────────────────────────
 // CLIENTS PAGE
 // ─────────────────────────────────────────────
-function ClientsPage({clients,setClients,allClients,perms}) {
+function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
   const [open,setOpen]=useState(null);
   const [tab,setTab]=useState({});
   const [modal,setModal]=useState(null);
@@ -1747,7 +1747,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
             </div>}
             <span style={{fontSize:13,color:T.textMuted,transition:"transform 0.2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)"}}>›</span>
           </div>
-          {isOpen&&<ClientDetail client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} onDelete={()=>setDeleteModal({clientId:client.id,reason:"",date:""})} perms={perms} />}
+          {isOpen&&<ClientDetail currentStaff={currentStaff} client={client} currentTab={currentTab} setTab={t=>setTab(prev=>({...prev,[client.id]:t}))} clients={clients} setClients={setClients} setModal={setModal} setForm={setForm} setMessagingClient={setMessagingClient} onDelete={()=>setDeleteModal({clientId:client.id,reason:"",date:""})} perms={perms} />}
         </div>;
       })}
       {filteredClients.length>6 && (
@@ -1763,6 +1763,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.socialMedia||""} onChange={e=>setForm(f=>({...f,socialMedia:e.target.value}))} /></FormField>
       <FormField label="🔑 Sosyal Medya Şifresi"><Input placeholder="Hesap şifresi" value={form.socialPassword||""} onChange={e=>setForm(f=>({...f,socialPassword:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="📧 E-posta"><Input placeholder="ornek@firma.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FormField label="İl"><Input placeholder="Istanbul" value={form.city||""} onChange={e=>setForm(f=>({...f,city:e.target.value}))} /></FormField>
@@ -1794,7 +1795,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         const publishTimes = form.publishTimes||[];
         const { data, error } = await supabase.from('clients').insert({
           name: form.name, category: form.category||"", initials, accent_color: accentColor,
-          phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
+          phone: form.phone||"", email: form.email||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
@@ -1809,7 +1810,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
             const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
             savedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
           }
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[],setupChecklist:{}}]);
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,email:data.email||"",address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[],setupChecklist:{}}]);
         }
         setModal(null);
       }} />
@@ -1821,6 +1822,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
       <FormField label="📱 Sosyal Medya Adı"><Input placeholder="Örn: @lezzetduragi" value={form.socialMedia||""} onChange={e=>setForm(f=>({...f,socialMedia:e.target.value}))} /></FormField>
       <FormField label="🔑 Sosyal Medya Şifresi"><Input placeholder="Hesap şifresi" value={form.socialPassword||""} onChange={e=>setForm(f=>({...f,socialPassword:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="📧 E-posta"><Input placeholder="ornek@firma.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="Adres"><Textarea placeholder="Açık adres" value={form.address||""} onChange={e=>setForm(f=>({...f,address:e.target.value}))} /></FormField>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <FormField label="İl"><Input placeholder="Istanbul" value={form.city||""} onChange={e=>setForm(f=>({...f,city:e.target.value}))} /></FormField>
@@ -1850,7 +1852,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
         const publishTimes = form.publishTimes||[];
         const { error } = await supabase.from('clients').update({
           name: form.name, category: form.category||"", initials,
-          phone: form.phone||"", address: form.address||"", city: form.city||"", district: form.district||"",
+          phone: form.phone||"", email: form.email||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
@@ -1864,7 +1866,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
           const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
           addedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
         }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",email:form.email||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -1919,8 +1921,9 @@ function ClientsPage({clients,setClients,allClients,perms}) {
   </div>;
 }
 
-function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient,onDelete,perms}) {
+function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setForm,setMessagingClient,onDelete,perms,currentStaff}) {
   const [uploadPanel, setUploadPanel] = useState(false);
+  const [mailModal, setMailModal] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
   const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"setup",lbl:"Kurulum"},{id:"ai",lbl:"✨ Asistan"}];
@@ -2016,7 +2019,8 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         <Btn onClick={()=>printClientDetail(client, perms)} style={{fontSize:11,padding:"5px 10px"}}>🖨️ Yazdır</Btn>
         <Btn onClick={()=>printMonthlyReport(client)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📄 Aylık Rapor</Btn>
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
-        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",workType:client.workType||"monthly",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
+        <Btn onClick={()=>setMailModal(true)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📧 E-posta</Btn>
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,email:client.email||"",address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",workType:client.workType||"monthly",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
@@ -2030,6 +2034,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
     </div>
     
+    {mailModal && <ClientMailModal client={client} currentStaff={currentStaff} onClose={()=>setMailModal(false)} />}
     {uploadPanel && <FileUploadPanel clientId={client.id} onClose={()=>setUploadPanel(false)} onUploadComplete={()=>{setUploadPanel(false);window.location.reload();}} />}
   </div>;
 }
@@ -2367,6 +2372,83 @@ function ClientAI({ client }) {
         <Btn variant="primary" onClick={() => send()} disabled={busy || attachBusy || (!input.trim() && !attach)} style={{ alignSelf: "flex-end" }}>Gönder</Btn>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MÜŞTERİYE E-POSTA (info@panormosmedya.com üzerinden, Netlify send-mail)
+// ─────────────────────────────────────────────
+async function sendMailViaPanel({ to, subject, text, attachment }) {
+  const r = await fetch("/.netlify/functions/send-mail", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to, subject, text, attachment }) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+  return data;
+}
+function ClientMailModal({ client, currentStaff, onClose }) {
+  const [to, setTo] = useState(client.email || "");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [file, setFile] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const signature = `\n\nSaygılarımızla,\n${currentStaff?.name || "Panormos Medya"}\nPanormos Medya\ninfo@panormosmedya.com`;
+
+  const writeWithAI = async () => {
+    if (!aiPrompt.trim()) { alert("Claude'a ne yazmasını istediğini kısaca söyle (örn: Ağustos raporunu gönderdiğimizi belirten kibar bir mail)."); return; }
+    setAiBusy(true);
+    try {
+      const text = await askClaude({
+        system: `Sen Panormos Medya (Bandırma, sosyal medya ajansı) adına müşteriye e-posta yazan asistansın. Türkçe, kibar, kısa ve net yaz. DÜZ METİN yaz, markdown kullanma. İmza ekleme (panel ekleyecek). Cevabı şu formatta ver:\nKONU: <konu satırı>\n---\n<mail metni>\n\nMüşteri: ${client.name}${client.category ? " (" + client.category + ")" : ""}`,
+        prompt: aiPrompt, maxTokens: 800,
+      });
+      const m = text.match(/KONU:\s*(.+?)\s*\n-{2,}\s*\n([\s\S]+)/i);
+      if (m) { setSubject(m[1].trim()); setBody(m[2].trim()); } else { setBody(text.trim()); }
+    } catch (e) { alert("Yazılamadı: " + e.message); }
+    setAiBusy(false);
+  };
+
+  const send = async () => {
+    if (!to.trim() || !/\S+@\S+\.\S+/.test(to)) { alert("Geçerli bir alıcı e-postası girin"); return; }
+    if (!subject.trim() || !body.trim()) { alert("Konu ve mesaj zorunlu"); return; }
+    setBusy(true);
+    try {
+      let attachment = null;
+      if (file) {
+        if (file.size > 4 * 1024 * 1024) throw new Error("Ek 4 MB'dan büyük olamaz");
+        attachment = { filename: file.name, contentType: file.type || "application/octet-stream", base64: await fileToBase64(file) };
+      }
+      await sendMailViaPanel({ to: to.trim(), subject: subject.trim(), text: body.trim() + signature, attachment });
+      try { await supabase.from('sent_mails').insert({ client_id: client.id, to_email: to.trim(), subject: subject.trim(), body: body.trim(), attachment_name: file?.name || "", sent_by: currentStaff?.name || "" }); } catch (e) {}
+      if (to.trim() !== (client.email || "")) { try { await supabase.from('clients').update({ email: to.trim() }).eq('id', client.id); } catch (e) {} }
+      alert("✅ E-posta gönderildi: " + to.trim());
+      onClose();
+    } catch (e) { alert("Gönderilemedi: " + e.message); }
+    setBusy(false);
+  };
+
+  return (
+    <Modal title={`📧 E-posta — ${client.name}`} onClose={onClose} width={640}>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 12, padding: 10, background: T.indigoDim, borderRadius: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, color: T.indigoText, fontWeight: 700, marginBottom: 4 }}>✨ Claude ile yaz</div>
+          <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") writeWithAI(); }} placeholder="Örn: Ağustos raporunu ekte gönderdiğimizi ve takipçi artışını belirten kısa bir mail" style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: T.textPrimary, outline: "none", boxSizing: "border-box" }} />
+        </div>
+        <Btn variant="primary" onClick={writeWithAI} disabled={aiBusy} style={{ whiteSpace: "nowrap" }}>{aiBusy ? "Yazıyor…" : "Yaz"}</Btn>
+      </div>
+      <FormField label="Alıcı"><Input type="email" placeholder="musteri@firma.com" value={to} onChange={e => setTo(e.target.value)} /></FormField>
+      <FormField label="Konu"><Input value={subject} onChange={e => setSubject(e.target.value)} /></FormField>
+      <FormField label="Mesaj"><Textarea minHeight={180} value={body} onChange={e => setBody(e.target.value)} placeholder="Mesajınız… (imza otomatik eklenir)" /></FormField>
+      <FormField label="📎 Ek (isteğe bağlı, PDF/görsel, en fazla 4 MB)">
+        <input type="file" onChange={e => setFile(e.target.files[0] || null)} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
+        {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
+      </FormField>
+      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Gönderen: info@panormosmedya.com · İmza: {currentStaff?.name || "Panormos Medya"}</div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+        <Btn onClick={onClose}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={send} disabled={busy}>{busy ? "Gönderiliyor…" : "📧 Gönder"}</Btn>
+      </div>
+    </Modal>
   );
 }
 
@@ -7774,7 +7856,7 @@ async function loadAllData() {
 
   const clients = (clientsRaw || []).filter(c => !c.deleted_at).map(c => ({
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
-    accentColor: c.accent_color || "#6366F1", phone: c.phone || "", address: c.address || "",
+    accentColor: c.accent_color || "#6366F1", phone: c.phone || "", email: c.email || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
     socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
@@ -8888,7 +8970,7 @@ export default function App() {
       </div>
       <div style={{flex:1,overflow:"auto",padding:isMobile?14:28}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData} currentStaff={currentStaff}/>}
-        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms}/>}
+        {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms} currentStaff={currentStaff}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
