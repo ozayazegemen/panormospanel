@@ -1739,6 +1739,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
               <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{client.name}</div>
               <div style={{fontSize:12,color:T.textMuted,marginTop:2}}>{client.category} • {client.phone}</div>
             </div>
+            {(()=>{const sp=setupProgress(client);return sp.done<sp.total?<div title="Meta / Instagram kurulumu eksik" style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:6,background:T.amberDim,color:T.amberText,whiteSpace:"nowrap"}}>🛠️ Kurulum {sp.done}/{sp.total}</div>:null;})()}
             <div style={{display:"flex",gap:5}}>{client.platforms.map(p=><PlatformTag key={p} id={p}/>)}</div>
             {perms.finance && <div style={{textAlign:"right",minWidth:90}}>
               <div style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{fmtMoney(client.monthlyFee)}</div>
@@ -1808,7 +1809,7 @@ function ClientsPage({clients,setClients,allClients,perms}) {
             const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
             savedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
           }
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[]}]);
+          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[],setupChecklist:{}}]);
         }
         setModal(null);
       }} />
@@ -1922,7 +1923,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   const [uploadPanel, setUploadPanel] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
-  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"}];
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"setup",lbl:"Kurulum"}];
   const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
@@ -2024,6 +2025,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="posts"&&<ClientPosts client={client} setClients={setClients}/>}
       {safeTab==="calendar"&&<ClientCalendar client={client}/>}
       {safeTab==="media"&&<ClientMedia client={client}/>}
+      {safeTab==="setup"&&<ClientSetup client={client} setClients={setClients}/>}
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
     </div>
     
@@ -2246,6 +2248,8 @@ function ClientSetup({ client, setClients }) {
     </div>
   );
 }
+
+function ClientOverview({client, perms}) {
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
   const pct=total>0?Math.round(paid/total*100):0;
@@ -7418,7 +7422,7 @@ async function loadAllData() {
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
-    socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
+    socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
     monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
