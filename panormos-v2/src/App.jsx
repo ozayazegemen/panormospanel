@@ -2277,19 +2277,58 @@ const AI_QUICK = [
   { id: "story", lbl: "📱 Hikaye metni", prompt: "Bu işletme için 5 Instagram hikayesi metni yaz (her biri 1-2 cümle, ekrana yazılacak). Etkileşim alacak bir anket veya soru etiketi önerisi de ekle." },
   { id: "review", lbl: "🔍 Hesap önerileri", prompt: "Bu işletmenin son paylaşımlarına ve bilgilerine bakarak sosyal medya stratejisinde görünen 5 iyileştirme önerisi ver. Somut ve uygulanabilir olsun; genel tavsiye verme." },
 ];
+// Görsel/video -> Claude'a gönderilecek küçük JPEG kareler (base64)
+function fileToImageBlocks(file, maxSide = 1200) {
+  return new Promise((resolve, reject) => {
+    const isVideo = file.type.startsWith("video/");
+    const url = URL.createObjectURL(file);
+    const toBlock = (canvas) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: canvas.toDataURL("image/jpeg", 0.82).split(",")[1] } });
+    const fit = (w, h) => { const r = Math.min(1, maxSide / Math.max(w, h)); return [Math.round(w * r), Math.round(h * r)]; };
+    if (!isVideo) {
+      const img = new Image();
+      img.onload = () => { const [w, h] = fit(img.width, img.height); const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h); URL.revokeObjectURL(url); resolve({ blocks: [toBlock(c)], previews: [c.toDataURL("image/jpeg", 0.6)] }); };
+      img.onerror = () => reject(new Error("Görsel okunamadı")); img.src = url; return;
+    }
+    const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = url;
+    v.onerror = () => reject(new Error("Video okunamadı (format desteklenmiyor olabilir)"));
+    v.onloadedmetadata = async () => {
+      const dur = v.duration || 0, n = 4, blocks = [], previews = [];
+      const [w, h] = fit(v.videoWidth, v.videoHeight); const c = document.createElement("canvas"); c.width = w; c.height = h; const ctx = c.getContext("2d");
+      const seek = (t) => new Promise(res => { v.onseeked = () => res(); v.currentTime = Math.min(t, Math.max(0, dur - 0.1)); });
+      try {
+        for (let i = 0; i < n; i++) { await seek(dur * (i + 0.5) / n); ctx.drawImage(v, 0, 0, w, h); blocks.push(toBlock(c)); previews.push(c.toDataURL("image/jpeg", 0.5)); }
+        URL.revokeObjectURL(url); resolve({ blocks, previews, isVideo: true, duration: dur });
+      } catch (e) { reject(e); }
+    };
+  });
+}
+
 function ClientAI({ client }) {
   const [input, setInput] = useState("");
   const [msgs, setMsgs] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [attach, setAttach] = useState(null); // {blocks, previews, name, isVideo, duration}
+  const [attachBusy, setAttachBusy] = useState(false);
+  const fileRef = useRef(null);
+  const onPickFile = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+    if (f.size > 200 * 1024 * 1024) { setErr("Dosya çok büyük (200 MB üstü)"); return; }
+    setAttachBusy(true); setErr("");
+    try { const r = await fileToImageBlocks(f); setAttach({ ...r, name: f.name }); } catch (ex) { setErr(ex.message); }
+    setAttachBusy(false);
+  };
   const system = `Sen Panormos Medya adlı sosyal medya ajansının içerik asistanısın. Türkçe yaz. Aşağıdaki işletme için çalışıyorsun; cevaplarını bu işletmeye özel yap, genel geçer tavsiye verme. DÜZ METİN yaz: markdown kullanma (# başlık, ** kalın, ` kod, --- çizgi YASAK). Bölümleri büyük harfli kısa başlık ve boş satırla ayır; listelerde "1." veya "-" kullan. Gereksiz giriş cümlesi yazma.\n\n${clientContextText(client)}`;
 
   const send = async (text) => {
-    const t = (text || input).trim(); if (!t || busy) return;
-    const next = [...msgs, { role: "user", content: t }];
-    setMsgs(next); setInput(""); setBusy(true); setErr("");
+    let t = (text || input).trim();
+    if (!t && attach) t = attach.isVideo ? "Bu videodan alınan karelere bakarak Instagram Reels açıklaması yaz. 3 alternatif ver, her birine 8-10 Türkçe hashtag ekle." : "Bu görsel için Instagram gönderi açıklaması yaz. 3 alternatif ver, her birine 8-10 Türkçe hashtag ekle.";
+    if (!t || busy) return;
+    const userMsg = { role: "user", content: t, previews: attach?.previews, attachName: attach?.name, apiContent: attach ? [...attach.blocks, { type: "text", text: (attach.isVideo ? `[Ekte bir videodan alınmış ${attach.blocks.length} kare var, süre ~${Math.round(attach.duration || 0)} sn] ` : "[Ekte bir görsel var] ") + t }] : t };
+    const next = [...msgs, userMsg];
+    setMsgs(next); setInput(""); setAttach(null); setBusy(true); setErr("");
     try {
-      const reply = await askClaude({ system, messages: next.map(m => ({ role: m.role, content: m.content })), maxTokens: 1800 });
+      const reply = await askClaude({ system, messages: next.map(m => ({ role: m.role, content: m.apiContent || m.content })), maxTokens: 1800 });
       setMsgs([...next, { role: "assistant", content: reply }]);
     } catch (e) { setErr(e.message); setMsgs(msgs); }
     setBusy(false);
@@ -2306,6 +2345,7 @@ function ClientAI({ client }) {
         {msgs.length === 0 && <div style={{ fontSize: 12, color: T.textMuted, padding: 16, textAlign: "center", border: `1px dashed ${T.border}`, borderRadius: 10 }}>Yukarıdan hazır bir istek seç veya aşağıya kendi sorunu yaz. Asistan {client.name} için cevap verir.</div>}
         {msgs.map((m, i) => (
           <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "stretch", maxWidth: m.role === "user" ? "80%" : "100%", background: m.role === "user" ? T.amberDim : T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 14px", position: "relative" }}>
+            {m.previews?.length > 0 && <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>{m.previews.map((src, k) => <img key={k} src={src} alt="" style={{ height: 72, borderRadius: 6, objectFit: "cover" }} />)}</div>}
             <div style={{ fontSize: 13, color: T.textPrimary, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{m.content}</div>
             {m.role === "assistant" && <button onClick={() => copy(m.content)} style={{ marginTop: 8, fontSize: 11, padding: "4px 10px", borderRadius: 6, background: T.bgSurface, color: T.textMuted, border: `1px solid ${T.border}`, cursor: "pointer" }}>📋 Kopyala</button>}
           </div>
@@ -2313,9 +2353,18 @@ function ClientAI({ client }) {
         {busy && <div style={{ fontSize: 12, color: T.textMuted, padding: "8px 14px" }}>✨ Yazıyor…</div>}
         {err && <div style={{ fontSize: 12, color: T.redText, background: T.redDim, padding: "8px 14px", borderRadius: 8 }}>Hata: {err}</div>}
       </div>
+      {(attach || attachBusy) && <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "8px 10px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8 }}>
+        {attachBusy ? <span style={{ fontSize: 12, color: T.textMuted }}>Dosya hazırlanıyor…</span> : <>
+          {attach.previews.map((src, k) => <img key={k} src={src} alt="" style={{ height: 48, borderRadius: 4, objectFit: "cover" }} />)}
+          <span style={{ fontSize: 12, color: T.textMuted, flex: 1 }}>{attach.isVideo ? `🎬 ${attach.name} (${attach.blocks.length} kare)` : `🖼️ ${attach.name}`}</span>
+          <button onClick={() => setAttach(null)} style={{ fontSize: 12, background: "none", border: "none", color: T.textMuted, cursor: "pointer" }}>✕</button>
+        </>}
+      </div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Örn: Ramazan kampanyası için 3 gönderi metni yaz…" rows={2} style={{ flex: 1, fontSize: 13, padding: "10px 12px", borderRadius: 8, background: T.bgInput, color: T.textPrimary, border: `1px solid ${T.border}`, resize: "vertical", fontFamily: "inherit" }} />
-        <Btn variant="primary" onClick={() => send()} disabled={busy || !input.trim()} style={{ alignSelf: "flex-end" }}>Gönder</Btn>
+        <input ref={fileRef} type="file" accept="image/*,video/*" style={{ display: "none" }} onChange={onPickFile} />
+        <button title="Görsel veya video ekle" disabled={busy || attachBusy} onClick={() => fileRef.current?.click()} style={{ alignSelf: "flex-end", fontSize: 18, width: 42, height: 42, borderRadius: 8, background: T.bgCard, color: T.textMuted, border: `1px solid ${T.border}`, cursor: "pointer" }}>📎</button>
+        <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder={attach ? "İsteğe bağlı: ne istediğini yaz (boş bırakırsan paylaşım metni yazar)…" : "Örn: Ramazan kampanyası için 3 gönderi metni yaz… (📎 ile görsel/video ekleyebilirsin)"} rows={2} style={{ flex: 1, fontSize: 13, padding: "10px 12px", borderRadius: 8, background: T.bgInput, color: T.textPrimary, border: `1px solid ${T.border}`, resize: "vertical", fontFamily: "inherit" }} />
+        <Btn variant="primary" onClick={() => send()} disabled={busy || attachBusy || (!input.trim() && !attach)} style={{ alignSelf: "flex-end" }}>Gönder</Btn>
       </div>
     </div>
   );
