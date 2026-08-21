@@ -2175,7 +2175,77 @@ function PieceJobsSection({ client, perms }) {
   );
 }
 
-function ClientOverview({client, perms}) {
+// ─────────────────────────────────────────────
+// MÜŞTERİ KURULUM KONTROL LİSTESİ (Meta / Instagram)
+// ─────────────────────────────────────────────
+const SETUP_CHECKLIST_ITEMS = [
+  { id: "fb_page", label: "Facebook işletme sayfası açıldı", tip: "Kişisel profil değil, işletme SAYFASI. Konum etiketi buradan doğar." },
+  { id: "fb_address", label: "Sayfaya açık adres girildi", tip: "Sayfa → Hakkında → İletişim ve temel bilgiler → Adres. İl, ilçe ve sokak eksiksiz." },
+  { id: "fb_physical", label: "\"Fiziksel adresi var\" ayarı açıldı", tip: "Adresin altındaki 'Bu sayfanın fiziksel bir adresi var' / 'Müşteriler ziyaret edebilir' kutusu işaretli olmalı. Bu kapalıysa konum OLUŞMAZ." },
+  { id: "fb_details", label: "Kategori, telefon ve çalışma saatleri girildi", tip: "Kategori doğru seçilmeli (Restoran, Kafe, Kuaför vb.)." },
+  { id: "ig_business", label: "Instagram hesabı İşletme hesabına çevrildi", tip: "Ayarlar → Hesap türü → İşletme hesabına geç." },
+  { id: "ig_link", label: "Instagram, Facebook sayfasına bağlandı", tip: "Instagram → Ayarlar → Hesap Merkezi → Facebook sayfasını bağla." },
+  { id: "ig_profile", label: "Instagram profili tamamlandı (bio, adres, telefon, buton)", tip: "Profili düzenle → İletişim seçenekleri → Adres." },
+  { id: "bm_portfolio", label: "Sayfa Panormos Business Portföyüne eklendi", tip: "Meta Business Suite → Ayarlar → Sayfalar → Ekle. Böylece tek yerden yönetilir." },
+  { id: "ig_location", label: "Konum Instagram'da arandığında çıkıyor ✅", tip: "Hikaye → Konum etiketi → işletme adını ara. Ayarlar doğruysa 1-3 gün içinde görünür." },
+  { id: "google", label: "Google İşletme Profili açıldı (isteğe bağlı)", tip: "Haritalarda çıkması için. Meta ile ilgisi yok ama müşteri için değerli." },
+];
+const SETUP_REQUIRED_IDS = SETUP_CHECKLIST_ITEMS.filter(i => i.id !== "google").map(i => i.id);
+function setupProgress(client) {
+  const cl = client.setupChecklist || {};
+  const done = SETUP_REQUIRED_IDS.filter(id => cl[id]?.done).length;
+  return { done, total: SETUP_REQUIRED_IDS.length, pct: Math.round(done / SETUP_REQUIRED_IDS.length * 100) };
+}
+
+function ClientSetup({ client, setClients }) {
+  const [saving, setSaving] = useState(null);
+  const checklist = client.setupChecklist || {};
+  const prog = setupProgress(client);
+
+  const toggle = async (id) => {
+    const cur = checklist[id]?.done;
+    const next = { ...checklist, [id]: cur ? { done: false } : { done: true, at: new Date().toISOString() } };
+    setSaving(id);
+    const { error } = await supabase.from('clients').update({ setup_checklist: next }).eq('id', client.id);
+    setSaving(null);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nKURULUM-SQL kodunu (setup_checklist sütunu) çalıştırdığınızdan emin olun."); return; }
+    setClients(prev => prev.map(c => c.id === client.id ? { ...c, setupChecklist: next } : c));
+  };
+
+  const allDone = prog.done === prog.total;
+  return (
+    <div>
+      <div style={{ background: allDone ? T.greenDim : T.bgCard, border: `1px solid ${allDone ? T.green + "66" : T.border}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{allDone ? "✅ Kurulum tamamlandı" : "🛠️ Meta / Instagram Kurulumu"}</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: allDone ? T.greenText : T.amberText }}>{prog.done} / {prog.total} · %{prog.pct}</div>
+        </div>
+        <div style={{ height: 8, background: T.bgSurface, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${prog.pct}%`, background: allDone ? T.green : T.amber, borderRadius: 4, transition: "width .4s" }} />
+        </div>
+        {!allDone && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 8 }}>Konum etiketinin Instagram hikayesinde çıkması için 1–3 ve 5–6. maddeler şart. Sırayla ilerleyin.</div>}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {SETUP_CHECKLIST_ITEMS.map((item, idx) => {
+          const st = checklist[item.id] || {};
+          const done = !!st.done;
+          const busy = saving === item.id;
+          return (
+            <div key={item.id} onClick={() => !busy && toggle(item.id)} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "12px 14px", background: done ? "rgba(16,185,129,0.08)" : T.bgCard, border: `1px solid ${done ? T.green + "55" : T.border}`, borderRadius: 10, cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1 }}>
+              <div style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 7, border: `2px solid ${done ? T.green : T.borderLight}`, background: done ? T.green : "transparent", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, marginTop: 1 }}>{done ? "✓" : idx + 1}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none", opacity: done ? 0.75 : 1 }}>{item.label}</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3, lineHeight: 1.5 }}>{item.tip}</div>
+                {done && st.at && <div style={{ fontSize: 10, color: T.greenText, marginTop: 4 }}>✓ {new Date(st.at).toLocaleDateString("tr-TR")}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
   const total=client.invoices.reduce((s,i)=>s+i.total,0);
   const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
   const pct=total>0?Math.round(paid/total*100):0;
