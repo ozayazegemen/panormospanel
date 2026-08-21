@@ -1,5 +1,5 @@
 // Panormos Panel service worker — ağ öncelikli, çevrimdışıysa önbellekten
-const CACHE = "panormos-v1";
+const CACHE = "panormos-v2";
 self.addEventListener("install", (e) => { self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
