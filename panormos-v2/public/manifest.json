@@ -2,7 +2,7 @@
   "name": "Panormos Medya Panel",
   "short_name": "Panormos",
   "description": "Panormos Medya ajans yönetim paneli",
-  "start_url": "/",
+  "start_url": "/#giris",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
