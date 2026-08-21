@@ -2318,7 +2318,7 @@ function ClientAI({ client }) {
     try { const r = await fileToImageBlocks(f); setAttach({ ...r, name: f.name }); } catch (ex) { setErr(ex.message); }
     setAttachBusy(false);
   };
-  const system = `Sen Panormos Medya adlı sosyal medya ajansının içerik asistanısın. Türkçe yaz. Aşağıdaki işletme için çalışıyorsun; cevaplarını bu işletmeye özel yap, genel geçer tavsiye verme. DÜZ METİN yaz: markdown kullanma (# başlık, ** kalın, ` kod, --- çizgi YASAK). Bölümleri büyük harfli kısa başlık ve boş satırla ayır; listelerde "1." veya "-" kullan. Gereksiz giriş cümlesi yazma.\n\n${clientContextText(client)}`;
+  const system = `Sen Panormos Medya adlı sosyal medya ajansının içerik asistanısın. Türkçe yaz. Aşağıdaki işletme için çalışıyorsun; cevaplarını bu işletmeye özel yap, genel geçer tavsiye verme. DÜZ METİN yaz: markdown kullanma (kare işaretli başlık, çift yıldızla kalın, ters tırnak ve --- çizgi YASAK). Bölümleri büyük harfli kısa başlık ve boş satırla ayır; listelerde "1." veya "-" kullan. Gereksiz giriş cümlesi yazma.\n\n${clientContextText(client)}`;
 
   const send = async (text) => {
     let t = (text || input).trim();
