@@ -1923,7 +1923,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   const [uploadPanel, setUploadPanel] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
-  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"setup",lbl:"Kurulum"}];
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"setup",lbl:"Kurulum"},{id:"ai",lbl:"✨ Asistan"}];
   const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
@@ -2026,6 +2026,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="calendar"&&<ClientCalendar client={client}/>}
       {safeTab==="media"&&<ClientMedia client={client}/>}
       {safeTab==="setup"&&<ClientSetup client={client} setClients={setClients}/>}
+      {safeTab==="ai"&&<ClientAI client={client}/>}
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
     </div>
     
@@ -2244,6 +2245,77 @@ function ClientSetup({ client, setClients }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CLAUDE ASİSTAN (Netlify Function üzerinden)
+// ─────────────────────────────────────────────
+async function askClaude({ prompt, system, messages, maxTokens }) {
+  const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, system, messages, maxTokens }) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+  return data.text || "";
+}
+function clientContextText(client) {
+  const recent = (client.posts || []).slice(-8).map(p => `- ${p.date || ""} ${p.platform || ""} ${p.type || ""}: ${p.title || ""}`).join("\n");
+  return [
+    `İşletme adı: ${client.name}`,
+    client.category ? `Sektör/Kategori: ${client.category}` : "",
+    (client.city || client.district) ? `Konum: ${[client.district, client.city].filter(Boolean).join(" / ")}` : "",
+    client.platforms?.length ? `Platformlar: ${client.platforms.map(p => platformConfig[p]?.label || p).join(", ")}` : "",
+    client.socialMedia ? `Sosyal medya: ${client.socialMedia}` : "",
+    client.description ? `Açıklama/notlar: ${client.description}` : "",
+    recent ? `Son paylaşımlar:\n${recent}` : "",
+  ].filter(Boolean).join("\n");
+}
+const AI_QUICK = [
+  { id: "caption", lbl: "✍️ Paylaşım metni", prompt: "Bu işletme için Instagram gönderi açıklaması yaz. 3 farklı alternatif ver: biri kısa ve vurucu, biri samimi/hikayeli, biri kampanya odaklı. Her birine uygun 8-10 Türkçe hashtag ekle. Emoji ölçülü olsun." },
+  { id: "ideas", lbl: "💡 İçerik fikirleri", prompt: "Bu işletme için önümüzdeki 2 hafta için 10 içerik fikri öner. Her fikir için: format (Reels / tekil görsel / carousel / hikaye), kısa açıklama ve çekim notu. Yerel (Bandırma ve çevresi) müşteriye hitap etsin." },
+  { id: "story", lbl: "📱 Hikaye metni", prompt: "Bu işletme için 5 Instagram hikayesi metni yaz (her biri 1-2 cümle, ekrana yazılacak). Etkileşim alacak bir anket veya soru etiketi önerisi de ekle." },
+  { id: "review", lbl: "🔍 Hesap önerileri", prompt: "Bu işletmenin son paylaşımlarına ve bilgilerine bakarak sosyal medya stratejisinde görünen 5 iyileştirme önerisi ver. Somut ve uygulanabilir olsun; genel tavsiye verme." },
+];
+function ClientAI({ client }) {
+  const [input, setInput] = useState("");
+  const [msgs, setMsgs] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const system = `Sen Panormos Medya adlı sosyal medya ajansının içerik asistanısın. Türkçe yaz. Aşağıdaki işletme için çalışıyorsun; cevaplarını bu işletmeye özel yap, genel geçer tavsiye verme. Kısa başlıklar ve madde işaretleri kullan, gereksiz giriş cümlesi yazma.\n\n${clientContextText(client)}`;
+
+  const send = async (text) => {
+    const t = (text || input).trim(); if (!t || busy) return;
+    const next = [...msgs, { role: "user", content: t }];
+    setMsgs(next); setInput(""); setBusy(true); setErr("");
+    try {
+      const reply = await askClaude({ system, messages: next.map(m => ({ role: m.role, content: m.content })), maxTokens: 1800 });
+      setMsgs([...next, { role: "assistant", content: reply }]);
+    } catch (e) { setErr(e.message); setMsgs(msgs); }
+    setBusy(false);
+  };
+  const copy = (t) => { navigator.clipboard?.writeText(t); };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        {AI_QUICK.map(q => <button key={q.id} disabled={busy} onClick={() => send(q.prompt)} style={{ fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, background: T.indigoDim, color: T.indigoText, border: `1px solid ${T.border}`, cursor: busy ? "wait" : "pointer" }}>{q.lbl}</button>)}
+        {msgs.length > 0 && <button onClick={() => { setMsgs([]); setErr(""); }} style={{ fontSize: 12, padding: "7px 12px", borderRadius: 8, background: "none", color: T.textMuted, border: `1px solid ${T.border}`, cursor: "pointer", marginLeft: "auto" }}>🗑 Temizle</button>}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, maxHeight: 520, overflowY: "auto" }}>
+        {msgs.length === 0 && <div style={{ fontSize: 12, color: T.textMuted, padding: 16, textAlign: "center", border: `1px dashed ${T.border}`, borderRadius: 10 }}>Yukarıdan hazır bir istek seç veya aşağıya kendi sorunu yaz. Asistan {client.name} için cevap verir.</div>}
+        {msgs.map((m, i) => (
+          <div key={i} style={{ alignSelf: m.role === "user" ? "flex-end" : "stretch", maxWidth: m.role === "user" ? "80%" : "100%", background: m.role === "user" ? T.amberDim : T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 14px", position: "relative" }}>
+            <div style={{ fontSize: 13, color: T.textPrimary, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{m.content}</div>
+            {m.role === "assistant" && <button onClick={() => copy(m.content)} style={{ marginTop: 8, fontSize: 11, padding: "4px 10px", borderRadius: 6, background: T.bgSurface, color: T.textMuted, border: `1px solid ${T.border}`, cursor: "pointer" }}>📋 Kopyala</button>}
+          </div>
+        ))}
+        {busy && <div style={{ fontSize: 12, color: T.textMuted, padding: "8px 14px" }}>✨ Yazıyor…</div>}
+        {err && <div style={{ fontSize: 12, color: T.redText, background: T.redDim, padding: "8px 14px", borderRadius: 8 }}>Hata: {err}</div>}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <textarea value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Örn: Ramazan kampanyası için 3 gönderi metni yaz…" rows={2} style={{ flex: 1, fontSize: 13, padding: "10px 12px", borderRadius: 8, background: T.bgInput, color: T.textPrimary, border: `1px solid ${T.border}`, resize: "vertical", fontFamily: "inherit" }} />
+        <Btn variant="primary" onClick={() => send()} disabled={busy || !input.trim()} style={{ alignSelf: "flex-end" }}>Gönder</Btn>
       </div>
     </div>
   );
