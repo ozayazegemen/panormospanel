@@ -2384,10 +2384,10 @@ async function sendMailViaPanel({ to, subject, text, attachment }) {
   if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
   return data;
 }
-function ClientMailModal({ client, currentStaff, onClose }) {
-  const [to, setTo] = useState(client.email || "");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+function MailModal({ title, to: initialTo = "", subject: initialSubject = "", body: initialBody = "", aiContext = "", clientId = null, leadId = null, onSent, currentStaff, onClose }) {
+  const [to, setTo] = useState(initialTo);
+  const [subject, setSubject] = useState(initialSubject);
+  const [body, setBody] = useState(initialBody);
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -2399,7 +2399,7 @@ function ClientMailModal({ client, currentStaff, onClose }) {
     setAiBusy(true);
     try {
       const text = await askClaude({
-        system: `Sen Panormos Medya (Bandırma, sosyal medya ajansı) adına müşteriye e-posta yazan asistansın. Türkçe, kibar, kısa ve net yaz. DÜZ METİN yaz, markdown kullanma. İmza ekleme (panel ekleyecek). Cevabı şu formatta ver:\nKONU: <konu satırı>\n---\n<mail metni>\n\nMüşteri: ${client.name}${client.category ? " (" + client.category + ")" : ""}`,
+        system: `Sen Panormos Medya (Bandırma, sosyal medya ajansı) adına e-posta yazan asistansın. Türkçe, kibar, kısa ve net yaz. DÜZ METİN yaz, markdown kullanma. İmza ekleme (panel ekleyecek). Cevabı şu formatta ver:\nKONU: <konu satırı>\n---\n<mail metni>${aiContext ? "\n\n" + aiContext : ""}`,
         prompt: aiPrompt, maxTokens: 800,
       });
       const m = text.match(/KONU:\s*(.+?)\s*\n-{2,}\s*\n([\s\S]+)/i);
@@ -2419,8 +2419,8 @@ function ClientMailModal({ client, currentStaff, onClose }) {
         attachment = { filename: file.name, contentType: file.type || "application/octet-stream", base64: await fileToBase64(file) };
       }
       await sendMailViaPanel({ to: to.trim(), subject: subject.trim(), text: body.trim() + signature, attachment });
-      try { await supabase.from('sent_mails').insert({ client_id: client.id, to_email: to.trim(), subject: subject.trim(), body: body.trim(), attachment_name: file?.name || "", sent_by: currentStaff?.name || "" }); } catch (e) {}
-      if (to.trim() !== (client.email || "")) { try { await supabase.from('clients').update({ email: to.trim() }).eq('id', client.id); } catch (e) {} }
+      try { await supabase.from('sent_mails').insert({ client_id: clientId, lead_id: leadId, to_email: to.trim(), subject: subject.trim(), body: body.trim(), attachment_name: file?.name || "", sent_by: currentStaff?.name || "" }); } catch (e) {}
+      if (onSent) { try { await onSent(to.trim()); } catch (e) {} }
       alert("✅ E-posta gönderildi: " + to.trim());
       onClose();
     } catch (e) { alert("Gönderilemedi: " + e.message); }
@@ -2428,15 +2428,15 @@ function ClientMailModal({ client, currentStaff, onClose }) {
   };
 
   return (
-    <Modal title={`📧 E-posta — ${client.name}`} onClose={onClose} width={640}>
+    <Modal title={title || "📧 E-posta"} onClose={onClose} width={640}>
       <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 12, padding: 10, background: T.indigoDim, borderRadius: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, color: T.indigoText, fontWeight: 700, marginBottom: 4 }}>✨ Claude ile yaz</div>
-          <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") writeWithAI(); }} placeholder="Örn: Ağustos raporunu ekte gönderdiğimizi ve takipçi artışını belirten kısa bir mail" style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: T.textPrimary, outline: "none", boxSizing: "border-box" }} />
+          <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} onKeyDown={e => { if (e.key === "Enter") writeWithAI(); }} placeholder="Örn: Sosyal medya yönetimi hizmetimizi tanıtan kısa bir ilk temas maili" style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: T.textPrimary, outline: "none", boxSizing: "border-box" }} />
         </div>
         <Btn variant="primary" onClick={writeWithAI} disabled={aiBusy} style={{ whiteSpace: "nowrap" }}>{aiBusy ? "Yazıyor…" : "Yaz"}</Btn>
       </div>
-      <FormField label="Alıcı"><Input type="email" placeholder="musteri@firma.com" value={to} onChange={e => setTo(e.target.value)} /></FormField>
+      <FormField label="Alıcı"><Input type="email" placeholder="ornek@firma.com" value={to} onChange={e => setTo(e.target.value)} /></FormField>
       <FormField label="Konu"><Input value={subject} onChange={e => setSubject(e.target.value)} /></FormField>
       <FormField label="Mesaj"><Textarea minHeight={180} value={body} onChange={e => setBody(e.target.value)} placeholder="Mesajınız… (imza otomatik eklenir)" /></FormField>
       <FormField label="📎 Ek (isteğe bağlı, PDF/görsel, en fazla 4 MB)">
@@ -2449,6 +2449,214 @@ function ClientMailModal({ client, currentStaff, onClose }) {
         <Btn variant="primary" onClick={send} disabled={busy}>{busy ? "Gönderiliyor…" : "📧 Gönder"}</Btn>
       </div>
     </Modal>
+  );
+}
+function ClientMailModal({ client, currentStaff, onClose }) {
+  return <MailModal
+    title={`📧 E-posta — ${client.name}`}
+    to={client.email || ""}
+    aiContext={`Müşteri: ${client.name}${client.category ? " (" + client.category + ")" : ""}`}
+    clientId={client.id}
+    currentStaff={currentStaff}
+    onClose={onClose}
+    onSent={async (to) => { if (to !== (client.email || "")) { await supabase.from('clients').update({ email: to }).eq('id', client.id); } }}
+  />;
+}
+function LeadMailModal({ lead, currentStaff, onClose, onSent }) {
+  return <MailModal
+    title={`📧 E-posta — ${lead.business_name}`}
+    to={lead.email || ""}
+    aiContext={`Bu bir potansiyel müşteri (henüz müşterimiz değil, soğuk arama listesinden). İşletme: ${lead.business_name}${lead.city ? " — " + [lead.district, lead.city].filter(Boolean).join(" / ") : ""}. Amaç: hizmetlerimizi tanıtmak ve görüşme/teklif için kapı açmak.`}
+    leadId={lead.id}
+    currentStaff={currentStaff}
+    onClose={onClose}
+    onSent={async (to) => { if (to !== (lead.email || "")) { await supabase.from('leads').update({ email: to }).eq('id', lead.id); } if (onSent) await onSent(); }}
+  />;
+}
+
+// ─────────────────────────────────────────────
+// E-POSTA SAYFASI — Gelen (IMAP → received_mails) + Giden (sent_mails)
+// ─────────────────────────────────────────────
+function MailPage({ clients, currentStaff }) {
+  const [tab, setTab] = useState("inbox");
+  const [inbox, setInbox] = useState([]);
+  const [sent, setSent] = useState([]);
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [open, setOpen] = useState(null);
+  const [compose, setCompose] = useState(null);
+  const [search, setSearch] = useState("");
+
+  const load = async () => {
+    const [{ data: r }, { data: s }, { data: l }] = await Promise.all([
+      supabase.from('received_mails').select('*').order('received_at', { ascending: false }).limit(200),
+      supabase.from('sent_mails').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('leads').select('id,business_name,email'),
+    ]);
+    setInbox(r || []); setSent(s || []); setLeads(l || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const sync = async () => {
+    setSyncing(true);
+    try {
+      const r = await fetch("/.netlify/functions/fetch-mails");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || ("HTTP " + r.status));
+      await load();
+      if (d.inserted > 0) setTab("inbox");
+    } catch (e) { alert("Mailler çekilemedi: " + e.message); }
+    setSyncing(false);
+  };
+
+  // Gönderen adresi kime ait? (müşteri / potansiyel / bilinmiyor)
+  const whoIs = (email, clientId, leadId) => {
+    const e = (email || "").toLowerCase();
+    const c = clientId ? (clients || []).find(x => x.id === clientId) : (clients || []).find(x => (x.email || "").toLowerCase() === e && e);
+    if (c) return { label: c.name, kind: "client" };
+    const l = leadId ? leads.find(x => x.id === leadId) : leads.find(x => (x.email || "").toLowerCase() === e && e);
+    if (l) return { label: l.business_name, kind: "lead" };
+    return null;
+  };
+
+  const fmt = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const today = new Date();
+    const same = d.toDateString() === today.toDateString();
+    return same ? d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" }) + " " + d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const openMail = async (m, kind) => {
+    setOpen({ ...m, _kind: kind });
+    if (kind === "inbox" && !m.is_read) {
+      setInbox(list => list.map(x => x.id === m.id ? { ...x, is_read: true } : x));
+      try { await supabase.from('received_mails').update({ is_read: true }).eq('id', m.id); } catch (e) {}
+    }
+  };
+
+  const toggleRead = async (m) => {
+    const v = !m.is_read;
+    setInbox(list => list.map(x => x.id === m.id ? { ...x, is_read: v } : x));
+    try { await supabase.from('received_mails').update({ is_read: v }).eq('id', m.id); } catch (e) {}
+  };
+
+  const reply = (m) => {
+    const quoted = (m.body_text || "").split("\n").map(l => "> " + l).join("\n");
+    const who = whoIs(m.from_email, m.client_id, null);
+    setOpen(null);
+    setCompose({
+      title: `↩️ Yanıtla — ${m.from_name || m.from_email}`,
+      to: m.from_email || "",
+      subject: /^re:/i.test(m.subject || "") ? m.subject : "Re: " + (m.subject || ""),
+      body: `\n\n---\n${m.from_name || m.from_email} yazdı (${fmt(m.received_at)}):\n${quoted}`,
+      clientId: who?.kind === "client" ? m.client_id : null,
+      leadId: who?.kind === "lead" ? leads.find(x => x.business_name === who.label)?.id || null : null,
+      aiContext: `Bu mail, gelen şu maile yanıt olarak yazılıyor:\nKONU: ${m.subject || ""}\n${(m.body_text || "").slice(0, 1500)}`,
+    });
+  };
+
+  const q = search.trim().toLowerCase();
+  const inboxList = inbox.filter(m => !q || [m.from_name, m.from_email, m.subject, m.body_text].some(v => (v || "").toLowerCase().includes(q)));
+  const sentList = sent.filter(m => !q || [m.to_email, m.subject, m.body, m.sent_by].some(v => (v || "").toLowerCase().includes(q)));
+  const unread = inbox.filter(m => !m.is_read).length;
+
+  const Tag = ({ who }) => who ? <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 6, background: who.kind === "client" ? T.greenDim : T.amberDim || T.indigoDim, color: who.kind === "client" ? T.greenText : T.amberText, whiteSpace: "nowrap" }}>{who.kind === "client" ? "🏢 " : "📞 "}{who.label}</span> : null;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Okunmamış" value={unread} color={unread ? T.amberText : T.textPrimary} sub="Gelen kutusu" />
+        <StatCard label="Gelen" value={inbox.length} color={T.indigoText} sub="Panele çekilen" />
+        <StatCard label="Giden" value={sent.length} color={T.greenText} sub="Panelden gönderilen" />
+      </div>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Btn variant="primary" onClick={() => setCompose({ title: "📧 Yeni E-posta" })}>+ Yeni E-posta</Btn>
+        <Btn onClick={sync} disabled={syncing} style={{ background: T.indigoDim, color: T.indigoText }}>{syncing ? "Çekiliyor…" : "🔄 Gelenleri Yenile"}</Btn>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Ara: gönderen, konu, içerik…" style={{ flex: 1, minWidth: 180, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 13, color: T.textPrimary, outline: "none" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        {[{ id: "inbox", l: `📥 Gelen${unread ? " (" + unread + ")" : ""}` }, { id: "sent", l: "📤 Giden" }].map(f => (
+          <button key={f.id} onClick={() => setTab(f.id)} style={{ fontSize: 12, fontWeight: tab === f.id ? 600 : 400, padding: "6px 14px", borderRadius: 8, background: tab === f.id ? T.amber : T.bgInput, color: tab === f.id ? T.white : T.textSecondary, border: `1px solid ${tab === f.id ? T.amber : T.border}`, cursor: "pointer" }}>{f.l}</button>
+        ))}
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : tab === "inbox" ? (
+        inboxList.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Gelen kutusu boş. "🔄 Gelenleri Yenile" ile info@panormosmedya.com'daki mailleri çek.</div>
+          : <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {inboxList.map(m => {
+              const who = whoIs(m.from_email, m.client_id, null);
+              return (
+                <div key={m.id} onClick={() => openMail(m, "inbox")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderLeft: `3px solid ${m.is_read ? T.border : T.amber}`, borderRadius: 10, cursor: "pointer" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: m.is_read ? T.bgInput : T.amberDim || T.indigoDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{m.has_attachments ? "📎" : "✉️"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: m.is_read ? 500 : 700, color: T.textPrimary }}>{m.from_name || m.from_email}</span>
+                      <Tag who={who} />
+                    </div>
+                    <div style={{ fontSize: 12, color: m.is_read ? T.textSecondary : T.textPrimary, fontWeight: m.is_read ? 400 : 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m.body_text || "").replace(/\s+/g, " ").slice(0, 120)}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textMuted, whiteSpace: "nowrap" }}>{fmt(m.received_at)}</div>
+                </div>
+              );
+            })}
+          </div>
+      ) : (
+        sentList.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Panelden henüz mail gönderilmedi.</div>
+          : <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {sentList.map(m => {
+              const who = whoIs(m.to_email, m.client_id, m.lead_id);
+              return (
+                <div key={m.id} onClick={() => openMail(m, "sent")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderLeft: `3px solid ${T.greenText}`, borderRadius: 10, cursor: "pointer" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: T.greenDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{m.attachment_name ? "📎" : "📤"}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: T.textPrimary }}>{m.to_email}</span>
+                      <Tag who={who} />
+                    </div>
+                    <div style={{ fontSize: 12, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>{m.sent_by ? "Gönderen: " + m.sent_by : ""}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textMuted, whiteSpace: "nowrap" }}>{fmt(m.created_at)}</div>
+                </div>
+              );
+            })}
+          </div>
+      )}
+
+      {open && (
+        <Modal title={open._kind === "inbox" ? `✉️ ${open.subject || "(Konu yok)"}` : `📤 ${open.subject || "(Konu yok)"}`} onClose={() => setOpen(null)} width={760}>
+          <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7, marginBottom: 12, padding: "10px 14px", background: T.bgInput, borderRadius: 8 }}>
+            {open._kind === "inbox" ? <>
+              <div><b>Kimden:</b> {open.from_name ? `${open.from_name} <${open.from_email}>` : open.from_email} <Tag who={whoIs(open.from_email, open.client_id, null)} /></div>
+              <div><b>Kime:</b> {open.to_email || "info@panormosmedya.com"}</div>
+              <div><b>Tarih:</b> {open.received_at ? new Date(open.received_at).toLocaleString("tr-TR") : ""}</div>
+              {open.has_attachments && <div style={{ color: T.amberText }}>📎 Bu mailde ek var — eki görmek için GoDaddy webmail'i aç.</div>}
+            </> : <>
+              <div><b>Kime:</b> {open.to_email} <Tag who={whoIs(open.to_email, open.client_id, open.lead_id)} /></div>
+              <div><b>Gönderen:</b> {open.sent_by || "—"} · info@panormosmedya.com</div>
+              <div><b>Tarih:</b> {open.created_at ? new Date(open.created_at).toLocaleString("tr-TR") : ""}</div>
+              {open.attachment_name && <div>📎 {open.attachment_name}</div>}
+            </>}
+          </div>
+          {open._kind === "inbox" && open.body_html
+            ? <iframe title="mail" sandbox="" srcDoc={`<base target="_blank"><style>body{font-family:system-ui,sans-serif;font-size:14px;color:#222;background:#fff;padding:12px;margin:0;word-break:break-word}img{max-width:100%}</style>` + open.body_html} style={{ width: "100%", height: 420, border: `1px solid ${T.border}`, borderRadius: 8, background: "#fff" }} />
+            : <div style={{ whiteSpace: "pre-wrap", fontSize: 13, color: T.textPrimary, lineHeight: 1.6, padding: "12px 14px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, maxHeight: 420, overflowY: "auto" }}>{open._kind === "inbox" ? (open.body_text || "(İçerik yok)") : (open.body || "")}</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16, flexWrap: "wrap" }}>
+            {open._kind === "inbox" && <Btn onClick={() => toggleRead(open)}>{open.is_read ? "Okunmadı işaretle" : "Okundu işaretle"}</Btn>}
+            {open._kind === "inbox" && <Btn variant="primary" onClick={() => reply(open)}>↩️ Yanıtla</Btn>}
+            <Btn onClick={() => setOpen(null)}>Kapat</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {compose && <MailModal {...compose} currentStaff={currentStaff} onClose={() => setCompose(null)} onSent={async () => { await load(); setTab("sent"); }} />}
+    </div>
   );
 }
 
@@ -5576,6 +5784,7 @@ const NAV=[
   {id:"reports",label:"Raporlar",icon:"📊"},
   {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
+  {id:"mail",label:"E-posta",icon:"📧"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"inventory",label:"Envanter",icon:"🎒"},
   {id:"yearly",label:"Yıllık Özet",icon:"📊"},
@@ -6112,7 +6321,7 @@ const LEAD_STATUS = {
   converted: { label: "Müşteri Oldu", color: T.amberText, bg: T.amberDim, dot: "#F25124" },
 };
 
-function LeadsPage({ refreshData }) {
+function LeadsPage({ refreshData, currentStaff }) {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -6120,6 +6329,7 @@ function LeadsPage({ refreshData }) {
   const [editId, setEditId] = useState(null);
   const [filter, setFilter] = useState("active"); // active = potential+agreed
   const [expanded, setExpanded] = useState(null);
+  const [mailLead, setMailLead] = useState(null);
 
   const load = async () => {
     const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
@@ -6306,6 +6516,7 @@ function LeadsPage({ refreshData }) {
                         {l.notes && <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, padding: "8px 12px", background: T.bgInput, borderRadius: 8 }}>📝 {l.notes}</div>}
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {l.status !== "converted" && <Btn variant="primary" onClick={() => convertToClient(l)} style={{ fontSize: 12, padding: "7px 14px", background: T.greenDim, color: T.greenText }}>✅ Aktif Müşteriye Taşı</Btn>}
+                          <Btn onClick={() => setMailLead(l)} style={{ fontSize: 12, padding: "7px 14px", background: T.indigoDim, color: T.indigoText }}>📧 E-posta Gönder</Btn>
                           <Btn onClick={() => openEdit(l)} style={{ fontSize: 12, padding: "7px 14px" }}>✏️ Düzenle</Btn>
                           <Btn onClick={() => deleteLead(l.id)} style={{ fontSize: 12, padding: "7px 14px", background: T.redDim, color: T.redText }}>🗑 Sil</Btn>
                         </div>
@@ -6316,6 +6527,8 @@ function LeadsPage({ refreshData }) {
               })}
             </div>
           )}
+
+      {mailLead && <LeadMailModal lead={mailLead} currentStaff={currentStaff} onClose={() => setMailLead(null)} onSent={load} />}
 
       {/* Ekleme/Düzenleme modalı */}
       {modal && (
@@ -8963,7 +9176,7 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'mail' ? (isMobile?'📧':'📧 E-posta') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
@@ -8971,7 +9184,7 @@ export default function App() {
       <div style={{flex:1,overflow:"auto",padding:isMobile?14:28}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData} currentStaff={currentStaff}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms} currentStaff={currentStaff}/>}
-        {page==="leads"&&<LeadsPage refreshData={refreshData}/>}
+        {page==="leads"&&<LeadsPage refreshData={refreshData} currentStaff={currentStaff}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients}/>}
         {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
@@ -8981,6 +9194,7 @@ export default function App() {
         {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
         {page==="yearly"&&<YearlyBackupPage clients={clients} staff={staff} tasks={tasks} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
+        {page==="mail"&&<MailPage clients={allClients||clients} currentStaff={currentStaff}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="inventory"&&<InventoryPage perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
