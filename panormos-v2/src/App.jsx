@@ -2495,6 +2495,8 @@ function MailPage({ clients, currentStaff }) {
   const [compose, setCompose] = useState(null);
   const [search, setSearch] = useState("");
   const [moveOpen, setMoveOpen] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
 
   const load = async () => {
     const [{ data: r }, { data: s }, { data: l }, { data: f }] = await Promise.all([
@@ -2507,6 +2509,8 @@ function MailPage({ clients, currentStaff }) {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  useEffect(() => { setSelected([]); setBulkMoveOpen(false); }, [tab]);
 
   const allFolders = [...FIXED_FOLDERS.slice(0, 3), ...folders.map(f => ({ id: "custom:" + f.id, label: "📁 " + f.name, custom: true, raw: f })), FIXED_FOLDERS[3]];
   const folderLabel = (id) => (allFolders.find(f => f.id === id) || FIXED_FOLDERS[0]).label;
@@ -2591,6 +2595,36 @@ function MailPage({ clients, currentStaff }) {
     load();
   };
 
+  const toggleSelect = (id) => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  const bulkMove = async (folder) => {
+    if (!selected.length) return;
+    const ids = selected;
+    setInbox(list => list.map(x => ids.includes(x.id) ? { ...x, folder } : x));
+    setSelected([]); setBulkMoveOpen(false);
+    const { error } = await supabase.from('received_mails').update({ folder }).in('id', ids);
+    if (error) { alert("Taşınamadı: " + error.message); load(); }
+  };
+  const bulkRead = async (v) => {
+    if (!selected.length) return;
+    const ids = selected;
+    setInbox(list => list.map(x => ids.includes(x.id) ? { ...x, is_read: v } : x));
+    setSelected([]);
+    await supabase.from('received_mails').update({ is_read: v }).in('id', ids);
+  };
+  const bulkDeleteForever = async () => {
+    if (!selected.length) return;
+    if (!window.confirm(`Seçili ${selected.length} mail kalıcı olarak silinecek. Emin misin?`)) return;
+    const items = inbox.filter(m => selected.includes(m.id));
+    try {
+      const paths = items.flatMap(m => (m.attachments || []).map(a => a.path)).filter(Boolean);
+      if (paths.length) await supabase.storage.from('mail-attachments').remove(paths);
+    } catch (e) {}
+    const { error } = await supabase.from('received_mails').delete().in('id', selected);
+    if (error) { alert("Silinemedi: " + error.message); return; }
+    setInbox(list => list.filter(x => !selected.includes(x.id)));
+    setSelected([]);
+  };
+
   const downloadAttachment = async (a) => {
     try {
       const { data, error } = await supabase.storage.from('mail-attachments').createSignedUrl(a.path, 300, { download: a.name });
@@ -2669,13 +2703,45 @@ function MailPage({ clients, currentStaff }) {
         {tab.startsWith("custom:") && <Btn onClick={() => deleteFolder(allFolders.find(f => f.id === tab).raw)} style={{ marginLeft: "auto", background: T.redDim, color: T.redText }}>Klasörü Sil</Btn>}
       </div>
 
+      {tab !== "sent" && inboxList.length > 0 && (
+        <div style={{ position: "relative", display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.textSecondary, cursor: "pointer" }}>
+            <input type="checkbox" checked={selected.length > 0 && inboxList.every(m => selected.includes(m.id))} onChange={e => setSelected(e.target.checked ? inboxList.map(m => m.id) : [])} style={{ width: 16, height: 16, cursor: "pointer" }} />
+            {selected.length ? `${selected.length} seçili` : "Tümünü seç"}
+          </label>
+          {selected.length > 0 && <>
+            {tab === "trash"
+              ? <>
+                <Btn onClick={() => bulkMove("inbox")} style={{ fontSize: 11, padding: "5px 10px" }}>↩️ Geri Al</Btn>
+                <Btn onClick={bulkDeleteForever} style={{ fontSize: 11, padding: "5px 10px", background: T.redDim, color: T.redText }}>Kalıcı Sil ({selected.length})</Btn>
+              </>
+              : <>
+                <Btn onClick={() => bulkRead(true)} style={{ fontSize: 11, padding: "5px 10px" }}>Okundu</Btn>
+                <Btn onClick={() => bulkRead(false)} style={{ fontSize: 11, padding: "5px 10px" }}>Okunmadı</Btn>
+                {tab !== "important" && <Btn onClick={() => bulkMove("important")} style={{ fontSize: 11, padding: "5px 10px" }}>⭐ Önemli</Btn>}
+                <Btn onClick={() => setBulkMoveOpen(v => !v)} style={{ fontSize: 11, padding: "5px 10px" }}>📁 Taşı ▾</Btn>
+                <Btn onClick={() => bulkMove("trash")} style={{ fontSize: 11, padding: "5px 10px", background: T.redDim, color: T.redText }}>🗑 Sil ({selected.length})</Btn>
+              </>}
+            <Btn onClick={() => setSelected([])} style={{ fontSize: 11, padding: "5px 10px" }}>Vazgeç</Btn>
+          </>}
+          {bulkMoveOpen && selected.length > 0 && (
+            <div style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, padding: 6, minWidth: 200, zIndex: 5, boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}>
+              {allFolders.filter(f => f.id !== tab && f.id !== "trash").map(f => (
+                <div key={f.id} onClick={() => bulkMove(f.id)} style={{ padding: "8px 12px", fontSize: 13, color: T.textPrimary, cursor: "pointer", borderRadius: 6 }} onMouseEnter={e => e.currentTarget.style.background = T.bgInput} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>{f.label}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : tab !== "sent" ? (
         inboxList.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>{tab === "inbox" ? 'Gelen kutusu boş. "🔄 Gelenleri Yenile" ile info@panormosmedya.com\'daki mailleri çek.' : "Bu klasörde mail yok."}</div>
           : <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {inboxList.map(m => {
               const who = whoIs(m.from_email, m.client_id, null);
               return (
-                <div key={m.id} onClick={() => openMail(m, "inbox")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderLeft: `3px solid ${m.is_read ? T.border : T.amber}`, borderRadius: 10, cursor: "pointer" }}>
+                <div key={m.id} onClick={() => openMail(m, "inbox")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: selected.includes(m.id) ? T.amberDim : T.bgCard, border: `1px solid ${selected.includes(m.id) ? T.amber : T.border}`, borderLeft: `3px solid ${m.is_read ? T.border : T.amber}`, borderRadius: 10, cursor: "pointer" }}>
+                  <input type="checkbox" checked={selected.includes(m.id)} onClick={e => e.stopPropagation()} onChange={() => toggleSelect(m.id)} style={{ width: 16, height: 16, cursor: "pointer", flexShrink: 0 }} />
                   <div style={{ width: 36, height: 36, borderRadius: "50%", background: m.is_read ? T.bgInput : T.amberDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{m.has_attachments ? "📎" : "✉️"}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
