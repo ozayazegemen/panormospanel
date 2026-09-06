@@ -2477,7 +2477,7 @@ function LeadMailModal({ lead, currentStaff, onClose, onSent }) {
 // ─────────────────────────────────────────────
 // E-POSTA SAYFASI — Gelen (IMAP → received_mails) + Giden (sent_mails)
 // ─────────────────────────────────────────────
-function MailPage({ clients, currentStaff }) {
+function MailPage({ clients, currentStaff, onUnreadChange }) {
   const FIXED_FOLDERS = [
     { id: "inbox", label: "📥 Gelen" },
     { id: "important", label: "⭐ Önemli" },
@@ -2507,8 +2507,23 @@ function MailPage({ clients, currentStaff }) {
     ]);
     setInbox(r || []); setSent(s || []); setLeads(l || []); setFolders(f || []);
     setLoading(false);
+    if (onUnreadChange) onUnreadChange();
   };
-  useEffect(() => { load(); }, []);
+  // Sayfa açılınca: önce kayıtlıları göster, sonra sessizce yeni mailleri çek
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      await load();
+      try {
+        setSyncing(true);
+        const r = await fetch("/.netlify/functions/fetch-mails");
+        const d = await r.json().catch(() => ({}));
+        if (alive && r.ok && d.ok && d.inserted > 0) await load();
+      } catch (e) {}
+      if (alive) setSyncing(false);
+    })();
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => { setSelected([]); setBulkMoveOpen(false); }, [tab]);
 
@@ -2554,6 +2569,7 @@ function MailPage({ clients, currentStaff }) {
     if (kind === "inbox" && !m.is_read) {
       setInbox(list => list.map(x => x.id === m.id ? { ...x, is_read: true } : x));
       try { await supabase.from('received_mails').update({ is_read: true }).eq('id', m.id); } catch (e) {}
+      if (onUnreadChange) onUnreadChange();
     }
   };
 
@@ -2562,6 +2578,7 @@ function MailPage({ clients, currentStaff }) {
     setInbox(list => list.map(x => x.id === m.id ? { ...x, is_read: v } : x));
     setOpen(o => o ? { ...o, is_read: v } : o);
     try { await supabase.from('received_mails').update({ is_read: v }).eq('id', m.id); } catch (e) {}
+    if (onUnreadChange) onUnreadChange();
   };
 
   const moveTo = async (m, folder) => {
@@ -2569,6 +2586,7 @@ function MailPage({ clients, currentStaff }) {
     setOpen(null); setMoveOpen(false);
     const { error } = await supabase.from('received_mails').update({ folder }).eq('id', m.id);
     if (error) { alert("Taşınamadı: " + error.message); load(); }
+    if (onUnreadChange) onUnreadChange();
   };
 
   const deleteForever = async (m) => {
@@ -2603,6 +2621,7 @@ function MailPage({ clients, currentStaff }) {
     setSelected([]); setBulkMoveOpen(false);
     const { error } = await supabase.from('received_mails').update({ folder }).in('id', ids);
     if (error) { alert("Taşınamadı: " + error.message); load(); }
+    if (onUnreadChange) onUnreadChange();
   };
   const bulkRead = async (v) => {
     if (!selected.length) return;
@@ -2610,6 +2629,7 @@ function MailPage({ clients, currentStaff }) {
     setInbox(list => list.map(x => ids.includes(x.id) ? { ...x, is_read: v } : x));
     setSelected([]);
     await supabase.from('received_mails').update({ is_read: v }).in('id', ids);
+    if (onUnreadChange) onUnreadChange();
   };
   const bulkDeleteForever = async () => {
     if (!selected.length) return;
@@ -5992,6 +6012,18 @@ export default function App() {
   const [authDenied, setAuthDenied] = useState(false);
   const [staffResolving, setStaffResolving] = useState(false);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
+  const [unreadMails, setUnreadMails] = useState(0);
+  const refreshUnreadMails = async () => {
+    try {
+      const { count } = await supabase.from('received_mails').select('id', { count: 'exact', head: true }).eq('is_read', false).neq('folder', 'trash');
+      setUnreadMails(count || 0);
+    } catch (e) {}
+  };
+  useEffect(() => {
+    refreshUnreadMails();
+    const t = setInterval(refreshUnreadMails, 2 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
   const knownMsgIdsRef = useRef(null);
   const pageRef = useRef("dashboard");
   const [dataLoading, setDataLoading] = useState(true);
@@ -6003,7 +6035,7 @@ export default function App() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [page, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
+    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'mail', 'accounting', 'inventory', 'yearly', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -6224,6 +6256,9 @@ export default function App() {
             {item.id==="messages" && unreadMsgs>0 && (
               <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:"#EF4444",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMsgs}</span>
             )}
+            {item.id==="mail" && unreadMails>0 && (
+              <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:"#EF4444",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMails}</span>
+            )}
           </div>
         ))}
       </div>
@@ -6272,7 +6307,7 @@ export default function App() {
         {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
         {page==="yearly"&&<YearlyBackupPage clients={clients} staff={staff} tasks={tasks} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
-        {page==="mail"&&<MailPage clients={allClients||clients} currentStaff={currentStaff}/>}
+        {page==="mail"&&<MailPage clients={allClients||clients} currentStaff={currentStaff} onUnreadChange={refreshUnreadMails}/>}
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="inventory"&&<InventoryPage perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
