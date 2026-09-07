@@ -1509,8 +1509,8 @@ function Btn({children,onClick,variant="ghost",style={}}) {
 }
 
 function Modal({title,onClose,children,width=500}) {
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={onClose}>
-    <div className="pm-modal" style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onMouseDown={e=>{ if(e.target===e.currentTarget) e.currentTarget.dataset.closing="1"; else delete e.currentTarget.dataset.closing; }} onClick={e=>{ if(e.target===e.currentTarget && e.currentTarget.dataset.closing==="1") onClose(); delete e.currentTarget.dataset.closing; }}>
+    <div className="pm-modal" style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{title}</div>
         <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
