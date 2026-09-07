@@ -2870,6 +2870,3118 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
   );
 }
 
+function ClientOverview({client, perms}) {
+  const total=client.invoices.reduce((s,i)=>s+i.total,0);
+  const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
+  const pct=total>0?Math.round(paid/total*100):0;
+
+  // Bu ayki gerçekleşen paylaşımlar (görevlerden)
+  const now = new Date();
+  const thisMonthPublishes = (client.publishesList||[]).filter(p=>{
+    if(!p.publishedAt) return false;
+    const d = new Date(p.publishedAt);
+    return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+  });
+  const totalThisMonth = thisMonthPublishes.reduce((s,p)=>s+(p.quantity||1),0);
+
+  // Gerçekleşen: platform+tür bazında say  actual[platform][type] = adet (quantity toplanır)
+  const actual = {};
+  thisMonthPublishes.forEach(p=>{
+    if(!actual[p.platform]) actual[p.platform]={};
+    actual[p.platform][p.contentType] = (actual[p.platform][p.contentType]||0)+(p.quantity||1);
+  });
+
+  // Anlaşma (detaylı kota)
+  const quota = client.quotaDetail && Object.keys(client.quotaDetail).length>0 ? client.quotaDetail : {};
+  const quotaTotal = Object.values(quota).reduce((s,pt)=>s+Object.values(pt).reduce((a,b)=>a+(b||0),0),0);
+  const hasQuota = quotaTotal>0;
+
+  // Karşılaştırma satırları: kota VEYA gerçekleşen olan tüm platform+tür kombinasyonları
+  const compRows = [];
+  const platSet = new Set([...Object.keys(quota), ...Object.keys(actual)]);
+  platSet.forEach(plat=>{
+    const typeSet = new Set([...Object.keys(quota[plat]||{}), ...Object.keys(actual[plat]||{})]);
+    typeSet.forEach(tp=>{
+      const q = quota[plat]?.[tp] || 0;
+      const a = actual[plat]?.[tp] || 0;
+      compRows.push({ plat, tp, q, a, over: a-q });
+    });
+  });
+  compRows.sort((x,y)=> x.plat.localeCompare(y.plat) || x.tp.localeCompare(y.tp));
+  const totalExcess = Math.max(0, totalThisMonth - quotaTotal);
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:perms.finance?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:20}}>
+      {perms.finance && (client.workType!=="piece" ? <StatCard label="Aylık Paket" value={fmtMoney(client.monthlyFee)} /> : <StatCard label="Çalışma Tipi" value="Parça Başı" color={T.indigoText} />)}
+      <StatCard label="Bu Ay Paylaşım" value={totalThisMonth} sub={hasQuota?`Anlaşma: ${quotaTotal}`:"Gerçekleşen"} color={totalExcess>0?T.amberText:undefined} />
+      <StatCard label="Medya Dosyası" value={client.media.length} />
+      {(()=>{
+        if(!client.contractEnd) return <StatCard label="Sözleşme Başlangıç" value={client.contractStart} />;
+        const end = new Date(client.contractEnd);
+        const days = Math.ceil((end - new Date())/86400000);
+        const col = days<0 ? T.redText : days<=30 ? T.amberText : T.greenText;
+        const sub = days<0 ? `${Math.abs(days)} gün önce bitti` : days===0 ? "Bugün bitiyor" : `${days} gün kaldı`;
+        return <StatCard label="Sözleşme Bitiş" value={end.toLocaleDateString("tr-TR")} sub={sub} color={col} />;
+      })()}
+    </div>
+
+    {/* Parça başı işler (sadece parça başı / ikisi tipinde) */}
+    {(client.workType==="piece"||client.workType==="both") && <PieceJobsSection client={client} perms={perms} />}
+
+    {/* Paylaşım Sayımı — detaylı anlaşma karşılaştırması (madde 9) */}
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16,marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase"}}>📊 Bu Ayki Paylaşım Sayımı (Anlaşma Karşılaştırması)</div>
+        {hasQuota && (
+          totalExcess>0
+            ? <span style={{fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:8,background:T.amberDim,color:T.amberText}}>⚠️ Toplam {totalExcess} fazla paylaşım</span>
+            : <span style={{fontSize:12,fontWeight:600,padding:"4px 12px",borderRadius:8,background:T.greenDim,color:T.greenText}}>✓ {totalThisMonth} / {quotaTotal} anlaşma içinde</span>
+        )}
+      </div>
+      {compRows.length===0 ? (
+        <div style={{fontSize:12,color:T.textMuted,textAlign:"center",padding:"16px 0"}}>Anlaşma tanımlanmamış ve bu ay paylaşım yok. (Müşteriyi düzenleyip anlaşma girin; görevleri "Paylaşım Yapıldı"ya taşıyınca sayılır)</div>
+      ) : (
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",minWidth:400}}>
+            <thead>
+              <tr style={{borderBottom:`1px solid ${T.border}`}}>
+                <th style={{textAlign:"left",fontSize:10,color:T.textMuted,fontWeight:600,padding:"6px 8px"}}>PLATFORM</th>
+                <th style={{textAlign:"left",fontSize:10,color:T.textMuted,fontWeight:600,padding:"6px 8px"}}>İÇERİK</th>
+                <th style={{textAlign:"center",fontSize:10,color:T.textMuted,fontWeight:600,padding:"6px 8px"}}>ANLAŞMA</th>
+                <th style={{textAlign:"center",fontSize:10,color:T.textMuted,fontWeight:600,padding:"6px 8px"}}>YAPILAN</th>
+                <th style={{textAlign:"center",fontSize:10,color:T.textMuted,fontWeight:600,padding:"6px 8px"}}>DURUM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {compRows.map((r,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
+                  <td style={{fontSize:12,color:T.textPrimary,padding:"7px 8px"}}>{platLabel(r.plat)}</td>
+                  <td style={{fontSize:12,color:T.textSecondary,padding:"7px 8px"}}>{typeLabel(r.tp)}</td>
+                  <td style={{fontSize:12,color:T.textMuted,textAlign:"center",padding:"7px 8px"}}>{r.q||"—"}</td>
+                  <td style={{fontSize:12,fontWeight:700,color:T.textPrimary,textAlign:"center",padding:"7px 8px"}}>{r.a}</td>
+                  <td style={{textAlign:"center",padding:"7px 8px"}}>
+                    {r.over>0
+                      ? <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:5,background:T.amberDim,color:T.amberText}}>+{r.over} fazla</span>
+                      : r.q>0 && r.a>=r.q
+                        ? <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:5,background:T.greenDim,color:T.greenText}}>✓ tamam</span>
+                        : r.q>0
+                          ? <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:5,background:T.bgSurface,color:T.textMuted}}>{r.q-r.a} kaldı</span>
+                          : <span style={{fontSize:10,color:T.textMuted}}>—</span>
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:perms.finance?"1fr 1fr":"1fr",gap:16,marginBottom:16}}>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:8,fontWeight:500,textTransform:"uppercase"}}>İşletme Bilgileri</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:12}}>
+          <div><span style={{color:T.textMuted}}>Telefon:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.phone||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Sosyal Medya:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.socialMedia||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Sosyal Medya Şifresi:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.socialPassword||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Şehir:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.city||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Vergi No:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxNumber||"—"}</span></div>
+          <div><span style={{color:T.textMuted}}>Vergi Dairesi:</span> <span style={{color:T.textPrimary,fontWeight:500}}>{client.taxOffice||"—"}</span></div>
+          {client.description && <div style={{marginTop:4,paddingTop:8,borderTop:`1px solid ${T.border}`}}><span style={{color:T.textMuted}}>Açıklama:</span><div style={{color:T.textPrimary,marginTop:4,whiteSpace:"pre-wrap"}}>{client.description}</div></div>}
+        </div>
+      </div>
+      {perms.finance && <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:16}}>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:8,fontWeight:500,textTransform:"uppercase"}}>Mali Özet</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div><div style={{fontSize:11,color:T.textMuted}}>Toplam</div><div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>{fmtMoney(total)}</div></div>
+          <div><div style={{fontSize:11,color:T.textMuted}}>Tahsil Edilen</div><div style={{fontSize:14,fontWeight:700,color:T.green}}>{fmtMoney(paid)}</div></div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{flex:1,height:6,background:T.bgSurface,borderRadius:3,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${pct}%`,background:T.amber,borderRadius:3}} />
+            </div>
+            <span style={{fontSize:11,color:T.textMuted}}>%{pct}</span>
+          </div>
+        </div>
+      </div>}
+    </div>
+  </div>;
+}
+
+const APPROVAL_CFG = {
+  pending: { label: "Beklemede", icon: "⏳", color: T.textMuted, bg: T.bgSurface },
+  approved: { label: "Onaylandı", icon: "✅", color: T.greenText, bg: T.greenDim },
+  revision: { label: "Revize İstendi", icon: "🔄", color: T.amberText, bg: T.amberDim },
+};
+
+function ClientPosts({client, setClients}) {
+  const [noteModal, setNoteModal] = useState(null); // {postId, note}
+
+  const setApproval = async (post, newApproval, note) => {
+    const payload = { approval: newApproval, approval_note: note !== undefined ? note : (post.approvalNote || "") };
+    const { error } = await supabase.from('posts').update(payload).eq('id', post.id);
+    if (error) { alert("Güncellenemedi: " + error.message + "\n\nICERIK-ONAY-SQL kodunu çalıştırdığınızdan emin olun."); return; }
+    setClients(prev => prev.map(c => c.id === client.id ? { ...c, posts: c.posts.map(p => p.id === post.id ? { ...p, approval: newApproval, approvalNote: payload.approval_note } : p) } : c));
+  };
+
+  const openRevision = (post) => setNoteModal({ postId: post.id, note: post.approvalNote || "" });
+  const saveRevision = async () => {
+    const post = client.posts.find(p => p.id === noteModal.postId);
+    if (post) await setApproval(post, "revision", noteModal.note);
+    setNoteModal(null);
+  };
+
+  // Onay özeti
+  const counts = { approved: 0, revision: 0, pending: 0 };
+  client.posts.forEach(p => { counts[p.approval || "pending"]++; });
+
+  return <div>
+    {client.posts.length > 0 && (
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, fontWeight: 600 }}>✅ {counts.approved} Onaylı</span>
+        <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.amberDim, color: T.amberText, fontWeight: 600 }}>🔄 {counts.revision} Revize</span>
+        <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 8, background: T.bgSurface, color: T.textMuted, fontWeight: 600 }}>⏳ {counts.pending} Beklemede</span>
+      </div>
+    )}
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {client.posts.length === 0 && (
+        <div style={{textAlign:"center",padding:"30px 0",color:T.textMuted,fontSize:13}}>Henüz paylaşım eklenmemiş</div>
+      )}
+      {client.posts.map(p=>{
+        const ap = APPROVAL_CFG[p.approval || "pending"];
+        return (
+        <div key={p.id} style={{padding:"12px 14px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,borderLeft:`3px solid ${p.approval==="approved"?"#10B981":p.approval==="revision"?"#F25124":T.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <PlatformTag id={p.platform}/>
+            <span style={{fontSize:11,color:T.textMuted,minWidth:80}}>{p.date}</span>
+            <span style={{fontSize:11,padding:"2px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{p.type}</span>
+            <span style={{fontSize:13,color:T.textPrimary,flex:1}}>{p.title}</span>
+            <Badge status={p.status}/>
+          </div>
+          {/* Onay satırı */}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`,flexWrap:"wrap"}}>
+            <span style={{fontSize:11,color:T.textMuted,fontWeight:600}}>Müşteri Onayı:</span>
+            <span style={{fontSize:11,fontWeight:600,padding:"3px 10px",borderRadius:6,background:ap.bg,color:ap.color}}>{ap.icon} {ap.label}</span>
+            <div style={{display:"flex",gap:5,marginLeft:"auto"}}>
+              <button onClick={()=>setApproval(p,"approved")} style={{fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:6,background:p.approval==="approved"?"#10B981":T.bgInput,color:p.approval==="approved"?"#fff":T.textSecondary,border:`1px solid ${p.approval==="approved"?"#10B981":T.border}`,cursor:"pointer"}}>✅ Onaylandı</button>
+              <button onClick={()=>openRevision(p)} style={{fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:6,background:p.approval==="revision"?"#F25124":T.bgInput,color:p.approval==="revision"?"#fff":T.textSecondary,border:`1px solid ${p.approval==="revision"?"#F25124":T.border}`,cursor:"pointer"}}>🔄 Revize</button>
+              <button onClick={()=>setApproval(p,"pending","")} style={{fontSize:11,fontWeight:600,padding:"5px 10px",borderRadius:6,background:T.bgInput,color:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>⏳ Beklet</button>
+            </div>
+          </div>
+          {p.approval==="revision" && p.approvalNote && (
+            <div style={{marginTop:8,padding:"8px 12px",background:T.amberDim,borderRadius:8,fontSize:12,color:T.amberText}}>🔄 <strong>Revize notu:</strong> {p.approvalNote}</div>
+          )}
+        </div>
+      );})}
+    </div>
+
+    {noteModal && (
+      <Modal title="🔄 Revize Notu" onClose={()=>setNoteModal(null)}>
+        <FormField label="Müşteri neyin değişmesini istiyor?">
+          <Textarea placeholder="Örn: Logo daha büyük olsun, arka plan mavi olsun..." value={noteModal.note} onChange={e=>setNoteModal(m=>({...m,note:e.target.value}))} minHeight={120} />
+        </FormField>
+        <ModalActions onClose={()=>setNoteModal(null)} onSave={saveRevision} saveLabel="Revize Olarak İşaretle" />
+      </Modal>
+    )}
+  </div>;
+}
+
+function ClientMedia({client}) {
+  const openMedia = (m) => {
+    if (m.storageType === "google_drive" && m.storagePath) {
+      window.open(m.storagePath, "_blank");
+    } else if (m.storageType === "supabase" && m.storagePath) {
+      const { data } = supabase.storage.from('client-media').getPublicUrl(m.storagePath);
+      if (data?.publicUrl) window.open(data.publicUrl, "_blank");
+    }
+  };
+
+  return <div>
+    {client.media.length === 0 && (
+      <div style={{textAlign:"center",padding:"40px 0",color:T.textMuted,fontSize:13}}>Henüz medya dosyası yüklenmemiş</div>
+    )}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
+      {client.media.map(m=>(
+        <div key={m.id} onClick={()=>openMedia(m)} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,overflow:"hidden",cursor:"pointer",transition:"all 0.15s ease"}}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=T.borderLight}
+          onMouseLeave={e=>e.currentTarget.style.borderColor=T.border}>
+          <div style={{height:80,display:"flex",alignItems:"center",justifyContent:"center",background:T.bgSurface,fontSize:28,position:"relative"}}>
+            {m.type === "video" ? "🎥" : m.type === "image" ? "🖼" : "📄"}
+            {m.storageType === "google_drive" && (
+              <span style={{position:"absolute",top:6,right:6,fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:4,background:"rgba(66,133,244,0.9)",color:"#fff"}}>DRIVE</span>
+            )}
+            {m.storageType === "supabase" && (
+              <span style={{position:"absolute",top:6,right:6,fontSize:8,fontWeight:700,padding:"2px 5px",borderRadius:4,background:"rgba(16,185,129,0.9)",color:"#fff"}}>SUPABASE</span>
+            )}
+          </div>
+          <div style={{padding:"8px 10px"}}>
+            <div style={{fontSize:11,fontWeight:500,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
+            <div style={{fontSize:10,color:T.textMuted,marginTop:2}}>{m.size} · Aç →</div>
+            {(m.uploaderName || m.uploadedAt) && (
+              <div style={{fontSize:9,color:T.textMuted,marginTop:4,paddingTop:4,borderTop:`1px solid ${T.border}`}}>
+                {m.uploaderName && <div>👤 {m.uploaderName}</div>}
+                {m.uploadedAt && <div style={{marginTop:1}}>🕐 {new Date(m.uploadedAt).toLocaleDateString("tr-TR")} {new Date(m.uploadedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}</div>}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>;
+}
+
+function ClientInvoices({client}) {
+  const total=client.invoices.reduce((s,i)=>s+i.total,0);
+  const paid=client.invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+i.total,0);
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+      <StatCard label="Toplam" value={fmtMoney(total)} />
+      <StatCard label="Tahsil Edilen" value={fmtMoney(paid)} color={T.greenText} />
+      <StatCard label="Bekleyen" value={fmtMoney(total-paid)} color={T.amberText} />
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      {client.invoices.length === 0 && (
+        <div style={{textAlign:"center",padding:"30px 0",color:T.textMuted,fontSize:13}}>Henüz fatura eklenmemiş</div>
+      )}
+      {client.invoices.map(inv=>(
+        <div key={inv.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:500,color:T.textPrimary}}>{inv.desc}</div>
+            <div style={{fontSize:11,color:T.textMuted}}>{inv.no} · {inv.date}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:14,fontWeight:700,color:T.textPrimary}}>{fmtMoney(inv.total)}</div>
+            <div style={{fontSize:10,color:T.textMuted}}>KDV dahil</div>
+          </div>
+          <Badge status={inv.status}/>
+        </div>
+      ))}
+    </div>
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// IDEAS PAGE (YENİ)
+// ─────────────────────────────────────────────
+function IdeasPage({ currentStaff, clients }) {
+  const [ideas, setIdeas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [filterClient, setFilterClient] = useState("all");
+
+  const load = async () => {
+    const { data } = await supabase.from('ideas').select('*').is('deleted_at', null).order('created_at', { ascending: false });
+    const sorted = (data || []).sort((a,b)=>(a.title||"").localeCompare(b.title||"","tr",{sensitivity:"base"}));
+    setIdeas(sorted);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const saveIdea = async () => {
+    if (!form.title) return;
+    if (form.id) {
+      // Düzenleme
+      const { error } = await supabase.from('ideas').update({
+        title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
+        client_name: form.client_name || "",
+      }).eq('id', form.id);
+      if (error) { alert("Fikir güncellenemedi: " + error.message); return; }
+    } else {
+      // Yeni ekleme
+      const { error } = await supabase.from('ideas').insert({
+        title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
+        created_by: currentStaff?.name || "", client_name: form.client_name || "",
+      });
+      if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
+    }
+    setModal(false); setForm({});
+    load();
+  };
+
+  const editIdea = (idea) => {
+    setForm({ id: idea.id, title: idea.title || "", description: idea.description || "", category: idea.category || "", status: idea.status || "planned", client_name: idea.client_name || "" });
+    setModal(true);
+  };
+
+  const deleteIdea = async (id) => {
+    if (!window.confirm("Bu fikir silinsin mi?")) return;
+    await supabase.from('ideas').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    load();
+  };
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+      <StatCard label="Toplam Fikir" value={ideas.length} />
+      <StatCard label="Devam Ediyor" value={ideas.filter(i=>i.status==="in_progress").length} color={T.amberText} />
+      <StatCard label="Tamamlanan" value={ideas.filter(i=>i.status==="completed").length} color={T.greenText} />
+    </div>
+
+    <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",description:"",status:"planned",category:"",client_name:""});}}>💡 Yeni Fikir Ekle</Btn>
+      <Btn onClick={()=>{
+        const statusLabels={planned:"Planlandı",in_progress:"Devam Ediyor",completed:"Tamamlandı"};
+        const rows = ideas.map(i => ({
+          "Başlık": i.title,
+          "Müşteri": i.client_name || "Genel",
+          "Açıklama": i.description || "—",
+          "Kategori": i.category || "—",
+          "Ekleyen": i.created_by || "—",
+          "Durum": statusLabels[i.status] || i.status,
+        }));
+        printData("Fikir Listesi", rows);
+      }}>🖨️ Yazdır</Btn>
+      <div style={{flex:1}} />
+      <Select value={filterClient} onChange={e=>setFilterClient(e.target.value)} style={{maxWidth:220}}>
+        <option value="all">🏢 Tüm Müşteriler</option>
+        <option value="__none__">Genel (müşterisiz)</option>
+        {(clients||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+      </Select>
+    </div>
+
+    {loading ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Yükleniyor...</div>
+    ) : ideas.length === 0 ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Henüz fikir yok. "💡 Yeni Fikir Ekle" ile başla!</div>
+    ) : (
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+        {ideas.filter(idea => filterClient==="all" || (filterClient==="__none__" ? !idea.client_name : idea.client_name===filterClient)).map(idea => (
+          <Card key={idea.id} style={{padding:20}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,gap:8}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,flex:1}}>{idea.title}</div>
+              <Badge status={idea.status} />
+            </div>
+            {idea.client_name && <div style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:6,background:T.indigoDim,color:T.indigoText,marginBottom:10}}>🏢 {idea.client_name}</div>}
+            <div style={{fontSize:12,color:T.textMuted,marginBottom:12,whiteSpace:"pre-wrap"}}>{idea.description}</div>
+            {idea.created_by && <div style={{fontSize:11,color:T.textMuted,marginBottom:10,fontWeight:600}}>👤 {idea.created_by}{idea.created_at?` · ${new Date(idea.created_at).toLocaleDateString("tr-TR")}`:""}</div>}
+            <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"space-between"}}>
+              {idea.category ? <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:4,background:T.bgSurface,color:T.textMuted}}>{idea.category}</span> : <span/>}
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <button onClick={()=>editIdea(idea)} title="Düzenle" style={{background:"none",border:"none",color:T.textMuted,cursor:"pointer",fontSize:13}}>✏️</button>
+                <button onClick={()=>deleteIdea(idea.id)} title="Sil" style={{background:"none",border:"none",color:T.redText,cursor:"pointer",fontSize:13}}>🗑</button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+    )}
+
+    {modal && <Modal title={form.id ? "✏️ Fikri Düzenle" : "Yeni Fikir Ekle"} onClose={()=>setModal(false)} width={700}>
+      <FormField label="Başlık">
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <Input placeholder="Fikrin başlığı" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
+          <EmojiButton onSelect={(em)=>setForm(f=>({...f,title:(f.title||"")+em}))} size={20} />
+        </div>
+      </FormField>
+      <FormField label="Açıklama">
+        <div style={{position:"relative"}}>
+          <Textarea placeholder="Detaylı açıklama" value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={200} />
+          <div style={{position:"absolute",bottom:8,right:8}}><EmojiButton onSelect={(em)=>setForm(f=>({...f,description:(f.description||"")+em}))} size={20} /></div>
+        </div>
+      </FormField>
+      <FormField label="🏢 Hangi Müşteri İçin? (isteğe bağlı)">
+        <Select value={form.client_name||""} onChange={e=>setForm(f=>({...f,client_name:e.target.value}))}>
+          <option value="">Genel / Müşteri seçilmedi</option>
+          {(clients||[]).map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Kategori"><Input placeholder="Video, Social, Audio, vb." value={form.category||""} onChange={e=>setForm(f=>({...f,category:e.target.value}))} /></FormField>
+      <FormField label="Durum"><Select value={form.status||"planned"} onChange={e=>setForm(f=>({...f,status:e.target.value}))}><option value="planned">Planlandı</option><option value="in_progress">Devam Ediyor</option><option value="completed">Tamamlandı</option></Select></FormField>
+      <ModalActions onClose={()=>setModal(false)} onSave={saveIdea} />
+    </Modal>}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// TASKS PAGE
+// ─────────────────────────────────────────────
+function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}) {
+  const [modal,setModal]=useState(false);
+  const [form,setForm]=useState({});
+  const [selectedTask,setSelectedTask]=useState(null);
+  const [deleteModal,setDeleteModal]=useState(null);
+  const [editModal,setEditModal]=useState(false);        // görev düzenleme
+  const [editForm,setEditForm]=useState({});
+  const [publishModal,setPublishModal]=useState(null);   // paylaşım yapıldı modalı
+  const [filterStaff,setFilterStaff]=useState("all");    // kişiye göre filtre
+  const [reportModal,setReportModal]=useState(null);     // görev raporu
+  const [columnModal,setColumnModal]=useState(null);     // kolon "tümünü gör" modalı
+  const [approvalModal,setApprovalModal]=useState(null);  // onaya gönder (WhatsApp) modalı
+  const [revisionModal,setRevisionModal]=useState(null);  // revize modalı
+  const [approvalUploading,setApprovalUploading]=useState(false);
+
+  const cols=[
+    {id:"todo",label:"Yapılacak",color:T.textMuted},
+    {id:"inprogress",label:"Başlandı",color:"#7DA4C7"},
+    {id:"review",label:"İncelemede",color:T.amber},
+    {id:"done",label:"Tamamlandı",color:T.green},
+    {id:"revision",label:"Revize",color:"#EF4444"},
+    {id:"approval",label:"Onaya Gönderildi",color:"#25D366"},
+    {id:"published",label:"Paylaşım Yapıldı",color:"#A855F7"},
+  ];
+
+  // Çalışana özel renk (kişiye göre ayırma)
+  const STAFF_COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
+  const staffColor = (sid) => {
+    if(!sid) return T.textMuted;
+    const idx = staff.findIndex(s=>s.id===sid);
+    return idx>=0 ? STAFF_COLORS[idx % STAFF_COLORS.length] : T.textMuted;
+  };
+
+  const fmtDateTime = (iso) => {
+    if(!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleDateString("tr-TR") + " " + d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
+  };
+
+  const moveTask=async (id, newCol)=>{
+    // "Paylaşım Yapıldı" kolonuna taşınıyorsa önce paylaşım bilgilerini sor
+    if(newCol==="published"){
+      const t = tasks.find(x=>x.id===id);
+      setPublishModal({ taskId:id, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", counts:{} });
+      return;
+    }
+    // "Onaya Gönderildi" kolonuna taşınıyorsa müşteri seç + WhatsApp
+    if(newCol==="approval"){
+      const t = tasks.find(x=>x.id===id);
+      setApprovalModal({ taskId:id, client_id: t?.clientId||"", task:t });
+      return;
+    }
+    setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol}:t));
+    if(selectedTask && selectedTask.id===id){ setSelectedTask({...selectedTask,col:newCol}); }
+    await supabase.from('tasks').update({ col: newCol }).eq('id', id);
+  };
+
+  // Onaya gönder: görevi approval kolonuna taşı (müşteri seçili)
+  const confirmApproval = async () => {
+    const am = approvalModal;
+    const cli = clients.find(c => c.id === am.client_id);
+    await supabase.from('tasks').update({ col: "approval", client_id: am.client_id||null }).eq('id', am.taskId);
+    setTasks(prev=>prev.map(t=>t.id===am.taskId?{...t,col:"approval",clientId:am.client_id||null,client:cli?.name||t.client}:t));
+    if(selectedTask && selectedTask.id===am.taskId){ setSelectedTask({...selectedTask,col:"approval"}); }
+    setApprovalModal(null);
+  };
+
+  // Paylaşımı onayla → publishes kaydı + görevi published yap
+  const confirmPublish = async () => {
+    const pm = publishModal;
+    if(!pm.client_id){ alert("Lütfen paylaşım yapılan müşteriyi seçin"); return; }
+    if(!pm.publisher_id){ alert("Lütfen paylaşımı yapan çalışanı seçin"); return; }
+    const counts = pm.counts || {};
+    const total = Object.values(counts).reduce((s,n)=>s+(n||0),0);
+    if(total < 1){ alert("Lütfen en az 1 içerik adedi girin (örn: 3 Post)"); return; }
+    const nowIso = new Date().toISOString();
+    // Her içerik türü için, adedi kadar quantity ile bir kayıt oluştur
+    const rows = Object.entries(counts).filter(([k,n])=>(n||0)>0).map(([content_type,qty])=>({
+      task_id: pm.taskId, client_id: pm.client_id, publisher_id: pm.publisher_id,
+      platform: pm.platform, content_type, quantity: qty, published_at: nowIso,
+    }));
+    const { error } = await supabase.from('publishes').insert(rows);
+    if(error){ alert("Paylaşım kaydedilemedi: "+error.message+"\n\nPAYLASIM-ADET-SQL kodunu çalıştırın."); return; }
+    await supabase.from('tasks').update({ col: "published" }).eq('id', pm.taskId);
+    setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:"published"}:t));
+    if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:"published"}); }
+    setPublishModal(null);
+    // Müşteri verilerini yenile (takvim + paylaşım sayımı güncellensin)
+    if(refreshData) await refreshData();
+  };
+
+  // Görevi yeniden ata (atama tarihini otomatik güncelle)
+  // Revize al: görevi "revision" kolonuna taşı + kim/ne zaman/açıklama kaydet
+  const confirmRevision = async () => {
+    const rm = revisionModal;
+    if(!rm.note || !rm.note.trim()){ alert("Lütfen revize açıklaması yazın"); return; }
+    const nowIso = new Date().toISOString();
+    const by = currentStaff?.name || "Bilinmeyen";
+    const { error } = await supabase.from('tasks').update({ col: "revision", revision_note: rm.note.trim(), revision_by: by, revision_at: nowIso }).eq('id', rm.taskId);
+    if(error){ alert("Revize kaydedilemedi: "+error.message+"\n\nREVIZE-SQL kodunu çalıştırın."); return; }
+    setTasks(prev=>prev.map(t=>t.id===rm.taskId?{...t,col:"revision",revisionNote:rm.note.trim(),revisionBy:by,revisionAt:nowIso}:t));
+    if(selectedTask && selectedTask.id===rm.taskId){ setSelectedTask({...selectedTask,col:"revision",revisionNote:rm.note.trim(),revisionBy:by,revisionAt:nowIso}); }
+    setRevisionModal(null);
+  };
+
+  const reassignTask = async (taskId, newAssignee) => {
+    const val = newAssignee || null;
+    const assignedAt = val ? new Date().toISOString() : null;
+    await supabase.from('tasks').update({ assigned_to: val, assigned_at: assignedAt }).eq('id', taskId);
+    setTasks(prev=>prev.map(t=>t.id===taskId?{...t,assignedTo:val,assignedAt}:t));
+    if(selectedTask && selectedTask.id===taskId){ setSelectedTask({...selectedTask,assignedTo:val,assignedAt}); }
+  };
+
+  // Görev düzenlemeyi kaydet
+  const saveEdit = async () => {
+    if(!editForm.title){ alert("Başlık boş olamaz"); return; }
+    const cid = clients.find(c=>c.name===editForm.client)?.id || null;
+    const { error } = await supabase.from('tasks').update({
+      title: editForm.title, type: editForm.type, priority: editForm.priority,
+      due_date: editForm.due||"—", client_id: cid,
+    }).eq('id', editForm.id);
+    if(error){ alert("Güncellenemedi: "+error.message); return; }
+    setTasks(prev=>prev.map(t=>t.id===editForm.id?{...t,title:editForm.title,type:editForm.type,priority:editForm.priority,due:editForm.due,client:editForm.client,clientId:cid}:t));
+    setSelectedTask(s=>s&&s.id===editForm.id?{...s,title:editForm.title,type:editForm.type,priority:editForm.priority,due:editForm.due,client:editForm.client,clientId:cid}:s);
+    setEditModal(false);
+  };
+
+  const deleteTask = async (taskId) => {
+    if (!deleteModal.reason || !deleteModal.note) {
+      alert("Lütfen silme sebebini ve açıklamayı girin");
+      return;
+    }
+
+    const { error } = await supabase.from('tasks').update({
+      deleted_at: new Date().toISOString(),
+      delete_reason: deleteModal.reason,
+      delete_note: deleteModal.note,
+    }).eq('id', taskId);
+
+    if (error) {
+      alert("HATA: Görev silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      return;
+    }
+
+    setTasks(tasks.filter(t => t.id !== taskId));
+    setDeleteModal(null);
+    setSelectedTask(null);
+  };
+
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.col === "done").length;
+  const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+
+  // ── Çalışan bazlı istatistikler ──
+  const isAdminView = perms?.isAdmin;
+  const allPublishes = clients.flatMap(c => (c.publishesList || []).map(p => ({ ...p, clientId: c.id })));
+  const computeStats = (sid) => {
+    const myTasks = tasks.filter(t => t.assignedTo === sid);
+    const done = myTasks.filter(t => t.col === "done" || t.col === "published").length;
+    const active = myTasks.filter(t => t.col === "inprogress" || t.col === "review").length;
+    const todo = myTasks.filter(t => t.col === "todo").length;
+    const published = myTasks.filter(t => t.col === "published").length;
+    const publishCount = allPublishes.filter(p => p.publisherId === sid).length;
+    const rate = myTasks.length > 0 ? Math.round(done / myTasks.length * 100) : 0;
+    return { total: myTasks.length, done, active, todo, published, publishCount, rate };
+  };
+  // Yönetici herkesi görür; çalışan sadece kendini
+  const visibleStaff = isAdminView ? staff : staff.filter(s => s.id === currentStaff?.id);
+  // Üst özet çubuğu: yönetici=global, çalışan=kendi görevleri
+  const viewTasks = isAdminView ? tasks : tasks.filter(t => t.assignedTo === currentStaff?.id);
+  const viewDone = viewTasks.filter(t => t.col === "done" || t.col === "published").length;
+  const viewPercent = viewTasks.length > 0 ? Math.round(viewDone / viewTasks.length * 100) : 0;
+
+  const staffColorLocal = (sid) => {
+    const idx = staff.findIndex(s => s.id === sid);
+    const COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
+    return idx >= 0 ? COLORS[idx % COLORS.length] : T.textMuted;
+  };
+
+  // Görevin paylaşım tarihi (publishes'tan) — "Paylaşım Yapıldı" haftalık sıfırlama için
+  const publishDateByTask = {};
+  clients.forEach(c => (c.publishesList || []).forEach(p => {
+    if (p.taskId) {
+      if (!publishDateByTask[p.taskId] || new Date(p.publishedAt) > new Date(publishDateByTask[p.taskId])) {
+        publishDateByTask[p.taskId] = p.publishedAt;
+      }
+    }
+  }));
+  // Bu haftanın başı (Pazartesi 00:00)
+  const weekStart = (() => { const d = new Date(); const wd = (d.getDay() + 6) % 7; return new Date(d.getFullYear(), d.getMonth(), d.getDate() - wd); })();
+
+  // ── Paylaşım tarih grupları (bugün / dün / son 7 gün / 2 hafta / 1 ay) ──
+  const PUBLISH_BUCKETS = [
+    { key: "today", label: "Bugün", icon: "🔥", max: 0 },
+    { key: "yest", label: "Dün", icon: "🕐", max: 1 },
+    { key: "week", label: "Son 7 Gün", icon: "📆", max: 7 },
+    { key: "week2", label: "Son 2 Hafta", icon: "🗓️", max: 14 },
+    { key: "month", label: "Son 1 Ay", icon: "📁", max: 30 },
+    { key: "older", label: "Daha Eski", icon: "🗄️", max: Infinity },
+  ];
+  const daysAgoOf = (dateStr) => {
+    if (!dateStr) return Infinity;
+    const d = new Date(dateStr), n = new Date();
+    const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const n0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    return Math.round((n0 - d0) / 86400000);
+  };
+  const bucketOfTask = (taskId) => {
+    const diff = daysAgoOf(publishDateByTask[taskId]);
+    return PUBLISH_BUCKETS.find(b => diff <= b.max) || PUBLISH_BUCKETS[PUBLISH_BUCKETS.length - 1];
+  };
+  const groupPublished = (list) => {
+    const sorted = [...list].sort((a, b) => {
+      const da = publishDateByTask[a.id] ? new Date(publishDateByTask[a.id]).getTime() : 0;
+      const db = publishDateByTask[b.id] ? new Date(publishDateByTask[b.id]).getTime() : 0;
+      return db - da; // yeniden eskiye
+    });
+    return PUBLISH_BUCKETS.map(b => ({ ...b, items: sorted.filter(t => bucketOfTask(t.id).key === b.key) })).filter(g => g.items.length);
+  };
+
+  // Bir kolonun görevlerini getir (published kolonu son 30 gün gösterilir)
+  const getColTasks = (colId) => {
+    let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
+    if (colId === "published") {
+      list = list.filter(t => daysAgoOf(publishDateByTask[t.id]) <= 30);
+      list.sort((a, b) => {
+        const da = publishDateByTask[a.id] ? new Date(publishDateByTask[a.id]).getTime() : 0;
+        const db = publishDateByTask[b.id] ? new Date(publishDateByTask[b.id]).getTime() : 0;
+        return db - da;
+      });
+    }
+    return list;
+  };
+  // Kolonun TÜM görevleri (hafta filtresi yok) — detay modalı için
+  const getAllColTasks = (colId) => tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
+
+  // Tek görev kartı (hem kolonda hem modalda kullanılır)
+  const taskCardEl = (task) => {
+    const assignee = task.assignedTo ? staff.find(s => s.id === task.assignedTo) : null;
+    const acolor = staffColor(task.assignedTo);
+    return (
+      <div key={task.id} onClick={() => { setSelectedTask(task); setColumnModal(null); }} style={{ background: T.bgSurface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px", cursor: "pointer", borderLeft: `3px solid ${acolor}`, transition: "all 0.12s" }}>
+        <div style={{ fontSize: 12, fontWeight: 500, color: T.textPrimary, marginBottom: 6 }}>{task.title}</div>
+        {assignee && (
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+            <div style={{ width: 18, height: 18, borderRadius: "50%", background: acolor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff" }}>{assignee.initials}</div>
+            <span style={{ fontSize: 10, color: T.textSecondary }}>{assignee.name}</span>
+          </div>
+        )}
+        {task.assignedAt && <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 5 }}>📌 {fmtDateTime(task.assignedAt)}</div>}
+        {task.col==="published" && publishDateByTask[task.id] && <div style={{ fontSize: 9, color: "#C4B5FD", marginBottom: 5, fontWeight: 600 }}>✅ {fmtDateTime(publishDateByTask[task.id])}</div>}
+        {task.col==="revision" && task.revisionNote && <div style={{ fontSize: 9, color: "#F87171", marginBottom: 5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔄 {task.revisionNote}</div>}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: priorityConfig[task.priority]?.bg, color: priorityConfig[task.priority]?.color }}>{priorityConfig[task.priority]?.label}</span>
+          {task.client && <span style={{ fontSize: 9, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 80 }}>{task.client}</span>}
+        </div>
+      </div>
+    );
+  };
+
+  return <div>
+    <div style={{marginBottom:16,padding:"16px",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{isAdminView ? "Toplam Tamamlanma Oranı" : "Benim Tamamlanma Oranım"}</span>
+        <span style={{fontSize:14,fontWeight:700,color:T.amber}}>{viewPercent}%</span>
+      </div>
+      <div style={{height:12,background:T.bgSurface,borderRadius:6,overflow:"hidden",border:`1px solid ${T.border}`}}>
+        <div style={{height:"100%",width:`${viewPercent}%`,background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,borderRadius:6,transition:"width 0.6s ease",boxShadow:`0 0 20px ${T.amber}66`}} />
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:T.textMuted}}>
+        <span>✓ {viewTasks.filter(t => t.col === "done" || t.col === "published").length} tamamlandı</span>
+        <span>→ {viewTasks.filter(t => t.col === "inprogress").length} başlandı</span>
+        <span>◐ {viewTasks.filter(t => t.col === "review").length} incelemede</span>
+        <span>○ {viewTasks.filter(t => t.col === "todo").length} yapılacak</span>
+      </div>
+    </div>
+
+    {/* Çalışan İstatistikleri */}
+    <div style={{marginBottom:20}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <span style={{fontSize:13,fontWeight:700,color:T.textPrimary}}>📊 {isAdminView ? "Çalışan İstatistikleri" : "İstatistiklerim"}</span>
+        {isAdminView && (
+          <Btn onClick={()=>{
+            const rows = staff.map(s=>{ const st=computeStats(s.id); return {
+              "Çalışan": s.name, "Toplam Görev": st.total, "Tamamlanan": st.done, "Aktif": st.active,
+              "Yapılacak": st.todo, "Paylaşım Yapıldı": st.publishCount, "Tamamlanma %": st.rate+"%",
+            };});
+            if(typeof exportPerfectExcel==="function") exportPerfectExcel([{name:"İstatistikler", rows, title:"PANORMOS MEDYA — ÇALIŞAN İSTATİSTİKLERİ"}], "calisan-istatistikleri.xlsx");
+            else printData("Çalışan İstatistikleri", rows);
+          }} style={{fontSize:11,padding:"5px 10px"}}>📊 Excel</Btn>
+        )}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))",gap:12}}>
+        {visibleStaff.map(s=>{
+          const st = computeStats(s.id);
+          const col = staffColorLocal(s.id);
+          return (
+            <div key={s.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:14,borderTop:`3px solid ${col}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>{s.initials}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                  <div style={{fontSize:10,color:T.textMuted}}>{s.role}</div>
+                </div>
+                <div style={{fontSize:18,fontWeight:800,color:col}}>{st.rate}%</div>
+              </div>
+              <div style={{height:6,background:T.bgSurface,borderRadius:3,overflow:"hidden",marginBottom:12}}>
+                <div style={{height:"100%",width:`${st.rate}%`,background:col,borderRadius:3,transition:"width 0.5s"}} />
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>{st.total}</div><div style={{fontSize:9,color:T.textMuted}}>TOPLAM GÖREV</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.greenText}}>{st.done}</div><div style={{fontSize:9,color:T.textMuted}}>TAMAMLANAN</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:"#7DA4C7"}}>{st.active}</div><div style={{fontSize:9,color:T.textMuted}}>AKTİF</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:"#A855F7"}}>{st.publishCount}</div><div style={{fontSize:9,color:T.textMuted}}>PAYLAŞIM</div></div>
+              </div>
+            </div>
+          );
+        })}
+        {visibleStaff.length===0 && <div style={{fontSize:12,color:T.textMuted,padding:20}}>İstatistik için çalışan bulunamadı.</div>}
+      </div>
+    </div>
+
+    <div style={{display:"flex",gap:8,marginBottom:16}}>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
+      <Btn onClick={()=>{
+        const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",revision:"Revize",approval:"Onaya Gönderildi",published:"Paylaşım Yapıldı"};
+        const rows = tasks.map(t => ({
+          "Görev": t.title,
+          "Müşteri": t.client || "—",
+          "Atanan": staff.find(s=>s.id===t.assignedTo)?.name || "—",
+          "Atanma Tarihi": t.assignedAt ? fmtDateTime(t.assignedAt) : "—",
+          "Durum": colLabels[t.col] || t.col,
+          "Öncelik": priorityConfig[t.priority]?.label || "—",
+          "Son Tarih": t.due || "—",
+        }));
+        printData("Görev Listesi", rows);
+      }}>🖨️ Yazdır</Btn>
+      {isAdminView && <Btn onClick={()=>setReportModal({period:"month"})}>📊 Rapor</Btn>}
+    </div>
+
+    {selectedTask && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setSelectedTask(null)}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:400}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <div style={{fontSize:16,fontWeight:600,color:T.textPrimary}}>{selectedTask.title}</div>
+            <button onClick={()=>setSelectedTask(null)} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer"}}>✕</button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:20}}>
+            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Müşteri</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.client||"—"}</div></div>
+            <div style={{display:"flex",gap:12}}>
+              <div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Tür</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.type||"—"}</div></div>
+              <div style={{flex:1}}><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Son Tarih</div><div style={{fontSize:13,color:T.textPrimary}}>{selectedTask.due||"—"}</div></div>
+            </div>
+            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>👤 Atanan Kişi</div>
+              <Select value={selectedTask.assignedTo||""} onChange={e=>reassignTask(selectedTask.id, e.target.value)}>
+                <option value="">Atanmadı</option>
+                {staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+              </Select>
+              {selectedTask.assignedAt && <div style={{fontSize:11,color:T.amberText,marginTop:6}}>📌 Atandı: {fmtDateTime(selectedTask.assignedAt)}</div>}
+            </div>
+            {selectedTask.revisionNote && (
+              <div style={{background:"rgba(239,68,68,0.1)",border:`1px solid rgba(239,68,68,0.3)`,borderRadius:10,padding:"12px 14px"}}>
+                <div style={{fontSize:11,color:"#F87171",fontWeight:700,marginBottom:6,textTransform:"uppercase"}}>🔄 Revize Talebi</div>
+                <div style={{fontSize:13,color:T.textPrimary,marginBottom:8,lineHeight:1.5}}>{selectedTask.revisionNote}</div>
+                <div style={{fontSize:11,color:T.textMuted}}>✍️ {selectedTask.revisionBy||"—"}{selectedTask.revisionAt?` · ${fmtDateTime(selectedTask.revisionAt)}`:""}</div>
+              </div>
+            )}
+            <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                {cols.map(c=>(
+                  <button key={c.id} onClick={()=>moveTask(selectedTask.id, c.id)} style={{padding:"7px 4px",fontSize:10,fontWeight:600,borderRadius:6,background:selectedTask.col===c.id?T.amber:T.bgSurface,color:selectedTask.col===c.id?T.white:T.textMuted,border:`1px solid ${T.border}`,cursor:"pointer"}}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
+            <button onClick={()=>{setDeleteModal({taskId:selectedTask.id,reason:"",note:""});}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.redDim,color:T.redText,border:"none",cursor:"pointer"}}>🗑 Sil</button>
+            <button onClick={()=>setRevisionModal({taskId:selectedTask.id,note:""})} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:"rgba(239,68,68,0.15)",color:"#F87171",border:"none",cursor:"pointer"}}>🔄 Revize</button>
+            <button onClick={()=>{setEditForm({id:selectedTask.id,title:selectedTask.title,client:selectedTask.client,type:selectedTask.type||"Tasarım",priority:selectedTask.priority||"mid",due:selectedTask.due||""});setEditModal(true);}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.bgSurface,color:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>✏️ Düzenle</button>
+            <button onClick={()=>setSelectedTask(null)} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {deleteModal && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}} onClick={()=>setDeleteModal(null)}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:420}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:15,fontWeight:600,color:T.textPrimary,marginBottom:16}}>Görevi Sil</div>
+          <FormField label="Silme Sebebi">
+            <Select value={deleteModal.reason} onChange={e=>setDeleteModal({...deleteModal,reason:e.target.value})}>
+              <option value="">Seç...</option>
+              {TASK_DELETE_REASONS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Açıklama">
+            <Textarea placeholder="Neden silindi?" value={deleteModal.note} onChange={e=>setDeleteModal({...deleteModal,note:e.target.value})} />
+          </FormField>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn onClick={()=>setDeleteModal(null)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={()=>deleteTask(deleteModal.taskId)}>Sil</Btn>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Revize Modalı */}
+    {revisionModal && (
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}} onClick={()=>setRevisionModal(null)}>
+        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:440}} onClick={e=>e.stopPropagation()}>
+          <div style={{fontSize:15,fontWeight:700,color:T.textPrimary,marginBottom:6}}>🔄 Revize Al</div>
+          <div style={{fontSize:12,color:T.textMuted,marginBottom:16,lineHeight:1.5}}>Görev "Revize" kolonuna taşınacak. Revizeyi <strong style={{color:T.textPrimary}}>{currentStaff?.name}</strong> olarak, şu an ({new Date().toLocaleDateString("tr-TR")} {new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}) kaydedilecek.</div>
+          <FormField label="Revize Açıklaması (ne değişmeli?)">
+            <Textarea placeholder="Örn: Logo daha büyük olsun, arka plan mavi yapılsın..." value={revisionModal.note} onChange={e=>setRevisionModal({...revisionModal,note:e.target.value})} minHeight={90} />
+          </FormField>
+          <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:8}}>
+            <Btn onClick={()=>setRevisionModal(null)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={confirmRevision} style={{background:"#EF4444",border:"none"}}>🔄 Revize Olarak İşaretle</Btn>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Kişiye göre filtre */}
+    <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+      <span style={{fontSize:11,color:T.textMuted,fontWeight:600,marginRight:4}}>Kişi:</span>
+      <button onClick={()=>setFilterStaff("all")} style={{fontSize:11,fontWeight:filterStaff==="all"?600:400,padding:"5px 12px",borderRadius:8,background:filterStaff==="all"?T.amber:T.bgInput,color:filterStaff==="all"?"#fff":T.textSecondary,border:`1px solid ${filterStaff==="all"?T.amber:T.border}`,cursor:"pointer"}}>Tümü</button>
+      {staff.map(s=>(
+        <button key={s.id} onClick={()=>setFilterStaff(s.id)} style={{fontSize:11,fontWeight:filterStaff===s.id?600:400,padding:"5px 10px",borderRadius:8,background:filterStaff===s.id?staffColor(s.id):T.bgInput,color:filterStaff===s.id?"#fff":T.textSecondary,border:`1px solid ${filterStaff===s.id?staffColor(s.id):T.border}`,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+          <span style={{width:10,height:10,borderRadius:"50%",background:staffColor(s.id),display:"inline-block"}} />{s.name}
+        </button>
+      ))}
+    </div>
+
+    <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:6}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(150px,1fr))",gap:10,minWidth:7*150+60}}>
+      {cols.map(col=>{
+        const colTasks = getColTasks(col.id);
+        const allTasks = getAllColTasks(col.id);
+        const shown = colTasks.slice(0, 5);
+        // Gizli = (kolonda gösterilmeyenler) + (published'da eski kayıtlar)
+        const hiddenCount = allTasks.length - shown.length;
+        return (
+        <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
+            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}{col.id==="published" && <span style={{fontSize:8,color:T.textMuted,marginLeft:4}}>(son 30 gün)</span>}</span>
+            <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{colTasks.length}</span>
+          </div>
+          {colTasks.length===0 && <div style={{fontSize:10,color:T.textMuted,textAlign:"center",padding:"12px 0"}}>—</div>}
+          {col.id==="published"
+            ? groupPublished(shown).map(g=>(
+                <div key={g.key}>
+                  <div style={{fontSize:9,fontWeight:700,color:T.textMuted,margin:"2px 0 6px",textTransform:"uppercase",letterSpacing:"0.04em"}}>{g.icon} {g.label} ({g.items.length})</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>{g.items.map(taskCardEl)}</div>
+                </div>
+              ))
+            : shown.map(taskCardEl)}
+          {hiddenCount>0 && (
+            <button onClick={()=>setColumnModal({colId:col.id,label:col.label,color:col.color})} style={{marginTop:4,padding:"9px",borderRadius:8,border:`1px solid ${col.color}55`,background:`${col.color}18`,color:col.color,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+              📋 Tümünü Gör ({allTasks.length})
+            </button>
+          )}
+        </div>
+      );})}
+    </div>
+    </div>
+
+    {/* Kolon "Tümünü Gör" Modalı */}
+    {columnModal && (()=>{
+      const list = getAllColTasks(columnModal.colId);
+      return (
+        <Modal title={`${columnModal.label} — Tüm Görevler (${list.length})`} onClose={()=>setColumnModal(null)} width={560}>
+          {columnModal.colId==="published" && <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>ℹ️ Tahtada son 30 günün paylaşımları gösterilir. Burada <strong style={{color:T.textPrimary}}>tüm zamanların</strong> paylaşımları tarihe göre gruplanır.</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:480,overflowY:"auto"}}>
+            {list.length===0 ? <div style={{textAlign:"center",color:T.textMuted,padding:30}}>Görev yok</div>
+              : columnModal.colId==="published"
+                ? groupPublished(list).map(g=>(
+                    <div key={g.key}>
+                      <div style={{fontSize:11,fontWeight:700,color:T.textSecondary,margin:"6px 0 8px",paddingBottom:6,borderBottom:`1px solid ${T.border}`}}>{g.icon} {g.label} <span style={{color:T.textMuted,fontWeight:400}}>({g.items.length})</span></div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>{g.items.map(taskCardEl)}</div>
+                    </div>
+                  ))
+                : list.map(taskCardEl)}
+          </div>
+        </Modal>
+      );
+    })()}
+
+    {/* Görev Raporu Modalı (günlük/haftalık/aylık) */}
+    {reportModal && (()=>{
+      const now = new Date();
+      let start;
+      if(reportModal.period==="day"){ start = new Date(now.getFullYear(),now.getMonth(),now.getDate()); }
+      else if(reportModal.period==="week"){ const d=new Date(now); const wd=(d.getDay()+6)%7; start=new Date(d.getFullYear(),d.getMonth(),d.getDate()-wd); }
+      else { start = new Date(now.getFullYear(),now.getMonth(),1); }
+      const inPeriod = (iso)=>{ if(!iso) return false; const d=new Date(iso); return d>=start && d<=now; };
+      // Dönemdeki paylaşımlar
+      const periodPublishes = allPublishes.filter(p=>inPeriod(p.publishedAt));
+      const periodLabel = reportModal.period==="day"?"Bugün":reportModal.period==="week"?"Bu Hafta":"Bu Ay";
+      // Çalışan bazlı: dönemde yapılan paylaşım + genel görev durumu
+      const staffReport = staff.map(s=>{
+        const st = computeStats(s.id);
+        const periodPub = periodPublishes.filter(p=>p.publisherId===s.id).length;
+        return { name:s.name, role:s.role, periodPub, ...st };
+      });
+      const clientName = (cid)=>clients.find(c=>c.id===cid)?.name||"—";
+      return (
+      <Modal title={`📊 Görev Raporu — ${periodLabel}`} onClose={()=>setReportModal(null)} width={640}>
+        <div style={{display:"flex",gap:6,marginBottom:16}}>
+          {[{id:"day",l:"Günlük"},{id:"week",l:"Haftalık"},{id:"month",l:"Aylık"}].map(p=>(
+            <button key={p.id} onClick={()=>setReportModal({period:p.id})} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${reportModal.period===p.id?T.amber:T.border}`,background:reportModal.period===p.id?T.amber:T.bgInput,color:reportModal.period===p.id?"#fff":T.textSecondary,fontWeight:600,fontSize:12,cursor:"pointer"}}>{p.l}</button>
+          ))}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#A855F7"}}>{periodPublishes.length}</div><div style={{fontSize:10,color:T.textMuted}}>DÖNEMDE PAYLAŞIM</div></div>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.greenText}}>{tasks.filter(t=>t.col==="done"||t.col==="published").length}</div><div style={{fontSize:10,color:T.textMuted}}>TOPLAM TAMAMLANAN</div></div>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#7DA4C7"}}>{tasks.filter(t=>t.col==="inprogress"||t.col==="review").length}</div><div style={{fontSize:10,color:T.textMuted}}>DEVAM EDEN</div></div>
+        </div>
+
+        <div style={{fontSize:12,fontWeight:700,color:T.textSecondary,marginBottom:8}}>Çalışan Bazlı</div>
+        <div style={{overflowX:"auto",marginBottom:16}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>
+              <th style={{textAlign:"left",padding:"6px 8px",fontSize:10,color:T.textMuted}}>ÇALIŞAN</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>{periodLabel.toUpperCase()} PAYLAŞIM</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>TOPLAM GÖREV</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>TAMAMLANAN</th>
+              <th style={{textAlign:"center",padding:"6px 8px",fontSize:10,color:T.textMuted}}>ORAN</th>
+            </tr></thead>
+            <tbody>
+              {staffReport.map((r,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
+                  <td style={{padding:"7px 8px",color:T.textPrimary}}>{r.name}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",fontWeight:700,color:"#A855F7"}}>{r.periodPub}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",color:T.textSecondary}}>{r.total}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",color:T.greenText,fontWeight:600}}>{r.done}</td>
+                  <td style={{padding:"7px 8px",textAlign:"center",color:T.textPrimary}}>{r.rate}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <Btn onClick={()=>{
+            const rows = staffReport.map(r=>({
+              "Çalışan":r.name, "Pozisyon":r.role||"—",
+              [`${periodLabel} Paylaşım`]:r.periodPub,
+              "Toplam Görev":r.total, "Tamamlanan":r.done, "Aktif":r.active, "Yapılacak":r.todo, "Tamamlanma %":r.rate+"%",
+            }));
+            const pubRows = periodPublishes.map(p=>({
+              "Tarih":new Date(p.publishedAt).toLocaleString("tr-TR"),
+              "Müşteri":clientName(p.clientId||p.client_id),
+              "Çalışan":staff.find(s=>s.id===p.publisherId)?.name||"—",
+              "Platform":platLabel(p.platform), "İçerik":typeLabel(p.contentType),
+            }));
+            exportPerfectExcel([
+              {name:"Çalışan Özeti", rows, title:`PANORMOS MEDYA — GÖREV RAPORU (${periodLabel})`},
+              {name:"Paylaşım Detayı", rows:pubRows, title:`PAYLAŞIMLAR (${periodLabel})`},
+            ], `gorev-raporu-${reportModal.period}-${new Date().toISOString().slice(0,10)}.xlsx`);
+          }} style={{fontSize:12}}>📊 Excel'e Aktar</Btn>
+          <Btn variant="primary" onClick={()=>setReportModal(null)}>Kapat</Btn>
+        </div>
+      </Modal>
+      );
+    })()}
+
+    {/* Görev Düzenleme Modalı */}
+    {editModal && <Modal title="Görevi Düzenle" onClose={()=>setEditModal(false)}>
+      <FormField label="Başlık"><Input value={editForm.title||""} onChange={e=>setEditForm(f=>({...f,title:e.target.value}))} /></FormField>
+      <FormField label="Müşteri"><Select value={editForm.client||""} onChange={e=>setEditForm(f=>({...f,client:e.target.value}))}><option value="">—</option>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
+      <FormField label="Tür"><Select value={editForm.type||"Tasarım"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
+      <FormField label="Öncelik"><Select value={editForm.priority||"mid"} onChange={e=>setEditForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
+      <FormField label="Son tarih"><Input type="date" value={editForm.due||""} onChange={e=>setEditForm(f=>({...f,due:e.target.value}))} /></FormField>
+      <ModalActions onClose={()=>setEditModal(false)} onSave={saveEdit} />
+    </Modal>}
+
+    {/* Onaya Gönder Modalı (basit — sadece müşteri seç ve taşı) */}
+    {approvalModal && (()=>{
+      return (
+      <Modal title="📤 Onaya Gönderildi" onClose={()=>setApprovalModal(null)}>
+        <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>İçerik müşteri onayına gönderildi olarak işaretlenecek. İçeriği (video/görsel) müşteriye WhatsApp'tan kendiniz iletin, onay gelince "Paylaşım Yapıldı"ya taşıyın.</div>
+        <FormField label="İçerik (Görev)">
+          <div style={{padding:"10px 12px",background:T.bgInput,borderRadius:8,fontSize:13,color:T.textPrimary}}>{approvalModal.task?.title||"—"}</div>
+        </FormField>
+        <FormField label="Müşteri">
+          <Select value={approvalModal.client_id||""} onChange={e=>setApprovalModal(m=>({...m,client_id:e.target.value}))}>
+            <option value="">Seç...</option>
+            {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </Select>
+        </FormField>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
+          <Btn onClick={()=>setApprovalModal(null)}>Vazgeç</Btn>
+          <Btn variant="primary" onClick={confirmApproval}>✅ Onaya Gönderildi Olarak İşaretle</Btn>
+        </div>
+      </Modal>
+      );
+    })()}
+
+    {/* Paylaşım Yapıldı Modalı */}
+    {publishModal && <Modal title="📤 Paylaşım Yapıldı" onClose={()=>setPublishModal(null)}>
+      <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>Paylaşım bilgilerini girin. Tarih ve saat <strong style={{color:T.amberText}}>otomatik</strong> kaydedilecek.</div>
+      <FormField label="Paylaşım Yapılan Müşteri">
+        <Select value={publishModal.client_id||""} onChange={e=>setPublishModal(m=>({...m,client_id:e.target.value}))}>
+          <option value="">Seç...</option>
+          {clients.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Paylaşımı Yapan Çalışan">
+        <Select value={publishModal.publisher_id||""} onChange={e=>setPublishModal(m=>({...m,publisher_id:e.target.value}))}>
+          <option value="">Seç...</option>
+          {staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Platform">
+        <Select value={publishModal.platform} onChange={e=>setPublishModal(m=>({...m,platform:e.target.value}))}>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="youtube">YouTube</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="x">X (Twitter)</option>
+        </Select>
+      </FormField>
+      <FormField label="İçerik Türü ve Adedi (kaç tane paylaşıldı?)">
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:8}}>Bir görevde birden fazla içerik olabilir. Her türden kaç adet paylaşıldıysa sayıyı girin.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {[{k:"post",l:"📷 Post"},{k:"reels",l:"🎬 Reels"},{k:"carousel",l:"🖼️ Carousel"},{k:"story",l:"⭕ Hikaye"},{k:"video",l:"🎥 Video"}].map(ct=>{
+            const counts = publishModal.counts||{};
+            return (
+              <div key={ct.k} style={{display:"flex",alignItems:"center",gap:8,background:T.bgInput,borderRadius:8,padding:"7px 10px"}}>
+                <span style={{flex:1,fontSize:12,color:T.textPrimary}}>{ct.l}</span>
+                <button type="button" onClick={()=>setPublishModal(m=>({...m,counts:{...(m.counts||{}),[ct.k]:Math.max(0,((m.counts||{})[ct.k]||0)-1)}}))} style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSecondary,cursor:"pointer",fontSize:14,fontWeight:700,padding:0}}>−</button>
+                <span style={{minWidth:20,textAlign:"center",fontSize:14,fontWeight:700,color:(counts[ct.k]||0)>0?T.amberText:T.textMuted}}>{counts[ct.k]||0}</span>
+                <button type="button" onClick={()=>setPublishModal(m=>({...m,counts:{...(m.counts||{}),[ct.k]:((m.counts||{})[ct.k]||0)+1}}))} style={{width:24,height:24,borderRadius:6,border:`1px solid ${T.border}`,background:T.bgCard,color:T.textSecondary,cursor:"pointer",fontSize:14,fontWeight:700,padding:0}}>+</button>
+              </div>
+            );
+          })}
+        </div>
+        {(()=>{ const c=publishModal.counts||{}; const tot=Object.values(c).reduce((s,n)=>s+(n||0),0); return <div style={{marginTop:10,fontSize:12,fontWeight:600,color:tot>0?T.greenText:T.textMuted,textAlign:"right"}}>Toplam: {tot} paylaşım</div>; })()}
+      </FormField>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
+        <Btn onClick={()=>setPublishModal(null)}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={confirmPublish}>✅ Paylaşımı Kaydet</Btn>
+      </div>
+    </Modal>}
+
+    {modal&&<Modal title="Yeni görev" onClose={()=>setModal(false)}>
+      <FormField label="Başlık">
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <Input placeholder="Görev" value={form.title||""} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
+          <EmojiButton onSelect={(em)=>setForm(f=>({...f,title:(f.title||"")+em}))} size={20} />
+        </div>
+      </FormField>
+      <FormField label="Müşteri"><Select value={form.client||""} onChange={e=>setForm(f=>({...f,client:e.target.value}))}>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
+      <FormField label="👤 Kime Atanacak"><Select value={form.assignedTo||""} onChange={e=>setForm(f=>({...f,assignedTo:e.target.value}))}><option value="">Atanmadı</option>{staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}</Select></FormField>
+      <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
+      <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
+      <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
+      <div style={{background:T.bgInput,borderRadius:10,padding:"12px 14px",marginBottom:4}}>
+        <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+          <input type="checkbox" checked={form.isExtraShoot||false} onChange={e=>setForm(f=>({...f,isExtraShoot:e.target.checked}))} style={{width:17,height:17,accentColor:"#EC4899",cursor:"pointer"}} />
+          <span style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>📷 Bu bir ek çekim (belirli tarih)</span>
+        </label>
+        {form.isExtraShoot && (
+          <div style={{marginTop:10}}>
+            <div style={{fontSize:11,color:T.textMuted,marginBottom:5}}>Çekim tarihi — müşteri takvimine, genel takvime ve "bugün" listesine eklenir</div>
+            <Input type="date" value={form.shootDate||""} onChange={e=>setForm(f=>({...f,shootDate:e.target.value}))} />
+          </div>
+        )}
+      </div>
+      <ModalActions onClose={()=>setModal(false)} onSave={async()=>{
+        if(!form.title)return;
+        const cid = clients.find(c=>c.name===form.client)?.id || null;
+        const assignedAt = form.assignedTo ? new Date().toISOString() : null;
+        const { data, error } = await supabase.from('tasks').insert({
+          title: form.title, type: form.type||"Tasarım",
+          priority: form.priority||"mid", due_date: form.due||"—", col: "todo",
+          assigned_to: form.assignedTo || null, assigned_at: assignedAt, client_id: cid,
+        }).select().single();
+        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp gerekli sütunları eklediğinizden emin olun."); return; }
+        if(data){
+          setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",clientId:cid,col:"todo",due:form.due,priority:form.priority||"mid",type:form.type||"Tasarım",assignedTo:form.assignedTo||null,assignedAt}]);
+          // Ek çekim ise müşterinin ek çekimlerine ekle (her yere yansısın)
+          if(form.isExtraShoot && form.shootDate && cid){
+            const cl = clients.find(c=>c.id===cid);
+            const newShoots = [...(cl?.extraShoots||[]), { date: form.shootDate, title: form.title, taskId: data.id }];
+            await supabase.from('clients').update({ extra_shoots: newShoots }).eq('id', cid);
+            if(refreshData) refreshData();
+          }
+        }
+        setModal(false);
+      }} />
+    </Modal>}
+  </div>;
+}
+
+// Haftalık çekim programı yazdırma
+function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel, asPdf) {
+  const cName = (id) => clients.find(c => c.id === id)?.name || "—";
+  const sName = (id) => staff.find(s => s.id === id)?.name || "";
+  const cellRows = weekDays.map((d, i) => {
+    const list = shoots.filter(s => s.shoot_date === d.str).sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
+    const items = list.length
+      ? list.map(s => `<div class="it ${s.status === 'done' ? 'done' : ''}">
+          ${s.shoot_time ? `<span class="tm">${s.shoot_time}</span>` : ""}
+          <strong>${s.title}</strong><br>
+          <span class="cl">${cName(s.client_id)}</span>
+          ${s.assigned_to ? `<br><span class="st">👤 ${sName(s.assigned_to)}</span>` : ""}
+          ${s.location ? `<br><span class="st">📍 ${s.location}</span>` : ""}
+        </div>`).join("")
+      : `<div class="empty">—</div>`;
+    return `<td><div class="dh">${wdNames[i]}<br><span class="dn">${d.date.getDate()}.${String(d.date.getMonth() + 1).padStart(2, "0")}</span></div>${items}</td>`;
+  }).join("");
+
+  const total = weekDays.reduce((s, d) => s + shoots.filter(x => x.shoot_date === d.str).length, 0);
+
+  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Haftalık Çekim Programı</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:0;color:#1a1a1a}
+    .hero{background:linear-gradient(135deg,#1A2B3F,#3a2d6b);color:#fff;border-radius:12px;padding:16px 22px;margin-bottom:14px}
+    .logo{font-size:16px;font-weight:700}.logo .m{color:#F8906E}
+    .hero h1{font-size:19px;margin-top:7px;font-weight:800}
+    .hero .p{font-size:12px;opacity:.85;margin-top:3px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}
+    td{border:1px solid #E2E5EA;vertical-align:top;padding:6px;width:14.28%}
+    .dh{background:#1A2B3F;color:#fff;font-size:10px;font-weight:700;text-align:center;border-radius:5px;padding:5px 2px;margin-bottom:6px}
+    .dh .dn{font-size:14px;font-weight:800}
+    .it{background:#F5F6F8;border-left:3px solid #EC4899;border-radius:5px;padding:5px 7px;margin-bottom:5px;font-size:9.5px;line-height:1.4}
+    .it.done{opacity:.55;border-left-color:#10B981}
+    .it .tm{display:inline-block;background:#F25124;color:#fff;border-radius:4px;padding:1px 5px;font-size:8.5px;font-weight:700;margin-bottom:3px}
+    .it .cl{color:#4a5568}
+    .it .st{color:#8A8F98;font-size:9px}
+    .empty{text-align:center;color:#c3c8d0;font-size:10px;padding:6px 0}
+    .foot{margin-top:14px;font-size:9.5px;color:#8A8F98;text-align:center;border-top:1px solid #eee;padding-top:10px}
+    .foot .co{color:#F25124;font-weight:700}
+    @media print{body{padding:0}.hero,.dh,.it,.it .tm{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    @page{size:A4 landscape;margin:8mm}
+  </style></head><body>
+    <div class="hero">
+      <div class="logo">panormos <span class="m">medya.</span></div>
+      <h1>Haftalık Çekim Programı</h1>
+      <div class="p">${weekLabel} · Toplam ${total} çekim</div>
+    </div>
+    <table><tr>${cellRows}</tr></table>
+    <div class="foot"><span class="co">Panormos Medya</span> · panormosmedya.com</div>
+  </body></html>`;
+
+  if (asPdf) { downloadPdfFromHTML(html, `Haftalik-Cekim-Programi-${new Date().toISOString().slice(0,10)}.pdf`, "landscape"); return; }
+  const w = window.open("", "_blank", "width=1200,height=820");
+  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(() => w.print(), 400);
+}
+
+// ─────────────────────────────────────────────
+// ÇEKİM PLANLAMA (tüm çalışanlar kullanabilir)
+// ─────────────────────────────────────────────
+const SHOOT_REPEAT = [
+  { v: "once", l: "Tek Seferlik" },
+  { v: "daily", l: "Günlük" },
+  { v: "weekly", l: "Haftalık" },
+  { v: "monthly", l: "Aylık" },
+];
+const SHOOT_PRESETS = ["Menü Çekimi", "Ürün Çekimi", "Mekan Çekimi", "Video Çekimi", "Drone Çekimi", "Tanıtım Filmi", "Reels Çekimi"];
+
+// ─────────────────────────────────────────────
+// HAVA DURUMU (Open-Meteo — ücretsiz, API anahtarsız)
+// ─────────────────────────────────────────────
+const WEATHER_CITIES = [
+  { name: "Bandırma", lat: 40.3517, lon: 27.9769 },
+  { name: "Balıkesir", lat: 39.6484, lon: 27.8826 },
+  { name: "Erdek", lat: 40.3967, lon: 27.7975 },
+  { name: "Gönen", lat: 40.1050, lon: 27.6539 },
+  { name: "İstanbul", lat: 41.0082, lon: 28.9784 },
+  { name: "İzmir", lat: 38.4237, lon: 27.1428 },
+  { name: "Bursa", lat: 40.1826, lon: 29.0665 },
+  { name: "Çanakkale", lat: 40.1553, lon: 26.4142 },
+  { name: "Ankara", lat: 39.9334, lon: 32.8597 },
+  { name: "Antalya", lat: 36.8969, lon: 30.7133 },
+];
+
+// WMO hava kodu → etiket + ikon
+function weatherInfo(code) {
+  if (code === 0) return { icon: "☀️", label: "Açık / Güneşli" };
+  if (code === 1) return { icon: "🌤️", label: "Az Bulutlu" };
+  if (code === 2) return { icon: "⛅", label: "Parçalı Bulutlu" };
+  if (code === 3) return { icon: "☁️", label: "Kapalı / Bulutlu" };
+  if (code === 45 || code === 48) return { icon: "🌫️", label: "Sisli" };
+  if (code >= 51 && code <= 57) return { icon: "🌦️", label: "Çisenti" };
+  if (code >= 61 && code <= 67) return { icon: "🌧️", label: "Yağmurlu" };
+  if (code >= 71 && code <= 77) return { icon: "❄️", label: "Karlı" };
+  if (code >= 80 && code <= 82) return { icon: "🌧️", label: "Sağanak Yağış" };
+  if (code >= 85 && code <= 86) return { icon: "🌨️", label: "Kar Sağanağı" };
+  if (code >= 95) return { icon: "⛈️", label: "Gök Gürültülü Fırtına" };
+  return { icon: "🌡️", label: "—" };
+}
+
+function WeatherWidget({ compact }) {
+  const [cityIdx, setCityIdx] = useState(() => {
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("weatherCity") : null;
+    const i = WEATHER_CITIES.findIndex(c => c.name === saved);
+    return i >= 0 ? i : 0;
+  });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(false);
+  const [selDay, setSelDay] = useState(0); // seçili gün indexi (0 = bugün)
+
+  const city = WEATHER_CITIES[cityIdx];
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setErr(false);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max,sunrise,sunset,relative_humidity_2m_max&timezone=Europe%2FIstanbul&forecast_days=7`;
+    fetch(url)
+      .then(r => r.json())
+      .then(j => { if (alive) { setData(j); setLoading(false); } })
+      .catch(() => { if (alive) { setErr(true); setLoading(false); } });
+    return () => { alive = false; };
+  }, [cityIdx]);
+
+  const changeCity = (i) => {
+    setCityIdx(i);
+    setSelDay(0);
+    try { localStorage.setItem("weatherCity", WEATHER_CITIES[i].name); } catch (e) {}
+  };
+
+  const citySelect = (
+    <select value={cityIdx} onChange={e => changeCity(parseInt(e.target.value))}
+      style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, padding: "5px 10px", color: "#fff", fontSize: 12, fontWeight: 600, outline: "none", cursor: "pointer" }}>
+      {WEATHER_CITIES.map((c, i) => <option key={i} value={i} style={{ color: "#1a1a1a" }}>{c.name}</option>)}
+    </select>
+  );
+
+  const wrap = (children) => (
+    <div style={{ background: "linear-gradient(135deg, #2563EB, #0EA5E9)", borderRadius: 14, padding: compact ? "14px 16px" : "18px 20px", color: "#fff", boxShadow: "0 4px 14px rgba(37,99,235,0.25)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.04em" }}>🌤️ Hava Durumu</div>
+        {citySelect}
+      </div>
+      {children}
+    </div>
+  );
+
+  if (loading) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Yükleniyor...</div>);
+  if (err || !data?.current) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Hava durumu alınamadı (internet?). Tekrar deneyin.</div>);
+
+  const cur = data.current;
+  const daily = data.daily;
+  const TR_DAYS = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+  const TR_DAYS_SHORT = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"];
+  const hm = (iso) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const addMin = (iso, m) => { const d = new Date(new Date(iso).getTime() + m * 60000); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+
+  // Seçili günün bilgileri
+  const dInfo = weatherInfo(daily.weather_code[selDay]);
+  const isTodaySel = selDay === 0;
+  const selDate = new Date(daily.time[selDay] + "T00:00:00");
+  const dayTitle = isTodaySel ? "Bugün" : selDate.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long" });
+  const sr = daily.sunrise?.[selDay], ss = daily.sunset?.[selDay];
+  // Şu an gösterilecek sıcaklık: bugünse anlık, değilse günün max'ı
+  const bigTemp = isTodaySel ? Math.round(cur.temperature_2m) : Math.round(daily.temperature_2m_max[selDay]);
+
+  return wrap(
+    <>
+      {/* Seçili günün büyük detayı */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.95, marginBottom: 8 }}>{dayTitle}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ fontSize: compact ? 42 : 52, lineHeight: 1 }}>{dInfo.icon}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: compact ? 30 : 38, fontWeight: 800, lineHeight: 1 }}>{bigTemp}°</div>
+            <div style={{ fontSize: 13, fontWeight: 600, marginTop: 3 }}>{dInfo.label}</div>
+          </div>
+          <div style={{ textAlign: "right", fontSize: 11.5, opacity: 0.92, lineHeight: 1.7 }}>
+            <div>🔺 Yük {Math.round(daily.temperature_2m_max[selDay])}° · 🔻 Düş {Math.round(daily.temperature_2m_min[selDay])}°</div>
+            {isTodaySel && <div>🌡️ Hissedilen {Math.round(cur.apparent_temperature)}°</div>}
+            <div>💨 Rüzgar {Math.round(isTodaySel ? cur.wind_speed_10m : daily.wind_speed_10m_max[selDay])} km/s</div>
+            <div>💧 {isTodaySel ? `Nem %${cur.relative_humidity_2m}` : `Yağış %${daily.precipitation_probability_max[selDay] || 0}`}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Gün doğumu / batımı / altın saat */}
+      {sr && ss && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: 10, padding: "9px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.9, fontWeight: 600 }}>🌅 Gün Doğumu · {hm(sr)}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 3 }}>✨ Altın Saat</div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>{hm(sr)} – {addMin(sr, 60)}</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.14)", borderRadius: 10, padding: "9px 12px" }}>
+            <div style={{ fontSize: 11, opacity: 0.9, fontWeight: 600 }}>🌇 Gün Batımı · {hm(ss)}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 3 }}>✨ Altın Saat</div>
+            <div style={{ fontSize: 12, fontWeight: 800 }}>{addMin(ss, -60)} – {hm(ss)}</div>
+          </div>
+        </div>
+      )}
+
+      {/* 7 günlük şerit — tıklanabilir */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.2)", paddingTop: 10 }}>
+        <div style={{ fontSize: 10, opacity: 0.75, fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>7 Günlük Tahmin · güne tıkla</div>
+        <div style={{ display: "flex", gap: 5, overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 2 }}>
+          {daily.time.map((t, i) => {
+            const di = weatherInfo(daily.weather_code[i]);
+            const d = new Date(t + "T00:00:00");
+            const active = i === selDay;
+            return (
+              <button key={i} onClick={() => setSelDay(i)} style={{
+                flex: "1 0 auto", minWidth: 52, textAlign: "center", borderRadius: 10, padding: "8px 4px", cursor: "pointer",
+                background: active ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.06)",
+                border: active ? "1px solid rgba(255,255,255,0.6)" : "1px solid transparent", color: "#fff",
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.95 }}>{i === 0 ? "Bugün" : TR_DAYS_SHORT[d.getDay()]}</div>
+                <div style={{ fontSize: 20, margin: "4px 0" }}>{di.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: 800 }}>{Math.round(daily.temperature_2m_max[i])}°</div>
+                <div style={{ fontSize: 9.5, opacity: 0.72 }}>{Math.round(daily.temperature_2m_min[i])}°</div>
+                {daily.precipitation_probability_max[i] > 20 && <div style={{ fontSize: 8.5, opacity: 0.9, marginTop: 2 }}>💧{daily.precipitation_probability_max[i]}%</div>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ShootsPage({ clients, staff, currentStaff, refreshData }) {
+  const [shoots, setShoots] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
+  const [showPast, setShowPast] = useState(false);
+  const [view, setView] = useState("week");      // "week" | "list"
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const load = async () => {
+    const { data } = await supabase.from('shoots').select('*').order('shoot_date', { ascending: true });
+    setShoots(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const openAdd = (presetDate) => {
+    setForm({ client_id: "", title: "", shoot_date: presetDate || todayStr, shoot_time: "10:00", location: "", assigned_to: currentStaff?.id || "", repeat_type: "once", repeat_count: 4, note: "" });
+    setModal(true);
+  };
+  const openEdit = (s) => {
+    setForm({ id: s.id, client_id: s.client_id || "", title: s.title || "", shoot_date: s.shoot_date || "", shoot_time: s.shoot_time || "", location: s.location || "", assigned_to: s.assigned_to || "", repeat_type: "once", note: s.note || "", status: s.status || "planned" });
+    setModal(true);
+  };
+
+  // Tekrarlı çekimler için tarih listesi üret
+  const buildDates = (startStr, type, count) => {
+    const list = [startStr];
+    if (type === "once") return list;
+    const n = Math.min(Math.max(parseInt(count) || 1, 1), 24);
+    const base = new Date(startStr + "T00:00:00");
+    for (let i = 1; i < n; i++) {
+      const d = new Date(base);
+      if (type === "daily") d.setDate(base.getDate() + i);
+      else if (type === "weekly") d.setDate(base.getDate() + i * 7);
+      else if (type === "monthly") d.setMonth(base.getMonth() + i);
+      list.push(d.toISOString().slice(0, 10));
+    }
+    return list;
+  };
+
+  const save = async () => {
+    if (!form.client_id) { alert("Lütfen müşteri seçin"); return; }
+    if (!form.title) { alert("Lütfen çekim adı girin veya hazır olanlardan seçin"); return; }
+    if (!form.shoot_date) { alert("Lütfen tarih seçin"); return; }
+    setSaving(true);
+    // Düzenleme: tek kaydı güncelle
+    if (form.id) {
+      const { error } = await supabase.from('shoots').update({
+        client_id: form.client_id, title: form.title, shoot_date: form.shoot_date, shoot_time: form.shoot_time || "",
+        location: form.location || "", assigned_to: form.assigned_to || null, note: form.note || "", status: form.status || "planned",
+      }).eq('id', form.id);
+      setSaving(false);
+      if (error) { alert("Güncellenemedi: " + error.message); return; }
+      setModal(false); setForm({}); load();
+      if (refreshData) refreshData();
+      return;
+    }
+    const dates = buildDates(form.shoot_date, form.repeat_type, form.repeat_count);
+    const rows = dates.map(d => ({
+      client_id: form.client_id, title: form.title, shoot_date: d, shoot_time: form.shoot_time || "",
+      location: form.location || "", assigned_to: form.assigned_to || null, repeat_type: form.repeat_type || "once",
+      note: form.note || "", status: "planned", created_by: currentStaff?.name || "",
+    }));
+    const { error } = await supabase.from('shoots').insert(rows);
+    setSaving(false);
+    if (error) { alert("Çekim kaydedilemedi: " + error.message + "\n\nCEKIM-PLANLAMA-SQL kodunu Supabase'de çalıştırın."); return; }
+    setModal(false); setForm({});
+    load();
+    if (refreshData) refreshData();
+  };
+
+  const toggleDone = async (s) => {
+    const ns = s.status === "done" ? "planned" : "done";
+    await supabase.from('shoots').update({ status: ns }).eq('id', s.id);
+    load();
+  };
+  const del = async (id) => {
+    if (!window.confirm("Bu çekim silinsin mi?")) return;
+    await supabase.from('shoots').delete().eq('id', id);
+    load(); if (refreshData) refreshData();
+  };
+
+  const clientName = (id) => clients.find(c => c.id === id)?.name || "—";
+  const clientOf = (id) => clients.find(c => c.id === id);
+  const staffName = (id) => staff.find(s => s.id === id)?.name || "";
+
+  // Filtrele + grupla
+  const filtered = shoots.filter(s => {
+    if (!showPast && s.shoot_date < todayStr && s.status !== "planned") return false;
+    if (!showPast && s.shoot_date < todayStr) return false;
+    if (!q) return true;
+    const term = q.toLocaleLowerCase("tr-TR");
+    return (s.title || "").toLocaleLowerCase("tr-TR").includes(term) || clientName(s.client_id).toLocaleLowerCase("tr-TR").includes(term);
+  });
+
+  const dayLabel = (dStr) => {
+    const d = new Date(dStr + "T00:00:00"); const n = new Date();
+    const diff = Math.round((d - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000);
+    if (diff === 0) return "🔥 Bugün";
+    if (diff === 1) return "☀️ Yarın";
+    if (diff < 0) return "🗄️ Geçmiş";
+    if (diff <= 7) return "📆 Bu Hafta";
+    if (diff <= 30) return "🗓️ Bu Ay";
+    return "📁 Sonraki";
+  };
+  const groups = {};
+  filtered.forEach(s => { const g = dayLabel(s.shoot_date); (groups[g] = groups[g] || []).push(s); });
+  const order = ["🗄️ Geçmiş", "🔥 Bugün", "☀️ Yarın", "📆 Bu Hafta", "🗓️ Bu Ay", "📁 Sonraki"];
+
+  const todayCount = shoots.filter(s => s.shoot_date === todayStr && s.status === "planned").length;
+  const weekCount = shoots.filter(s => { const d = new Date(s.shoot_date + "T00:00:00"); const n = new Date(); const diff = Math.round((d - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / 86400000); return diff >= 0 && diff <= 7 && s.status === "planned"; }).length;
+
+  // ── Haftalık takvim ──
+  const weekDays = (() => {
+    const n = new Date();
+    const wd = (n.getDay() + 6) % 7; // Pazartesi = 0
+    const monday = new Date(n.getFullYear(), n.getMonth(), n.getDate() - wd + weekOffset * 7);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      return { date: d, str: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` };
+    });
+  })();
+  const WD_NAMES = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"];
+  const shootsOfDay = (dStr) => shoots.filter(s => s.shoot_date === dStr).sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
+  const weekLabel = `${weekDays[0].date.toLocaleDateString("tr-TR", { day: "numeric", month: "long" })} – ${weekDays[6].date.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}`;
+  const weekTotal = weekDays.reduce((s, d) => s + shootsOfDay(d.str).length, 0);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 18 }}><WeatherWidget compact /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Bugünkü Çekim" value={todayCount} color={todayCount > 0 ? T.amberText : undefined} />
+        <StatCard label="Bu Hafta" value={weekCount} color={T.indigoText} />
+        <StatCard label="Toplam Planlı" value={shoots.filter(s => s.status === "planned").length} />
+      </div>
+
+      {/* Görünüm seçici */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 4, background: T.bgInput, borderRadius: 10, padding: 4 }}>
+          {[{ v: "week", l: "🗓️ Haftalık Takvim" }, { v: "list", l: "📋 Liste" }].map(o => (
+            <button key={o.v} onClick={() => setView(o.v)} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: view === o.v ? T.bgCard : "transparent", color: view === o.v ? T.textPrimary : T.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{o.l}</button>
+          ))}
+        </div>
+        <div style={{ flex: 1 }} />
+        {view === "week" && <Btn onClick={() => printShootWeek(weekDays, WD_NAMES, shoots, clients, staff, weekLabel)} style={{ fontSize: 12 }}>🖨️ Yazdır</Btn>}
+        {view === "week" && <Btn onClick={() => printShootWeek(weekDays, WD_NAMES, shoots, clients, staff, weekLabel, true)} style={{ fontSize: 12 }}>📥 PDF İndir</Btn>}
+        <Btn variant="primary" onClick={() => openAdd()}>+ Yeni Çekim</Btn>
+      </div>
+
+      {/* HAFTALIK TAKVİM */}
+      {view === "week" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap", gap: 8 }}>
+            <Btn onClick={() => setWeekOffset(w => w - 1)} style={{ fontSize: 12 }}>◀ Önceki Hafta</Btn>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{weekLabel}</div>
+              <div style={{ fontSize: 11, color: T.textMuted }}>{weekTotal} çekim{weekOffset === 0 ? " · bu hafta" : ""}</div>
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {weekOffset !== 0 && <Btn onClick={() => setWeekOffset(0)} style={{ fontSize: 12 }}>Bugün</Btn>}
+              <Btn onClick={() => setWeekOffset(w => w + 1)} style={{ fontSize: 12 }}>Sonraki Hafta ▶</Btn>
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", paddingBottom: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(150px,1fr))", gap: 8, minWidth: 7 * 150 + 50 }}>
+              {weekDays.map((d, i) => {
+                const list = shootsOfDay(d.str);
+                const isToday = d.str === todayStr;
+                return (
+                  <div key={i} style={{ background: isToday ? "rgba(236,72,153,0.08)" : T.bgCard, border: `1px solid ${isToday ? "#EC489966" : T.border}`, borderRadius: 12, padding: 10, minHeight: 170, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ paddingBottom: 8, borderBottom: `1px solid ${T.border}`, marginBottom: 2 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? "#F9A8D4" : T.textSecondary }}>{WD_NAMES[i]}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? "#F9A8D4" : T.textPrimary }}>{d.date.getDate()}</div>
+                    </div>
+                    {list.length === 0 && <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", padding: "10px 0" }}>—</div>}
+                    {list.map(s => {
+                      const cli = clientOf(s.client_id);
+                      const done = s.status === "done";
+                      return (
+                        <div key={s.id} style={{ background: T.bgInput, borderRadius: 8, padding: "7px 9px", borderLeft: `3px solid ${done ? T.green : (cli?.accentColor || "#EC4899")}`, opacity: done ? 0.65 : 1, position: "relative" }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+                            <button onClick={(e) => { e.stopPropagation(); toggleDone(s); }} title={done ? "Planlıya al" : "Tamamlandı işaretle"} style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 5, border: `2px solid ${done ? T.green : T.borderLight}`, background: done ? T.green : "transparent", color: "#fff", cursor: "pointer", fontSize: 10, padding: 0, marginTop: 1 }}>{done ? "✓" : ""}</button>
+                            <div onClick={() => openEdit(s)} title="Düzenlemek için tıkla" style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
+                              {s.shoot_time && <div style={{ fontSize: 10, fontWeight: 700, color: done ? T.green : T.amberText }}>🕐 {s.shoot_time}</div>}
+                              <div style={{ fontSize: 11.5, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none" }}>{s.title}</div>
+                              <div style={{ fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{clientName(s.client_id)}</div>
+                              {s.assigned_to && <div style={{ fontSize: 9, color: T.textMuted, marginTop: 2 }}>👤 {staffName(s.assigned_to)}</div>}
+                              {done && <div style={{ fontSize: 9, color: T.green, fontWeight: 700, marginTop: 2 }}>✓ Çekildi</div>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <button onClick={() => openAdd(d.str)} style={{ marginTop: "auto", padding: "6px", borderRadius: 8, border: `1px dashed ${T.borderLight}`, background: "transparent", color: T.textMuted, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>+ Ekle</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10 }}>💡 Çekime tıklayarak düzenleyebilirsin. Gün altındaki "+ Ekle" ile o güne hızlı çekim ekle.</div>
+        </div>
+      )}
+
+      {/* LİSTE GÖRÜNÜMÜ */}
+      {view === "list" && <>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <input placeholder="🔍 Çekim veya müşteri ara..." value={q} onChange={e => setQ(e.target.value)} style={{ flex: 1, minWidth: 180, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 13, color: T.textPrimary, outline: "none" }} />
+        <Btn onClick={() => setShowPast(v => !v)} style={{ fontSize: 12 }}>{showPast ? "Geçmişi Gizle" : "Geçmişi Göster"}</Btn>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.textMuted, padding: 50 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📷</div>
+            <div style={{ fontSize: 14, color: T.textPrimary, fontWeight: 600 }}>Planlı çekim yok</div>
+            <div style={{ fontSize: 12, marginTop: 6 }}>"+ Yeni Çekim" ile müşteri seçip çekim planlayın.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {order.filter(g => groups[g]).map(g => (
+              <div key={g}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary, marginBottom: 10, paddingBottom: 6, borderBottom: `1px solid ${T.border}` }}>{g} <span style={{ color: T.textMuted, fontWeight: 400 }}>({groups[g].length})</span></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {groups[g].map(s => {
+                    const cli = clientOf(s.client_id);
+                    const done = s.status === "done";
+                    return (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, borderLeft: `3px solid ${done ? T.green : (cli?.accentColor || "#EC4899")}`, opacity: done ? 0.65 : 1 }}>
+                        <button onClick={() => toggleDone(s)} title={done ? "Planlıya al" : "Tamamlandı yap"} style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: `2px solid ${done ? T.green : T.borderLight}`, background: done ? T.green : "transparent", color: "#fff", cursor: "pointer", fontSize: 12, padding: 0 }}>{done ? "✓" : ""}</button>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary, textDecoration: done ? "line-through" : "none" }}>📷 {s.title}</div>
+                          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                            {clientName(s.client_id)} · {new Date(s.shoot_date + "T00:00:00").toLocaleDateString("tr-TR")}{s.shoot_time ? ` · 🕐 ${s.shoot_time}` : ""}
+                            {s.location ? ` · 📍 ${s.location}` : ""}
+                            {s.assigned_to ? ` · 👤 ${staffName(s.assigned_to)}` : ""}
+                          </div>
+                          {s.note && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3, fontStyle: "italic" }}>📝 {s.note}</div>}
+                        </div>
+                        {cli?.phone && <a href={`https://wa.me/${(cli.phone || "").replace(/\D/g, "").replace(/^0/, "90")}`} target="_blank" rel="noopener" style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#25D366", padding: "5px 10px", borderRadius: 6, textDecoration: "none" }}>WhatsApp</a>}
+                        <button onClick={() => openEdit(s)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 14 }}>✏️</button>
+                        <button onClick={() => del(s.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 15 }}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </>}
+
+      {modal && (
+        <Modal title={form.id ? "✏️ Çekimi Düzenle" : "📷 Yeni Çekim Planla"} onClose={() => setModal(false)} width={540}>
+          <FormField label="Müşteri">
+            <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}>
+              <option value="">Seç...</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </FormField>
+
+          <FormField label="Çekim Türü (hazır seçenekler)">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {SHOOT_PRESETS.map(p => (
+                <button key={p} type="button" onClick={() => setForm(f => ({ ...f, title: p }))} style={{ padding: "6px 12px", borderRadius: 100, border: `1px solid ${form.title === p ? T.indigo : T.border}`, background: form.title === p ? T.indigoDim : T.bgInput, color: form.title === p ? T.indigoText : T.textSecondary, fontSize: 11.5, fontWeight: 600, cursor: "pointer" }}>{p}</button>
+              ))}
+            </div>
+          </FormField>
+          <FormField label="Çekim Adı"><Input placeholder="Örn: Menü Çekimi" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FormField label="📅 Tarih"><Input type="date" value={form.shoot_date || ""} onChange={e => setForm(f => ({ ...f, shoot_date: e.target.value }))} /></FormField>
+            <FormField label="🕐 Saat"><Input type="time" value={form.shoot_time || ""} onChange={e => setForm(f => ({ ...f, shoot_time: e.target.value }))} /></FormField>
+          </div>
+
+          {!form.id && <FormField label="🔁 Tekrar">
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {SHOOT_REPEAT.map(r => (
+                <button key={r.v} type="button" onClick={() => setForm(f => ({ ...f, repeat_type: r.v }))} style={{ flex: 1, minWidth: 90, padding: "9px", borderRadius: 8, border: `1px solid ${(form.repeat_type || "once") === r.v ? T.indigo : T.border}`, background: (form.repeat_type || "once") === r.v ? T.indigoDim : T.bgInput, color: (form.repeat_type || "once") === r.v ? T.indigoText : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{r.l}</button>
+              ))}
+            </div>
+          </FormField>}
+          {!form.id && form.repeat_type && form.repeat_type !== "once" && (
+            <FormField label="Kaç kez tekrarlansın? (en fazla 24)">
+              <Input type="number" min="1" max="24" value={form.repeat_count ?? 4} onChange={e => setForm(f => ({ ...f, repeat_count: e.target.value }))} />
+            </FormField>
+          )}
+
+          <FormField label="📍 Yer (isteğe bağlı)"><Input placeholder="Örn: İşletme adresi" value={form.location || ""} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} /></FormField>
+          <FormField label="👤 Sorumlu Çalışan">
+            <Select value={form.assigned_to || ""} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
+              <option value="">Seç...</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="📝 Not (isteğe bağlı)"><Input placeholder="Özel istekler, ekipman notu..." value={form.note || ""} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} /></FormField>
+          {form.id && (
+            <FormField label="Durum">
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{ v: "planned", l: "📷 Planlandı" }, { v: "done", l: "✓ Çekildi (Tamamlandı)" }].map(o => (
+                  <button key={o.v} type="button" onClick={() => setForm(f => ({ ...f, status: o.v }))} style={{ flex: 1, padding: "9px", borderRadius: 8, border: `1px solid ${(form.status || "planned") === o.v ? (o.v === "done" ? T.green : T.indigo) : T.border}`, background: (form.status || "planned") === o.v ? (o.v === "done" ? T.greenDim : T.indigoDim) : T.bgInput, color: (form.status || "planned") === o.v ? (o.v === "done" ? T.greenText : T.indigoText) : T.textSecondary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{o.l}</button>
+                ))}
+              </div>
+            </FormField>
+          )}
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "Kaydediliyor..." : (form.id ? "💾 Güncelle" : "📷 Çekimi Planla")}</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SOSYAL MEDYA RAPORLARI (Meta verileri elle girilir)
+// ─────────────────────────────────────────────
+const REPORT_METRICS = [
+  { key: "new_followers", label: "Yeni Takipçi", icon: "👥", color: "#10B981" },
+  { key: "total_followers", label: "Toplam Takipçi", icon: "🫂", color: "#6366F1" },
+  { key: "reach", label: "Erişim", icon: "👁️", color: "#F25124" },
+  { key: "impressions", label: "Gösterim / İzlenme", icon: "📊", color: "#EC4899" },
+  { key: "likes", label: "Beğeni", icon: "❤️", color: "#EF4444" },
+  { key: "comments", label: "Yorum", icon: "💬", color: "#8B5CF6" },
+  { key: "saves", label: "Kaydetme", icon: "🔖", color: "#F59E0B" },
+  { key: "shares", label: "Paylaşım", icon: "📤", color: "#06B6D4" },
+  { key: "profile_visits", label: "Profil Ziyareti", icon: "🔎", color: "#14B8A6" },
+];
+
+function ReportsPage({ clients, perms }) {
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selClient, setSelClient] = useState(null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [q, setQ] = useState("");
+  const [showAll, setShowAll] = useState(false);
+
+  const load = async () => {
+    const { data } = await supabase.from('social_reports').select('*').order('month_ref', { ascending: false });
+    setReports(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const monthLabel = (ref) => {
+    if (!ref) return "—";
+    const [y, m] = ref.split("-");
+    return `${TR_MONTHS[parseInt(m) - 1]} ${y}`;
+  };
+  const monthOptions = () => {
+    const opts = []; const now = new Date();
+    for (let i = 0; i < 18; i++) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); opts.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`); }
+    return opts;
+  };
+
+  const save = async () => {
+    if (!form.client_id || !form.month_ref) { alert("Müşteri ve ay zorunlu"); return; }
+    setSaving(true);
+    const payload = { client_id: form.client_id, month_ref: form.month_ref, notes: form.notes || "" };
+    REPORT_METRICS.forEach(m => { payload[m.key] = parseInt(form[m.key]) || 0; });
+    // Aynı müşteri+ay varsa güncelle, yoksa ekle
+    const existing = reports.find(r => r.client_id === form.client_id && r.month_ref === form.month_ref);
+    let error;
+    if (existing) { ({ error } = await supabase.from('social_reports').update(payload).eq('id', existing.id)); }
+    else { ({ error } = await supabase.from('social_reports').insert(payload)); }
+    setSaving(false);
+    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nRAPORLAMA-SQL kodunu çalıştırın."); return; }
+    setModal(false); setForm({}); load();
+  };
+
+  const del = async (id) => { if (!window.confirm("Bu rapor silinsin mi?")) return; await supabase.from('social_reports').delete().eq('id', id); load(); };
+
+  // Bir müşterinin raporları (tarihe göre, eskiden yeniye grafik için)
+  const clientReports = (cid) => reports.filter(r => r.client_id === cid).sort((a, b) => a.month_ref.localeCompare(b.month_ref));
+
+  // Müşteri seçilmişse detay göster
+  if (selClient) {
+    const c = clients.find(x => x.id === selClient);
+    const list = clientReports(selClient); // eskiden yeniye
+    const listDesc = [...list].reverse(); // yeniden eskiye (kart listesi)
+    return (
+      <div>
+        <button onClick={() => setSelClient(null)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 13, marginBottom: 14 }}>← Tüm müşteriler</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Avatar initials={c?.initials} color={c?.accentColor} size={44} />
+            <div><div style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>{c?.name}</div><div style={{ fontSize: 12, color: T.textMuted }}>{list.length} aylık rapor</div></div>
+          </div>
+          <Btn variant="primary" onClick={() => { setForm({ client_id: selClient, month_ref: monthOptions()[0] }); setModal(true); }}>+ Yeni Ay Ekle</Btn>
+        </div>
+
+        {list.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.textMuted, padding: 50 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
+            <div style={{ fontSize: 14, color: T.textPrimary, fontWeight: 600 }}>Henüz rapor yok</div>
+            <div style={{ fontSize: 12, marginTop: 6 }}>Meta Business Suite'ten verileri alıp "Yeni Ay Ekle" ile girin.</div>
+          </div>
+        ) : (
+          <>
+            {/* Takipçi trend grafiği */}
+            {list.length >= 2 && <ReportTrend list={list} monthLabel={monthLabel} />}
+
+            {/* Aylık kartlar */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
+              {listDesc.map((r, i) => {
+                const prev = list[list.length - 1 - i - 1]; // bir önceki ay
+                return (
+                  <div key={r.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{monthLabel(r.month_ref)}</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn onClick={() => { const f = { client_id: r.client_id, month_ref: r.month_ref, notes: r.notes }; REPORT_METRICS.forEach(m => f[m.key] = r[m.key]); setForm(f); setModal(true); }} style={{ fontSize: 11, padding: "4px 10px" }}>✏️ Düzenle</Btn>
+                        <Btn onClick={() => printSocialReport(c, r, prev, monthLabel)} style={{ fontSize: 11, padding: "4px 10px", background: T.indigoDim, color: T.indigoText }}>📄 PDF</Btn>
+                        <button onClick={() => del(r.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 10 }}>
+                      {REPORT_METRICS.map(m => {
+                        const val = r[m.key] || 0;
+                        const pv = prev ? (prev[m.key] || 0) : null;
+                        const diff = pv !== null ? val - pv : null;
+                        const pct = pv ? Math.round((diff / pv) * 100) : null;
+                        return (
+                          <div key={m.key} style={{ background: T.bgInput, borderRadius: 10, padding: "10px 12px" }}>
+                            <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 3 }}>{m.icon} {m.label}</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: T.textPrimary }}>{val.toLocaleString("tr-TR")}</div>
+                            {diff !== null && diff !== 0 && (
+                              <div style={{ fontSize: 10, fontWeight: 600, color: diff > 0 ? T.greenText : T.redText, marginTop: 2 }}>
+                                {diff > 0 ? "▲" : "▼"} {Math.abs(diff).toLocaleString("tr-TR")}{pct !== null ? ` (%${Math.abs(pct)})` : ""}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {r.notes && <div style={{ marginTop: 12, fontSize: 12, color: T.textMuted, fontStyle: "italic" }}>📝 {r.notes}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {modal && <ReportFormModal form={form} setForm={setForm} onClose={() => setModal(false)} onSave={save} saving={saving} monthOptions={monthOptions} monthLabel={monthLabel} clients={clients} lockClient />}
+      </div>
+    );
+  }
+
+  // Müşteri listesi (kimin kaç raporu var)
+  const withCounts = clients.map(c => ({ c, count: reports.filter(r => r.client_id === c.id).length, last: reports.filter(r => r.client_id === c.id).sort((a, b) => b.month_ref.localeCompare(a.month_ref))[0] }));
+  const nowRef = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
+  const missingThisMonth = withCounts.filter(w => !reports.find(r => r.client_id === w.c.id && r.month_ref === nowRef)).length;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 20 }}>
+        <StatCard label="Toplam Müşteri" value={clients.length} />
+        <StatCard label="Toplam Rapor" value={reports.length} color={T.greenText} />
+        <StatCard label="Bu Ay Girilmemiş" value={missingThisMonth} color={missingThisMonth > 0 ? T.amberText : T.greenText} />
+      </div>
+
+      <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 14 }}>👇 Rapor girmek için bir müşteri seçin.</div>
+
+      <div style={{marginBottom:14}}>
+        <input placeholder="🔍 Müşteri ara..." value={q} onChange={e=>{setQ(e.target.value);setShowAll(false);}} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> : (()=>{
+        const filtered = withCounts.filter(w => !q || w.c.name.toLowerCase().includes(q.toLowerCase()));
+        const shown = showAll ? filtered : filtered.slice(0,10);
+        return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {filtered.length===0 && <div style={{textAlign:"center",color:T.textMuted,padding:30,fontSize:13}}>Müşteri bulunamadı</div>}
+          {shown.map(w => {
+            const hasThisMonth = reports.find(r => r.client_id === w.c.id && r.month_ref === nowRef);
+            return (
+              <div key={w.c.id} onClick={() => setSelClient(w.c.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, cursor: "pointer", borderLeft: `3px solid ${w.c.accentColor}` }}>
+                <Avatar initials={w.c.initials} color={w.c.accentColor} size={38} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{w.c.name}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{w.count > 0 ? `${w.count} rapor · son: ${monthLabel(w.last?.month_ref)}` : "Henüz rapor yok"}</div>
+                </div>
+                {hasThisMonth ? <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: T.greenDim, color: T.greenText }}>✓ Bu ay girildi</span>
+                  : <span style={{ fontSize: 10, fontWeight: 600, padding: "3px 10px", borderRadius: 6, background: T.amberDim, color: T.amberText }}>Bu ay bekliyor</span>}
+                <span style={{ fontSize: 13, color: T.textMuted }}>›</span>
+              </div>
+            );
+          })}
+          {filtered.length>10 && (
+            <button onClick={()=>setShowAll(v=>!v)} style={{marginTop:4,padding:"11px",borderRadius:10,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              {showAll ? "▲ Daha az göster" : `▼ Tümünü göster (${filtered.length} müşteri)`}
+            </button>
+          )}
+        </div>
+        );
+      })()}
+
+      {modal && <ReportFormModal form={form} setForm={setForm} onClose={() => setModal(false)} onSave={save} saving={saving} monthOptions={monthOptions} monthLabel={monthLabel} clients={clients} />}
+    </div>
+  );
+}
+
+// Rapor giriş formu (modal)
+function ReportFormModal({ form, setForm, onClose, onSave, saving, monthOptions, monthLabel, clients, lockClient }) {
+  return (
+    <Modal title="📊 Aylık Rapor Verileri" onClose={onClose} width={620}>
+      <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16, padding: "10px 12px", background: T.bgInput, borderRadius: 8 }}>
+        💡 Verileri <strong>Meta Business Suite → İstatistikler</strong>'den son 30 günü seçerek alın ve aşağıya girin.
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 8 }}>
+        <FormField label="Müşteri">
+          {lockClient ? <div style={{ padding: "10px 12px", background: T.bgInput, borderRadius: 8, fontSize: 13, color: T.textPrimary }}>{clients.find(c => c.id === form.client_id)?.name || "—"}</div>
+            : <Select value={form.client_id || ""} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}><option value="">Seç...</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>}
+        </FormField>
+        <FormField label="Ay">
+          <Select value={form.month_ref || ""} onChange={e => setForm(f => ({ ...f, month_ref: e.target.value }))}>
+            <option value="">Seç...</option>
+            {monthOptions().map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
+          </Select>
+        </FormField>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 8 }}>
+        {REPORT_METRICS.map(m => (
+          <FormField key={m.key} label={`${m.icon} ${m.label}`}>
+            <Input type="number" placeholder="0" value={form[m.key] ?? ""} onChange={e => setForm(f => ({ ...f, [m.key]: e.target.value }))} />
+          </FormField>
+        ))}
+      </div>
+      <FormField label="📝 Not (isteğe bağlı)"><Input placeholder="Örn: Reels çok iyi performans gösterdi" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+        <Btn onClick={onClose}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={onSave} disabled={saving}>{saving ? "Kaydediliyor..." : "Kaydet"}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+// Takipçi/erişim trend grafiği (basit SVG bar)
+function ReportTrend({ list, monthLabel }) {
+  const metric = "total_followers";
+  const hasTotalFollowers = list.some(r => (r[metric] || 0) > 0);
+  const useMetric = hasTotalFollowers ? "total_followers" : "reach";
+  const useLabel = hasTotalFollowers ? "Toplam Takipçi" : "Erişim";
+  const data = list.slice(-6);
+  const max = Math.max(1, ...data.map(r => r[useMetric] || 0));
+  const H = 130;
+  return (
+    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: 18, marginBottom: 4 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 16 }}>📈 {useLabel} Trendi (son {data.length} ay)</div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: H + 30 }}>
+        {data.map((r, i) => (
+          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textSecondary }}>{(r[useMetric] || 0).toLocaleString("tr-TR")}</div>
+            <div style={{ width: "60%", maxWidth: 40, height: `${Math.max(4, ((r[useMetric] || 0) / max) * H)}px`, background: "linear-gradient(180deg,#6366F1,#8B5CF6)", borderRadius: "6px 6px 0 0", transition: "height .4s" }} />
+            <div style={{ fontSize: 9, color: T.textMuted, textAlign: "center" }}>{monthLabel(r.month_ref).split(" ")[0].slice(0, 3)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// DOSYALAR - Google Drive ekip görünürlüğü (madde 10)
+// ─────────────────────────────────────────────
+function DriveFilesPage({ clients }) {
+  const [filesList, setFilesList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+
+  const load = async () => {
+    const { data } = await supabase.from('drive_files').select('*').order('uploaded_at', { ascending: false });
+    const sorted = (data || []).sort((a,b)=>(a.name||"").localeCompare(b.name||"","tr",{sensitivity:"base"}));
+    setFilesList(sorted);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const clientName = (cid) => clients.find(c => c.id === cid)?.name || "—";
+  const fileIcon = (name) => {
+    const ext = (name || "").split(".").pop().toLowerCase();
+    if (["jpg","jpeg","png","gif","webp","heic","svg"].includes(ext)) return "🖼️";
+    if (["mp4","mov","avi","mkv","webm"].includes(ext)) return "🎬";
+    if (["pdf"].includes(ext)) return "📄";
+    if (["doc","docx"].includes(ext)) return "📝";
+    if (["xls","xlsx","csv"].includes(ext)) return "📊";
+    if (["zip","rar"].includes(ext)) return "🗜️";
+    return "📎";
+  };
+  const fmtDT = (iso) => { if(!iso) return "—"; const d=new Date(iso); return d.toLocaleDateString("tr-TR")+" "+d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"}); };
+
+  const filtered = filesList.filter(f =>
+    !q || (f.name||"").toLowerCase().includes(q.toLowerCase()) ||
+    (f.uploader_name||"").toLowerCase().includes(q.toLowerCase()) ||
+    clientName(f.client_id).toLowerCase().includes(q.toLowerCase())
+  );
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+      <StatCard label="Toplam Dosya" value={filesList.length} />
+      <StatCard label="Bu Ay Yüklenen" value={filesList.filter(f=>{const d=new Date(f.uploaded_at);const n=new Date();return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear();}).length} color={T.greenText} />
+      <StatCard label="Yükleyen Kişi" value={new Set(filesList.map(f=>f.uploader_name).filter(Boolean)).size} />
+    </div>
+
+    <div style={{marginBottom:16}}>
+      <input placeholder="🔍 Dosya, kişi veya müşteri ara..." value={q} onChange={e=>setQ(e.target.value)} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:10,padding:"11px 14px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />
+    </div>
+
+    {loading ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:40}}>Yükleniyor...</div>
+    ) : filtered.length === 0 ? (
+      <div style={{textAlign:"center",color:T.textMuted,padding:50}}>
+        <div style={{fontSize:40,marginBottom:12}}>📁</div>
+        <div style={{fontSize:14,color:T.textPrimary,fontWeight:600}}>Henüz dosya yok</div>
+        <div style={{fontSize:12,marginTop:6}}>Müşteri → Medya sekmesinden Google Drive'a dosya yükleyince burada herkese görünür.</div>
+      </div>
+    ) : (
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,overflow:"hidden"}}>
+        {filtered.map((f,i)=>(
+          <div key={f.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<filtered.length-1?`1px solid ${T.border}`:"none"}}>
+            <div style={{fontSize:24}}>{fileIcon(f.name)}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+              <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>
+                👤 {f.uploader_name||"—"} · 🏢 {clientName(f.client_id)} · 🕐 {fmtDT(f.uploaded_at)}
+              </div>
+            </div>
+            {f.link && <a href={f.link} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:600,padding:"6px 14px",borderRadius:8,background:T.amber,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>Aç ↗</a>}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// CALENDAR PAGE
+// ─────────────────────────────────────────────
+function CalendarPage({clients}) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDay, setSelectedDay] = useState(null); // Tıklanan günün detayı
+
+  const cells = getMonthGrid(viewYear, viewMonth);
+
+  const goPrevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y=>y-1); }
+    else setViewMonth(m=>m-1);
+  };
+  const goNextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y=>y+1); }
+    else setViewMonth(m=>m+1);
+  };
+  const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
+
+  const isRealToday = (day, currentMonth) => currentMonth && viewYear===today.getFullYear() && viewMonth===today.getMonth() && day===today.getDate();
+  const getWeekday = (cellIndex) => cellIndex % 7;
+  
+  const TR_WEEKDAY_INDEX = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
+  function getWeekdayIndex(dayName) {
+    const map = {
+      "pazartesi":"Pazartesi", "salı":"Salı", "sali":"Salı",
+      "çarşamba":"Çarşamba", "carsamba":"Çarşamba",
+      "perşembe":"Perşembe", "persembe":"Perşembe",
+      "cuma":"Cuma", "cumartesi":"Cumartesi", "pazar":"Pazar",
+    };
+    const lower = dayName.trim().toLocaleLowerCase("tr-TR");
+    const normalized = map[lower] || dayName.trim();
+    return TR_WEEKDAY_INDEX[normalized];
+  }
+
+  return <div>
+    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+      <button onClick={goPrevMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>‹</button>
+      <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
+      <button onClick={goToday} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.amberText,cursor:"pointer",fontSize:11,fontWeight:600}}>Bugün</button>
+      <button onClick={()=>{
+        const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+        const rows = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const date = new Date(viewYear, viewMonth, d);
+          let wd = date.getDay(); wd = wd === 0 ? 6 : wd - 1;
+          const pub = clients.filter(c => c.publishDays.some(dn => getWeekdayIndex(dn) === wd));
+          const shoot = clients.filter(c => c.shootDays.some(dn => getWeekdayIndex(dn) === wd));
+          if (pub.length > 0 || shoot.length > 0) {
+            rows.push({
+              "Tarih": `${d} ${TR_MONTHS[viewMonth]} ${viewYear}`,
+              "Gün": ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd],
+              "Paylaşımlar": pub.map(c=>c.name).join(", ") || "—",
+              "Çekimler": shoot.map(c=>c.name).join(", ") || "—",
+            });
+          }
+        }
+        if (rows.length === 0) { alert("Bu ayda planlanmış paylaşım/çekim yok"); return; }
+        printData(`İçerik Takvimi - ${TR_MONTHS[viewMonth]} ${viewYear}`, rows);
+      }} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>🖨️ Yazdır</button>
+      <div style={{display:"flex",gap:12}}>
+        {[{l:"Paylaşım",c:T.amberText},{l:"Çekim",c:"#F9A8D4"}].map(l=>(
+          <div key={l.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
+        ))}
+      </div>
+      <button onClick={goNextMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>›</button>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+      {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(d=><div key={d} style={{fontSize:11,color:T.textMuted,textAlign:"center",padding:"4px 0",fontWeight:600,letterSpacing:"0.04em"}}>{d}</div>)}
+      {cells.map((cell,i)=>{
+        const weekday = getWeekday(i);
+        const isToday = isRealToday(cell.day, cell.currentMonth);
+        const dateStr = cell.currentMonth ? `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}` : "";
+        const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => getWeekdayIndex(d) === weekday)) : [];
+        const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => getWeekdayIndex(d) === weekday)) : [];
+        const extraShootClients = cell.currentMonth ? clients.filter(c => (c.extraShoots||[]).some(s => s.date === dateStr)).map(c => ({ ...c, _shootTitle: (c.extraShoots||[]).find(s=>s.date===dateStr)?.title })) : [];
+        const hasContent = publishClients.length > 0 || shootClients.length > 0 || extraShootClients.length > 0;
+        return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, weekday, publishClients, shootClients, extraShootClients}); }} style={{
+          minHeight:90,
+          background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
+          border:`1px solid ${isToday?"#223A5988":T.border}`,
+          borderRadius:10, padding:"6px 7px",
+          opacity: cell.currentMonth ? 1 : 0.35,
+          cursor: cell.currentMonth ? "pointer" : "default",
+          transition:"all 0.12s",
+        }}
+        onMouseEnter={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=T.borderLight; }}
+        onMouseLeave={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=isToday?"#223A5988":T.border; }}>
+          <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
+          {publishClients.slice(0,2).map((c,ci)=>(
+            <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{(c.publishTimes&&c.publishTimes.length>0)?c.publishTimes[0]+" ":""}{c.name}</div>
+          ))}
+          {extraShootClients.slice(0,2).map((c,ci)=>(
+            <div key={"e"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(168,85,247,0.2)",color:"#C4B5FD",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid #A855F7`,fontWeight:600}}>📸 {c.name}</div>
+          ))}
+          {shootClients.slice(0,2).map((c,ci)=>(
+            <div key={"s"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>📷 {c.name}</div>
+          ))}
+          {(publishClients.length+shootClients.length+extraShootClients.length)>6 && <div style={{fontSize:9,color:T.textMuted}}>+{publishClients.length+shootClients.length+extraShootClients.length-6}</div>}
+        </div>;
+      })}
+    </div>
+
+    {/* Gün Detay Modalı */}
+    {selectedDay && (
+      <Modal title={`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} — ${["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][selectedDay.weekday]}`} onClose={()=>setSelectedDay(null)} width={560}>
+        {selectedDay.publishClients.length === 0 && selectedDay.shootClients.length === 0 && (selectedDay.extraShootClients||[]).length === 0 ? (
+          <div style={{textAlign:"center",color:T.textMuted,fontSize:13,padding:"30px 0"}}>Bu gün için planlanmış paylaşım veya çekim yok 📭</div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {/* Ek Çekimler (belirli tarihli) */}
+            {(selectedDay.extraShootClients||[]).length > 0 && (
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#C4B5FD",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📸 Ek Çekim ({selectedDay.extraShootClients.length})</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {selectedDay.extraShootClients.map(c=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(168,85,247,0.12)",borderRadius:10,borderLeft:`3px solid #A855F7`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{c._shootTitle || "Ek çekim"}{c.phone?" · "+c.phone:""}</div>
+                      </div>
+                      <span style={{fontSize:10,fontWeight:600,padding:"3px 10px",borderRadius:6,background:"rgba(168,85,247,0.2)",color:"#C4B5FD"}}>Ek Çekim</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Paylaşımlar */}
+            {selectedDay.publishClients.length > 0 && (
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:T.amberText,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📅 Paylaşım Günü ({selectedDay.publishClients.length})</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {selectedDay.publishClients.map(c=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(242,81,36,0.1)",borderRadius:10,borderLeft:`3px solid ${c.accentColor}`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{c.category||"—"}{c.platforms.length>0?" · "+c.platforms.map(p=>platformConfig[p]?.label).join(", "):""}</div>
+                      </div>
+                      {c.publishTimes && c.publishTimes.length > 0 && (
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                          {c.publishTimes.map(t=><span key={t} style={{fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:6,background:T.amberDim,color:T.amberText}}>🕐 {t}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Çekimler */}
+            {selectedDay.shootClients.length > 0 && (
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:"#F9A8D4",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📷 Çekim Günü ({selectedDay.shootClients.length})</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {selectedDay.shootClients.map(c=>(
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(236,72,153,0.1)",borderRadius:10,borderLeft:`3px solid ${c.accentColor}`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{c.category||"—"}{c.phone?" · "+c.phone:""}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Yazdır butonu */}
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
+              <Btn onClick={()=>{
+                const rows=[];
+                selectedDay.publishClients.forEach(c=>rows.push({"Tür":"📅 Paylaşım","Müşteri":c.name,"Kategori":c.category||"—","Saat":(c.publishTimes||[]).join(", ")||"—","Platform":c.platforms.map(p=>platformConfig[p]?.label).join(", ")||"—"}));
+                selectedDay.shootClients.forEach(c=>rows.push({"Tür":"📷 Çekim","Müşteri":c.name,"Kategori":c.category||"—","Saat":"—","Platform":"—"}));
+                printData(`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} Günü Planı`, rows);
+              }} style={{fontSize:12,padding:"7px 14px"}}>🖨️ Bu Günü Yazdır</Btn>
+            </div>
+          </div>
+        )}
+      </Modal>
+    )}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// STAFF PAGE
+// ─────────────────────────────────────────────
+
+const DEPARTURE_REASONS = [
+  { id: "resignation", label: "İstifa" },
+  { id: "termination", label: "Fesih" },
+  { id: "retirement", label: "Emekli" },
+  { id: "contract_end", label: "Sözleşme Süresi Sona Erdi" },
+  { id: "other", label: "Diğer" },
+];
+
+function StaffPage({staff,setStaff,allStaff,perms}) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [departureModal, setDepartureModal] = useState(null);
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+  const [editModal, setEditModal] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const fileInputRef = useRef(null);
+
+  const handleAddStaff = async () => {
+    if (!form.name || !form.role) {
+      alert("Lütfen isim ve pozisyon seçin");
+      return;
+    }
+
+    const colors = ["#6366F1", "#EC4899", "#10B981"];
+    const initials = form.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const color = colors[staff.length % colors.length];
+
+    const { data, error } = await supabase.from('staff').insert({
+      name: form.name,
+      role: form.role,
+      type: form.type || "Tam zamanlı",
+      email: form.email || "",
+      phone: form.phone || "",
+      start_date: form.startDate || new Date().toLocaleDateString("tr-TR"),
+      is_admin: form.is_admin || false,
+      perm_finance: form.perm_finance || false,
+      perm_manage_clients: form.perm_manage_clients || false,
+      perm_manage_staff: form.perm_manage_staff || false,
+      perm_accounting: form.perm_accounting || false,
+      perm_reports: form.perm_reports || false,
+    }).select().single();
+
+    if (error) {
+      alert("HATA: Çalışan eklenemedi!\n\n" + error.message + "\n\nSupabase'de yetki sütunları eksik olabilir. SQL kodunu çalıştırın.");
+      return;
+    }
+
+    if (data) {
+      // Giriş hesabı oluştur (email + şifre verildiyse)
+      if (form.email && form.password) {
+        if (form.password.length < 6) {
+          alert("Çalışan eklendi ancak GİRİŞ HESABI oluşturulamadı: Şifre en az 6 karakter olmalı. Düzenle'den şifre belirleyebilirsiniz.");
+        } else {
+          const { data: rpcData, error: rpcError } = await supabase.rpc('create_staff_login', { staff_email: form.email, staff_password: form.password });
+          if (rpcError) {
+            alert("Çalışan eklendi ANCAK giriş hesabı oluşturulamadı:\n\n" + rpcError.message + "\n\nCALISAN-SIFRE-SQL kodunu Supabase'de çalıştırdığınızdan emin olun. Sonra 'Düzenle'den şifre verebilirsiniz.");
+          } else {
+            alert("✅ Çalışan eklendi ve giriş hesabı oluşturuldu!\n\nÇalışana şu bilgileri verin:\nE-posta: " + form.email + "\nŞifre: " + form.password + "\n\nÇalışan 'Giriş Yap' ile bu bilgilerle girebilir.");
+          }
+        }
+      }
+      setStaff(prev => [...prev, {
+        id: data.id,
+        name: data.name,
+        role: data.role,
+        initials,
+        color,
+        type: data.type || "Tam zamanlı",
+        email: data.email,
+        phone: data.phone,
+        start: data.start_date,
+        is_admin: data.is_admin,
+        perm_finance: data.perm_finance,
+        perm_manage_clients: data.perm_manage_clients,
+        perm_manage_staff: data.perm_manage_staff,
+        perm_accounting: data.perm_accounting, perm_reports: data.perm_reports,
+      }]);
+    }
+
+    setModal(false);
+    setForm({});
+  };
+
+  const handleEditStaff = async () => {
+    if (!editForm.name || !editForm.role) {
+      alert("Lütfen isim ve pozisyon girin");
+      return;
+    }
+
+    const initials = editForm.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
+    const { error } = await supabase.from('staff').update({
+      name: editForm.name,
+      role: editForm.role,
+      type: editForm.type || "Tam zamanlı",
+      email: editForm.email || "",
+      phone: editForm.phone || "",
+      start_date: editForm.startDate || "",
+      is_admin: editForm.is_admin || false,
+      perm_finance: editForm.perm_finance || false,
+      perm_manage_clients: editForm.perm_manage_clients || false,
+      perm_manage_staff: editForm.perm_manage_staff || false,
+      perm_accounting: editForm.perm_accounting || false,
+      perm_reports: editForm.perm_reports || false,
+    }).eq('id', editModal.id);
+
+    if (error) {
+      alert("HATA: Çalışan güncellenemedi!\n\n" + error.message);
+      return;
+    }
+
+    setStaff(staff.map(s => s.id === editModal.id ? {
+      ...s,
+      name: editForm.name,
+      role: editForm.role,
+      initials,
+      type: editForm.type || "Tam zamanlı",
+      email: editForm.email || "",
+      phone: editForm.phone || "",
+      start: editForm.startDate || "",
+      is_admin: editForm.is_admin,
+      perm_finance: editForm.perm_finance,
+      perm_manage_clients: editForm.perm_manage_clients,
+      perm_manage_staff: editForm.perm_manage_staff,
+      perm_accounting: editForm.perm_accounting, perm_reports: editForm.perm_reports,
+    } : s));
+
+    setEditModal(null);
+    setEditForm({});
+  };
+
+  const handleDeparture = async () => {
+    if (!departureModal.reason || !departureModal.date) {
+      alert("Lütfen ayrılış nedenini ve tarihini seçin");
+      return;
+    }
+
+    const { error } = await supabase.from('staff').update({
+      deleted_at: new Date().toISOString(),
+      departure_reason: departureModal.reason,
+      departure_date: departureModal.date,
+    }).eq('id', departureModal.staffId);
+
+    if (error) {
+      alert("HATA: Çalışan ayrılış işlemi yapılamadı!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      return;
+    }
+
+    setStaff(staff.filter(s => s.id !== departureModal.staffId));
+    setDepartureModal(null);
+    setUploadedDocs([]);
+  };
+
+  const handleDocUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    setUploadedDocs(prev => [...prev, ...files.map(f => ({
+      name: f.name,
+      size: (f.size / 1024 / 1024).toFixed(2) + ' MB',
+      file: f,
+    }))]);
+  };
+
+  return <div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+      <StatCard label="Toplam Çalışan" value={staff.length} />
+      <StatCard label="Tam Zamanlı" value={staff.filter(s=>s.type==="Tam zamanlı").length} color={T.greenText} />
+      <StatCard label="Part-time" value={staff.filter(s=>s.type==="Part-time").length} color={T.amberText} />
+      <StatCard label="Serbest" value={staff.filter(s=>s.type==="Serbest").length} color={T.indigoText} />
+    </div>
+
+    <div style={{display:"flex",gap:10,marginBottom:20}}>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({name:"",role:"",type:"Tam zamanlı",email:"",phone:"",startDate:""});}}>+ Çalışan Ekle</Btn>
+      <Btn onClick={()=>{
+        const rows = staff.map(s => ({
+          "Ad Soyad": s.name,
+          "Pozisyon": s.role,
+          "Çalışan Türü": s.type,
+          "E-mail": s.email || "—",
+          "Telefon": s.phone || "—",
+          "Başlangıç Tarihi": s.start || "—",
+        }));
+        printData("Çalışan Listesi", rows);
+      }}>🖨️ Yazdır</Btn>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:14}}>
+      {staff.map(s=>(
+        <Card key={s.id} style={{padding:20}}>
+          {/* Üst: Avatar + İsim + Pozisyon */}
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+            <Avatar initials={s.initials} color={s.color} size={52}/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{s.name}</div>
+              <div style={{fontSize:12,color:T.amberText,fontWeight:500,marginTop:2}}>{s.role}</div>
+              <div style={{display:"inline-block",fontSize:10,color:T.textMuted,marginTop:6,padding:"3px 8px",background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:4}}>{s.type}</div>
+            </div>
+          </div>
+
+          {/* Alt: İletişim Bilgileri */}
+          <div style={{display:"flex",flexDirection:"column",gap:10,paddingTop:14,borderTop:`1px solid ${T.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:13,width:18,textAlign:"center"}}>✉️</span>
+              <span style={{fontSize:12,color:T.textSecondary,wordBreak:"break-all"}}>{s.email || "—"}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:13,width:18,textAlign:"center"}}>📱</span>
+              <span style={{fontSize:12,color:T.textSecondary}}>{s.phone || "—"}</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:13,width:18,textAlign:"center"}}>📅</span>
+              <span style={{fontSize:12,color:T.textSecondary}}>{s.start || "—"}</span>
+            </div>
+          </div>
+
+          {/* Butonlar */}
+          <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting,perm_reports:s.perm_reports});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
+          </div>
+        </Card>
+      ))}
+    </div>
+
+    {modal && <Modal title="Yeni Çalışan Ekle" onClose={()=>setModal(false)}>
+      <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
+      <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} /></FormField>
+      <FormField label="Çalışan Türü"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
+      <FormField label="E-mail"><Input placeholder="mail@example.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="🔑 Giriş Şifresi (çalışan bununla girecek)"><Input type="text" placeholder="En az 6 karakter" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
+      <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="Başlangıç Tarihi"><Input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+
+      <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+        <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <PermToggle label="👑 Yönetici (her şeyi görür ve yönetir)" checked={form.is_admin} onChange={()=>setForm(f=>({...f,is_admin:!f.is_admin}))} />
+          {!form.is_admin && <>
+            <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={form.perm_finance} onChange={()=>setForm(f=>({...f,perm_finance:!f.perm_finance}))} />
+            <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={form.perm_manage_clients} onChange={()=>setForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
+            <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={form.perm_manage_staff} onChange={()=>setForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
+            <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={form.perm_accounting} onChange={()=>setForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
+            <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={form.perm_reports} onChange={()=>setForm(f=>({...f,perm_reports:!f.perm_reports}))} />
+          </>}
+        </div>
+      </div>
+
+      <ModalActions onClose={()=>setModal(false)} onSave={handleAddStaff} />
+    </Modal>}
+
+    {editModal && <Modal title="Çalışan Bilgilerini Düzenle" onClose={()=>setEditModal(null)}>
+      <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={editForm.name||""} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></FormField>
+      <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={editForm.role||""} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))} /></FormField>
+      <FormField label="Çalışan Türü"><Select value={editForm.type||"Tam zamanlı"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
+      <FormField label="E-mail"><Input placeholder="mail@example.com" value={editForm.email||""} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} /></FormField>
+      <FormField label="🔑 Yeni Şifre Belirle (boş bırakırsan değişmez)">
+        <div style={{display:"flex",gap:6}}>
+          <Input type="text" placeholder="Yeni giriş şifresi" value={editForm.newPassword||""} onChange={e=>setEditForm(f=>({...f,newPassword:e.target.value}))} />
+          <Btn onClick={async()=>{
+            if(!editForm.email){ alert("Önce e-posta girin"); return; }
+            if(!editForm.newPassword || editForm.newPassword.length<6){ alert("Şifre en az 6 karakter olmalı"); return; }
+            const { error } = await supabase.rpc('create_staff_login', { staff_email: editForm.email, staff_password: editForm.newPassword });
+            if(error){ alert("Şifre ayarlanamadı:\n\n"+error.message+"\n\nCALISAN-SIFRE-SQL kodunu çalıştırın."); return; }
+            alert("✅ Şifre ayarlandı!\n\nÇalışana verin:\nE-posta: "+editForm.email+"\nŞifre: "+editForm.newPassword);
+            setEditForm(f=>({...f,newPassword:""}));
+          }} style={{fontSize:12,padding:"0 14px",whiteSpace:"nowrap",flexShrink:0}}>Şifreyi Ayarla</Btn>
+        </div>
+      </FormField>
+      <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={editForm.phone||""} onChange={e=>setEditForm(f=>({...f,phone:e.target.value}))} /></FormField>
+      <FormField label="Başlangıç Tarihi"><Input type="date" value={editForm.startDate||""} onChange={e=>setEditForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+
+      <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+        <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <PermToggle label="👑 Yönetici (her şeyi görür ve yönetir)" checked={editForm.is_admin} onChange={()=>setEditForm(f=>({...f,is_admin:!f.is_admin}))} />
+          {!editForm.is_admin && <>
+            <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={editForm.perm_finance} onChange={()=>setEditForm(f=>({...f,perm_finance:!f.perm_finance}))} />
+            <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={editForm.perm_manage_clients} onChange={()=>setEditForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
+            <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={editForm.perm_manage_staff} onChange={()=>setEditForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
+            <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={editForm.perm_accounting} onChange={()=>setEditForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
+            <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={editForm.perm_reports} onChange={()=>setEditForm(f=>({...f,perm_reports:!f.perm_reports}))} />
+          </>}
+        </div>
+      </div>
+
+      <ModalActions onClose={()=>setEditModal(null)} onSave={handleEditStaff} />
+    </Modal>}
+
+    {departureModal && <Modal title="Çalışan Ayrılış İşlemi" onClose={()=>setDepartureModal(null)}>
+      <FormField label="Ayrılış Nedeni">
+        <Select value={departureModal.reason} onChange={e=>setDepartureModal({...departureModal,reason:e.target.value})}>
+          <option value="">Seç...</option>
+          {DEPARTURE_REASONS.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Çıkış Tarihi">
+        <Input type="date" value={departureModal.date||""} onChange={e=>setDepartureModal({...departureModal,date:e.target.value})} />
+      </FormField>
+      <FormField label="İşten Çıkış Evrakları">
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={e=>e.preventDefault()}
+          onDrop={e=>{e.preventDefault();handleDocUpload({target:{files:e.dataTransfer.files}});}}
+          style={{
+            border:`2px dashed ${T.amber}`,
+            borderRadius:10,
+            padding:"20px",
+            textAlign:"center",
+            cursor:"pointer",
+            background:`${T.amber}12`,
+            marginBottom:10,
+          }}
+        >
+          <div style={{fontSize:28,marginBottom:8}}>📄</div>
+          <div style={{fontSize:12,color:T.textPrimary,fontWeight:600}}>Evrakları sürükle ve bırak</div>
+          <div style={{fontSize:10,color:T.textMuted}}>veya tıklayarak dosya seç (PDF, JPG, PNG)</div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleDocUpload}
+            style={{display:"none"}}
+            accept=".pdf,.jpg,.jpeg,.png"
+          />
+        </div>
+        {uploadedDocs.length > 0 && (
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {uploadedDocs.map((doc,idx) => (
+              <div key={idx} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:T.bgSurface,borderRadius:8,border:`1px solid ${T.border}`}}>
+                <span style={{fontSize:14}}>📄</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:11,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                  <div style={{fontSize:10,color:T.textMuted}}>{doc.size}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </FormField>
+      <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"12px",marginBottom:16,fontSize:11,color:T.textMuted}}>
+        ⚠️ Bu çalışan silindi olarak işaretlenecektir. Ayrılış bilgileri ve evraklar kaydedilecektir.
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <Btn onClick={()=>setDepartureModal(null)}>Vazgeç</Btn>
+        <Btn variant="primary" onClick={handleDeparture}>Ayrılış İşlemini Tamamla</Btn>
+      </div>
+    </Modal>}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// ANA SAYFA (DASHBOARD)
+// ─────────────────────────────────────────────
+// ─── Ana sayfa karşılama ───
+// 08:30–10:00 arası "Günaydın", diğer saatlerde "Hoş geldin"; yanında giriş yapan kişinin adı.
+// Motive edici cümle gün içinde değişir (günün saatine göre seçilir).
+const MOTIVATION_LINES = [
+  "Güne taze başlıyoruz; ilk görevi bitirmek günün ritmini belirler.",
+  "Her paylaşım bir müşterinin hikâyesi. Bugün kimin hikâyesini anlatıyoruz?",
+  "Küçük adımlar büyük markalar kurar.",
+  "Detaylar markayı yapar; bugün dokunduğun her şey fark ediliyor.",
+  "En zor işi önce hallet, gerisi kolay gelir.",
+  "İyi bir gün, iyi bir paylaşımla başlar.",
+  "Bugün ilerlemen dünkü hâlinden daha ileride. Devam.",
+  "Yorulmak normal, bırakmak değil.",
+  "Bitmeyenleri topla, yarına temiz başla.",
+  "Emeğin görünür oluyor. Bugün de fark yaratıyoruz.",
+  "Liste kısalıyor, müşteriler mutlu. Böyle devam.",
+  "Bir paylaşım daha, bir müşteri daha mutlu.",
+];
+function dashboardGreeting(name, now = new Date()) {
+  const t = now.getHours() * 60 + now.getMinutes();
+  const isMorning = t >= 8 * 60 + 30 && t < 10 * 60;
+  const first = (name || "").trim();
+  const salute = isMorning ? "Günaydın" : "Hoş geldin";
+  const seed = now.getFullYear() * 1000 + (now.getMonth() + 1) * 40 + now.getDate() + now.getHours();
+  return { title: first ? `${salute}, ${first}` : salute, line: MOTIVATION_LINES[seed % MOTIVATION_LINES.length] };
+}
+
+function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allStaff, refreshData, currentStaff}) {
+  const totalRevenue = clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
+  const paidRevenue = clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="paid").reduce((ss,i)=>ss+i.total,0),0);
+  const pendingRevenue = totalRevenue - paidRevenue;
+  const monthlyTotal = clients.reduce((s,c)=>s+c.monthlyFee,0);
+  const totalPosts = clients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0);
+  const doneTasks = tasks.filter(t=>t.col==="done").length;
+  const activeTasks = tasks.filter(t=>t.col!=="done").length;
+  const taskProgress = tasks.length > 0 ? Math.round((doneTasks/tasks.length)*100) : 0;
+
+  // Bugünün paylaşım/çekim günleri
+  const today = new Date();
+  let wd = today.getDay(); wd = wd === 0 ? 6 : wd - 1;
+  const TR_WD = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
+  const wdIndex = (dn) => {
+    const map={"pazartesi":"Pazartesi","salı":"Salı","sali":"Salı","çarşamba":"Çarşamba","carsamba":"Çarşamba","perşembe":"Perşembe","persembe":"Perşembe","cuma":"Cuma","cumartesi":"Cumartesi","pazar":"Pazar"};
+    return TR_WD[map[dn.trim().toLocaleLowerCase("tr-TR")] || dn.trim()];
+  };
+  const todayPublish = clients.filter(c => c.publishDays.some(d => wdIndex(d) === wd));
+  const todayShoot = clients.filter(c => c.shootDays.some(d => wdIndex(d) === wd));
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+  const todayExtraShoot = clients.filter(c => (c.extraShoots||[]).some(s => s.date === todayStr)).map(c => ({ ...c, _shootTitle: (c.extraShoots||[]).find(s=>s.date===todayStr)?.title }));
+  const todayName = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd];
+  const [todayModal, setTodayModal] = useState(null); // "publish" | "shoot" | null
+
+  const NavCard = ({icon,label,value,sub,color,target}) => (
+    <div onClick={()=>setPage(target)} style={{
+      background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",
+      cursor:"pointer",transition:"all 0.15s ease",
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderLight;e.currentTarget.style.background=T.bgCardHover;}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bgCard;}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <span style={{fontSize:22}}>{icon}</span>
+        <span style={{fontSize:13,fontWeight:600,color:T.textSecondary}}>{label}</span>
+      </div>
+      <div style={{fontSize:28,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em"}}>{value}</div>
+      {sub && <div style={{fontSize:12,color:T.textMuted,marginTop:6}}>{sub}</div>}
+    </div>
+  );
+
+  return <div>
+    {/* Karşılama */}
+    <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+      <div>
+        {(() => { const g = dashboardGreeting(currentStaff?.name, today); return <>
+          <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>{g.title}</div>
+          <div style={{fontSize:13,color:T.textSecondary,marginTop:6,fontStyle:"italic"}}>{g.line}</div>
+          <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+        </>; })()}
+      </div>
+      <Btn onClick={()=>{
+        const rows=[];
+        if(perms.finance){
+          rows.push({"Bölüm":"Finansal","Bilgi":"Toplam Ciro","Değer":fmtMoney(totalRevenue)});
+          rows.push({"Bölüm":"Finansal","Bilgi":"Tahsil Edilen","Değer":fmtMoney(paidRevenue)});
+          rows.push({"Bölüm":"Finansal","Bilgi":"Bekleyen Tahsilat","Değer":fmtMoney(pendingRevenue)});
+          rows.push({"Bölüm":"Finansal","Bilgi":"Aylık Gelir","Değer":fmtMoney(monthlyTotal)});
+        }
+        rows.push({"Bölüm":"Genel","Bilgi":"Aktif Müşteri","Değer":clients.length});
+        rows.push({"Bölüm":"Genel","Bilgi":"Çalışan Sayısı","Değer":staff.length});
+        rows.push({"Bölüm":"Görev","Bilgi":"Tamamlanan","Değer":doneTasks});
+        rows.push({"Bölüm":"Görev","Bilgi":"Devam Eden","Değer":activeTasks});
+        rows.push({"Bölüm":"Görev","Bilgi":"İlerleme","Değer":"%"+taskProgress});
+        todayPublish.forEach(c=>rows.push({"Bölüm":"Bugün ("+todayName+")","Bilgi":"📅 Paylaşım","Değer":c.name+((c.publishTimes&&c.publishTimes.length)?" ("+c.publishTimes.join(", ")+")":"")}));
+        todayShoot.forEach(c=>rows.push({"Bölüm":"Bugün ("+todayName+")","Bilgi":"📷 Çekim","Değer":c.name}));
+        printData("Ana Sayfa Özeti", rows);
+      }} style={{fontSize:12,padding:"7px 14px",whiteSpace:"nowrap"}}>🖨️ Yazdır</Btn>
+    </div>
+
+    {/* ☀️ Bugünün Özeti (sabah özeti panosu) */}
+    {(()=>{
+      const dueToday = tasks.filter(t=>t.due===todayStr && t.col!=="done" && t.col!=="published");
+      const overdue = tasks.filter(t=>t.due && t.due!=="—" && t.due.length>=8 && t.due<todayStr && t.col!=="done" && t.col!=="published");
+      const inRevision = tasks.filter(t=>t.col==="revision");
+      const pendingApproval = tasks.filter(t=>t.col==="approval");
+      const items = [
+        {icon:"📅",label:"Bugün Paylaşım",val:todayPublish.length,color:T.amberText,page:"calendar"},
+        {icon:"📷",label:"Bugün Çekim",val:todayShoot.length+todayExtraShoot.length,color:"#F9A8D4",page:"calendar"},
+        {icon:"⏰",label:"Bugün Teslim",val:dueToday.length,color:T.indigoText,page:"tasks"},
+        {icon:"🔴",label:"Geciken Görev",val:overdue.length,color:T.redText,page:"tasks"},
+        {icon:"🔄",label:"Revizede",val:inRevision.length,color:"#F87171",page:"tasks"},
+        {icon:"📤",label:"Onay Bekleyen",val:pendingApproval.length,color:"#25D366",page:"tasks"},
+      ];
+      const greeting = (()=>{ const h=today.getHours(); if(h<12) return "Günaydın ☀️"; if(h<18) return "İyi çalışmalar 👋"; return "İyi akşamlar 🌙"; })();
+      return (
+        <div style={{background:`linear-gradient(135deg, ${T.bgCard}, rgba(99,102,241,0.08))`,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px",marginBottom:16}}>
+          <div style={{fontSize:13,fontWeight:700,color:T.textPrimary,marginBottom:12}}>{greeting} — İşte bugünün özeti:</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:10}}>
+            {items.map((it,i)=>(
+              <div key={i} onClick={()=>setPage(it.page)} style={{background:T.bgInput,borderRadius:10,padding:"12px 14px",cursor:"pointer",transition:"transform .15s",display:"flex",flexDirection:"column",gap:3}}
+                onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+                <div style={{fontSize:22,fontWeight:800,color:it.val>0?it.color:T.textMuted,lineHeight:1}}>{it.val}</div>
+                <div style={{fontSize:11,color:T.textMuted}}>{it.icon} {it.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })()}
+
+    {/* Hava Durumu */}
+    <div style={{marginBottom:16}}><WeatherWidget /></div>
+
+    {/* Finansal Özet - sadece yetkili görür */}
+    {perms.finance && (
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
+      <div style={{background:`linear-gradient(135deg, ${T.bgCard}, ${T.indigoDim})`,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Toplam Ciro</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.textPrimary}}>{fmtMoney(totalRevenue)}</div>
+      </div>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Tahsil Edilen</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.greenText}}>{fmtMoney(paidRevenue)}</div>
+      </div>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Bekleyen Tahsilat</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.amberText}}>{fmtMoney(pendingRevenue)}</div>
+      </div>
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Aylık Gelir</div>
+        <div style={{fontSize:26,fontWeight:700,color:T.indigoText}}>{fmtMoney(monthlyTotal)}</div>
+      </div>
+    </div>
+    )}
+
+    {/* Bugün */}
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
+      <div style={{fontSize:14,fontWeight:600,color:T.textPrimary,marginBottom:14}}>📅 Bugün ({todayName})</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        <div>
+          <div style={{fontSize:11,color:T.amberText,fontWeight:600,marginBottom:8}}>PAYLAŞIM ({todayPublish.length})</div>
+          {todayPublish.length === 0 ? (
+            <div style={{fontSize:12,color:T.textMuted}}>Bugün paylaşım yok</div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {todayPublish.slice(0,6).map(c=>(
+                <div key={c.id} style={{fontSize:12,color:T.textPrimary,padding:"6px 10px",background:"rgba(242,81,36,0.12)",borderRadius:6,borderLeft:`2px solid ${c.accentColor}`}}>{c.name}</div>
+              ))}
+              {todayPublish.length>6 && (
+                <button onClick={()=>setTodayModal("publish")} style={{marginTop:2,padding:"7px",borderRadius:6,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ {todayPublish.length-6} tane daha (detay)</button>
+              )}
+            </div>
+          )}
+        </div>
+        <div>
+          <div style={{fontSize:11,color:"#F9A8D4",fontWeight:600,marginBottom:8}}>ÇEKİM ({todayShoot.length})</div>
+          {todayShoot.length === 0 ? (
+            <div style={{fontSize:12,color:T.textMuted}}>Bugün çekim yok</div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {todayShoot.slice(0,6).map(c=>(
+                <div key={c.id} style={{fontSize:12,color:T.textPrimary,padding:"6px 10px",background:"rgba(236,72,153,0.12)",borderRadius:6,borderLeft:`2px solid ${c.accentColor}`}}>📷 {c.name}</div>
+              ))}
+              {todayShoot.length>6 && (
+                <button onClick={()=>setTodayModal("shoot")} style={{marginTop:2,padding:"7px",borderRadius:6,border:`1px dashed ${T.borderLight}`,background:"transparent",color:T.textSecondary,fontSize:11,fontWeight:600,cursor:"pointer"}}>+ {todayShoot.length-6} tane daha (detay)</button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Bugünkü ek çekimler (belirli tarihli) */}
+      {todayExtraShoot.length > 0 && (
+        <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+          <div style={{fontSize:11,color:"#C4B5FD",fontWeight:600,marginBottom:8}}>📸 EK ÇEKİM ({todayExtraShoot.length})</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {todayExtraShoot.map(c=>(
+              <div key={c.id} onClick={()=>setPage("clients")} style={{fontSize:12,color:T.textPrimary,padding:"8px 10px",background:"rgba(168,85,247,0.14)",borderRadius:6,borderLeft:`2px solid #A855F7`,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>📸 <strong>{c.name}</strong>{c._shootTitle?` — ${c._shootTitle}`:""}</span>
+                <span style={{fontSize:10,color:"#C4B5FD",fontWeight:600}}>Ek Çekim</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    {/* Bugün detay modalı */}
+    {todayModal && (()=>{
+      const list = todayModal==="publish" ? todayPublish : todayShoot;
+      const isPublish = todayModal==="publish";
+      return (
+        <Modal title={`${isPublish?"📅 Paylaşım":"📷 Çekim"} — Bugün (${list.length})`} onClose={()=>setTodayModal(null)} width={480}>
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:480,overflowY:"auto"}}>
+            {list.map(c=>(
+              <div key={c.id} onClick={()=>{setPage("clients");setTodayModal(null);}} style={{fontSize:13,color:T.textPrimary,padding:"9px 12px",background:isPublish?"rgba(242,81,36,0.12)":"rgba(236,72,153,0.12)",borderRadius:8,borderLeft:`3px solid ${c.accentColor}`,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>{isPublish?"":"📷 "}{c.name}</span>
+                {c.publishTimes && c.publishTimes.length>0 && isPublish && <span style={{fontSize:11,color:T.amberText}}>{c.publishTimes.join(", ")}</span>}
+              </div>
+            ))}
+          </div>
+        </Modal>
+      );
+    })()}
+
+    {/* Görev İlerlemesi */}
+    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <span style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>📋 Görev İlerlemesi</span>
+        <span style={{fontSize:16,fontWeight:700,color:T.amber}}>{taskProgress}%</span>
+      </div>
+      <div style={{height:10,background:T.bgSurface,borderRadius:5,overflow:"hidden",border:`1px solid ${T.border}`}}>
+        <div style={{height:"100%",width:`${taskProgress}%`,background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,borderRadius:5,transition:"width 0.6s ease"}} />
+      </div>
+      <div style={{display:"flex",gap:16,marginTop:10,fontSize:12,color:T.textMuted}}>
+        <span>✓ {doneTasks} tamamlandı</span>
+        <span>→ {activeTasks} devam ediyor</span>
+      </div>
+    </div>
+
+    {/* Hızlı Erişim Kartları */}
+    <div style={{fontSize:13,fontWeight:600,color:T.textSecondary,marginBottom:12}}>Hızlı Erişim</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14}}>
+      <NavCard icon="🏢" label="Müşteriler" value={clients.length} sub="Aktif müşteri" color={T.textPrimary} target="clients" />
+      <NavCard icon="👥" label="Çalışanlar" value={staff.length} sub="Ekip üyesi" color={T.textPrimary} target="staff" />
+      <NavCard icon="📋" label="Görevler" value={activeTasks} sub="Aktif görev" color={T.amberText} target="tasks" />
+      <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="calendar" />
+    </div>
+
+    {/* GELİR-GİDER GRAFİĞİ - sadece finansal yetki */}
+    {perms.finance && <RevenueChart />}
+
+    {/* AYRILAN MÜŞTERİLER & ÇALIŞANLAR */}
+    <DepartedSection allClients={allClients} allStaff={allStaff} refreshData={refreshData} perms={perms} />
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// GELİR-GİDER GRAFİĞİ (son 6 ay, saf SVG)
+// ─────────────────────────────────────────────
+function RevenueChart() {
+  const [payments, setPayments] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [incomes, setIncomes] = useState([]);
+  const [pieceJobs, setPieceJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: p } = await supabase.from('client_payments').select('amount,month_ref');
+        setPayments(p || []);
+        const { data: e } = await supabase.from('accounting_entries').select('amount,month_ref');
+        setEntries(e || []);
+        const { data: ex } = await supabase.from('company_expenses').select('amount,expense_date');
+        setExpenses(ex || []);
+        const { data: inc } = await supabase.from('company_incomes').select('amount,income_date');
+        setIncomes(inc || []);
+        const { data: pj } = await supabase.from('piece_jobs').select('amount,month_ref,status');
+        setPieceJobs(pj || []);
+      } catch (err) { /* tablo yoksa boş */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  // Son 6 ay
+  const months = [];
+  const base = new Date(); base.setDate(1);
+  for (let i = 5; i >= 0; i--) {
+    const dd = new Date(base.getFullYear(), base.getMonth() - i, 1);
+    months.push(`${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const toMonthRef = (dateStr) => dateStr ? String(dateStr).slice(0, 7) : "";
+
+  const data = months.map(m => {
+    // Gelir = müşteri ödemeleri + diğer gelirler + tamamlanan parça başı işler
+    const income = payments.filter(p => p.month_ref === m).reduce((s, p) => s + Number(p.amount || 0), 0)
+      + incomes.filter(i => toMonthRef(i.income_date) === m).reduce((s, i) => s + Number(i.amount || 0), 0)
+      + pieceJobs.filter(j => j.status === "done" && j.month_ref === m).reduce((s, j) => s + Number(j.amount || 0), 0);
+    // Gider = SGK/vergi/maaş + kategorili giderler
+    const expense = entries.filter(e => e.month_ref === m).reduce((s, e) => s + Number(e.amount || 0), 0)
+      + expenses.filter(x => toMonthRef(x.expense_date) === m).reduce((s, x) => s + Number(x.amount || 0), 0);
+    return { m, income, expense, net: income - expense };
+  });
+
+  const maxVal = Math.max(1, ...data.map(d => Math.max(d.income, d.expense)));
+  const totalIncome = data.reduce((s, d) => s + d.income, 0);
+  const totalExpense = data.reduce((s, d) => s + d.expense, 0);
+  const totalNet = totalIncome - totalExpense;
+  const margin = totalIncome > 0 ? Math.round((totalNet / totalIncome) * 100) : 0;
+
+  const chartH = 160;
+
+  return (
+    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginTop: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>📊 Gelir - Gider - Kâr/Zarar (Son 6 Ay)</div>
+        <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
+          <span style={{ color: T.textMuted }}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#10B981", marginRight: 5 }} />Gelir</span>
+          <span style={{ color: T.textMuted }}><span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: "#EF4444", marginRight: 5 }} />Gider</span>
+        </div>
+      </div>
+
+      {/* Özet */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 18 }}>
+        <div><div style={{ fontSize: 11, color: T.textMuted }}>Toplam Gelir</div><div style={{ fontSize: 17, fontWeight: 700, color: T.greenText }}>{fmtMoney(totalIncome)}</div></div>
+        <div><div style={{ fontSize: 11, color: T.textMuted }}>Toplam Gider</div><div style={{ fontSize: 17, fontWeight: 700, color: T.redText }}>{fmtMoney(totalExpense)}</div></div>
+        <div><div style={{ fontSize: 11, color: T.textMuted }}>Net Kâr/Zarar</div><div style={{ fontSize: 17, fontWeight: 700, color: totalNet >= 0 ? T.greenText : T.redText }}>{fmtMoney(totalNet)}</div></div>
+        <div><div style={{ fontSize: 11, color: T.textMuted }}>Kâr Marjı</div><div style={{ fontSize: 17, fontWeight: 700, color: margin >= 0 ? T.greenText : T.redText }}>%{margin}</div></div>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Yükleniyor...</div>
+      ) : totalIncome === 0 && totalExpense === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Henüz gelir/gider kaydı yok. Muhasebe sekmesinden ödeme/gider girdikçe grafik dolacak.</div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: chartH + 46 }}>
+          {data.map((d, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: d.net >= 0 ? T.greenText : T.redText }}>{d.net !== 0 ? (d.net > 0 ? "+" : "") + (Math.abs(d.net) >= 1000 ? (d.net / 1000).toFixed(0) + "b" : d.net) : ""}</div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: chartH, width: "100%", justifyContent: "center" }}>
+                <div title={`Gelir: ${fmtMoney(d.income)}`} style={{ width: "38%", maxWidth: 26, height: `${Math.max(2, (d.income / maxVal) * chartH)}px`, background: "linear-gradient(180deg,#10B981,#059669)", borderRadius: "4px 4px 0 0", transition: "height 0.3s" }} />
+                <div title={`Gider: ${fmtMoney(d.expense)}`} style={{ width: "38%", maxWidth: 26, height: `${Math.max(2, (d.expense / maxVal) * chartH)}px`, background: "linear-gradient(180deg,#EF4444,#DC2626)", borderRadius: "4px 4px 0 0", transition: "height 0.3s" }} />
+              </div>
+              <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", lineHeight: 1.3 }}>{TR_MONTHS[parseInt(d.m.split("-")[1]) - 1].slice(0, 3)}<br />{d.m.split("-")[0].slice(2)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Ayrılan müşteriler ve çalışanlar bölümü (geri aktifleştirme ile)
+function DepartedSection({ allClients, allStaff, refreshData, perms }) {
+  const [busy, setBusy] = useState(false);
+  const [allModal, setAllModal] = useState(null); // "clients" | "staff"
+  const departedClients = (allClients || []).filter(c => c.deleted_at);
+  const departedStaff = (allStaff || []).filter(s => s.deleted_at);
+
+  const restoreClient = async (id, name) => {
+    if (!window.confirm(`"${name}" tekrar aktif müşteri olacak. Onaylıyor musunuz?`)) return;
+    setBusy(true);
+    const { error } = await supabase.from('clients').update({ deleted_at: null, delete_reason: null, deletion_date: null }).eq('id', id);
+    setBusy(false);
+    if (error) { alert("Hata: " + error.message); return; }
+    await refreshData();
+    alert(`"${name}" tekrar aktif müşteri! Bilgilerini düzenlemek için Müşteriler sayfasına gidebilirsiniz.`);
+  };
+
+  const restoreStaff = async (id, name) => {
+    if (!window.confirm(`"${name}" tekrar aktif çalışan olacak. Onaylıyor musunuz?`)) return;
+    setBusy(true);
+    const { error } = await supabase.from('staff').update({ deleted_at: null, departure_reason: null, departure_date: null }).eq('id', id);
+    setBusy(false);
+    if (error) { alert("Hata: " + error.message); return; }
+    await refreshData();
+    alert(`"${name}" tekrar aktif çalışan! Bilgilerini düzenlemek için Çalışanlar sayfasına gidebilirsiniz.`);
+  };
+
+  if (departedClients.length === 0 && departedStaff.length === 0) return null;
+
+  const clientRow = (c) => (
+    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bgInput, borderRadius: 10, border: `1px solid ${T.border}` }}>
+      <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, flexShrink: 0 }}>{c.initials || (c.name||"?").slice(0,2).toUpperCase()}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+        <div style={{ fontSize: 10, color: T.textMuted }}>{CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "Ayrıldı"}{c.deletion_date ? ` · ${c.deletion_date}` : ""}</div>
+      </div>
+      {perms.manageClients && <button disabled={busy} onClick={() => restoreClient(c.id, c.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
+    </div>
+  );
+
+  const staffRow = (s) => (
+    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: T.bgInput, borderRadius: 10, border: `1px solid ${T.border}` }}>
+      <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, flexShrink: 0 }}>{(s.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
+        <div style={{ fontSize: 10, color: T.textMuted }}>{s.role || "—"}{s.departure_date ? ` · ${s.departure_date}` : ""}</div>
+      </div>
+      {perms.manageStaff && <button disabled={busy} onClick={() => restoreStaff(s.id, s.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
+    </div>
+  );
+
+  const moreBtn = (count, onClick) => (
+    <button onClick={onClick} style={{ marginTop: 4, padding: "9px", borderRadius: 8, border: `1px solid ${T.borderLight}`, background: T.bgSurface, color: T.textSecondary, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+      📋 Tümünü Gör ({count})
+    </button>
+  );
+
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Ayrılan Müşteriler */}
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>🚪 Ayrılan Müşteriler</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14 }}>Kayıtları saklanıyor · tekrar aktif yapılabilir</div>
+          {departedClients.length === 0 ? (
+            <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "16px 0" }}>Ayrılan müşteri yok</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {departedClients.slice(0, 4).map(clientRow)}
+              {departedClients.length > 4 && moreBtn(departedClients.length, () => setAllModal("clients"))}
+            </div>
+          )}
+        </div>
+
+        {/* Ayrılan Çalışanlar */}
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>🚪 Ayrılan Çalışanlar</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14 }}>Kayıtları saklanıyor · tekrar aktif yapılabilir</div>
+          {departedStaff.length === 0 ? (
+            <div style={{ fontSize: 12, color: T.textMuted, textAlign: "center", padding: "16px 0" }}>Ayrılan çalışan yok</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {departedStaff.slice(0, 4).map(staffRow)}
+              {departedStaff.length > 4 && moreBtn(departedStaff.length, () => setAllModal("staff"))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tümünü gör modalı */}
+      {allModal && (
+        <Modal
+          title={allModal === "clients" ? `🚪 Ayrılan Müşteriler (${departedClients.length})` : `🚪 Ayrılan Çalışanlar (${departedStaff.length})`}
+          onClose={() => setAllModal(null)} width={520}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 460, overflowY: "auto" }}>
+            {allModal === "clients" ? departedClients.map(clientRow) : departedStaff.map(staffRow)}
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ ENVANTER ═══════════════
+const INVENTORY_CATEGORIES = [
+  { id: "kamera", label: "📷 Kamera" }, { id: "lens", label: "🔭 Lens" }, { id: "isik", label: "💡 Işık" },
+  { id: "ses", label: "🎙️ Ses" }, { id: "gimbal", label: "🎥 Gimbal / Tripod" }, { id: "drone", label: "🚁 Drone" },
+  { id: "bilgisayar", label: "💻 Bilgisayar / Tablet" }, { id: "depolama", label: "💾 Hafıza / Disk" },
+  { id: "aksesuar", label: "🔋 Batarya / Aksesuar" }, { id: "ofis", label: "🏢 Ofis Eşyası" }, { id: "diger", label: "📦 Diğer" },
+];
+const INVENTORY_STATUS = { aktif: { label: "Aktif", color: "#34D399" }, arizali: { label: "Arızalı", color: "#FCA5A5" }, serviste: { label: "Serviste", color: "#F8906E" }, kayip: { label: "Kayıp", color: "#9CA3AF" }, satildi: { label: "Satıldı", color: "#9CA3AF" } };
+const invCatLabel = (id) => INVENTORY_CATEGORIES.find(c => c.id === id)?.label || id;
+
+function InventoryPage({ perms }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [filterCat, setFilterCat] = useState("all");
+  const [search, setSearch] = useState("");
+
+  const load = async () => {
+    const { data, error } = await supabase.from('inventory').select('*').is('deleted_at', null).order('category').order('name');
+    if (error) alert("Envanter yüklenemedi: " + error.message + "\n\nENVANTER-SQL kodunu çalıştırın.");
+    setItems(data || []); setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!form.name) { alert("Ekipman adı zorunlu"); return; }
+    const row = { name: form.name, category: form.category || "diger", brand_model: form.brand_model || "", quantity: parseInt(form.quantity) || 1, serial_no: form.serial_no || "", status: form.status || "aktif", purchase_date: form.purchase_date || null, value: parseFloat(form.value) || 0, notes: form.notes || "" };
+    const { error } = form.id ? await supabase.from('inventory').update(row).eq('id', form.id) : await supabase.from('inventory').insert(row);
+    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    setModal(false); setForm({}); load();
+  };
+  const del = async (id) => { if (!window.confirm("Bu ekipman envanterden silinsin mi?")) return; await supabase.from('inventory').update({ deleted_at: new Date().toISOString() }).eq('id', id); load(); };
+  const quickQty = async (it, delta) => { const q = Math.max(0, (it.quantity || 0) + delta); await supabase.from('inventory').update({ quantity: q }).eq('id', it.id); setItems(prev => prev.map(x => x.id === it.id ? { ...x, quantity: q } : x)); };
+
+  const filtered = items.filter(i => (filterCat === "all" || i.category === filterCat) && (!search || `${i.name} ${i.brand_model} ${i.serial_no} ${i.notes}`.toLowerCase().includes(search.toLowerCase())));
+  const totalQty = items.filter(i => i.status === "aktif").reduce((s, i) => s + (i.quantity || 0), 0);
+  const totalValue = items.reduce((s, i) => s + (Number(i.value) || 0) * (i.quantity || 0), 0);
+  const broken = items.filter(i => i.status === "arizali" || i.status === "serviste").length;
+  const byCat = {}; filtered.forEach(i => { (byCat[i.category] = byCat[i.category] || []).push(i); });
+
+  const exportExcel = async () => {
+    const rows = items.map(i => ({ "Ekipman": i.name, "Kategori": invCatLabel(i.category).replace(/^[^\w]+\s/, ""), "Marka / Model": i.brand_model, "Adet": i.quantity, "Seri No": i.serial_no, "Durum": INVENTORY_STATUS[i.status]?.label || i.status, "Alış Tarihi": i.purchase_date || "", "Birim Değer (₺)": Number(i.value) || 0, "Toplam Değer (₺)": (Number(i.value) || 0) * (i.quantity || 0), "Not": i.notes }));
+    await exportPerfectExcel([{ name: "Envanter", rows, title: "PANORMOS MEDYA — EKİPMAN ENVANTERİ" }], `panormos-envanter-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 10, marginBottom: 16 }}>
+        <StatCard label="Toplam Ekipman (aktif)" value={totalQty} />
+        <StatCard label="Kalem Sayısı" value={items.length} />
+        <StatCard label="Arızalı / Serviste" value={broken} color={broken ? T.redText : T.greenText} />
+        {perms.finance && <StatCard label="Toplam Değer" value={fmtMoney(totalValue)} color={T.indigoText} />}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, alignItems: "center", flexWrap: "wrap" }}>
+        <Btn variant="primary" onClick={() => { setForm({ category: "kamera", status: "aktif", quantity: 1 }); setModal(true); }}>+ Ekipman Ekle</Btn>
+        <Btn onClick={exportExcel} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel'e Aktar</Btn>
+        <div style={{ flex: 1 }} />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Ara…" style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "7px 12px", fontSize: 12, color: T.textPrimary, outline: "none", width: 180 }} />
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "7px 10px", fontSize: 12, color: T.textPrimary }}>
+          <option value="all">Tüm kategoriler</option>
+          {INVENTORY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+      </div>
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40, border: `1px dashed ${T.border}`, borderRadius: 12 }}>Henüz ekipman eklenmemiş. "+ Ekipman Ekle" ile başlayın.</div>
+        : INVENTORY_CATEGORIES.filter(c => byCat[c.id]).map(c => (
+          <div key={c.id} style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>{c.label} <span style={{ color: T.textMuted, fontWeight: 400 }}>· {byCat[c.id].reduce((s, i) => s + (i.quantity || 0), 0)} adet</span></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {byCat[c.id].map(it => {
+                const st = INVENTORY_STATUS[it.status] || INVENTORY_STATUS.aktif;
+                return (
+                  <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${st.color}` }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{it.name}{it.brand_model ? <span style={{ color: T.textMuted, fontWeight: 400 }}> · {it.brand_model}</span> : null}</div>
+                      <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{[it.serial_no && `SN: ${it.serial_no}`, it.purchase_date && `Alış: ${it.purchase_date}`, perms.finance && Number(it.value) > 0 && fmtMoney(it.value) + " / adet", it.notes].filter(Boolean).join(" · ")}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: st.color + "22", color: st.color }}>{st.label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <button onClick={() => quickQty(it, -1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.border}`, background: T.bgSurface, color: T.textSecondary, cursor: "pointer" }}>−</button>
+                      <div style={{ minWidth: 36, textAlign: "center", fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{it.quantity}</div>
+                      <button onClick={() => quickQty(it, 1)} style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${T.border}`, background: T.bgSurface, color: T.textSecondary, cursor: "pointer" }}>+</button>
+                    </div>
+                    <Btn onClick={() => { setForm({ ...it }); setModal(true); }} style={{ fontSize: 11, padding: "5px 10px" }}>✏️</Btn>
+                    <button onClick={() => del(it.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      {modal && (
+        <Modal title={form.id ? "Ekipmanı Düzenle" : "Ekipman Ekle"} onClose={() => setModal(false)} width={560}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <FormField label="Ekipman Adı *"><Input placeholder="Örn: Sony A7 IV" value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FormField>
+            <FormField label="Kategori"><Select value={form.category || "diger"} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{INVENTORY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</Select></FormField>
+            <FormField label="Marka / Model"><Input value={form.brand_model || ""} onChange={e => setForm(f => ({ ...f, brand_model: e.target.value }))} /></FormField>
+            <FormField label="Adet"><Input type="number" value={form.quantity ?? 1} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} /></FormField>
+            <FormField label="Seri No"><Input value={form.serial_no || ""} onChange={e => setForm(f => ({ ...f, serial_no: e.target.value }))} /></FormField>
+            <FormField label="Durum"><Select value={form.status || "aktif"} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>{Object.entries(INVENTORY_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></FormField>
+            <FormField label="Alış Tarihi"><Input type="date" value={form.purchase_date || ""} onChange={e => setForm(f => ({ ...f, purchase_date: e.target.value }))} /></FormField>
+            <FormField label="Birim Değer (₺)"><Input type="number" value={form.value || ""} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} /></FormField>
+          </div>
+          <FormField label="Not"><Input placeholder="Örn: Çantada 2 yedek batarya ile" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={save} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
