@@ -25,11 +25,11 @@ exports.handler = async (event) => {
     if (event.httpMethod === "GET") {
       const [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes] = await Promise.all([
         supabase.from("firmalar").select("*").order("created_at", { ascending: false }),
-        supabase.from("ilanlar").select("firma_id"),
-        supabase.from("musteriler").select("firma_id"),
-        supabase.from("kiralar").select("firma_id"),
-        supabase.from("satislar").select("firma_id"),
-        supabase.from("talepler").select("firma_id"),
+        supabase.from("ilanlar").select("firma_id").is("silinme_tarihi", null),
+        supabase.from("musteriler").select("firma_id").is("silinme_tarihi", null),
+        supabase.from("kiralar").select("firma_id").is("silinme_tarihi", null),
+        supabase.from("satislar").select("firma_id").is("silinme_tarihi", null),
+        supabase.from("talepler").select("firma_id").is("silinme_tarihi", null),
         supabase.from("profiller").select("id, firma_id, ad_soyad, eposta, rol, onayli, created_at"),
         supabase.from("fiyat_planlari").select("*").order("sira", { ascending: true }),
       ]);
