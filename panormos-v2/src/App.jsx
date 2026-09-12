@@ -5982,6 +5982,203 @@ function InventoryPage({ perms }) {
   );
 }
 
+// ═══════════════ EMLAKPANELIM YÖNETİMİ (ayrı Supabase projesi, güvenli köprü fonksiyonu üzerinden) ═══════════════
+function EmlakPanelimPage() {
+  const [veri, setVeri] = useState(null);
+  const [hata, setHata] = useState("");
+  const [acikFirma, setAcikFirma] = useState(null);
+  const [taslaklar, setTaslaklar] = useState({});
+  const [planTaslaklari, setPlanTaslaklari] = useState({});
+  const [bekle, setBekle] = useState(null);
+
+  async function yukle() {
+    setHata("");
+    try {
+      const res = await fetch("/.netlify/functions/emlakpanelim-admin");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Yüklenemedi");
+      setVeri(data);
+      const t = {};
+      for (const f of data.firmalar) t[f.id] = { ...f };
+      setTaslaklar(t);
+      const pt = {};
+      for (const p of data.planlar) pt[p.id] = { ...p, kapsamMetni: (p.kapsam || []).join("\n") };
+      setPlanTaslaklari(pt);
+    } catch (e) {
+      setHata(e.message);
+    }
+  }
+  useEffect(() => { yukle(); }, []);
+
+  async function gonder(body) {
+    const res = await fetch("/.netlify/functions/emlakpanelim-admin", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "İşlem başarısız");
+    return data;
+  }
+
+  async function uzat(f, gun) {
+    setBekle(f.id + "-uzat");
+    try { await gonder({ aksiyon: "uzat", firmaId: f.id, gun }); await yukle(); }
+    catch (e) { alert(e.message); }
+    setBekle(null);
+  }
+  async function durumDegistir(f, durum) {
+    try { await gonder({ aksiyon: "durum", firmaId: f.id, durum }); await yukle(); }
+    catch (e) { alert(e.message); }
+  }
+  async function faturaKaydet(f) {
+    const t = taslaklar[f.id];
+    setBekle(f.id + "-fatura");
+    try {
+      await gonder({
+        aksiyon: "fatura", firmaId: f.id, alanlar: {
+          fatura_unvani: t.fatura_unvani || null, vergi_dairesi: t.vergi_dairesi || null,
+          vergi_no: t.vergi_no || null, fatura_adresi: t.fatura_adresi || null,
+        },
+      });
+      await yukle();
+    } catch (e) { alert(e.message); }
+    setBekle(null);
+  }
+  async function planKaydet(id) {
+    const t = planTaslaklari[id];
+    setBekle("plan-" + id);
+    try {
+      const kapsam = t.kapsamMetni.split("\n").map((s) => s.trim()).filter(Boolean);
+      await gonder({
+        aksiyon: "plan_kaydet", id, alanlar: {
+          sira: Number(t.sira) || 0, ad: t.ad, kim: t.kim, aylik: Number(t.aylik) || 0, yillik: Number(t.yillik) || 0,
+          one_cikan: !!t.one_cikan, kapsam,
+        },
+      });
+      await yukle();
+    } catch (e) { alert(e.message); }
+    setBekle(null);
+  }
+  async function planSil(id) {
+    if (!window.confirm("Bu paket silinecek ve EmlakPanelim fiyat sayfasından kalkacak. Emin misiniz?")) return;
+    try { await gonder({ aksiyon: "plan_sil", id }); await yukle(); } catch (e) { alert(e.message); }
+  }
+  async function planEkle() {
+    try { await gonder({ aksiyon: "plan_ekle", sira: (veri?.planlar?.length || 0) + 1 }); await yukle(); } catch (e) { alert(e.message); }
+  }
+
+  if (hata) return (
+    <div style={{ color: T.redText, background: T.redDim, borderRadius: 10, padding: 16, fontSize: 13 }}>
+      Hata: {hata}<br />
+      <span style={{ fontSize: 12, color: T.textMuted }}>Netlify ortam değişkenlerini (EMLAK_SUPABASE_URL, EMLAK_SUPABASE_SERVICE_KEY) kontrol edin.</span>
+    </div>
+  );
+  if (!veri) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+
+  const bugun = new Date(new Date().toDateString());
+  const kalan = (f) => Math.round((new Date(f.abonelik_bitis + "T00:00:00") - bugun) / 86400000);
+  const durumEtiket = { deneme: "Deneme", aktif: "Aktif", donduruldu: "Donduruldu" };
+
+  const toplamKullanici = Object.values(veri.detay).reduce((t, d) => t + (d.kullanicilar?.length || 0), 0);
+  const toplamMusteri = Object.values(veri.detay).reduce((t, d) => t + (d.musteri_sayisi || 0), 0);
+  const toplamIlan = Object.values(veri.detay).reduce((t, d) => t + (d.ilan_sayisi || 0), 0);
+  const toplamSatis = Object.values(veri.detay).reduce((t, d) => t + (d.satis_sayisi || 0), 0);
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginBottom: 20 }}>
+        {[["Toplam Firma", veri.firmalar.length], ["Kullanıcı", toplamKullanici], ["Müşteri Kaydı", toplamMusteri], ["Portföy", toplamIlan], ["Satış", toplamSatis]].map(([lbl, val]) => (
+          <div key={lbl} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: T.textPrimary }}>{val}</div>
+            <div style={{ fontSize: 11, color: T.textMuted }}>{lbl}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 10 }}>Abone Firmalar</div>
+      <div style={{ display: "grid", gap: 10, marginBottom: 28 }}>
+        {veri.firmalar.map((f) => {
+          const g = kalan(f);
+          const acik = acikFirma === f.id;
+          const d = veri.detay[f.id] || {};
+          const t = taslaklar[f.id] || f;
+          return (
+            <div key={f.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{f.ad}</div>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>{f.eposta} · {f.telefon || "—"}</div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 6, background: f.durum === "aktif" ? T.greenDim : f.durum === "deneme" ? T.indigoDim : T.redDim, color: f.durum === "aktif" ? T.greenText : f.durum === "deneme" ? T.indigoText : T.redText }}>{durumEtiket[f.durum]}</span>
+                  <span style={{ fontSize: 11, color: g < 0 ? T.redText : g <= 5 ? T.amberText : T.textMuted }}>{g < 0 ? `${-g} gün geçti` : `${g} gün kaldı`}</span>
+                  <Btn onClick={() => setAcikFirma(acik ? null : f.id)}>{acik ? "Kapat" : "Detay"}</Btn>
+                  <Btn onClick={() => uzat(f, 30)}>{bekle === f.id + "-uzat" ? "..." : "+1 ay"}</Btn>
+                  <Btn onClick={() => uzat(f, 365)}>+1 yıl</Btn>
+                  {f.durum !== "donduruldu"
+                    ? <Btn onClick={() => durumDegistir(f, "donduruldu")} style={{ color: T.redText }}>Dondur</Btn>
+                    : <Btn onClick={() => durumDegistir(f, "aktif")}>Aç</Btn>}
+                </div>
+              </div>
+
+              {acik && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 12, color: T.textSecondary, marginBottom: 14 }}>
+                    <span>İlan: {d.ilan_sayisi ?? 0}</span><span>Müşteri: {d.musteri_sayisi ?? 0}</span>
+                    <span>Kira: {d.kira_sayisi ?? 0}</span><span>Satış: {d.satis_sayisi ?? 0}</span><span>Talep: {d.talep_sayisi ?? 0}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Kullanıcılar</div>
+                  <div style={{ marginBottom: 16 }}>
+                    {(d.kullanicilar || []).map((k, i) => (
+                      <div key={i} style={{ fontSize: 12, color: T.textSecondary, padding: "4px 0" }}>{k.ad_soyad || "-"} · {k.eposta} · {k.rol === "yonetici" ? "Yönetici" : "Danışman"} · {k.onayli ? "Açık" : "Kapalı"}</div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Fatura Bilgileri</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <FormField label="Fatura Unvanı"><Input value={t.fatura_unvani || ""} onChange={(e) => setTaslaklar((ts) => ({ ...ts, [f.id]: { ...ts[f.id], fatura_unvani: e.target.value } }))} /></FormField>
+                    <FormField label="Vergi Dairesi"><Input value={t.vergi_dairesi || ""} onChange={(e) => setTaslaklar((ts) => ({ ...ts, [f.id]: { ...ts[f.id], vergi_dairesi: e.target.value } }))} /></FormField>
+                    <FormField label="Vergi No / TC Kimlik No"><Input value={t.vergi_no || ""} onChange={(e) => setTaslaklar((ts) => ({ ...ts, [f.id]: { ...ts[f.id], vergi_no: e.target.value } }))} /></FormField>
+                    <FormField label="Fatura Adresi"><Input value={t.fatura_adresi || ""} onChange={(e) => setTaslaklar((ts) => ({ ...ts, [f.id]: { ...ts[f.id], fatura_adresi: e.target.value } }))} /></FormField>
+                  </div>
+                  <Btn variant="primary" onClick={() => faturaKaydet(f)}>{bekle === f.id + "-fatura" ? "Kaydediliyor..." : "Fatura Bilgilerini Kaydet"}</Btn>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>Fiyat Planları (emlakpanelim.com/fiyatlar)</div>
+        <Btn onClick={planEkle}>+ Yeni Paket</Btn>
+      </div>
+      <div style={{ display: "grid", gap: 10 }}>
+        {(veri.planlar || []).map((p) => {
+          const t = planTaslaklari[p.id] || { ...p, kapsamMetni: (p.kapsam || []).join("\n") };
+          return (
+            <div key={p.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <FormField label="Sıra"><Input type="number" value={t.sira ?? 0} onChange={(e) => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], sira: e.target.value } }))} /></FormField>
+                <FormField label="Paket Adı"><Input value={t.ad || ""} onChange={(e) => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], ad: e.target.value } }))} /></FormField>
+                <FormField label="Kimin İçin"><Input value={t.kim || ""} onChange={(e) => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], kim: e.target.value } }))} /></FormField>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10, alignItems: "end" }}>
+                <FormField label="Aylık Fiyat (₺)"><Input type="number" value={t.aylik ?? 0} onChange={(e) => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], aylik: e.target.value } }))} /></FormField>
+                <FormField label="Yıllık Fiyat (₺)"><Input type="number" value={t.yillik ?? 0} onChange={(e) => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], yillik: e.target.value } }))} /></FormField>
+                <PermToggle label="Öne çıkan" checked={!!t.one_cikan} onChange={() => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], one_cikan: !t.one_cikan } }))} />
+              </div>
+              <FormField label="Kapsam (her satıra bir madde)"><Textarea minHeight={100} value={t.kapsamMetni || ""} onChange={(e) => setPlanTaslaklari((pt) => ({ ...pt, [p.id]: { ...pt[p.id], kapsamMetni: e.target.value } }))} /></FormField>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="primary" onClick={() => planKaydet(p.id)}>{bekle === "plan-" + p.id ? "Kaydediliyor..." : "Kaydet"}</Btn>
+                <Btn onClick={() => planSil(p.id)} style={{ color: T.redText }}>Sil</Btn>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
@@ -5999,6 +6196,7 @@ const NAV=[
   {id:"inventory",label:"Envanter",icon:"🎒"},
   {id:"yearly",label:"Yıllık Özet",icon:"📊"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
+  {id:"emlakpanelim",label:"EmlakPanelim",icon:"🏘️"},
 ];
 
 // ─────────────────────────────────────────────
@@ -9356,7 +9554,7 @@ export default function App() {
         {isMobile && <button onClick={()=>setDrawerOpen(false)} style={{background:"none",border:"none",color:T.textMuted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>}
       </div>
       <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
-        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports) && (item.id !== 'yearly' || perms.finance || perms.isAdmin)).map(item=>(
+        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports) && (item.id !== 'yearly' || perms.finance || perms.isAdmin) && (item.id !== 'emlakpanelim' || perms.isAdmin)).map(item=>(
           <div key={item.id} onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
@@ -9401,7 +9599,7 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'mail' ? (isMobile?'📧':'📧 E-posta') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'mail' ? (isMobile?'📧':'📧 E-posta') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : page === 'emlakpanelim' ? (isMobile?'🏘️':'🏘️ EmlakPanelim') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
@@ -9423,6 +9621,7 @@ export default function App() {
         {page==="accounting"&&<AccountingPage clients={clients} staff={staff} perms={perms}/>}
         {page==="inventory"&&<InventoryPage perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
+        {page==="emlakpanelim"&&<EmlakPanelimPage/>}
       </div>
     </div>
   </div>;
