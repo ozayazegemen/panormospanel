@@ -23,7 +23,7 @@ exports.handler = async (event) => {
 
   try {
     if (event.httpMethod === "GET") {
-      const [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes] = await Promise.all([
+      const [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes, ayarRes] = await Promise.all([
         supabase.from("firmalar").select("*").order("created_at", { ascending: false }),
         supabase.from("ilanlar").select("firma_id").is("silinme_tarihi", null),
         supabase.from("musteriler").select("firma_id").is("silinme_tarihi", null),
@@ -32,6 +32,7 @@ exports.handler = async (event) => {
         supabase.from("talepler").select("firma_id").is("silinme_tarihi", null),
         supabase.from("profiller").select("id, firma_id, ad_soyad, eposta, rol, onayli, created_at"),
         supabase.from("fiyat_planlari").select("*").order("sira", { ascending: true }),
+        supabase.from("sistem_ayarlari").select("deneme_suresi_gun").eq("id", true).single(),
       ]);
       for (const r of [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes]) {
         if (r.error) throw r.error;
@@ -50,7 +51,7 @@ exports.handler = async (event) => {
         };
       }
 
-      return { statusCode: 200, headers, body: JSON.stringify({ firmalar: firmalarRes.data, detay, planlar: planlarRes.data }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ firmalar: firmalarRes.data, detay, planlar: planlarRes.data, denemeSuresiGun: ayarRes.data?.deneme_suresi_gun ?? 14 }) };
     }
 
     if (event.httpMethod === "POST") {
@@ -97,6 +98,16 @@ exports.handler = async (event) => {
         const { error } = await supabase.from("fiyat_planlari").insert({
           sira: Number(body.sira) || 0, ad: "Yeni Paket", kim: "", aylik: 0, yillik: 0, one_cikan: false, kapsam: [],
         });
+        if (error) throw error;
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      }
+
+      if (aksiyon === "deneme_suresi_kaydet") {
+        const gun = Number(body.gun);
+        if (!Number.isFinite(gun) || gun < 1) {
+          return { statusCode: 400, headers, body: JSON.stringify({ error: "Geçersiz gün sayısı" }) };
+        }
+        const { error } = await supabase.from("sistem_ayarlari").update({ deneme_suresi_gun: gun }).eq("id", true);
         if (error) throw error;
         return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
       }
