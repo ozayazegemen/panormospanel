@@ -5990,6 +5990,8 @@ function EmlakPanelimPage() {
   const [taslaklar, setTaslaklar] = useState({});
   const [planTaslaklari, setPlanTaslaklari] = useState({});
   const [bekle, setBekle] = useState(null);
+  const [denemeTaslak, setDenemeTaslak] = useState("14");
+  const [denemeBekle, setDenemeBekle] = useState(false);
 
   async function yukle() {
     setHata("");
@@ -6004,6 +6006,7 @@ function EmlakPanelimPage() {
       const pt = {};
       for (const p of data.planlar) pt[p.id] = { ...p, kapsamMetni: (p.kapsam || []).join("\n") };
       setPlanTaslaklari(pt);
+      setDenemeTaslak(String(data.denemeSuresiGun ?? 14));
     } catch (e) {
       setHata(e.message);
     }
@@ -6017,6 +6020,15 @@ function EmlakPanelimPage() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "İşlem başarısız");
     return data;
+  }
+
+  async function denemeSuresiKaydet() {
+    const gun = Number(denemeTaslak);
+    if (!Number.isFinite(gun) || gun < 1) { alert("Geçerli bir gün sayısı girin."); return; }
+    setDenemeBekle(true);
+    try { await gonder({ aksiyon: "deneme_suresi_kaydet", gun }); await yukle(); }
+    catch (e) { alert(e.message); }
+    setDenemeBekle(false);
   }
 
   async function uzat(f, gun) {
@@ -6092,6 +6104,18 @@ function EmlakPanelimPage() {
             <div style={{ fontSize: 11, color: T.textMuted }}>{lbl}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 20, maxWidth: 420 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 6 }}>Ücretsiz deneme süresi</div>
+        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 10 }}>
+          Yeni kaydolan firmalara tanınan varsayılan süre. Sadece bundan sonraki kayıtları etkiler.
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Input type="number" style={{ width: 80 }} value={denemeTaslak} onChange={(e) => setDenemeTaslak(e.target.value)} />
+          <span style={{ fontSize: 13, color: T.textMuted }}>gün</span>
+          <Btn variant="primary" onClick={denemeSuresiKaydet}>{denemeBekle ? "Kaydediliyor..." : "Kaydet"}</Btn>
+        </div>
       </div>
 
       <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 10 }}>Abone Firmalar</div>
