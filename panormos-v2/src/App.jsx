@@ -6041,6 +6041,19 @@ function EmlakPanelimPage() {
     try { await gonder({ aksiyon: "durum", firmaId: f.id, durum }); await yukle(); }
     catch (e) { alert(e.message); }
   }
+  async function firmaSil(f) {
+    const onay = window.prompt(
+      `"${f.ad}" firmasını ve TÜM verilerini (ilanlar, müşteriler, mal sahipleri, sözleşmeler, ekip hesapları) KALICI olarak sileceksiniz. Bu işlem GERİ ALINAMAZ.\n\nOnaylamak için firma adını tam olarak yazın:`
+    );
+    if (onay !== f.ad) {
+      if (onay !== null) alert("Firma adı eşleşmedi, silme iptal edildi.");
+      return;
+    }
+    setBekle(f.id + "-sil");
+    try { await gonder({ aksiyon: "firma_sil", firmaId: f.id }); await yukle(); }
+    catch (e) { alert(e.message); }
+    setBekle(null);
+  }
   async function faturaKaydet(f) {
     const t = taslaklar[f.id];
     setBekle(f.id + "-fatura");
@@ -6141,6 +6154,7 @@ function EmlakPanelimPage() {
                   {f.durum !== "donduruldu"
                     ? <Btn onClick={() => durumDegistir(f, "donduruldu")} style={{ color: T.redText }}>Dondur</Btn>
                     : <Btn onClick={() => durumDegistir(f, "aktif")}>Aç</Btn>}
+                  <Btn onClick={() => firmaSil(f)} style={{ color: T.redText }}>{bekle === f.id + "-sil" ? "..." : "Sil"}</Btn>
                 </div>
               </div>
 
