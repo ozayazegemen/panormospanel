@@ -112,6 +112,12 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
       }
 
+      if (aksiyon === "firma_sil") {
+        const { error } = await supabase.rpc("admin_firma_sil", { hedef_firma_id: body.firmaId });
+        if (error) throw error;
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      }
+
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Bilinmeyen aksiyon: " + aksiyon }) };
     }
 
