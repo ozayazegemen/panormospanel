@@ -7146,7 +7146,12 @@ async function extractInvoiceWithAI(file, kind, clientName) {
 }
 
 async function uploadAccountingDoc(file, prefix) {
-  const path = `${prefix}/${Date.now()}-${file.name}`;
+  const safeName = file.name
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")   // aksanları kaldır
+    .replace(/ğ/gi,"g").replace(/ü/gi,"u").replace(/ş/gi,"s")
+    .replace(/ı/gi,"i").replace(/ö/gi,"o").replace(/ç/gi,"c")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");                  // boşluk ve özel karakterleri _ yap
+  const path = `${prefix}/${Date.now()}-${safeName}`;
   const { data, error } = await supabase.storage.from('client-media').upload(path, file);
   if (error) throw error;
   let url = "";
