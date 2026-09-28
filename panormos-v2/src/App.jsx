@@ -7499,6 +7499,7 @@ function AccountingIncome() {
 // ═══════════════ MÜŞTERİ CARİ ═══════════════
 function AccountingCari({ clients }) {
   const [payments, setPayments] = useState([]);
+  const [clientInvoices, setClientInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
@@ -7506,8 +7507,12 @@ function AccountingCari({ clients }) {
   const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase.from('client_payments').select('*').order('payment_date', { ascending: false });
-    setPayments(data || []);
+    const [{ data: payData }, { data: invData }] = await Promise.all([
+      supabase.from('client_payments').select('*').order('payment_date', { ascending: false }),
+      supabase.from('client_invoices').select('*'),
+    ]);
+    setPayments(payData || []);
+    setClientInvoices(invData || []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -7520,8 +7525,20 @@ function AccountingCari({ clients }) {
     const paidByMonth = {};
     cPayments.forEach(p => { if (p.month_ref) paidByMonth[p.month_ref] = (paidByMonth[p.month_ref] || 0) + Number(p.amount || 0); });
     const totalPaid = cPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const unpaidMonths = months.filter(m => (paidByMonth[m] || 0) < (c.monthlyFee || 0));
-    const expected = months.length * (c.monthlyFee || 0);
+
+    // Fatura tabanlı hesaplama: sadece gerçekten fatura kesilmiş aylar borç sayılır
+    const cInvoices = clientInvoices.filter(i => i.client_id === c.id && i.month_ref);
+    const invoicedMonthSet = new Set(cInvoices.map(i => i.month_ref));
+    const hasInvoices = cInvoices.length > 0;
+
+    const unpaidMonths = hasInvoices
+      ? months.filter(m => invoicedMonthSet.has(m) && (paidByMonth[m] || 0) < (c.monthlyFee || 0))
+      : months.filter(m => (paidByMonth[m] || 0) > 0 && (paidByMonth[m] || 0) < (c.monthlyFee || 0));
+
+    const expected = hasInvoices
+      ? cInvoices.reduce((s, i) => s + Number(i.total || 0), 0)
+      : totalPaid; // fatura yoksa yapay borç oluşturma
+
     const balance = expected - totalPaid;
     return { client: c, months, cPayments, paidByMonth, totalPaid, unpaidMonths, expected, balance };
   });
