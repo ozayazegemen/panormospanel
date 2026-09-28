@@ -7685,8 +7685,20 @@ function AccountingCari({ clients }) {
                         const invAmount = inv ? Number(inv.total || 0) : (cs.client.monthlyFee || 0);
                         const full = inv ? paid >= invAmount : paid >= (cs.client.monthlyFee || 0);
                         const partial = paid > 0 && !full;
+                        const hasPay = paid > 0;
                         return (
-                          <div key={m} style={{ padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
+                          <div key={m} style={{ position: "relative", padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
+                            {hasPay && (
+                              <button onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!window.confirm(`${monthRefLabel(m)} ayına ait tüm ödemeler silinsin mi?`)) return;
+                                const toDelete = cs.cPayments.filter(p => p.month_ref === m);
+                                for (const p of toDelete) {
+                                  await supabase.from('client_payments').delete().eq('id', p.id);
+                                }
+                                load();
+                              }} style={{ position: "absolute", top: 4, right: 4, background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "1px 3px", borderRadius: 4 }} title="Bu ayın ödemelerini sil">✕</button>
+                            )}
                             <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{monthRefLabel(m)}</div>
                             {inv && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>Fatura: {fmtMoney(invAmount)}</div>}
                             <div style={{ fontSize: 10, color: full ? T.greenText : partial ? T.amberText : T.textMuted }}>{full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(paid)}` : "Ödenmedi"}</div>
