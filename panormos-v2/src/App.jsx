@@ -7677,35 +7677,38 @@ function AccountingCari({ clients }) {
                     </div>
                     {/* Fatura yükleme */}
                     <ClientInvoiceUpload clientId={cs.client.id} clientName={cs.client.name} onPaid={load} />
-                    <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylık Ödeme Durumu</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
-                      {cs.months.map(m => {
-                        const paid = cs.paidByMonth[m] || 0;
-                        const inv = cs.cInvoices.find(i => i.month_ref === m);
-                        const invAmount = inv ? Number(inv.total || 0) : (cs.client.monthlyFee || 0);
-                        const full = inv ? paid >= invAmount : paid >= (cs.client.monthlyFee || 0);
-                        const partial = paid > 0 && !full;
-                        const hasPay = paid > 0;
-                        return (
-                          <div key={m} style={{ position: "relative", padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
-                            {hasPay && (
-                              <button onClick={async (e) => {
-                                e.stopPropagation();
-                                if (!window.confirm(`${monthRefLabel(m)} ayına ait tüm ödemeler silinsin mi?`)) return;
-                                const toDelete = cs.cPayments.filter(p => p.month_ref === m);
-                                for (const p of toDelete) {
-                                  await supabase.from('client_payments').delete().eq('id', p.id);
-                                }
-                                load();
-                              }} style={{ position: "absolute", top: 4, right: 4, background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "1px 3px", borderRadius: 4 }} title="Bu ayın ödemelerini sil">✕</button>
-                            )}
-                            <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{monthRefLabel(m)}</div>
-                            {inv && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>Fatura: {fmtMoney(invAmount)}</div>}
-                            <div style={{ fontSize: 10, color: full ? T.greenText : partial ? T.amberText : T.textMuted }}>{full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(paid)}` : "Ödenmedi"}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Faturalı Aylar</div>
+                    {cs.cInvoices.length === 0 ? (
+                      <div style={{ fontSize: 12, color: T.textMuted, padding: "10px 0 8px" }}>Henüz fatura girilmemiş — fatura yüklendiğinde burada görünür.</div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 6, marginBottom: 12 }}>
+                        {cs.cInvoices.sort((a,b) => (a.month_ref||"").localeCompare(b.month_ref||"")).map(inv => {
+                          const m = inv.month_ref;
+                          const invAmount = Number(inv.total || 0);
+                          const paid = cs.paidByMonth[m] || 0;
+                          const full = paid >= invAmount;
+                          const partial = paid > 0 && !full;
+                          return (
+                            <div key={inv.id} style={{ position: "relative", padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
+                              {paid > 0 && (
+                                <button onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (!window.confirm(`${monthRefLabel(m)} ayına ait tüm ödemeler silinsin mi?`)) return;
+                                  const toDelete = cs.cPayments.filter(p => p.month_ref === m);
+                                  for (const p of toDelete) {
+                                    await supabase.from('client_payments').delete().eq('id', p.id);
+                                  }
+                                  load();
+                                }} style={{ position: "absolute", top: 4, right: 4, background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "1px 3px", borderRadius: 4 }} title="Bu ayın ödemelerini sil">✕</button>
+                              )}
+                              <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{m ? monthRefLabel(m) : "—"}</div>
+                              <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>{fmtMoney(invAmount)}</div>
+                              <div style={{ fontSize: 10, color: full ? T.greenText : partial ? T.amberText : T.redText, fontWeight: 500 }}>{full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(paid)}` : "⚠ Ödenmedi"}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     {cs.cPayments.length > 0 && (
                       <>
                         <div style={{ fontSize: 11, color: T.textMuted, margin: "8px 0", fontWeight: 600, textTransform: "uppercase" }}>Ödeme Geçmişi</div>
