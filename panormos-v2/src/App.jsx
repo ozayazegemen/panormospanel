@@ -7505,6 +7505,7 @@ function AccountingIncome() {
 function AccountingCari({ clients }) {
   const [payments, setPayments] = useState([]);
   const [clientInvoices, setClientInvoices] = useState([]);
+  const [allClientsRaw, setAllClientsRaw] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
@@ -7512,18 +7513,36 @@ function AccountingCari({ clients }) {
   const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
-    const [{ data: payData }, { data: invData }] = await Promise.all([
+    const [{ data: payData }, { data: invData }, { data: allCData }] = await Promise.all([
       supabase.from('client_payments').select('*').order('payment_date', { ascending: false }),
       supabase.from('client_invoices').select('*'),
+      supabase.from('clients').select('id,name,initials,accent_color,monthly_fee,contract_start,payment_due_date,deleted_at'),
     ]);
     setPayments(payData || []);
     setClientInvoices(invData || []);
+    setAllClientsRaw(allCData || []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
+  // Aktif müşteriler + sözleşmesi bitmiş ama alacaklı olduğumuz müşteriler
+  const mergedClients = React.useMemo(() => {
+    const activeIds = new Set(clients.map(c => c.id));
+    // Silinmiş/pasif müşterilerden faturası olanları ekle
+    const departed = (allClientsRaw || [])
+      .filter(c => c.deleted_at && !activeIds.has(c.id))
+      .filter(c => clientInvoices.some(i => i.client_id === c.id))
+      .map(c => ({
+        id: c.id, name: c.name, initials: (c.initials || ""), accentColor: c.accent_color || "#9CA3AF",
+        monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
+        paymentDueDate: c.payment_due_date || null, phone: "", email: "",
+        _departed: true,
+      }));
+    return [...clients, ...departed];
+  }, [clients, allClientsRaw, clientInvoices]);
+
   const nowRef = currentMonthRef();
-  const clientStats = clients.map(c => {
+  const clientStats = mergedClients.map(c => {
     const startRef = parseContractStartToRef(c.contractStart) || `${new Date().getFullYear()}-01`;
     const months = generateMonthRange(startRef, nowRef);
     const cPayments = payments.filter(p => p.client_id === c.id);
@@ -7643,7 +7662,7 @@ function AccountingCari({ clients }) {
                 <div onClick={() => setExpanded(isOpen ? null : cs.client.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", borderLeft: `3px solid ${cs.client.accentColor}` }}>
                   <div style={{ width: 38, height: 38, borderRadius: "50%", background: cs.client.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{cs.client.initials}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{cs.client.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{cs.client.name}{cs.client._departed && <span style={{ marginLeft: 6, fontSize: 10, background: T.bgInput, color: T.textMuted, borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>Ayrıldı</span>}</div>
                     <div style={{ fontSize: 11, color: T.textMuted }}>Aylık {fmtMoney(cs.client.monthlyFee)} · {cs.unpaidMonths.length} ay ödenmemiş</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
