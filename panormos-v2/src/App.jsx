@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 
@@ -7526,7 +7526,7 @@ function AccountingCari({ clients }) {
   useEffect(() => { load(); }, []);
 
   // Aktif müşteriler + sözleşmesi bitmiş ama alacaklı olduğumuz müşteriler
-  const mergedClients = React.useMemo(() => {
+  const mergedClients = useMemo(() => {
     const activeIds = new Set(clients.map(c => c.id));
     // Silinmiş/pasif müşterilerden faturası olanları ekle
     const departed = (allClientsRaw || [])
