@@ -7540,7 +7540,7 @@ function AccountingCari({ clients }) {
       : totalPaid; // fatura yoksa yapay borç oluşturma
 
     const balance = expected - totalPaid;
-    return { client: c, months, cPayments, paidByMonth, totalPaid, unpaidMonths, expected, balance };
+    return { client: c, months, cPayments, paidByMonth, totalPaid, unpaidMonths, expected, balance, cInvoices, invoicedMonthSet };
   });
 
   const totalExpected = clientStats.reduce((s, cs) => s + cs.expected, 0);
@@ -7681,11 +7681,14 @@ function AccountingCari({ clients }) {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 6, marginBottom: 12 }}>
                       {cs.months.map(m => {
                         const paid = cs.paidByMonth[m] || 0;
-                        const full = paid >= (cs.client.monthlyFee || 0);
+                        const inv = cs.cInvoices.find(i => i.month_ref === m);
+                        const invAmount = inv ? Number(inv.total || 0) : (cs.client.monthlyFee || 0);
+                        const full = inv ? paid >= invAmount : paid >= (cs.client.monthlyFee || 0);
                         const partial = paid > 0 && !full;
                         return (
                           <div key={m} style={{ padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
                             <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{monthRefLabel(m)}</div>
+                            {inv && <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>Fatura: {fmtMoney(invAmount)}</div>}
                             <div style={{ fontSize: 10, color: full ? T.greenText : partial ? T.amberText : T.textMuted }}>{full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(paid)}` : "Ödenmedi"}</div>
                           </div>
                         );
