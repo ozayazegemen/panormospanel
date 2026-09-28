@@ -7548,22 +7548,29 @@ function AccountingCari({ clients }) {
     const cPayments = payments.filter(p => p.client_id === c.id);
     const paidByMonth = {};
     cPayments.forEach(p => { if (p.month_ref) paidByMonth[p.month_ref] = (paidByMonth[p.month_ref] || 0) + Number(p.amount || 0); });
-    const totalPaid = cPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
 
     // Fatura tabanlı hesaplama: sadece gerçekten fatura kesilmiş aylar borç sayılır
     const cInvoices = clientInvoices.filter(i => i.client_id === c.id && i.month_ref);
     const invoicedMonthSet = new Set(cInvoices.map(i => i.month_ref));
     const hasInvoices = cInvoices.length > 0;
 
-    const unpaidMonths = hasInvoices
-      ? months.filter(m => invoicedMonthSet.has(m) && (paidByMonth[m] || 0) < (c.monthlyFee || 0))
-      : months.filter(m => (paidByMonth[m] || 0) > 0 && (paidByMonth[m] || 0) < (c.monthlyFee || 0));
+    // Tahsilat: sadece faturalı aylara yapılan ödemeler sayılır
+    const invoicedTotalPaid = hasInvoices
+      ? cInvoices.reduce((s, inv) => s + (paidByMonth[inv.month_ref] || 0), 0)
+      : 0;
+    const totalPaid = invoicedTotalPaid; // özet kartlarda gerçek tahsilat
 
     const expected = hasInvoices
       ? cInvoices.reduce((s, i) => s + Number(i.total || 0), 0)
-      : totalPaid; // fatura yoksa yapay borç oluşturma
+      : 0; // fatura yoksa beklenen de sıfır
 
     const balance = expected - totalPaid;
+
+    const unpaidMonths = cInvoices.filter(inv => {
+      const paid = paidByMonth[inv.month_ref] || 0;
+      return paid < Number(inv.total || 0);
+    }).map(inv => inv.month_ref);
+
     return { client: c, months, cPayments, paidByMonth, totalPaid, unpaidMonths, expected, balance, cInvoices, invoicedMonthSet };
   });
 
