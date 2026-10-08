@@ -1,4 +1,4 @@
-// netlify/functions/claude.js
+// netlify/functions/claude.cjs
 // Panel -> bu fonksiyon -> Anthropic API. API anahtari tarayiciya hic gitmez.
 exports.handler = async (event) => {
   const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
