@@ -4140,7 +4140,8 @@ function weatherInfo(code) {
   return { icon: "🌡️", label: "—" };
 }
 
-function WeatherWidget({ compact }) {
+function WeatherWidget({ compact, mini }) {
+  const [expanded, setExpanded] = useState(false); // mini modda: tek satır ↔ tam detay
   const [cityIdx, setCityIdx] = useState(() => {
     const saved = typeof localStorage !== "undefined" ? localStorage.getItem("weatherCity") : null;
     const i = WEATHER_CITIES.findIndex(c => c.name === saved);
@@ -4181,11 +4182,39 @@ function WeatherWidget({ compact }) {
     <div style={{ background: "linear-gradient(135deg, #2563EB, #0EA5E9)", borderRadius: 14, padding: compact ? "14px 16px" : "18px 20px", color: "#fff", boxShadow: "0 4px 14px rgba(37,99,235,0.25)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, gap: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.9, textTransform: "uppercase", letterSpacing: "0.04em" }}>🌤️ Hava Durumu</div>
-        {citySelect}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {citySelect}
+          {mini && <button onClick={() => setExpanded(false)} style={miniBtnStyle}>Küçült ▴</button>}
+        </div>
       </div>
       {children}
     </div>
   );
+
+  const miniBtnStyle = { background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 8, padding: "5px 10px", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" };
+
+  // Mini mod (Ana Sayfa): tek satırlık özet şerit; "Detay" ile tam görünüm açılır
+  if (mini && !expanded) {
+    const bar = (children, canExpand) => (
+      <div style={{ background: "linear-gradient(135deg, #2563EB, #0EA5E9)", borderRadius: 12, padding: "8px 14px", color: "#fff", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        {children}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          {citySelect}
+          {canExpand && <button onClick={() => setExpanded(true)} style={miniBtnStyle}>Detay ▾</button>}
+        </div>
+      </div>
+    );
+    if (loading) return bar(<div style={{ fontSize: 12.5, opacity: 0.85 }}>🌤️ Hava durumu yükleniyor...</div>, false);
+    if (err || !data?.current) return bar(<div style={{ fontSize: 12.5, opacity: 0.85 }}>🌤️ Hava durumu alınamadı</div>, false);
+    const c = data.current, dd = data.daily, info = weatherInfo(dd.weather_code[0]);
+    return bar(
+      <>
+        <div style={{ fontSize: 24, lineHeight: 1 }}>{info.icon}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1 }}>{Math.round(c.temperature_2m)}°</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{info.label}</div>
+        <div style={{ fontSize: 11.5, opacity: 0.92 }}>🔺 {Math.round(dd.temperature_2m_max[0])}° · 🔻 {Math.round(dd.temperature_2m_min[0])}° · 💨 {Math.round(c.wind_speed_10m)} km/s · 💧 %{c.relative_humidity_2m}</div>
+      </>, true);
+  }
 
   if (loading) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Yükleniyor...</div>);
   if (err || !data?.current) return wrap(<div style={{ fontSize: 13, opacity: 0.85, padding: "10px 0" }}>Hava durumu alınamadı (internet?). Tekrar deneyin.</div>);
@@ -5587,7 +5616,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
     })()}
 
     {/* Hava Durumu */}
-    <div style={{marginBottom:16}}><WeatherWidget /></div>
+    <div style={{marginBottom:16}}><WeatherWidget mini /></div>
 
     {/* Finansal Özet - sadece yönetici görür */}
     {perms.companyFinance && (
