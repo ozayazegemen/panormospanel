@@ -4946,11 +4946,20 @@ function DriveFilesPage({ clients }) {
 // ─────────────────────────────────────────────
 // CALENDAR PAGE
 // ─────────────────────────────────────────────
-function CalendarPage({clients}) {
+function CalendarPage({clients, staff, setPage}) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
-  const [selectedDay, setSelectedDay] = useState(null); // Tıklanan günün detayı
+  const [selectedDate, setSelectedDate] = useState(null); // Tıklanan günün tarihi (YYYY-MM-DD)
+  const [shoots, setShoots] = useState([]);
+
+  // Takvim, Çekimler sayfasındaki planlı çekimleri gösterir (müşteri paylaşım günlerinden bağımsız)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('shoots').select('*').order('shoot_date', { ascending: true });
+      setShoots((data || []).filter(s => s.status !== "cancelled"));
+    })();
+  }, []);
 
   const cells = getMonthGrid(viewYear, viewMonth);
 
@@ -4965,23 +4974,24 @@ function CalendarPage({clients}) {
   const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
 
   const isRealToday = (day, currentMonth) => currentMonth && viewYear===today.getFullYear() && viewMonth===today.getMonth() && day===today.getDate();
-  const getWeekday = (cellIndex) => cellIndex % 7;
-  
-  const TR_WEEKDAY_INDEX = {Pazartesi:0,Salı:1,Çarşamba:2,Perşembe:3,Cuma:4,Cumartesi:5,Pazar:6};
-  function getWeekdayIndex(dayName) {
-    const map = {
-      "pazartesi":"Pazartesi", "salı":"Salı", "sali":"Salı",
-      "çarşamba":"Çarşamba", "carsamba":"Çarşamba",
-      "perşembe":"Perşembe", "persembe":"Perşembe",
-      "cuma":"Cuma", "cumartesi":"Cumartesi", "pazar":"Pazar",
-    };
-    const lower = dayName.trim().toLocaleLowerCase("tr-TR");
-    const normalized = map[lower] || dayName.trim();
-    return TR_WEEKDAY_INDEX[normalized];
-  }
+  const WD_NAMES = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"];
+  const dateStrOf = (day) => `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+  const weekdayOf = (dStr) => (new Date(dStr + "T00:00:00").getDay() + 6) % 7; // Pazartesi = 0
+
+  const clientOf = (id) => clients.find(c => c.id === id);
+  const staffName = (id) => (staff || []).find(s => s.id === id)?.name || "";
+  const shootsOfDay = (dStr) => shoots.filter(s => s.shoot_date === dStr).sort((a, b) => (a.shoot_time || "").localeCompare(b.shoot_time || ""));
+  // Görevlerden eklenen ek çekimler (Çekimler sayfasında kaydı olmayanlar)
+  const taskShootsOfDay = (dStr) => clients.flatMap(c => (c.extraShoots || []).filter(s => s.date === dStr && !s.shootId).map(s => ({ client: c, title: s.title })));
+
+  const selShoots = selectedDate ? shootsOfDay(selectedDate) : [];
+  const selTaskShoots = selectedDate ? taskShootsOfDay(selectedDate) : [];
+  const selTitle = selectedDate ? `${parseInt(selectedDate.slice(8))} ${TR_MONTHS[viewMonth]} ${viewYear} — ${WD_NAMES[weekdayOf(selectedDate)]}` : "";
+  const shootRow = (s) => ({ "Saat": s.shoot_time || "—", "Müşteri": clientOf(s.client_id)?.name || "—", "Çekim": s.title || "—", "Konum": s.location || "—", "Sorumlu": staffName(s.assigned_to) || "—", "Durum": s.status === "done" ? "Tamamlandı" : "Planlı" });
+  const taskShootRow = (x) => ({ "Saat": "—", "Müşteri": x.client.name, "Çekim": x.title || "Ek çekim", "Konum": "—", "Sorumlu": "—", "Durum": "Görevden" });
 
   return <div>
-    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,flexWrap:"wrap"}}>
       <button onClick={goPrevMonth} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:14}}>‹</button>
       <span style={{fontSize:15,fontWeight:600,color:T.textPrimary,flex:1}}>{TR_MONTHS[viewMonth]} {viewYear}</span>
       <button onClick={goToday} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.amberText,cursor:"pointer",fontSize:11,fontWeight:600}}>Bugün</button>
@@ -4989,24 +4999,17 @@ function CalendarPage({clients}) {
         const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
         const rows = [];
         for (let d = 1; d <= daysInMonth; d++) {
-          const date = new Date(viewYear, viewMonth, d);
-          let wd = date.getDay(); wd = wd === 0 ? 6 : wd - 1;
-          const pub = clients.filter(c => c.publishDays.some(dn => getWeekdayIndex(dn) === wd));
-          const shoot = clients.filter(c => c.shootDays.some(dn => getWeekdayIndex(dn) === wd));
-          if (pub.length > 0 || shoot.length > 0) {
-            rows.push({
-              "Tarih": `${d} ${TR_MONTHS[viewMonth]} ${viewYear}`,
-              "Gün": ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd],
-              "Paylaşımlar": pub.map(c=>c.name).join(", ") || "—",
-              "Çekimler": shoot.map(c=>c.name).join(", ") || "—",
-            });
-          }
+          const dStr = dateStrOf(d);
+          const head = { "Tarih": `${d} ${TR_MONTHS[viewMonth]} ${viewYear}`, "Gün": WD_NAMES[weekdayOf(dStr)] };
+          shootsOfDay(dStr).forEach(s => rows.push({ ...head, ...shootRow(s) }));
+          taskShootsOfDay(dStr).forEach(x => rows.push({ ...head, ...taskShootRow(x) }));
         }
-        if (rows.length === 0) { swalAlert("Bu ayda planlanmış paylaşım/çekim yok"); return; }
-        printData(`İçerik Takvimi - ${TR_MONTHS[viewMonth]} ${viewYear}`, rows);
+        if (rows.length === 0) { swalAlert("Bu ayda planlanmış çekim yok"); return; }
+        printData(`Çekim Takvimi - ${TR_MONTHS[viewMonth]} ${viewYear}`, rows);
       }} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>🖨️ Yazdır</button>
+      {setPage && <button onClick={()=>setPage("shoots")} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>📷 Çekimleri Yönet</button>}
       <div style={{display:"flex",gap:12}}>
-        {[{l:"Paylaşım",c:T.amberText},{l:"Çekim",c:"#F9A8D4"}].map(l=>(
+        {[{l:"Çekim",c:"#F9A8D4"},{l:"Tamamlandı",c:T.greenText},{l:"Görevden",c:"#C4B5FD"}].map(l=>(
           <div key={l.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
         ))}
       </div>
@@ -5015,14 +5018,12 @@ function CalendarPage({clients}) {
     <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
       {["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(d=><div key={d} style={{fontSize:11,color:T.textMuted,textAlign:"center",padding:"4px 0",fontWeight:600,letterSpacing:"0.04em"}}>{d}</div>)}
       {cells.map((cell,i)=>{
-        const weekday = getWeekday(i);
         const isToday = isRealToday(cell.day, cell.currentMonth);
-        const dateStr = cell.currentMonth ? `${viewYear}-${String(viewMonth+1).padStart(2,"0")}-${String(cell.day).padStart(2,"0")}` : "";
-        const publishClients = cell.currentMonth ? clients.filter(c => c.publishDays.some(d => getWeekdayIndex(d) === weekday)) : [];
-        const shootClients = cell.currentMonth ? clients.filter(c => c.shootDays.some(d => getWeekdayIndex(d) === weekday)) : [];
-        const extraShootClients = cell.currentMonth ? clients.filter(c => (c.extraShoots||[]).some(s => s.date === dateStr)).map(c => ({ ...c, _shootTitle: (c.extraShoots||[]).find(s=>s.date===dateStr)?.title })) : [];
-        const hasContent = publishClients.length > 0 || shootClients.length > 0 || extraShootClients.length > 0;
-        return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDay({day:cell.day, weekday, publishClients, shootClients, extraShootClients}); }} style={{
+        const dateStr = cell.currentMonth ? dateStrOf(cell.day) : "";
+        const dayShoots = cell.currentMonth ? shootsOfDay(dateStr) : [];
+        const dayTaskShoots = cell.currentMonth ? taskShootsOfDay(dateStr) : [];
+        const total = dayShoots.length + dayTaskShoots.length;
+        return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDate(dateStr); }} style={{
           minHeight:90,
           background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
           border:`1px solid ${isToday?"#223A5988":T.border}`,
@@ -5034,98 +5035,74 @@ function CalendarPage({clients}) {
         onMouseEnter={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=T.borderLight; }}
         onMouseLeave={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=isToday?"#223A5988":T.border; }}>
           <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
-          {publishClients.slice(0,2).map((c,ci)=>(
-            <div key={"p"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(242,81,36,0.16)",color:T.amberText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>{(c.publishTimes&&c.publishTimes.length>0)?c.publishTimes[0]+" ":""}{c.name}</div>
+          {dayShoots.slice(0,3).map(s=>{
+            const done = s.status === "done";
+            return <div key={s.id} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:done?"rgba(16,185,129,0.16)":"rgba(236,72,153,0.16)",color:done?T.greenText:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${clientOf(s.client_id)?.accentColor||"#EC4899"}`,fontWeight:600}}>{done?"✓ ":"📷 "}{s.shoot_time?s.shoot_time+" ":""}{clientOf(s.client_id)?.name||s.title}</div>;
+          })}
+          {dayTaskShoots.slice(0,Math.max(0,3-dayShoots.length)).map((x,xi)=>(
+            <div key={"t"+xi} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(168,85,247,0.2)",color:"#C4B5FD",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid #A855F7`,fontWeight:600}}>📸 {x.client.name}</div>
           ))}
-          {extraShootClients.slice(0,2).map((c,ci)=>(
-            <div key={"e"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(168,85,247,0.2)",color:"#C4B5FD",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid #A855F7`,fontWeight:600}}>📸 {c.name}</div>
-          ))}
-          {shootClients.slice(0,2).map((c,ci)=>(
-            <div key={"s"+ci} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(236,72,153,0.16)",color:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${c.accentColor}`,fontWeight:600}}>📷 {c.name}</div>
-          ))}
-          {(publishClients.length+shootClients.length+extraShootClients.length)>6 && <div style={{fontSize:9,color:T.textMuted}}>+{publishClients.length+shootClients.length+extraShootClients.length-6}</div>}
+          {total>3 && <div style={{fontSize:9,color:T.textMuted}}>+{total-3}</div>}
         </div>;
       })}
     </div>
 
     {/* Gün Detay Modalı */}
-    {selectedDay && (
-      <Modal title={`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} — ${["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][selectedDay.weekday]}`} onClose={()=>setSelectedDay(null)} width={560}>
-        {selectedDay.publishClients.length === 0 && selectedDay.shootClients.length === 0 && (selectedDay.extraShootClients||[]).length === 0 ? (
-          <div style={{textAlign:"center",color:T.textMuted,fontSize:13,padding:"30px 0"}}>Bu gün için planlanmış paylaşım veya çekim yok 📭</div>
+    {selectedDate && (
+      <Modal title={selTitle} onClose={()=>setSelectedDate(null)} width={560}>
+        {selShoots.length === 0 && selTaskShoots.length === 0 ? (
+          <div style={{textAlign:"center",color:T.textMuted,fontSize:13,padding:"30px 0"}}>Bu gün için planlanmış çekim yok 📭</div>
         ) : (
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
-            {/* Ek Çekimler (belirli tarihli) */}
-            {(selectedDay.extraShootClients||[]).length > 0 && (
+            {selShoots.length > 0 && (
               <div>
-                <div style={{fontSize:12,fontWeight:700,color:"#C4B5FD",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📸 Ek Çekim ({selectedDay.extraShootClients.length})</div>
+                <div style={{fontSize:12,fontWeight:700,color:"#F9A8D4",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📷 Çekimler ({selShoots.length})</div>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {selectedDay.extraShootClients.map(c=>(
-                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(168,85,247,0.12)",borderRadius:10,borderLeft:`3px solid #A855F7`}}>
-                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
-                        <div style={{fontSize:11,color:T.textMuted}}>{c._shootTitle || "Ek çekim"}{c.phone?" · "+c.phone:""}</div>
-                      </div>
-                      <span style={{fontSize:10,fontWeight:600,padding:"3px 10px",borderRadius:6,background:"rgba(168,85,247,0.2)",color:"#C4B5FD"}}>Ek Çekim</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Paylaşımlar */}
-            {selectedDay.publishClients.length > 0 && (
-              <div>
-                <div style={{fontSize:12,fontWeight:700,color:T.amberText,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📅 Paylaşım Günü ({selectedDay.publishClients.length})</div>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {selectedDay.publishClients.map(c=>(
-                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(242,81,36,0.1)",borderRadius:10,borderLeft:`3px solid ${c.accentColor}`}}>
-                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
-                        <div style={{fontSize:11,color:T.textMuted}}>{c.category||"—"}{c.platforms.length>0?" · "+c.platforms.map(p=>platformConfig[p]?.label).join(", "):""}</div>
-                      </div>
-                      {c.publishTimes && c.publishTimes.length > 0 && (
-                        <div style={{display:"flex",gap:4,flexWrap:"wrap",justifyContent:"flex-end"}}>
-                          {c.publishTimes.map(t=><span key={t} style={{fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:6,background:T.amberDim,color:T.amberText}}>🕐 {t}</span>)}
+                  {selShoots.map(s=>{
+                    const c = clientOf(s.client_id);
+                    const done = s.status === "done";
+                    return (
+                      <div key={s.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:done?"rgba(16,185,129,0.1)":"rgba(236,72,153,0.1)",borderRadius:10,borderLeft:`3px solid ${c?.accentColor||"#EC4899"}`}}>
+                        <div style={{width:38,height:38,borderRadius:"50%",background:c?.accentColor||"#EC4899",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c?.initials||"📷"}</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c?.name||"—"}</div>
+                          <div style={{fontSize:11,color:T.textMuted}}>{[s.title, s.location && "📍 "+s.location, staffName(s.assigned_to) && "👤 "+staffName(s.assigned_to)].filter(Boolean).join(" · ")}</div>
+                          {s.note && <div style={{fontSize:11,color:T.textSecondary,marginTop:3}}>{s.note}</div>}
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                          {s.shoot_time && <span style={{fontSize:11,fontWeight:600,padding:"3px 8px",borderRadius:6,background:T.amberDim,color:T.amberText}}>🕐 {s.shoot_time}</span>}
+                          {done && <span style={{fontSize:10,fontWeight:600,padding:"3px 8px",borderRadius:6,background:T.greenDim,color:T.greenText}}>✓ Tamamlandı</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Çekimler */}
-            {selectedDay.shootClients.length > 0 && (
+            {/* Görevlerden eklenen ek çekimler */}
+            {selTaskShoots.length > 0 && (
               <div>
-                <div style={{fontSize:12,fontWeight:700,color:"#F9A8D4",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📷 Çekim Günü ({selectedDay.shootClients.length})</div>
+                <div style={{fontSize:12,fontWeight:700,color:"#C4B5FD",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📸 Görevden Ek Çekim ({selTaskShoots.length})</div>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {selectedDay.shootClients.map(c=>(
-                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(236,72,153,0.1)",borderRadius:10,borderLeft:`3px solid ${c.accentColor}`}}>
-                      <div style={{width:38,height:38,borderRadius:"50%",background:c.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{c.initials}</div>
+                  {selTaskShoots.map((x,xi)=>(
+                    <div key={xi} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(168,85,247,0.12)",borderRadius:10,borderLeft:`3px solid #A855F7`}}>
+                      <div style={{width:38,height:38,borderRadius:"50%",background:x.client.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{x.client.initials}</div>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{c.name}</div>
-                        <div style={{fontSize:11,color:T.textMuted}}>{c.category||"—"}{c.phone?" · "+c.phone:""}</div>
+                        <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{x.client.name}</div>
+                        <div style={{fontSize:11,color:T.textMuted}}>{x.title || "Ek çekim"}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Yazdır butonu */}
-            <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:4}}>
-              <Btn onClick={()=>{
-                const rows=[];
-                selectedDay.publishClients.forEach(c=>rows.push({"Tür":"📅 Paylaşım","Müşteri":c.name,"Kategori":c.category||"—","Saat":(c.publishTimes||[]).join(", ")||"—","Platform":c.platforms.map(p=>platformConfig[p]?.label).join(", ")||"—"}));
-                selectedDay.shootClients.forEach(c=>rows.push({"Tür":"📷 Çekim","Müşteri":c.name,"Kategori":c.category||"—","Saat":"—","Platform":"—"}));
-                printData(`${selectedDay.day} ${TR_MONTHS[viewMonth]} ${viewYear} Günü Planı`, rows);
-              }} style={{fontSize:12,padding:"7px 14px"}}>🖨️ Bu Günü Yazdır</Btn>
-            </div>
           </div>
         )}
+        <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}>
+          {(selShoots.length > 0 || selTaskShoots.length > 0) && <Btn onClick={()=>printData(`${selTitle} Çekim Planı`, [...selShoots.map(shootRow), ...selTaskShoots.map(taskShootRow)])} style={{fontSize:12,padding:"7px 14px"}}>🖨️ Bu Günü Yazdır</Btn>}
+          {setPage && <Btn variant="primary" onClick={()=>setPage("shoots")} style={{fontSize:12,padding:"7px 14px"}}>📷 Çekimler Sayfasına Git</Btn>}
+        </div>
       </Modal>
     )}
   </div>;
@@ -5591,7 +5568,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       const inRevision = tasks.filter(t=>t.col==="revision");
       const pendingApproval = tasks.filter(t=>t.col==="approval");
       const items = [
-        {icon:"📅",label:"Bugün Paylaşım",val:todayPublish.length,color:T.amberText,page:"calendar"},
+        {icon:"📅",label:"Bugün Paylaşım",val:todayPublish.length,color:T.amberText,page:"clients"},
         {icon:"📷",label:"Bugün Çekim",val:todayShoot.length+todayExtraShoot.length,color:"#F9A8D4",page:"calendar"},
         {icon:"⏰",label:"Bugün Teslim",val:dueToday.length,color:T.indigoText,page:"tasks"},
         {icon:"🔴",label:"Geciken Görev",val:overdue.length,color:T.redText,page:"tasks"},
@@ -5730,7 +5707,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       <NavCard icon="🏢" label="Müşteriler" value={clients.length} sub="Aktif müşteri" color={T.textPrimary} target="clients" />
       <NavCard icon="👥" label="Çalışanlar" value={staff.length} sub="Ekip üyesi" color={T.textPrimary} target="staff" />
       <NavCard icon="📋" label="Görevler" value={activeTasks} sub="Aktif görev" color={T.amberText} target="tasks" />
-      <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="calendar" />
+      <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="clients" />
     </div>
 
     {/* GELİR-GİDER GRAFİĞİ - sadece yönetici */}
@@ -9039,7 +9016,7 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
     const totalRev = clients.reduce((s, c) => s + (c.posts || []).filter(p => p.approval === "revision").length, 0);
     notifs.push({ icon: "🔄", title: `${totalRev} içerik revize bekliyor`, sub: revisionClients.map(c => c.name).join(", "), page: "clients", sev: "high" });
   }
-  if (todayPublish.length) notifs.push({ icon: "📅", title: `Bugün ${todayPublish.length} paylaşım günü`, sub: todayPublish.map(c => c.name).join(", "), page: "calendar", sev: "info" });
+  if (todayPublish.length) notifs.push({ icon: "📅", title: `Bugün ${todayPublish.length} paylaşım günü`, sub: todayPublish.map(c => c.name).join(", "), page: "clients", sev: "info" });
   if (todayShoot.length) notifs.push({ icon: "📷", title: `Bugün ${todayShoot.length} çekim günü`, sub: todayShoot.map(c => c.name).join(", "), page: "calendar", sev: "info" });
 
   if (perms.finance) {
@@ -9827,7 +9804,7 @@ export default function App() {
       <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 İçerik Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'mail' ? (isMobile?'📧':'📧 E-posta') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : page === 'emlakpanelim' ? (isMobile?'🏘️':'🏘️ EmlakPanelim') : (isMobile?'👥':'👥 Çalışanlar')}
+          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 Çekim Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'mail' ? (isMobile?'📧':'📧 E-posta') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : page === 'emlakpanelim' ? (isMobile?'🏘️':'🏘️ EmlakPanelim') : (isMobile?'👥':'👥 Çalışanlar')}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
@@ -9837,7 +9814,7 @@ export default function App() {
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms} currentStaff={currentStaff}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData} currentStaff={currentStaff}/>}
         {page==="pricing"&&<PricingPage/>}
-        {page==="calendar"&&<CalendarPage clients={clients}/>}
+        {page==="calendar"&&<CalendarPage clients={clients} staff={staff} setPage={setPage}/>}
         {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
         {page==="ideas"&&<IdeasPage currentStaff={currentStaff} clients={clients}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
