@@ -5812,8 +5812,8 @@ function RevenueChart() {
 function DepartedSection({ allClients, allStaff, refreshData, perms }) {
   const [busy, setBusy] = useState(false);
   const [allModal, setAllModal] = useState(null); // "clients" | "staff"
-  const departedClients = (allClients || []).filter(c => c.deleted_at);
-  const departedStaff = (allStaff || []).filter(s => s.deleted_at);
+  const departedClients = (allClients || []).filter(c => c.deleted_at).sort((x, y) => new Date(y.deleted_at) - new Date(x.deleted_at)); // en son silinen en üstte
+  const departedStaff = (allStaff || []).filter(s => s.deleted_at).sort((x, y) => new Date(y.deleted_at) - new Date(x.deleted_at));
 
   const restoreClient = async (id, name) => {
     if (!await swalConfirm(`"${name}" tekrar aktif müşteri olacak. Onaylıyor musunuz?`)) return;
@@ -5842,7 +5842,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
       <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, flexShrink: 0 }}>{c.initials || (c.name||"?").slice(0,2).toUpperCase()}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-        <div style={{ fontSize: 10, color: T.textMuted }}>{CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "Ayrıldı"}{c.deletion_date ? ` · ${c.deletion_date}` : ""}</div>
+        <div style={{ fontSize: 10, color: T.textMuted }}>{CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "Ayrıldı"}{c.deletion_date ? ` · ${c.deletion_date}` : ""}{c.deleted_at ? ` · Silindi: ${new Date(c.deleted_at).toLocaleDateString("tr-TR")}` : ""}</div>
       </div>
       {perms.manageClients && <button disabled={busy} onClick={() => restoreClient(c.id, c.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
     </div>
@@ -5853,7 +5853,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
       <div style={{ width: 34, height: 34, borderRadius: "50%", background: T.textMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: T.white, flexShrink: 0 }}>{(s.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-        <div style={{ fontSize: 10, color: T.textMuted }}>{s.role || "—"}{s.departure_date ? ` · ${s.departure_date}` : ""}</div>
+        <div style={{ fontSize: 10, color: T.textMuted }}>{s.role || "—"}{s.departure_date ? ` · ${s.departure_date}` : ""}{s.deleted_at ? ` · Silindi: ${new Date(s.deleted_at).toLocaleDateString("tr-TR")}` : ""}</div>
       </div>
       {perms.manageStaff && <button disabled={busy} onClick={() => restoreStaff(s.id, s.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
     </div>
