@@ -1698,6 +1698,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       swalAlert("Lütfen silme sebebi ve bitiş tarihini seçin");
       return;
     }
+    if (!await swalConfirm("Bu müşteri silinecek (ayrılan müşteriler listesine taşınır).\n\nOnaylıyor musunuz?")) return;
 
     const { error } = await supabase.from('clients').update({
       deleted_at: new Date().toISOString(),
@@ -3468,6 +3469,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       swalAlert("Lütfen silme sebebini ve açıklamayı girin");
       return;
     }
+    if (!await swalConfirm("Bu görev silinecek.\n\nOnaylıyor musunuz?")) return;
 
     const { error } = await supabase.from('tasks').update({
       deleted_at: new Date().toISOString(),
@@ -5240,6 +5242,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       swalAlert("Lütfen ayrılış nedenini ve tarihini seçin");
       return;
     }
+    if (!await swalConfirm("Bu çalışan ayrıldı olarak işaretlenecek (ayrılan çalışanlar listesine taşınır).\n\nOnaylıyor musunuz?")) return;
 
     const { error } = await supabase.from('staff').update({
       deleted_at: new Date().toISOString(),
@@ -7159,12 +7162,27 @@ const expCatColor = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.color || 
 function fileToBase64(file) {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = () => rej(new Error("Dosya okunamadı")); r.readAsDataURL(file); });
 }
+// Resimleri (JPG/PNG/WEBP/HEIC…) yapay zekaya göndermeden önce küçültüp JPEG'e çevirir; böylece büyük telefon fotoğrafları da okunur
+async function resmiHazirla(file, enBuyuk = 1800) {
+  const kaynak = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Resim açılamadı. JPG veya PNG olarak kaydedip tekrar deneyin.")); i.src = kaynak; });
+    const oran = Math.min(1, enBuyuk / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(img.naturalWidth * oran)); c.height = Math.max(1, Math.round(img.naturalHeight * oran));
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height);   // şeffaf PNG'ler siyah kalmasın
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.88).split(",")[1];
+  } finally { URL.revokeObjectURL(kaynak); }
+}
 async function extractInvoiceWithAI(file, kind, clientName) {
-  if (file.size > 4 * 1024 * 1024) throw new Error("Dosya 4 MB'dan büyük; daha küçük bir PDF/görsel yükleyin.");
-  const b64 = await fileToBase64(file);
   const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
-  const block = isPdf ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }
-                      : { type: "image", source: { type: "base64", media_type: file.type || "image/jpeg", data: b64 } };
+  if (isPdf && file.size > 4 * 1024 * 1024) throw new Error("PDF 4 MB'dan büyük; daha küçük bir PDF yükleyin veya faturanın fotoğrafını/ekran görüntüsünü yükleyin.");
+  if (!isPdf && file.size > 25 * 1024 * 1024) throw new Error("Resim 25 MB'dan büyük.");
+  const block = isPdf
+    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: await fileToBase64(file) } }
+    : { type: "image", source: { type: "base64", media_type: "image/jpeg", data: await resmiHazirla(file) } };
   const ask = kind === "expense"
     ? `Bu bir GİDER faturası/fişi (Panormos Medya satın almış). Şu alanları JSON olarak çıkar:
 {"vendor":"satıcı/firma adı","invoice_no":"fatura/fiş no","date":"YYYY-MM-DD","amount":KDV hariç tutar (sayı),"vat":KDV tutarı (sayı),"total":KDV dahil genel toplam (sayı),"category":"yakit|yemek|kirtasiye|ofis|ekipman","description":"kısa açıklama (ne alınmış)"}`
@@ -7290,7 +7308,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
         <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🧾 Faturalar ({invoices.length}){pending > 0 && <span style={{ color: T.amberText, marginLeft: 8 }}>· Bekleyen {fmtMoney(pending)}</span>}</div>
         <div>
           <input ref={fileRef} type="file" accept=".pdf,image/*" onChange={onFile} style={{ display: "none" }} />
-          <Btn variant="primary" onClick={() => !uploading && fileRef.current && fileRef.current.click()} style={{ fontSize: 11, padding: "6px 12px", opacity: uploading ? 0.7 : 1 }}>{uploading ? `⏳ ${stage}` : "📎 Fatura Yükle (PDF) → otomatik oku"}</Btn>
+          <Btn variant="primary" onClick={() => !uploading && fileRef.current && fileRef.current.click()} style={{ fontSize: 11, padding: "6px 12px", opacity: uploading ? 0.7 : 1 }}>{uploading ? `⏳ ${stage}` : "📎 Fatura Yükle (PDF / JPG / PNG) → otomatik oku"}</Btn>
         </div>
       </div>
       {invoices.length > 0 && (
@@ -7315,7 +7333,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
       )}
       {draft && (
         <Modal title={`Fatura Kontrol — ${clientName}`} onClose={() => setDraft(null)} width={560}>
-          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>Faturadan okunan bilgiler aşağıda. Kontrol edip Kaydet'e basın. <a href={draft.url} target="_blank" rel="noopener" style={{ color: T.indigoText }}>📄 PDF'i aç</a></div>
+          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>Faturadan okunan bilgiler aşağıda. Kontrol edip Kaydet'e basın. <a href={draft.url} target="_blank" rel="noopener" style={{ color: T.indigoText }}>📄 Faturayı aç</a></div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
             <FormField label="Fatura No"><Input value={F.invoice_no} onChange={e => setF("invoice_no", e.target.value)} /></FormField>
             <FormField label="Fatura Tarihi"><Input type="date" value={F.invoice_date} onChange={e => setF("invoice_date", e.target.value)} /></FormField>
@@ -7410,7 +7428,7 @@ function AccountingSpending() {
       <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
         <Btn variant="primary" onClick={() => { setForm({ category: "yakit", expense_date: new Date().toISOString().slice(0, 10) }); setFile(null); setModal(true); }}>+ Gider Ekle</Btn>
         <input ref={aiFileRef} type="file" accept=".pdf,image/*" onChange={onAiFile} style={{ display: "none" }} />
-        <Btn onClick={() => !aiBusy && aiFileRef.current?.click()} style={{ background: T.indigoDim, color: T.indigoText, opacity: aiBusy ? 0.7 : 1 }}>{aiBusy ? "⏳ Fatura okunuyor…" : "📄 PDF'den Gider Ekle (otomatik oku)"}</Btn>
+        <Btn onClick={() => !aiBusy && aiFileRef.current?.click()} style={{ background: T.indigoDim, color: T.indigoText, opacity: aiBusy ? 0.7 : 1 }}>{aiBusy ? "⏳ Fatura okunuyor…" : "📄 Faturadan Gider Ekle (PDF / JPG / PNG, otomatik oku)"}</Btn>
         {filterCat !== "all" && <Btn onClick={() => setFilterCat("all")} style={{ fontSize: 12 }}>✕ Filtreyi Temizle ({expCatLabel(filterCat)})</Btn>}
       </div>
 
