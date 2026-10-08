@@ -1716,10 +1716,10 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
   };
 
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:perms.finance?"repeat(4,1fr)":"repeat(2,1fr)",gap:12,marginBottom:24}}>
+    <div style={{display:"grid",gridTemplateColumns:perms.companyFinance?"repeat(4,1fr)":"repeat(2,1fr)",gap:12,marginBottom:24}}>
       <StatCard label="Aktif Müşteri" value={filteredClients.length} sub={`Toplam: ${clients.length}`} />
-      {perms.finance && <StatCard label="Toplam Ciro" value={fmtMoney(totalRevenue)} color={T.indigoText} sub="Tüm zamanlar" />}
-      {perms.finance && <StatCard label="Tahsilat Bekleyen" value={fmtMoney(pendingRevenue)} color={T.amberText} sub={`${overdueCount} gecikmiş`} />}
+      {perms.companyFinance && <StatCard label="Toplam Ciro" value={fmtMoney(totalRevenue)} color={T.indigoText} sub="Tüm zamanlar" />}
+      {perms.companyFinance && <StatCard label="Tahsilat Bekleyen" value={fmtMoney(pendingRevenue)} color={T.amberText} sub={`${overdueCount} gecikmiş`} />}
       <StatCard label="Bu Ay Paylaşım" value={filteredClients.reduce((s,c)=>s+c.posts.filter(p=>p.status==="done").length,0)} color={T.greenText} sub="Yayınlanan" />
     </div>
 
@@ -5341,14 +5341,13 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
       <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
         <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
-        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç</div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç. Muhasebe, E-posta ve şirket gelir/gider/kâr bilgilerini yalnızca Yönetici görür.</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           <PermToggle label="👑 Yönetici (her şeyi görür ve yönetir)" checked={form.is_admin} onChange={()=>setForm(f=>({...f,is_admin:!f.is_admin}))} />
           {!form.is_admin && <>
-            <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={form.perm_finance} onChange={()=>setForm(f=>({...f,perm_finance:!f.perm_finance}))} />
+            <PermToggle label="💰 Müşteri Ücretleri (aylık paket, müşteri faturaları)" checked={form.perm_finance} onChange={()=>setForm(f=>({...f,perm_finance:!f.perm_finance}))} />
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={form.perm_manage_clients} onChange={()=>setForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={form.perm_manage_staff} onChange={()=>setForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
-            <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={form.perm_accounting} onChange={()=>setForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
             <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={form.perm_reports} onChange={()=>setForm(f=>({...f,perm_reports:!f.perm_reports}))} />
           </>}
         </div>
@@ -5380,14 +5379,13 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
       <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
         <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
-        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç</div>
+        <div style={{fontSize:11,color:T.textMuted,marginBottom:12}}>Bu çalışanın neleri görebileceğini seç. Muhasebe, E-posta ve şirket gelir/gider/kâr bilgilerini yalnızca Yönetici görür.</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           <PermToggle label="👑 Yönetici (her şeyi görür ve yönetir)" checked={editForm.is_admin} onChange={()=>setEditForm(f=>({...f,is_admin:!f.is_admin}))} />
           {!editForm.is_admin && <>
-            <PermToggle label="💰 Finansal Bilgiler (ciro, faturalar, ödemeler, ücretler)" checked={editForm.perm_finance} onChange={()=>setEditForm(f=>({...f,perm_finance:!f.perm_finance}))} />
+            <PermToggle label="💰 Müşteri Ücretleri (aylık paket, müşteri faturaları)" checked={editForm.perm_finance} onChange={()=>setEditForm(f=>({...f,perm_finance:!f.perm_finance}))} />
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={editForm.perm_manage_clients} onChange={()=>setEditForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={editForm.perm_manage_staff} onChange={()=>setEditForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
-            <PermToggle label="🧮 Muhasebe (cari, giderler, ödemeler, izinler)" checked={editForm.perm_accounting} onChange={()=>setEditForm(f=>({...f,perm_accounting:!f.perm_accounting}))} />
             <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={editForm.perm_reports} onChange={()=>setEditForm(f=>({...f,perm_reports:!f.perm_reports}))} />
           </>}
         </div>
@@ -5540,7 +5538,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       </div>
       <Btn onClick={()=>{
         const rows=[];
-        if(perms.finance){
+        if(perms.companyFinance){
           rows.push({"Bölüm":"Finansal","Bilgi":"Toplam Ciro","Değer":fmtMoney(totalRevenue)});
           rows.push({"Bölüm":"Finansal","Bilgi":"Tahsil Edilen","Değer":fmtMoney(paidRevenue)});
           rows.push({"Bölüm":"Finansal","Bilgi":"Bekleyen Tahsilat","Değer":fmtMoney(pendingRevenue)});
@@ -5591,8 +5589,8 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
     {/* Hava Durumu */}
     <div style={{marginBottom:16}}><WeatherWidget /></div>
 
-    {/* Finansal Özet - sadece yetkili görür */}
-    {perms.finance && (
+    {/* Finansal Özet - sadece yönetici görür */}
+    {perms.companyFinance && (
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
       <div style={{background:`linear-gradient(135deg, ${T.bgCard}, ${T.indigoDim})`,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
         <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Toplam Ciro</div>
@@ -5706,8 +5704,8 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="calendar" />
     </div>
 
-    {/* GELİR-GİDER GRAFİĞİ - sadece finansal yetki */}
-    {perms.finance && <RevenueChart />}
+    {/* GELİR-GİDER GRAFİĞİ - sadece yönetici */}
+    {perms.companyFinance && <RevenueChart />}
 
     {/* AYRILAN MÜŞTERİLER & ÇALIŞANLAR */}
     <DepartedSection allClients={allClients} allStaff={allStaff} refreshData={refreshData} perms={perms} />
@@ -6261,6 +6259,32 @@ function EmlakPanelimPage() {
   );
 }
 
+// Yetki hesaplama: Yönetici her şeyi görür, diğerleri sadece izinli olduklarını
+function getPerms(s) {
+  const isAdmin = s.is_admin === true;
+  return {
+    isAdmin,
+    finance: isAdmin || s.perm_finance === true,       // Müşteri bazlı ücretler ve faturalar
+    manageClients: isAdmin || s.perm_manage_clients === true,  // Müşteri ekle/düzenle/sil
+    manageStaff: isAdmin || s.perm_manage_staff === true,      // Çalışan ekle/düzenle/sil
+    accounting: isAdmin,      // Muhasebe: sadece yönetici
+    companyFinance: isAdmin,  // Şirket geliri, gideri, kârı, ciro: sadece yönetici
+    mail: isAdmin,            // E-posta kutusu: sadece yönetici
+    reports: isAdmin || s.perm_reports === true, // Sosyal medya raporlama
+  };
+}
+
+// Menüde görünürlük ve sayfanın açılabilmesi (URL/hash ile gelinse bile) aynı kurala bağlı
+function canAccessPage(id, perms) {
+  if (id === 'staff') return perms.manageStaff;
+  if (id === 'pricing') return perms.finance || perms.manageClients;
+  if (id === 'reports') return perms.reports;
+  if (id === 'accounting') return perms.accounting;
+  if (id === 'mail') return perms.mail;
+  if (id === 'yearly' || id === 'emlakpanelim') return perms.isAdmin;
+  return true;
+}
+
 const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
@@ -6709,6 +6733,12 @@ function PricingQuotes({ packages, addons, quotes, reload }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
 
+  const [pageNo, setPageNo] = useState(0);
+  const PER_PAGE = 7;
+  const pageCount = Math.max(1, Math.ceil(quotes.length / PER_PAGE));
+  const curPage = Math.min(pageNo, pageCount - 1); // silme sonrası son sayfa boşalırsa geri çek
+  const shownQuotes = quotes.slice(curPage * PER_PAGE, (curPage + 1) * PER_PAGE);
+
   const openAdd = () => { setForm({ business_name: "", package_name: "", price: "", features: [], addons: [], note: "", status: "draft" }); setModal(true); };
 
   const selectPackage = (name) => {
@@ -6727,7 +6757,7 @@ function PricingQuotes({ packages, addons, quotes, reload }) {
     };
     const { data, error } = await supabase.from('pricing_quotes').insert(payload).select().single();
     if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
-    setModal(false); reload();
+    setModal(false); setPageNo(0); reload();
     if (thenPrint && data) printQuote(data, addons);
   };
 
@@ -6741,7 +6771,7 @@ function PricingQuotes({ packages, addons, quotes, reload }) {
         <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Henüz teklif yok. Müşteriye özel teklif hazırlamak için "+ Yeni Teklif Hazırla".</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {quotes.map(q => {
+          {shownQuotes.map(q => {
             const st = QUOTE_STATUS[q.status] || QUOTE_STATUS.draft;
             return (
               <div key={q.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10 }}>
@@ -6759,6 +6789,13 @@ function PricingQuotes({ packages, addons, quotes, reload }) {
               </div>
             );
           })}
+          {pageCount > 1 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 8 }}>
+              <Btn onClick={() => curPage > 0 && setPageNo(curPage - 1)} style={{ fontSize: 12, padding: "7px 14px", opacity: curPage > 0 ? 1 : 0.4, cursor: curPage > 0 ? "pointer" : "default" }}>← Geri</Btn>
+              <div style={{ fontSize: 12, color: T.textMuted }}>Sayfa {curPage + 1} / {pageCount} · {quotes.length} teklif</div>
+              <Btn onClick={() => curPage < pageCount - 1 && setPageNo(curPage + 1)} style={{ fontSize: 12, padding: "7px 14px", opacity: curPage < pageCount - 1 ? 1 : 0.4, cursor: curPage < pageCount - 1 ? "pointer" : "default" }}>İleri →</Btn>
+            </div>
+          )}
         </div>
       )}
 
@@ -8806,14 +8843,14 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginBottom: 20 }}>
             <StatCard label="Aktif Müşteri" value={clients.length} />
             <StatCard label="Çalışan" value={staff.length} />
-            {perms.finance && <StatCard label={`${year} Toplam Gelir`} value={fmtMoney(totalIncome)} color={T.greenText} />}
-            {perms.finance && <StatCard label={`${year} Toplam Gider`} value={fmtMoney(totalExpense)} color={T.redText} />}
-            {perms.finance && <StatCard label={`${year} Net Kâr/Zarar`} value={fmtMoney(totalNet)} color={totalNet >= 0 ? T.greenText : T.redText} />}
-            {perms.finance && bestMonth && bestMonth.income > 0 && <StatCard label="En İyi Ay" value={TR_MONTHS[parseInt(bestMonth.m.split("-")[1]) - 1]} sub={fmtMoney(bestMonth.income)} color={T.indigoText} />}
+            {perms.companyFinance && <StatCard label={`${year} Toplam Gelir`} value={fmtMoney(totalIncome)} color={T.greenText} />}
+            {perms.companyFinance && <StatCard label={`${year} Toplam Gider`} value={fmtMoney(totalExpense)} color={T.redText} />}
+            {perms.companyFinance && <StatCard label={`${year} Net Kâr/Zarar`} value={fmtMoney(totalNet)} color={totalNet >= 0 ? T.greenText : T.redText} />}
+            {perms.companyFinance && bestMonth && bestMonth.income > 0 && <StatCard label="En İyi Ay" value={TR_MONTHS[parseInt(bestMonth.m.split("-")[1]) - 1]} sub={fmtMoney(bestMonth.income)} color={T.indigoText} />}
           </div>
 
           {/* Aylık gelir grafiği */}
-          {perms.finance && totalIncome > 0 && (
+          {perms.companyFinance && totalIncome > 0 && (
             <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 18 }}>📈 {year} Aylık Gelir Dağılımı</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 180 }}>
@@ -8937,7 +8974,7 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
 
   useEffect(() => {
     (async () => {
-      if (perms.accounting || perms.finance) {
+      if (perms.accounting) {
         const { data: e } = await supabase.from('accounting_entries').select('*');
         setEntries(e || []);
         const { data: p } = await supabase.from('client_payments').select('*');
@@ -8979,7 +9016,9 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
   if (perms.finance) {
     const overdueInv = clients.filter(c => (c.invoices || []).some(i => i.status === "overdue"));
     if (overdueInv.length) notifs.push({ icon: "⚠️", title: `${overdueInv.length} müşterinin gecikmiş faturası`, sub: overdueInv.map(c => c.name).join(", "), page: "clients", sev: "high" });
+  }
 
+  if (perms.accounting) {
     // Ödenmemiş ayı olan müşteriler
     const nowRef = currentMonthRef();
     const owing = clients.filter(c => {
@@ -8993,7 +9032,7 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
     if (owing.length) notifs.push({ icon: "💰", title: `${owing.length} müşterinin ödenmemiş ayı var`, sub: owing.map(c => c.name).join(", "), page: "accounting", sev: "mid" });
   }
 
-  if (perms.accounting || perms.finance) {
+  if (perms.accounting) {
     const overdueExp = entries.filter(e => !e.is_paid && e.due_date && e.due_date < todayStr);
     const upcomingExp = entries.filter(e => !e.is_paid && e.due_date && e.due_date >= todayStr && e.due_date <= in7Str);
     if (overdueExp.length) notifs.push({ icon: "🔴", title: `${overdueExp.length} vadesi geçmiş gider ödemesi`, sub: overdueExp.map(e => e.title).join(", "), page: "accounting", sev: "high" });
@@ -9497,10 +9536,11 @@ export default function App() {
     } catch (e) {}
   };
   useEffect(() => {
+    if (currentStaff?.is_admin !== true) return; // e-posta sadece yöneticiye açık
     refreshUnreadMails();
     const t = setInterval(refreshUnreadMails, 2 * 60 * 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [currentStaff]);
   const knownMsgIdsRef = useRef(null);
   const pageRef = useRef("dashboard");
   const [dataLoading, setDataLoading] = useState(true);
@@ -9511,7 +9551,7 @@ export default function App() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-  const [page, setPage] = useState(() => {
+  const [rawPage, setPage] = useState(() => {
     const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'mail', 'accounting', 'inventory', 'yearly', 'staff'];
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
@@ -9519,6 +9559,9 @@ export default function App() {
     if (validPages.includes(saved)) return saved;
     return 'dashboard';
   });
+  const perms = currentStaff ? getPerms(currentStaff) : null;
+  // Yetkisi olmayan sayfa açılmaz, Ana Sayfa gösterilir
+  const page = !perms || canAccessPage(rawPage, perms) ? rawPage : 'dashboard';
   const [clients, setClients] = useState([]);
   const [staff, setStaff] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -9693,17 +9736,6 @@ export default function App() {
 
   if (dataLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Veriler yükleniyor...</div>;
 
-  // Yetki hesaplama: Yönetici her şeyi görür, diğerleri sadece izinli olduklarını
-  const isAdmin = currentStaff.is_admin === true;
-  const perms = {
-    isAdmin,
-    finance: isAdmin || currentStaff.perm_finance === true,       // Finansal bilgiler, faturalar, ödemeler, ücretler
-    manageClients: isAdmin || currentStaff.perm_manage_clients === true,  // Müşteri ekle/düzenle/sil
-    manageStaff: isAdmin || currentStaff.perm_manage_staff === true,      // Çalışan ekle/düzenle/sil
-    accounting: isAdmin || currentStaff.perm_accounting === true || currentStaff.perm_finance === true, // Muhasebe erişimi
-    reports: isAdmin || currentStaff.perm_reports === true, // Sosyal medya raporlama
-  };
-
   return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif",position:"relative"}}>
     <style>{RESPONSIVE_CSS}</style>
     {/* Mobilde drawer açıkken arka plan karartma */}
@@ -9721,7 +9753,7 @@ export default function App() {
         {isMobile && <button onClick={()=>setDrawerOpen(false)} style={{background:"none",border:"none",color:T.textMuted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>}
       </div>
       <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
-        {NAV.filter(item => (item.id !== 'staff' || perms.manageStaff) && (item.id !== 'accounting' || perms.accounting) && (item.id !== 'pricing' || perms.finance || perms.manageClients) && (item.id !== 'reports' || perms.reports) && (item.id !== 'yearly' || perms.finance || perms.isAdmin) && (item.id !== 'emlakpanelim' || perms.isAdmin)).map(item=>(
+        {NAV.filter(item => canAccessPage(item.id, perms)).map(item=>(
           <div key={item.id} onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
             display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
             background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
