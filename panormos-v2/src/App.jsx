@@ -2,6 +2,47 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
 
+
+// ─────────────────────────────────────────────
+// SWEETALERT2 UYARI / ONAY PENCERELERİ (tarayıcı alert/confirm yerine)
+// ─────────────────────────────────────────────
+const SWAL_TEMA = { background: "#151c27", color: "#e8edf5", confirmButtonColor: "#3b82f6", cancelButtonColor: "#475569" };
+function swalTur(m) {
+  const t = String(m || "").toLocaleLowerCase("tr");
+  if (/hata|edilemedi|olamadı|oluşturulamadı|yazılamadı|gönderilemedi|taşınamadı|güncellenemedi|silinemedi|kaydedilemedi|kaydedilemed|okunamadı|yüklenemedi|açılamadı|başarısız|bulunamadı|sorun/.test(t)) return "error";
+  if (/gerekli|zorunlu|lütfen|girin|seçin/.test(t)) return "warning";
+  if (/yüklendi|kaydedildi|eklendi|gönderildi|tamamlandı|başarılı|silindi|güncellendi/.test(t)) return "success";
+  return "info";
+}
+function swalAlert(mesaj) {
+  const metin = String(mesaj ?? "");
+  if (typeof window === "undefined" || !window.Swal) { window.alert(metin); return Promise.resolve(); }
+  const [baslik, ...kalan] = metin.split("\n\n");
+  const tur = swalTur(metin);
+  return window.Swal.fire({
+    ...SWAL_TEMA,
+    icon: tur,
+    title: kalan.length ? baslik : undefined,
+    html: (kalan.length ? kalan.join("\n\n") : baslik).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>"),
+    confirmButtonText: "Tamam",
+  });
+}
+async function swalConfirm(mesaj) {
+  const metin = String(mesaj ?? "");
+  if (typeof window === "undefined" || !window.Swal) return window.confirm(metin);
+  const r = await window.Swal.fire({
+    ...SWAL_TEMA,
+    icon: "question",
+    html: metin.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>"),
+    showCancelButton: true,
+    confirmButtonText: "Evet",
+    cancelButtonText: "Vazgeç",
+    focusCancel: /sil|kaldır/i.test(metin),
+    reverseButtons: true,
+  });
+  return !!r.isConfirmed;
+}
+
 // ─────────────────────────────────────────────
 // GOOGLE DRIVE AYARLARI
 // ─────────────────────────────────────────────
@@ -673,7 +714,7 @@ function styleWorksheet(XLSX, ws, headers, rows, titleText) {
 async function exportPerfectExcel(sheets, filename) {
   const validSheets = sheets.filter(s => s.rows && s.rows.length > 0);
   if (validSheets.length === 0) {
-    alert("Dışa aktarılacak veri bulunamadı");
+    swalAlert("Dışa aktarılacak veri bulunamadı");
     return;
   }
 
@@ -681,7 +722,7 @@ async function exportPerfectExcel(sheets, filename) {
   try {
     XLSX = await loadXLSX();
   } catch (err) {
-    alert(err.message);
+    swalAlert(err.message);
     return;
   }
 
@@ -729,7 +770,7 @@ async function exportPerfectExcel(sheets, filename) {
 // ─────────────────────────────────────────────
 function printData(title, rows) {
   if (!rows || rows.length === 0) {
-    alert("Yazdırılacak veri bulunamadı");
+    swalAlert("Yazdırılacak veri bulunamadı");
     return;
   }
 
@@ -789,7 +830,7 @@ function printData(title, rows) {
 
   const printWindow = window.open("", "_blank", "width=900,height=700");
   if (!printWindow) {
-    alert("Yazdırma penceresi açılamadı. Tarayıcının pop-up engelleyicisini kapatın.");
+    swalAlert("Yazdırma penceresi açılamadı. Tarayıcının pop-up engelleyicisini kapatın.");
     return;
   }
   printWindow.document.write(html);
@@ -872,7 +913,7 @@ function printClientCalendar(client, year, month, publishesByDate) {
   </body></html>`;
 
   const w = window.open("", "_blank", "width=1000,height=750");
-  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => w.print(), 300);
 }
@@ -977,7 +1018,7 @@ function printClientDetail(client, perms) {
   </body></html>`;
 
   const w = window.open("", "_blank", "width=1000,height=800");
-  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => w.print(), 300);
 }
@@ -1068,7 +1109,7 @@ function printMonthlyReport(client) {
   </div></body></html>`;
 
   const w = window.open("", "_blank", "width=1000,height=850");
-  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => w.print(), 300);
 }
@@ -1132,7 +1173,7 @@ function printSocialReport(client, r, prev, monthLabel) {
   </div></body></html>`;
 
   const w = window.open("", "_blank", "width=1000,height=850");
-  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => w.print(), 300);
 }
@@ -1289,12 +1330,12 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
 
         setUploading(false);
         setFiles([]);
-        alert(successCount + " dosya Google Drive'a yüklendi! (Panormos Medya klasörü)");
+        swalAlert(successCount + " dosya Google Drive'a yüklendi! (Panormos Medya klasörü)");
         onUploadComplete?.();
         return;
       } catch (err) {
         setUploading(false);
-        alert("Google Drive hatası: " + err.message);
+        swalAlert("Google Drive hatası: " + err.message);
         return;
       }
     }
@@ -1334,7 +1375,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
     
     setUploading(false);
     setFiles([]);
-    alert(files.length + " dosya yüklendi!");
+    swalAlert(files.length + " dosya yüklendi!");
     onUploadComplete?.();
   };
   
@@ -1654,7 +1695,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
 
   const handleDeleteClient = async (clientId) => {
     if (!deleteModal.reason || !deleteModal.date) {
-      alert("Lütfen silme sebebi ve bitiş tarihini seçin");
+      swalAlert("Lütfen silme sebebi ve bitiş tarihini seçin");
       return;
     }
 
@@ -1665,7 +1706,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
     }).eq('id', clientId);
 
     if (error) {
-      alert("HATA: Müşteri silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      swalAlert("HATA: Müşteri silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
       return;
     }
 
@@ -1801,7 +1842,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
         }).select().single();
-        if(error){ alert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
+        if(error){ swalAlert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         if(data){
           // Formda eklenen parça başı işleri kaydet
           let savedJobs = [];
@@ -1858,7 +1899,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
           monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_end: form.contractEnd||null,
         }).eq('id', form.id);
-        if(error){ alert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
+        if(error){ swalAlert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         // Formda eklenen yeni parça başı işleri kaydet (varsa)
         let addedJobs = [];
         if((form.pieceJobsNew||[]).length>0){
@@ -2044,7 +2085,7 @@ const PIECE_CATEGORIES = ["Tasarım", "Menü Çekimi", "Video Çekimi", "Drone �
 function PieceJobsFormEditor({ jobs, onChange, showAmount }) {
   const [draft, setDraft] = useState({ title: "", quantity: 1, amount: "", dueDate: "" });
   const add = () => {
-    if (!draft.title) { alert("İş adı seçin veya yazın"); return; }
+    if (!draft.title) { swalAlert("İş adı seçin veya yazın"); return; }
     onChange([...jobs, { ...draft, quantity: parseInt(draft.quantity) || 1, amount: parseFloat(draft.amount) || 0, status: "pending" }]);
     setDraft({ title: "", quantity: 1, amount: "", dueDate: "" });
   };
@@ -2095,7 +2136,7 @@ function PieceJobsSection({ client, perms }) {
   };
 
   const save = async () => {
-    if (!form.title) { alert("İş adı gerekli"); return; }
+    if (!form.title) { swalAlert("İş adı gerekli"); return; }
     setSaving(true);
     const monthRef = form.dueDate ? String(form.dueDate).slice(0, 7) : curMonthRef;
     const payload = { client_id: client.id, title: form.title, quantity: parseInt(form.quantity) || 1, amount: parseFloat(form.amount) || 0, due_date: form.dueDate || null, status: form.status || "pending", month_ref: monthRef };
@@ -2103,10 +2144,10 @@ function PieceJobsSection({ client, perms }) {
     if (form.id) { ({ error } = await supabase.from('piece_jobs').update(payload).eq('id', form.id)); }
     else { ({ error } = await supabase.from('piece_jobs').insert(payload)); }
     setSaving(false);
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nPARCA-BASI-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nPARCA-BASI-SQL kodunu çalıştırın."); return; }
     setModal(false); setForm({}); reload();
   };
-  const del = async (id) => { if (!window.confirm("Bu iş silinsin mi?")) return; await supabase.from('piece_jobs').delete().eq('id', id); reload(); };
+  const del = async (id) => { if (!await swalConfirm("Bu iş silinsin mi?")) return; await supabase.from('piece_jobs').delete().eq('id', id); reload(); };
   const toggle = async (job) => { const ns = job.status === "done" ? "pending" : "done"; await supabase.from('piece_jobs').update({ status: ns }).eq('id', job.id); reload(); };
 
   const totalAmount = jobs.reduce((s, j) => s + j.amount, 0);
@@ -2216,7 +2257,7 @@ function ClientSetup({ client, setClients }) {
     setSaving(id);
     const { error } = await supabase.from('clients').update({ setup_checklist: next }).eq('id', client.id);
     setSaving(null);
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nKURULUM-SQL kodunu (setup_checklist sütunu) çalıştırdığınızdan emin olun."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nKURULUM-SQL kodunu (setup_checklist sütunu) çalıştırdığınızdan emin olun."); return; }
     setClients(prev => prev.map(c => c.id === client.id ? { ...c, setupChecklist: next } : c));
   };
 
@@ -2395,7 +2436,7 @@ function MailModal({ title, to: initialTo = "", subject: initialSubject = "", bo
   const signature = `\n\nSaygılarımızla,\n${currentStaff?.name || "Panormos Medya"}\nPanormos Medya\ninfo@panormosmedya.com`;
 
   const writeWithAI = async () => {
-    if (!aiPrompt.trim()) { alert("Claude'a ne yazmasını istediğini kısaca söyle (örn: Ağustos raporunu gönderdiğimizi belirten kibar bir mail)."); return; }
+    if (!aiPrompt.trim()) { swalAlert("Claude'a ne yazmasını istediğini kısaca söyle (örn: Ağustos raporunu gönderdiğimizi belirten kibar bir mail)."); return; }
     setAiBusy(true);
     try {
       const text = await askClaude({
@@ -2404,13 +2445,13 @@ function MailModal({ title, to: initialTo = "", subject: initialSubject = "", bo
       });
       const m = text.match(/KONU:\s*(.+?)\s*\n-{2,}\s*\n([\s\S]+)/i);
       if (m) { setSubject(m[1].trim()); setBody(m[2].trim()); } else { setBody(text.trim()); }
-    } catch (e) { alert("Yazılamadı: " + e.message); }
+    } catch (e) { swalAlert("Yazılamadı: " + e.message); }
     setAiBusy(false);
   };
 
   const send = async () => {
-    if (!to.trim() || !/\S+@\S+\.\S+/.test(to)) { alert("Geçerli bir alıcı e-postası girin"); return; }
-    if (!subject.trim() || !body.trim()) { alert("Konu ve mesaj zorunlu"); return; }
+    if (!to.trim() || !/\S+@\S+\.\S+/.test(to)) { swalAlert("Geçerli bir alıcı e-postası girin"); return; }
+    if (!subject.trim() || !body.trim()) { swalAlert("Konu ve mesaj zorunlu"); return; }
     setBusy(true);
     try {
       let attachment = null;
@@ -2421,9 +2462,9 @@ function MailModal({ title, to: initialTo = "", subject: initialSubject = "", bo
       await sendMailViaPanel({ to: to.trim(), subject: subject.trim(), text: body.trim() + signature, attachment });
       try { await supabase.from('sent_mails').insert({ client_id: clientId, lead_id: leadId, to_email: to.trim(), subject: subject.trim(), body: body.trim(), attachment_name: file?.name || "", sent_by: currentStaff?.name || "" }); } catch (e) {}
       if (onSent) { try { await onSent(to.trim()); } catch (e) {} }
-      alert("✅ E-posta gönderildi: " + to.trim());
+      swalAlert("✅ E-posta gönderildi: " + to.trim());
       onClose();
-    } catch (e) { alert("Gönderilemedi: " + e.message); }
+    } catch (e) { swalAlert("Gönderilemedi: " + e.message); }
     setBusy(false);
   };
 
@@ -2537,7 +2578,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || ("HTTP " + r.status));
       await load();
-    } catch (e) { alert("Mailler çekilemedi: " + e.message); }
+    } catch (e) { swalAlert("Mailler çekilemedi: " + e.message); }
     setSyncing(false);
   };
 
@@ -2585,18 +2626,18 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
     setInbox(list => list.map(x => x.id === m.id ? { ...x, folder } : x));
     setOpen(null); setMoveOpen(false);
     const { error } = await supabase.from('received_mails').update({ folder }).eq('id', m.id);
-    if (error) { alert("Taşınamadı: " + error.message); load(); }
+    if (error) { swalAlert("Taşınamadı: " + error.message); load(); }
     if (onUnreadChange) onUnreadChange();
   };
 
   const deleteForever = async (m) => {
-    if (!window.confirm("Bu mail panelden kalıcı olarak silinecek (GoDaddy'deki kopyası kalır). Emin misin?")) return;
+    if (!await swalConfirm("Bu mail panelden kalıcı olarak silinecek (GoDaddy'deki kopyası kalır). Emin misin?")) return;
     try {
       const paths = (m.attachments || []).map(a => a.path).filter(Boolean);
       if (paths.length) await supabase.storage.from('mail-attachments').remove(paths);
     } catch (e) {}
     const { error } = await supabase.from('received_mails').delete().eq('id', m.id);
-    if (error) { alert("Silinemedi: " + error.message); return; }
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
     setInbox(list => list.filter(x => x.id !== m.id));
     setOpen(null);
   };
@@ -2604,7 +2645,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
   const emptyTrash = async () => {
     const items = inbox.filter(m => m.folder === "trash");
     if (!items.length) return;
-    if (!window.confirm(`Çöpteki ${items.length} mail kalıcı olarak silinecek. Emin misin?`)) return;
+    if (!await swalConfirm(`Çöpteki ${items.length} mail kalıcı olarak silinecek. Emin misin?`)) return;
     try {
       const paths = items.flatMap(m => (m.attachments || []).map(a => a.path)).filter(Boolean);
       if (paths.length) await supabase.storage.from('mail-attachments').remove(paths);
@@ -2620,7 +2661,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
     setInbox(list => list.map(x => ids.includes(x.id) ? { ...x, folder } : x));
     setSelected([]); setBulkMoveOpen(false);
     const { error } = await supabase.from('received_mails').update({ folder }).in('id', ids);
-    if (error) { alert("Taşınamadı: " + error.message); load(); }
+    if (error) { swalAlert("Taşınamadı: " + error.message); load(); }
     if (onUnreadChange) onUnreadChange();
   };
   const bulkRead = async (v) => {
@@ -2633,14 +2674,14 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
   };
   const bulkDeleteForever = async () => {
     if (!selected.length) return;
-    if (!window.confirm(`Seçili ${selected.length} mail kalıcı olarak silinecek. Emin misin?`)) return;
+    if (!await swalConfirm(`Seçili ${selected.length} mail kalıcı olarak silinecek. Emin misin?`)) return;
     const items = inbox.filter(m => selected.includes(m.id));
     try {
       const paths = items.flatMap(m => (m.attachments || []).map(a => a.path)).filter(Boolean);
       if (paths.length) await supabase.storage.from('mail-attachments').remove(paths);
     } catch (e) {}
     const { error } = await supabase.from('received_mails').delete().in('id', selected);
-    if (error) { alert("Silinemedi: " + error.message); return; }
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
     setInbox(list => list.filter(x => !selected.includes(x.id)));
     setSelected([]);
   };
@@ -2650,20 +2691,20 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
       const { data, error } = await supabase.storage.from('mail-attachments').createSignedUrl(a.path, 300, { download: a.name });
       if (error || !data?.signedUrl) throw new Error(error?.message || "Bağlantı oluşturulamadı");
       window.open(data.signedUrl, "_blank");
-    } catch (e) { alert("Ek indirilemedi: " + e.message); }
+    } catch (e) { swalAlert("Ek indirilemedi: " + e.message); }
   };
 
   const addFolder = async () => {
     const name = window.prompt("Yeni klasör adı:");
     if (!name || !name.trim()) return;
     const { error } = await supabase.from('mail_folders').insert({ name: name.trim() });
-    if (error) { alert("Klasör eklenemedi: " + error.message); return; }
+    if (error) { swalAlert("Klasör eklenemedi: " + error.message); return; }
     load();
   };
 
   const deleteFolder = async (f) => {
     const count = inbox.filter(m => m.folder === "custom:" + f.id).length;
-    if (!window.confirm(`"${f.name}" klasörü silinecek${count ? `; içindeki ${count} mail Gelen'e taşınacak` : ""}. Emin misin?`)) return;
+    if (!await swalConfirm(`"${f.name}" klasörü silinecek${count ? `; içindeki ${count} mail Gelen'e taşınacak` : ""}. Emin misin?`)) return;
     await supabase.from('received_mails').update({ folder: "inbox" }).eq('folder', "custom:" + f.id);
     await supabase.from('mail_folders').delete().eq('id', f.id);
     if (tab === "custom:" + f.id) setTab("inbox");
@@ -3019,7 +3060,7 @@ function ClientPosts({client, setClients}) {
   const setApproval = async (post, newApproval, note) => {
     const payload = { approval: newApproval, approval_note: note !== undefined ? note : (post.approvalNote || "") };
     const { error } = await supabase.from('posts').update(payload).eq('id', post.id);
-    if (error) { alert("Güncellenemedi: " + error.message + "\n\nICERIK-ONAY-SQL kodunu çalıştırdığınızdan emin olun."); return; }
+    if (error) { swalAlert("Güncellenemedi: " + error.message + "\n\nICERIK-ONAY-SQL kodunu çalıştırdığınızdan emin olun."); return; }
     setClients(prev => prev.map(c => c.id === client.id ? { ...c, posts: c.posts.map(p => p.id === post.id ? { ...p, approval: newApproval, approvalNote: payload.approval_note } : p) } : c));
   };
 
@@ -3186,14 +3227,14 @@ function IdeasPage({ currentStaff, clients }) {
         title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
         client_name: form.client_name || "",
       }).eq('id', form.id);
-      if (error) { alert("Fikir güncellenemedi: " + error.message); return; }
+      if (error) { swalAlert("Fikir güncellenemedi: " + error.message); return; }
     } else {
       // Yeni ekleme
       const { error } = await supabase.from('ideas').insert({
         title: form.title, description: form.description || "", category: form.category || "", status: form.status || "planned",
         created_by: currentStaff?.name || "", client_name: form.client_name || "",
       });
-      if (error) { alert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
+      if (error) { swalAlert("Fikir kaydedilemedi: " + error.message + "\n\nFIKIRLER-DUZELT-SQL kodunu Supabase'de çalıştırdığınızdan emin olun."); return; }
     }
     setModal(false); setForm({});
     load();
@@ -3205,7 +3246,7 @@ function IdeasPage({ currentStaff, clients }) {
   };
 
   const deleteIdea = async (id) => {
-    if (!window.confirm("Bu fikir silinsin mi?")) return;
+    if (!await swalConfirm("Bu fikir silinsin mi?")) return;
     await supabase.from('ideas').update({ deleted_at: new Date().toISOString() }).eq('id', id);
     load();
   };
@@ -3365,11 +3406,11 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Paylaşımı onayla → publishes kaydı + görevi published yap
   const confirmPublish = async () => {
     const pm = publishModal;
-    if(!pm.client_id){ alert("Lütfen paylaşım yapılan müşteriyi seçin"); return; }
-    if(!pm.publisher_id){ alert("Lütfen paylaşımı yapan çalışanı seçin"); return; }
+    if(!pm.client_id){ swalAlert("Lütfen paylaşım yapılan müşteriyi seçin"); return; }
+    if(!pm.publisher_id){ swalAlert("Lütfen paylaşımı yapan çalışanı seçin"); return; }
     const counts = pm.counts || {};
     const total = Object.values(counts).reduce((s,n)=>s+(n||0),0);
-    if(total < 1){ alert("Lütfen en az 1 içerik adedi girin (örn: 3 Post)"); return; }
+    if(total < 1){ swalAlert("Lütfen en az 1 içerik adedi girin (örn: 3 Post)"); return; }
     const nowIso = new Date().toISOString();
     // Her içerik türü için, adedi kadar quantity ile bir kayıt oluştur
     const rows = Object.entries(counts).filter(([k,n])=>(n||0)>0).map(([content_type,qty])=>({
@@ -3377,7 +3418,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       platform: pm.platform, content_type, quantity: qty, published_at: nowIso,
     }));
     const { error } = await supabase.from('publishes').insert(rows);
-    if(error){ alert("Paylaşım kaydedilemedi: "+error.message+"\n\nPAYLASIM-ADET-SQL kodunu çalıştırın."); return; }
+    if(error){ swalAlert("Paylaşım kaydedilemedi: "+error.message+"\n\nPAYLASIM-ADET-SQL kodunu çalıştırın."); return; }
     await supabase.from('tasks').update({ col: "published" }).eq('id', pm.taskId);
     setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:"published"}:t));
     if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:"published"}); }
@@ -3390,11 +3431,11 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Revize al: görevi "revision" kolonuna taşı + kim/ne zaman/açıklama kaydet
   const confirmRevision = async () => {
     const rm = revisionModal;
-    if(!rm.note || !rm.note.trim()){ alert("Lütfen revize açıklaması yazın"); return; }
+    if(!rm.note || !rm.note.trim()){ swalAlert("Lütfen revize açıklaması yazın"); return; }
     const nowIso = new Date().toISOString();
     const by = currentStaff?.name || "Bilinmeyen";
     const { error } = await supabase.from('tasks').update({ col: "revision", revision_note: rm.note.trim(), revision_by: by, revision_at: nowIso }).eq('id', rm.taskId);
-    if(error){ alert("Revize kaydedilemedi: "+error.message+"\n\nREVIZE-SQL kodunu çalıştırın."); return; }
+    if(error){ swalAlert("Revize kaydedilemedi: "+error.message+"\n\nREVIZE-SQL kodunu çalıştırın."); return; }
     setTasks(prev=>prev.map(t=>t.id===rm.taskId?{...t,col:"revision",revisionNote:rm.note.trim(),revisionBy:by,revisionAt:nowIso}:t));
     if(selectedTask && selectedTask.id===rm.taskId){ setSelectedTask({...selectedTask,col:"revision",revisionNote:rm.note.trim(),revisionBy:by,revisionAt:nowIso}); }
     setRevisionModal(null);
@@ -3410,13 +3451,13 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
   // Görev düzenlemeyi kaydet
   const saveEdit = async () => {
-    if(!editForm.title){ alert("Başlık boş olamaz"); return; }
+    if(!editForm.title){ swalAlert("Başlık boş olamaz"); return; }
     const cid = clients.find(c=>c.name===editForm.client)?.id || null;
     const { error } = await supabase.from('tasks').update({
       title: editForm.title, type: editForm.type, priority: editForm.priority,
       due_date: editForm.due||"—", client_id: cid,
     }).eq('id', editForm.id);
-    if(error){ alert("Güncellenemedi: "+error.message); return; }
+    if(error){ swalAlert("Güncellenemedi: "+error.message); return; }
     setTasks(prev=>prev.map(t=>t.id===editForm.id?{...t,title:editForm.title,type:editForm.type,priority:editForm.priority,due:editForm.due,client:editForm.client,clientId:cid}:t));
     setSelectedTask(s=>s&&s.id===editForm.id?{...s,title:editForm.title,type:editForm.type,priority:editForm.priority,due:editForm.due,client:editForm.client,clientId:cid}:s);
     setEditModal(false);
@@ -3424,7 +3465,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
   const deleteTask = async (taskId) => {
     if (!deleteModal.reason || !deleteModal.note) {
-      alert("Lütfen silme sebebini ve açıklamayı girin");
+      swalAlert("Lütfen silme sebebini ve açıklamayı girin");
       return;
     }
 
@@ -3435,7 +3476,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     }).eq('id', taskId);
 
     if (error) {
-      alert("HATA: Görev silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      swalAlert("HATA: Görev silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
       return;
     }
 
@@ -3978,7 +4019,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           priority: form.priority||"mid", due_date: form.due||"—", col: "todo",
           assigned_to: form.assignedTo || null, assigned_at: assignedAt, client_id: cid,
         }).select().single();
-        if(error){ alert("Görev eklenemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp gerekli sütunları eklediğinizden emin olun."); return; }
+        if(error){ swalAlert("Görev eklenemedi: "+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp gerekli sütunları eklediğinizden emin olun."); return; }
         if(data){
           setTasks(prev=>[...prev,{id:data.id,title:data.title,client:form.client||"",clientId:cid,col:"todo",due:form.due,priority:form.priority||"mid",type:form.type||"Tasarım",assignedTo:form.assignedTo||null,assignedAt}]);
           // Ek çekim ise müşterinin ek çekimlerine ekle (her yere yansısın)
@@ -4049,7 +4090,7 @@ function printShootWeek(weekDays, wdNames, shoots, clients, staff, weekLabel, as
 
   if (asPdf) { downloadPdfFromHTML(html, `Haftalik-Cekim-Programi-${new Date().toISOString().slice(0,10)}.pdf`, "landscape"); return; }
   const w = window.open("", "_blank", "width=1200,height=820");
-  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html); w.document.close(); w.focus();
   setTimeout(() => w.print(), 400);
 }
@@ -4273,9 +4314,9 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
   };
 
   const save = async () => {
-    if (!form.client_id) { alert("Lütfen müşteri seçin"); return; }
-    if (!form.title) { alert("Lütfen çekim adı girin veya hazır olanlardan seçin"); return; }
-    if (!form.shoot_date) { alert("Lütfen tarih seçin"); return; }
+    if (!form.client_id) { swalAlert("Lütfen müşteri seçin"); return; }
+    if (!form.title) { swalAlert("Lütfen çekim adı girin veya hazır olanlardan seçin"); return; }
+    if (!form.shoot_date) { swalAlert("Lütfen tarih seçin"); return; }
     setSaving(true);
     // Düzenleme: tek kaydı güncelle
     if (form.id) {
@@ -4284,7 +4325,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
         location: form.location || "", assigned_to: form.assigned_to || null, note: form.note || "", status: form.status || "planned",
       }).eq('id', form.id);
       setSaving(false);
-      if (error) { alert("Güncellenemedi: " + error.message); return; }
+      if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
       setModal(false); setForm({}); load();
       if (refreshData) refreshData();
       return;
@@ -4297,7 +4338,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     }));
     const { error } = await supabase.from('shoots').insert(rows);
     setSaving(false);
-    if (error) { alert("Çekim kaydedilemedi: " + error.message + "\n\nCEKIM-PLANLAMA-SQL kodunu Supabase'de çalıştırın."); return; }
+    if (error) { swalAlert("Çekim kaydedilemedi: " + error.message + "\n\nCEKIM-PLANLAMA-SQL kodunu Supabase'de çalıştırın."); return; }
     setModal(false); setForm({});
     load();
     if (refreshData) refreshData();
@@ -4309,7 +4350,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     load();
   };
   const del = async (id) => {
-    if (!window.confirm("Bu çekim silinsin mi?")) return;
+    if (!await swalConfirm("Bu çekim silinsin mi?")) return;
     await supabase.from('shoots').delete().eq('id', id);
     load(); if (refreshData) refreshData();
   };
@@ -4592,7 +4633,7 @@ function ReportsPage({ clients, perms }) {
   };
 
   const save = async () => {
-    if (!form.client_id || !form.month_ref) { alert("Müşteri ve ay zorunlu"); return; }
+    if (!form.client_id || !form.month_ref) { swalAlert("Müşteri ve ay zorunlu"); return; }
     setSaving(true);
     const payload = { client_id: form.client_id, month_ref: form.month_ref, notes: form.notes || "" };
     REPORT_METRICS.forEach(m => { payload[m.key] = parseInt(form[m.key]) || 0; });
@@ -4602,11 +4643,11 @@ function ReportsPage({ clients, perms }) {
     if (existing) { ({ error } = await supabase.from('social_reports').update(payload).eq('id', existing.id)); }
     else { ({ error } = await supabase.from('social_reports').insert(payload)); }
     setSaving(false);
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nRAPORLAMA-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nRAPORLAMA-SQL kodunu çalıştırın."); return; }
     setModal(false); setForm({}); load();
   };
 
-  const del = async (id) => { if (!window.confirm("Bu rapor silinsin mi?")) return; await supabase.from('social_reports').delete().eq('id', id); load(); };
+  const del = async (id) => { if (!await swalConfirm("Bu rapor silinsin mi?")) return; await supabase.from('social_reports').delete().eq('id', id); load(); };
 
   // Bir müşterinin raporları (tarihe göre, eskiden yeniye grafik için)
   const clientReports = (cid) => reports.filter(r => r.client_id === cid).sort((a, b) => a.month_ref.localeCompare(b.month_ref));
@@ -4930,7 +4971,7 @@ function CalendarPage({clients}) {
             });
           }
         }
-        if (rows.length === 0) { alert("Bu ayda planlanmış paylaşım/çekim yok"); return; }
+        if (rows.length === 0) { swalAlert("Bu ayda planlanmış paylaşım/çekim yok"); return; }
         printData(`İçerik Takvimi - ${TR_MONTHS[viewMonth]} ${viewYear}`, rows);
       }} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>🖨️ Yazdır</button>
       <div style={{display:"flex",gap:12}}>
@@ -5082,7 +5123,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
   const handleAddStaff = async () => {
     if (!form.name || !form.role) {
-      alert("Lütfen isim ve pozisyon seçin");
+      swalAlert("Lütfen isim ve pozisyon seçin");
       return;
     }
 
@@ -5106,7 +5147,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
     }).select().single();
 
     if (error) {
-      alert("HATA: Çalışan eklenemedi!\n\n" + error.message + "\n\nSupabase'de yetki sütunları eksik olabilir. SQL kodunu çalıştırın.");
+      swalAlert("HATA: Çalışan eklenemedi!\n\n" + error.message + "\n\nSupabase'de yetki sütunları eksik olabilir. SQL kodunu çalıştırın.");
       return;
     }
 
@@ -5114,13 +5155,13 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       // Giriş hesabı oluştur (email + şifre verildiyse)
       if (form.email && form.password) {
         if (form.password.length < 6) {
-          alert("Çalışan eklendi ancak GİRİŞ HESABI oluşturulamadı: Şifre en az 6 karakter olmalı. Düzenle'den şifre belirleyebilirsiniz.");
+          swalAlert("Çalışan eklendi ancak GİRİŞ HESABI oluşturulamadı: Şifre en az 6 karakter olmalı. Düzenle'den şifre belirleyebilirsiniz.");
         } else {
           const { data: rpcData, error: rpcError } = await supabase.rpc('create_staff_login', { staff_email: form.email, staff_password: form.password });
           if (rpcError) {
-            alert("Çalışan eklendi ANCAK giriş hesabı oluşturulamadı:\n\n" + rpcError.message + "\n\nCALISAN-SIFRE-SQL kodunu Supabase'de çalıştırdığınızdan emin olun. Sonra 'Düzenle'den şifre verebilirsiniz.");
+            swalAlert("Çalışan eklendi ANCAK giriş hesabı oluşturulamadı:\n\n" + rpcError.message + "\n\nCALISAN-SIFRE-SQL kodunu Supabase'de çalıştırdığınızdan emin olun. Sonra 'Düzenle'den şifre verebilirsiniz.");
           } else {
-            alert("✅ Çalışan eklendi ve giriş hesabı oluşturuldu!\n\nÇalışana şu bilgileri verin:\nE-posta: " + form.email + "\nŞifre: " + form.password + "\n\nÇalışan 'Giriş Yap' ile bu bilgilerle girebilir.");
+            swalAlert("✅ Çalışan eklendi ve giriş hesabı oluşturuldu!\n\nÇalışana şu bilgileri verin:\nE-posta: " + form.email + "\nŞifre: " + form.password + "\n\nÇalışan 'Giriş Yap' ile bu bilgilerle girebilir.");
           }
         }
       }
@@ -5148,7 +5189,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
   const handleEditStaff = async () => {
     if (!editForm.name || !editForm.role) {
-      alert("Lütfen isim ve pozisyon girin");
+      swalAlert("Lütfen isim ve pozisyon girin");
       return;
     }
 
@@ -5170,7 +5211,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
     }).eq('id', editModal.id);
 
     if (error) {
-      alert("HATA: Çalışan güncellenemedi!\n\n" + error.message);
+      swalAlert("HATA: Çalışan güncellenemedi!\n\n" + error.message);
       return;
     }
 
@@ -5196,7 +5237,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
   const handleDeparture = async () => {
     if (!departureModal.reason || !departureModal.date) {
-      alert("Lütfen ayrılış nedenini ve tarihini seçin");
+      swalAlert("Lütfen ayrılış nedenini ve tarihini seçin");
       return;
     }
 
@@ -5207,7 +5248,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
     }).eq('id', departureModal.staffId);
 
     if (error) {
-      alert("HATA: Çalışan ayrılış işlemi yapılamadı!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      swalAlert("HATA: Çalışan ayrılış işlemi yapılamadı!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
       return;
     }
 
@@ -5322,11 +5363,11 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
         <div style={{display:"flex",gap:6}}>
           <Input type="text" placeholder="Yeni giriş şifresi" value={editForm.newPassword||""} onChange={e=>setEditForm(f=>({...f,newPassword:e.target.value}))} />
           <Btn onClick={async()=>{
-            if(!editForm.email){ alert("Önce e-posta girin"); return; }
-            if(!editForm.newPassword || editForm.newPassword.length<6){ alert("Şifre en az 6 karakter olmalı"); return; }
+            if(!editForm.email){ swalAlert("Önce e-posta girin"); return; }
+            if(!editForm.newPassword || editForm.newPassword.length<6){ swalAlert("Şifre en az 6 karakter olmalı"); return; }
             const { error } = await supabase.rpc('create_staff_login', { staff_email: editForm.email, staff_password: editForm.newPassword });
-            if(error){ alert("Şifre ayarlanamadı:\n\n"+error.message+"\n\nCALISAN-SIFRE-SQL kodunu çalıştırın."); return; }
-            alert("✅ Şifre ayarlandı!\n\nÇalışana verin:\nE-posta: "+editForm.email+"\nŞifre: "+editForm.newPassword);
+            if(error){ swalAlert("Şifre ayarlanamadı:\n\n"+error.message+"\n\nCALISAN-SIFRE-SQL kodunu çalıştırın."); return; }
+            swalAlert("✅ Şifre ayarlandı!\n\nÇalışana verin:\nE-posta: "+editForm.email+"\nŞifre: "+editForm.newPassword);
             setEditForm(f=>({...f,newPassword:""}));
           }} style={{fontSize:12,padding:"0 14px",whiteSpace:"nowrap",flexShrink:0}}>Şifreyi Ayarla</Btn>
         </div>
@@ -5775,23 +5816,23 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
   const departedStaff = (allStaff || []).filter(s => s.deleted_at);
 
   const restoreClient = async (id, name) => {
-    if (!window.confirm(`"${name}" tekrar aktif müşteri olacak. Onaylıyor musunuz?`)) return;
+    if (!await swalConfirm(`"${name}" tekrar aktif müşteri olacak. Onaylıyor musunuz?`)) return;
     setBusy(true);
     const { error } = await supabase.from('clients').update({ deleted_at: null, delete_reason: null, deletion_date: null }).eq('id', id);
     setBusy(false);
-    if (error) { alert("Hata: " + error.message); return; }
+    if (error) { swalAlert("Hata: " + error.message); return; }
     await refreshData();
-    alert(`"${name}" tekrar aktif müşteri! Bilgilerini düzenlemek için Müşteriler sayfasına gidebilirsiniz.`);
+    swalAlert(`"${name}" tekrar aktif müşteri! Bilgilerini düzenlemek için Müşteriler sayfasına gidebilirsiniz.`);
   };
 
   const restoreStaff = async (id, name) => {
-    if (!window.confirm(`"${name}" tekrar aktif çalışan olacak. Onaylıyor musunuz?`)) return;
+    if (!await swalConfirm(`"${name}" tekrar aktif çalışan olacak. Onaylıyor musunuz?`)) return;
     setBusy(true);
     const { error } = await supabase.from('staff').update({ deleted_at: null, departure_reason: null, departure_date: null }).eq('id', id);
     setBusy(false);
-    if (error) { alert("Hata: " + error.message); return; }
+    if (error) { swalAlert("Hata: " + error.message); return; }
     await refreshData();
-    alert(`"${name}" tekrar aktif çalışan! Bilgilerini düzenlemek için Çalışanlar sayfasına gidebilirsiniz.`);
+    swalAlert(`"${name}" tekrar aktif çalışan! Bilgilerini düzenlemek için Çalışanlar sayfasına gidebilirsiniz.`);
   };
 
   if (departedClients.length === 0 && departedStaff.length === 0) return null;
@@ -5890,19 +5931,19 @@ function InventoryPage({ perms }) {
 
   const load = async () => {
     const { data, error } = await supabase.from('inventory').select('*').is('deleted_at', null).order('category').order('name');
-    if (error) alert("Envanter yüklenemedi: " + error.message + "\n\nENVANTER-SQL kodunu çalıştırın.");
+    if (error) swalAlert("Envanter yüklenemedi: " + error.message + "\n\nENVANTER-SQL kodunu çalıştırın.");
     setItems(data || []); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (!form.name) { alert("Ekipman adı zorunlu"); return; }
+    if (!form.name) { swalAlert("Ekipman adı zorunlu"); return; }
     const row = { name: form.name, category: form.category || "diger", brand_model: form.brand_model || "", quantity: parseInt(form.quantity) || 1, serial_no: form.serial_no || "", status: form.status || "aktif", purchase_date: form.purchase_date || null, value: parseFloat(form.value) || 0, notes: form.notes || "" };
     const { error } = form.id ? await supabase.from('inventory').update(row).eq('id', form.id) : await supabase.from('inventory').insert(row);
-    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
     setModal(false); setForm({}); load();
   };
-  const del = async (id) => { if (!window.confirm("Bu ekipman envanterden silinsin mi?")) return; await supabase.from('inventory').update({ deleted_at: new Date().toISOString() }).eq('id', id); load(); };
+  const del = async (id) => { if (!await swalConfirm("Bu ekipman envanterden silinsin mi?")) return; await supabase.from('inventory').update({ deleted_at: new Date().toISOString() }).eq('id', id); load(); };
   const quickQty = async (it, delta) => { const q = Math.max(0, (it.quantity || 0) + delta); await supabase.from('inventory').update({ quantity: q }).eq('id', it.id); setItems(prev => prev.map(x => x.id === it.id ? { ...x, quantity: q } : x)); };
 
   const filtered = items.filter(i => (filterCat === "all" || i.category === filterCat) && (!search || `${i.name} ${i.brand_model} ${i.serial_no} ${i.notes}`.toLowerCase().includes(search.toLowerCase())));
@@ -6024,34 +6065,34 @@ function EmlakPanelimPage() {
 
   async function denemeSuresiKaydet() {
     const gun = Number(denemeTaslak);
-    if (!Number.isFinite(gun) || gun < 1) { alert("Geçerli bir gün sayısı girin."); return; }
+    if (!Number.isFinite(gun) || gun < 1) { swalAlert("Geçerli bir gün sayısı girin."); return; }
     setDenemeBekle(true);
     try { await gonder({ aksiyon: "deneme_suresi_kaydet", gun }); await yukle(); }
-    catch (e) { alert(e.message); }
+    catch (e) { swalAlert(e.message); }
     setDenemeBekle(false);
   }
 
   async function uzat(f, gun) {
     setBekle(f.id + "-uzat");
     try { await gonder({ aksiyon: "uzat", firmaId: f.id, gun }); await yukle(); }
-    catch (e) { alert(e.message); }
+    catch (e) { swalAlert(e.message); }
     setBekle(null);
   }
   async function durumDegistir(f, durum) {
     try { await gonder({ aksiyon: "durum", firmaId: f.id, durum }); await yukle(); }
-    catch (e) { alert(e.message); }
+    catch (e) { swalAlert(e.message); }
   }
   async function firmaSil(f) {
     const onay = window.prompt(
       `"${f.ad}" firmasını ve TÜM verilerini (ilanlar, müşteriler, mal sahipleri, sözleşmeler, ekip hesapları) KALICI olarak sileceksiniz. Bu işlem GERİ ALINAMAZ.\n\nOnaylamak için firma adını tam olarak yazın:`
     );
     if (onay !== f.ad) {
-      if (onay !== null) alert("Firma adı eşleşmedi, silme iptal edildi.");
+      if (onay !== null) swalAlert("Firma adı eşleşmedi, silme iptal edildi.");
       return;
     }
     setBekle(f.id + "-sil");
     try { await gonder({ aksiyon: "firma_sil", firmaId: f.id }); await yukle(); }
-    catch (e) { alert(e.message); }
+    catch (e) { swalAlert(e.message); }
     setBekle(null);
   }
   async function faturaKaydet(f) {
@@ -6065,7 +6106,7 @@ function EmlakPanelimPage() {
         },
       });
       await yukle();
-    } catch (e) { alert(e.message); }
+    } catch (e) { swalAlert(e.message); }
     setBekle(null);
   }
   async function planKaydet(id) {
@@ -6080,15 +6121,15 @@ function EmlakPanelimPage() {
         },
       });
       await yukle();
-    } catch (e) { alert(e.message); }
+    } catch (e) { swalAlert(e.message); }
     setBekle(null);
   }
   async function planSil(id) {
-    if (!window.confirm("Bu paket silinecek ve EmlakPanelim fiyat sayfasından kalkacak. Emin misiniz?")) return;
-    try { await gonder({ aksiyon: "plan_sil", id }); await yukle(); } catch (e) { alert(e.message); }
+    if (!await swalConfirm("Bu paket silinecek ve EmlakPanelim fiyat sayfasından kalkacak. Emin misiniz?")) return;
+    try { await gonder({ aksiyon: "plan_sil", id }); await yukle(); } catch (e) { swalAlert(e.message); }
   }
   async function planEkle() {
-    try { await gonder({ aksiyon: "plan_ekle", sira: (veri?.planlar?.length || 0) + 1 }); await yukle(); } catch (e) { alert(e.message); }
+    try { await gonder({ aksiyon: "plan_ekle", sira: (veri?.planlar?.length || 0) + 1 }); await yukle(); } catch (e) { swalAlert(e.message); }
   }
 
   if (hata) return (
@@ -6242,7 +6283,7 @@ const NAV=[
 // ─────────────────────────────────────────────
 function openPrintWindow(html) {
   const w = window.open("", "_blank");
-  if (!w) { alert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   w.document.write(html);
   w.document.close();
   const doPrint = () => { try { w.focus(); w.print(); } catch (e) {} };
@@ -6266,7 +6307,7 @@ async function downloadPdfFromHTML(html, filename, orientation = "portrait") {
   // En güvenilir yöntem: yazdırma penceresi aç, kullanıcı "PDF olarak kaydet" desin.
   // (html2pdf bazı tarayıcılarda boş çıkıyor; tarayıcı motoru şaşmaz.)
   const w = window.open("", "_blank");
-  if (!w) { alert("PDF penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  if (!w) { swalAlert("PDF penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
   // Başlığı dosya adı yap (yazdırırken önerilen ad olur)
   const titled = html.replace(/<title>.*?<\/title>/i, `<title>${filename.replace(/\.pdf$/i, "")}</title>`);
   w.document.write(titled);
@@ -6469,7 +6510,7 @@ function QuoteSettingsTab({ reload }) {
     const rows = Object.entries(form).map(([key, value]) => ({ key, value: String(value) }));
     const { error } = await supabase.from('panel_settings').upsert(rows, { onConflict: 'key' });
     setSaving(false);
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nTEKLIF-AYARLARI-SQL kodunu Supabase'de çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nTEKLIF-AYARLARI-SQL kodunu Supabase'de çalıştırın."); return; }
     Object.assign(QUOTE_SETTINGS, { ...form, vat_rate: Number(form.vat_rate) || 20 });
     setSaved(true); setTimeout(() => setSaved(false), 2500);
     if (reload) reload();
@@ -6538,7 +6579,7 @@ function PricingPackages({ packages, addons, reload }) {
   const openEdit = (p) => { setEditId(p.id); setForm({ name: p.name, tagline: p.tagline, price: p.price, price_note: p.price_note, features: p.features || [], is_popular: p.is_popular }); setModal(true); };
 
   const save = async () => {
-    if (!form.name) { alert("Paket adı zorunlu"); return; }
+    if (!form.name) { swalAlert("Paket adı zorunlu"); return; }
     const payload = {
       name: form.name, tagline: form.tagline || "", price: parseFloat(form.price) || 0,
       price_note: form.price_note || "", features: (form.features || []).filter(f => f.trim()), is_popular: !!form.is_popular,
@@ -6546,10 +6587,10 @@ function PricingPackages({ packages, addons, reload }) {
     let error;
     if (editId) ({ error } = await supabase.from('pricing_packages').update(payload).eq('id', editId));
     else { payload.sort_order = (packages.length ? Math.max(...packages.map(p => p.sort_order || 0)) : 0) + 1; ({ error } = await supabase.from('pricing_packages').insert(payload)); }
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nFIYATLANDIRMA-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nFIYATLANDIRMA-SQL kodunu çalıştırın."); return; }
     setModal(false); reload();
   };
-  const del = async (id) => { if (!window.confirm("Bu paket silinsin mi?")) return; await supabase.from('pricing_packages').delete().eq('id', id); reload(); };
+  const del = async (id) => { if (!await swalConfirm("Bu paket silinsin mi?")) return; await supabase.from('pricing_packages').delete().eq('id', id); reload(); };
 
   return (
     <div>
@@ -6620,15 +6661,15 @@ function PricingAddons({ addons, reload }) {
   const openAdd = () => { setEditId(null); setForm({ name: "", price_text: "" }); setModal(true); };
   const openEdit = (a) => { setEditId(a.id); setForm({ name: a.name, price_text: a.price_text }); setModal(true); };
   const save = async () => {
-    if (!form.name) { alert("Hizmet adı zorunlu"); return; }
+    if (!form.name) { swalAlert("Hizmet adı zorunlu"); return; }
     const payload = { name: form.name, price_text: form.price_text || "" };
     let error;
     if (editId) ({ error } = await supabase.from('pricing_addons').update(payload).eq('id', editId));
     else { payload.sort_order = (addons.length ? Math.max(...addons.map(a => a.sort_order || 0)) : 0) + 1; ({ error } = await supabase.from('pricing_addons').insert(payload)); }
-    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
     setModal(false); reload();
   };
-  const del = async (id) => { if (!window.confirm("Silinsin mi?")) return; await supabase.from('pricing_addons').delete().eq('id', id); reload(); };
+  const del = async (id) => { if (!await swalConfirm("Silinsin mi?")) return; await supabase.from('pricing_addons').delete().eq('id', id); reload(); };
 
   return (
     <div>
@@ -6676,19 +6717,19 @@ function PricingQuotes({ packages, addons, quotes, reload }) {
   const toggleAddon = (name) => setForm(f => ({ ...f, addons: (f.addons || []).includes(name) ? f.addons.filter(a => a !== name) : [...(f.addons || []), name] }));
 
   const save = async (thenPrint) => {
-    if (!form.business_name) { alert("İşletme adı zorunlu"); return; }
+    if (!form.business_name) { swalAlert("İşletme adı zorunlu"); return; }
     const payload = {
       business_name: form.business_name, package_name: form.package_name || "", price: parseFloat(form.price) || 0,
       features: (form.features || []).filter(f => f.trim()), addons: form.addons || [], note: form.note || "", status: form.status || "draft",
     };
     const { data, error } = await supabase.from('pricing_quotes').insert(payload).select().single();
-    if (error) { alert("Kaydedilemedi: " + error.message); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
     setModal(false); reload();
     if (thenPrint && data) printQuote(data, addons);
   };
 
   const setStatus = async (id, status) => { await supabase.from('pricing_quotes').update({ status }).eq('id', id); reload(); };
-  const del = async (id) => { if (!window.confirm("Bu teklif silinsin mi?")) return; await supabase.from('pricing_quotes').delete().eq('id', id); reload(); };
+  const del = async (id) => { if (!await swalConfirm("Bu teklif silinsin mi?")) return; await supabase.from('pricing_quotes').delete().eq('id', id); reload(); };
 
   return (
     <div>
@@ -6793,7 +6834,7 @@ function LeadsPage({ refreshData, currentStaff }) {
   };
 
   const saveLead = async () => {
-    if (!form.business_name) { alert("İşletme adı zorunlu"); return; }
+    if (!form.business_name) { swalAlert("İşletme adı zorunlu"); return; }
     const payload = {
       business_name: form.business_name,
       city: form.city || "", district: form.district || "", address: form.address || "",
@@ -6811,13 +6852,13 @@ function LeadsPage({ refreshData, currentStaff }) {
     } else {
       ({ error } = await supabase.from('leads').insert(payload));
     }
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
     setModal(false); setForm({}); setEditId(null);
     load();
   };
 
   const deleteLead = async (id) => {
-    if (!window.confirm("Bu kayıt silinsin mi?")) return;
+    if (!await swalConfirm("Bu kayıt silinsin mi?")) return;
     await supabase.from('leads').delete().eq('id', id);
     load();
   };
@@ -6825,7 +6866,7 @@ function LeadsPage({ refreshData, currentStaff }) {
   // Aktif müşteriye taşı
   const convertToClient = async (lead) => {
     const price = lead.agreed_price || 0;
-    if (!window.confirm(`"${lead.business_name}" aktif müşterilere taşınacak.\nAylık ücret: ${fmtMoney(price)}\n\nOnaylıyor musunuz?`)) return;
+    if (!await swalConfirm(`"${lead.business_name}" aktif müşterilere taşınacak.\nAylık ücret: ${fmtMoney(price)}\n\nOnaylıyor musunuz?`)) return;
     const initials = (lead.business_name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
     const now = new Date();
     const contractStart = `${TR_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
@@ -6840,11 +6881,11 @@ function LeadsPage({ refreshData, currentStaff }) {
       platforms: [], publish_days: [], shoot_days: [], publish_times: [],
       monthly_fee: Math.round(price), contract_start: contractStart,
     });
-    if (error) { alert("Taşıma başarısız: " + error.message); return; }
+    if (error) { swalAlert("Taşıma başarısız: " + error.message); return; }
     await supabase.from('leads').update({ status: 'converted' }).eq('id', lead.id);
     await load();
     if (refreshData) await refreshData();
-    alert(`"${lead.business_name}" artık aktif müşteri! 🎉\nMüşteriler sekmesinden bilgilerini tamamlayabilirsiniz.`);
+    swalAlert(`"${lead.business_name}" artık aktif müşteri! 🎉\nMüşteriler sekmesinden bilgilerini tamamlayabilirsiniz.`);
   };
 
   const filtered = leads.filter(l => {
@@ -7183,7 +7224,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
       const r = await uploadAccountingDoc(file, "faturalar");
       setStage("Fatura okunuyor…");
       let fields = {};
-      try { fields = await extractInvoiceWithAI(file, "sale", clientName); } catch (ex) { alert("Fatura otomatik okunamadı, bilgileri elle girin.\n" + ex.message); }
+      try { fields = await extractInvoiceWithAI(file, "sale", clientName); } catch (ex) { swalAlert("Fatura otomatik okunamadı, bilgileri elle girin.\n" + ex.message); }
       const d = new Date();
       setDraft({ url: r.url, name: r.name, fields: {
         invoice_no: fields.invoice_no || "", invoice_date: fields.date || d.toISOString().slice(0, 10),
@@ -7191,46 +7232,50 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
         month_ref: fields.month_ref || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
         description: fields.description || "",
       }});
-    } catch (err) { alert("Yükleme hatası: " + err.message + "\n\nSTORAGE-POLITIKA-SQL kodunu çalıştırın."); }
+    } catch (err) { swalAlert("Yükleme hatası: " + err.message + "\n\nSTORAGE-POLITIKA-SQL kodunu çalıştırın."); }
     setUploading(false); setStage("");
   };
 
   const saveDraft = async () => {
     const f = draft.fields;
     const total = parseFloat(f.total) || 0;
-    if (!total) { alert("Toplam tutar zorunlu"); return; }
+    if (!total) { swalAlert("Toplam tutar zorunlu"); return; }
     const { error } = await supabase.from('client_invoices').insert({
       client_id: clientId, file_url: draft.url, file_name: draft.name,
       invoice_no: f.invoice_no || "", invoice_date: f.invoice_date || null,
       amount: parseFloat(f.amount) || 0, vat: parseFloat(f.vat) || 0, total,
       month_ref: f.month_ref || null, description: f.description || "", status: "pending",
     });
-    if (error) { alert("Fatura kaydedilemedi: " + error.message + "\n\nFATURA-SQL (client_invoices sütunları) kodunu çalıştırdığınızdan emin olun."); return; }
+    if (error) { swalAlert("Fatura kaydedilemedi: " + error.message + "\n\nFATURA-SQL (client_invoices sütunları) kodunu çalıştırdığınızdan emin olun."); return; }
     setDraft(null); load();
   };
 
   const markPaid = async (inv) => {
-    if (!window.confirm(`${inv.invoice_no || inv.file_name} — ${fmtMoney(inv.total)} ödendi olarak işaretlensin ve cariye ödeme kaydı düşülsün mü?`)) return;
+    if (!await swalConfirm(`${inv.invoice_no || inv.file_name} — ${fmtMoney(inv.total)} ödendi olarak işaretlensin ve cariye ödeme kaydı düşülsün mü?`)) return;
     const today = new Date().toISOString().slice(0, 10);
     const { data: pay, error: e1 } = await supabase.from('client_payments').insert({
       client_id: clientId, amount: Number(inv.total || 0), payment_date: today,
       month_ref: inv.month_ref || today.slice(0, 7), method: "havale", notes: `Fatura ${inv.invoice_no || ""}`.trim(),
     }).select().single();
-    if (e1) { alert("Ödeme kaydı oluşturulamadı: " + e1.message); return; }
+    if (e1) { swalAlert("Ödeme kaydı oluşturulamadı: " + e1.message); return; }
     const { error: e2 } = await supabase.from('client_invoices').update({ status: "paid", paid_at: today, payment_id: pay?.id || null }).eq('id', inv.id);
-    if (e2) { alert("Fatura güncellenemedi: " + e2.message); return; }
+    if (e2) {
+      if (pay?.id != null) await supabase.from('client_payments').delete().eq('id', pay.id);
+      swalAlert("Fatura güncellenemedi: " + e2.message);
+      return;
+    }
     load(); onPaid && onPaid();
   };
 
   const markUnpaid = async (inv) => {
-    if (!window.confirm("Ödendi işareti kaldırılsın mı? (Bağlı ödeme kaydı da silinir)")) return;
+    if (!await swalConfirm("Ödendi işareti kaldırılsın mı? (Bağlı ödeme kaydı da silinir)")) return;
     if (inv.payment_id) await supabase.from('client_payments').delete().eq('id', inv.payment_id);
     await supabase.from('client_invoices').update({ status: "pending", paid_at: null, payment_id: null }).eq('id', inv.id);
     load(); onPaid && onPaid();
   };
 
   const del = async (inv) => {
-    if (!window.confirm("Bu fatura silinsin mi?" + (inv.payment_id ? " (Bağlı ödeme kaydı da silinir)" : ""))) return;
+    if (!await swalConfirm("Bu fatura silinsin mi?" + (inv.payment_id ? " (Bağlı ödeme kaydı da silinir)" : ""))) return;
     if (inv.payment_id) await supabase.from('client_payments').delete().eq('id', inv.payment_id);
     await supabase.from('client_invoices').delete().eq('id', inv.id); load(); onPaid && onPaid();
   };
@@ -7305,7 +7350,7 @@ function AccountingSpending() {
       const cat = EXPENSE_CATEGORIES.find(c => c.id === j.category) ? j.category : "ofis";
       setForm({ category: cat, title: [j.vendor, j.description].filter(Boolean).join(" - "), amount: j.total || j.amount || "", expense_date: j.date || new Date().toISOString().slice(0, 10), notes: j.invoice_no ? `Fatura no: ${j.invoice_no}` : "", vendor: j.vendor || "", invoice_no: j.invoice_no || "" });
       setFile(f); setModal(true);
-    } catch (ex) { alert("Fatura okunamadı: " + ex.message); }
+    } catch (ex) { swalAlert("Fatura okunamadı: " + ex.message); }
     setAiBusy(false);
   };
 
@@ -7317,12 +7362,12 @@ function AccountingSpending() {
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (!form.category || !form.amount) { alert("Kategori ve tutar zorunlu"); return; }
+    if (!form.category || !form.amount) { swalAlert("Kategori ve tutar zorunlu"); return; }
     setUploading(true);
     let docUrl = "", docName = "";
     if (file) {
       try { const r = await uploadAccountingDoc(file, "giderler"); docUrl = r.url; docName = r.name; }
-      catch (e) { setUploading(false); alert("Belge yüklenemedi: " + e.message); return; }
+      catch (e) { setUploading(false); swalAlert("Belge yüklenemedi: " + e.message); return; }
     }
     const { error } = await supabase.from('company_expenses').insert({
       category: form.category, title: form.title || "", amount: parseFloat(form.amount) || 0,
@@ -7331,12 +7376,12 @@ function AccountingSpending() {
       vendor: form.vendor || "", invoice_no: form.invoice_no || "",
     });
     setUploading(false);
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
     setModal(false); setForm({}); setFile(null);
     load();
   };
 
-  const del = async (id) => { if (!window.confirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); load(); };
+  const del = async (id) => { if (!await swalConfirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); load(); };
 
   const now = new Date();
   const filtered = filterCat === "all" ? items : items.filter(i => i.category === filterCat);
@@ -7428,12 +7473,12 @@ function AccountingIncome() {
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (!form.amount) { alert("Tutar zorunlu"); return; }
+    if (!form.amount) { swalAlert("Tutar zorunlu"); return; }
     setUploading(true);
     let docUrl = "", docName = "";
     if (file) {
       try { const r = await uploadAccountingDoc(file, "gelirler"); docUrl = r.url; docName = r.name; }
-      catch (e) { setUploading(false); alert("Belge yüklenemedi: " + e.message); return; }
+      catch (e) { setUploading(false); swalAlert("Belge yüklenemedi: " + e.message); return; }
     }
     const { error } = await supabase.from('company_incomes').insert({
       source: form.source || "", title: form.title || "", amount: parseFloat(form.amount) || 0,
@@ -7441,12 +7486,12 @@ function AccountingIncome() {
       document_url: docUrl, document_name: docName, notes: form.notes || "",
     });
     setUploading(false);
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
     setModal(false); setForm({}); setFile(null);
     load();
   };
 
-  const del = async (id) => { if (!window.confirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); load(); };
+  const del = async (id) => { if (!await swalConfirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); load(); };
 
   const now = new Date();
   const total = items.reduce((s, i) => s + Number(i.amount || 0), 0);
@@ -7579,7 +7624,7 @@ function AccountingCari({ clients }) {
   const totalOutstanding = totalExpected - totalCollected;
 
   const savePayment = async () => {
-    if (!form.client_id || !form.amount) { alert("Müşteri ve tutar zorunlu"); return; }
+    if (!form.client_id || !form.amount) { swalAlert("Müşteri ve tutar zorunlu"); return; }
     const { error } = await supabase.from('client_payments').insert({
       client_id: form.client_id,
       amount: parseFloat(form.amount) || 0,
@@ -7588,13 +7633,13 @@ function AccountingCari({ clients }) {
       method: form.method || "havale",
       notes: form.notes || "",
     });
-    if (error) { alert("Ödeme kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+    if (error) { swalAlert("Ödeme kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
     setModal(false); setForm({});
     load();
   };
 
   const deletePayment = async (id) => {
-    if (!window.confirm("Bu ödeme kaydı silinsin mi?")) return;
+    if (!await swalConfirm("Bu ödeme kaydı silinsin mi?")) return;
     await supabase.from('client_payments').delete().eq('id', id);
     load();
   };
@@ -7701,7 +7746,7 @@ function AccountingCari({ clients }) {
                         if(c.paymentDueDate) msg += `📆 Son Ödeme Tarihi: ${new Date(c.paymentDueDate).toLocaleDateString("tr-TR")}\n`;
                         msg += `\nİyi çalışmalar dileriz.\n\nPanormos Medya Ekibi`;
                         const phone = (c.phone||"").replace(/\D/g,"").replace(/^0/,"90");
-                        if(phone.length<10){ alert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
+                        if(phone.length<10){ swalAlert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
                       }} style={{background:"#25D366",color:"#fff",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📱 WhatsApp Hatırlatma</Btn>
                       <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
@@ -7724,7 +7769,7 @@ function AccountingCari({ clients }) {
                               {paid > 0 && (
                                 <button onClick={async (e) => {
                                   e.stopPropagation();
-                                  if (!window.confirm(`${monthRefLabel(m)} ayına ait tüm ödemeler silinsin mi?`)) return;
+                                  if (!await swalConfirm(`${monthRefLabel(m)} ayına ait tüm ödemeler silinsin mi?`)) return;
                                   const toDelete = cs.cPayments.filter(p => p.month_ref === m);
                                   for (const p of toDelete) {
                                     await supabase.from('client_payments').delete().eq('id', p.id);
@@ -7823,9 +7868,9 @@ function AccountingExpenses({ staff }) {
   useEffect(() => { load(); }, []);
 
   const saveEntry = async () => {
-    if (!form.title && form.entry_type !== "salary") { alert("Başlık zorunlu"); return; }
-    if (form.entry_type === "salary" && !form.staff_id) { alert("Maaş için çalışan seçin"); return; }
-    if (!form.amount) { alert("Tutar zorunlu"); return; }
+    if (!form.title && form.entry_type !== "salary") { swalAlert("Başlık zorunlu"); return; }
+    if (form.entry_type === "salary" && !form.staff_id) { swalAlert("Maaş için çalışan seçin"); return; }
+    if (!form.amount) { swalAlert("Tutar zorunlu"); return; }
     const staffName = form.staff_id ? staff.find(s => String(s.id) === String(form.staff_id))?.name : null;
     const { error } = await supabase.from('accounting_entries').insert({
       entry_type: form.entry_type,
@@ -7837,7 +7882,7 @@ function AccountingExpenses({ staff }) {
       is_paid: false,
       notes: form.notes || "",
     });
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
     setModal(false); setForm({ entry_type: "sgk" });
     load();
   };
@@ -7847,7 +7892,7 @@ function AccountingExpenses({ staff }) {
     load();
   };
   const deleteEntry = async (id) => {
-    if (!window.confirm("Bu kayıt silinsin mi?")) return;
+    if (!await swalConfirm("Bu kayıt silinsin mi?")) return;
     await supabase.from('accounting_entries').delete().eq('id', id);
     load();
   };
@@ -7963,8 +8008,8 @@ function AccountingLeave({ staff }) {
   };
 
   const saveLeave = async () => {
-    if (!form.staff_id) { alert("Çalışan seçin"); return; }
-    if (!form.start_date || !form.end_date) { alert("Başlangıç ve bitiş tarihi girin"); return; }
+    if (!form.staff_id) { swalAlert("Çalışan seçin"); return; }
+    if (!form.start_date || !form.end_date) { swalAlert("Başlangıç ve bitiş tarihi girin"); return; }
     const days = calcDays(form.start_date, form.end_date);
     const { error } = await supabase.from('staff_leave').insert({
       staff_id: parseInt(form.staff_id),
@@ -7974,12 +8019,12 @@ function AccountingLeave({ staff }) {
       leave_type: form.leave_type || "yıllık",
       notes: form.notes || "",
     });
-    if (error) { alert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
     setModal(false); setForm({ leave_type: "yıllık" });
     load();
   };
   const deleteLeave = async (id) => {
-    if (!window.confirm("Bu izin kaydı silinsin mi?")) return;
+    if (!await swalConfirm("Bu izin kaydı silinsin mi?")) return;
     await supabase.from('staff_leave').delete().eq('id', id);
     load();
   };
@@ -8164,7 +8209,7 @@ function AccountingDocuments() {
             doc_date: new Date().toISOString().slice(0, 10),
           });
         } else if (error) {
-          alert("Yükleme hatası: " + error.message);
+          swalAlert("Yükleme hatası: " + error.message);
         }
       } catch (err) { console.error(err); }
     }
@@ -8179,7 +8224,7 @@ function AccountingDocuments() {
     }
   };
   const deleteDoc = async (doc) => {
-    if (!window.confirm("Bu belge silinsin mi?")) return;
+    if (!await swalConfirm("Bu belge silinsin mi?")) return;
     if (doc.storage_path) await supabase.storage.from('client-media').remove([doc.storage_path]);
     await supabase.from('accounting_documents').delete().eq('id', doc.id);
     load();
@@ -8318,7 +8363,7 @@ function MessagesPage({ currentStaff, staff }) {
       created_at: new Date().toISOString(),
     });
     if (error) {
-      alert("Mesaj gönderilemedi: " + error.message + "\n\nMesajlaşma tabloları eksik olabilir. SQL kodunu çalıştırın.");
+      swalAlert("Mesaj gönderilemedi: " + error.message + "\n\nMesajlaşma tabloları eksik olabilir. SQL kodunu çalıştırın.");
     }
     loadMessages(activeConvId);
   };
@@ -8333,7 +8378,7 @@ function MessagesPage({ currentStaff, staff }) {
     const { data: conv, error } = await supabase.from('conversations').insert({
       name: null, is_group: false, created_by: currentStaff.id, created_at: new Date().toISOString(),
     }).select().single();
-    if (error) { alert("Sohbet oluşturulamadı: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+    if (error) { swalAlert("Sohbet oluşturulamadı: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
 
     await supabase.from('conversation_members').insert([
       { conversation_id: conv.id, staff_id: currentStaff.id },
@@ -8345,14 +8390,14 @@ function MessagesPage({ currentStaff, staff }) {
 
   // Grup oluştur
   const createGroup = async () => {
-    if (!groupName.trim()) { alert("Grup adı girin"); return; }
-    if (groupMembers.length === 0) { alert("En az bir üye seçin"); return; }
+    if (!groupName.trim()) { swalAlert("Grup adı girin"); return; }
+    if (groupMembers.length === 0) { swalAlert("En az bir üye seçin"); return; }
     setGroupModal(false);
 
     const { data: conv, error } = await supabase.from('conversations').insert({
       name: groupName.trim(), is_group: true, created_by: currentStaff.id, created_at: new Date().toISOString(),
     }).select().single();
-    if (error) { alert("Grup oluşturulamadı: " + error.message); return; }
+    if (error) { swalAlert("Grup oluşturulamadı: " + error.message); return; }
 
     const members = [currentStaff.id, ...groupMembers].map(id => ({ conversation_id: conv.id, staff_id: id }));
     await supabase.from('conversation_members').insert(members);
@@ -8368,12 +8413,12 @@ function MessagesPage({ currentStaff, staff }) {
     const msg = isGroup
       ? `"${conv.name}" grubunu silmek istediğinize emin misiniz?\n\nTüm mesajlar kalıcı olarak silinecek.`
       : `${conv.name} ile olan sohbeti silmek istediğinize emin misiniz?\n\nTüm mesajlar kalıcı olarak silinecek.`;
-    if (!window.confirm(msg)) return;
+    if (!await swalConfirm(msg)) return;
     // Üyeler ve mesajlar CASCADE ile otomatik silinir; yine de garantiye alalım
     await supabase.from('staff_messages').delete().eq('conversation_id', conv.id);
     await supabase.from('conversation_members').delete().eq('conversation_id', conv.id);
     const { error } = await supabase.from('conversations').delete().eq('id', conv.id);
-    if (error) { alert("Silinemedi: " + error.message); return; }
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
     setActiveConvId(null);
     setMessages([]);
     await loadConversations();
@@ -8442,7 +8487,7 @@ function MessagesPage({ currentStaff, staff }) {
                 <div style={{ fontSize: 11, color: T.textMuted }}>{activeConv.isGroup ? activeConv.memberNames.join(", ") : "Özel sohbet"}</div>
               </div>
               <Btn onClick={()=>{
-                if(messages.length===0){ alert("Yazdırılacak mesaj yok"); return; }
+                if(messages.length===0){ swalAlert("Yazdırılacak mesaj yok"); return; }
                 const rows = messages.map(m=>({
                   "Tarih/Saat": new Date(m.created_at).toLocaleString("tr-TR"),
                   "Gönderen": staff.find(s=>s.id===m.sender_id)?.name || "?",
@@ -8701,7 +8746,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
       const a = document.createElement("a");
       a.href = url; a.download = `panormos-yedek-${new Date().toISOString().slice(0, 10)}.json`;
       a.click(); URL.revokeObjectURL(url);
-    } catch (e) { alert("Yedekleme hatası: " + e.message); }
+    } catch (e) { swalAlert("Yedekleme hatası: " + e.message); }
     setBacking(false);
   };
 
@@ -9686,7 +9731,7 @@ export default function App() {
             <div style={{fontSize:10,color:T.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{perms.isAdmin?"Yönetici":currentStaff.role||"Çalışan"}</div>
           </div>
         </div>
-        <button onClick={async()=>{ if(window.confirm("Çıkış yapmak istediğinize emin misiniz?")){ localStorage.removeItem("panormos_login_day"); await supabase.auth.signOut(); window.location.reload(); } }} style={{
+        <button onClick={async()=>{ if(await swalConfirm("Çıkış yapmak istediğinize emin misiniz?")){ localStorage.removeItem("panormos_login_day"); await supabase.auth.signOut(); window.location.reload(); } }} style={{
           width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           padding:"9px 12px",borderRadius:10,background:T.bgSurface,border:`1px solid ${T.border}`,
           color:T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:600,transition:"all 0.12s",
