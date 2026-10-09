@@ -37,4 +37,4 @@ async function yetkili(event, { yonetici = false, calisanYonetir = false } = {})
   return null;
 }
 
-module.exports = { yetkili };
+module.exports = { yetkili, panelKullanicisi };

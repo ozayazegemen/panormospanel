@@ -2309,6 +2309,14 @@ async function panelFetch(path, opts = {}) {
   return fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
 }
 
+// Çalışanın giriş hesabını kaldırır; kaydiSil=true ise çalışan kaydını da tamamen siler. Hata olursa fırlatır.
+async function removeStaffAccess(staffId, kaydiSil = false) {
+  const r = await panelFetch("/.netlify/functions/delete-staff", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staffId, kaydiSil }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+  return d;
+}
+
 async function askClaude({ prompt, system, messages, maxTokens }) {
   const r = await panelFetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, system, messages, maxTokens }) });
   const data = await r.json().catch(() => ({}));
@@ -5350,7 +5358,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       swalAlert("Lütfen ayrılış nedenini ve tarihini seçin");
       return;
     }
-    if (!await swalConfirm("Bu çalışan ayrıldı olarak işaretlenecek (ayrılan çalışanlar listesine taşınır).\n\nOnaylıyor musunuz?")) return;
+    if (!await swalConfirm("Bu çalışan ayrıldı olarak işaretlenecek ve panele giriş hesabı silinecek; artık giriş yapamaz.\n\nKaydı, geçmiş raporlar için ayrılan çalışanlar listesinde kalır; oradan \"Kalıcı Sil\" ile tamamen kaldırabilirsiniz.\n\nOnaylıyor musunuz?")) return;
 
     const { error } = await supabase.from('staff').update({
       deleted_at: new Date().toISOString(),
@@ -5363,9 +5371,15 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       return;
     }
 
+    // Giriş hesabını da kaldır: ayrılan çalışan panele giremesin
+    let girisNotu = "";
+    try { await removeStaffAccess(departureModal.staffId, false); }
+    catch (e) { girisNotu = "Çalışan ayrıldı olarak işaretlendi ANCAK giriş hesabı silinemedi: " + e.message + "\n\nÇalışan panele girse bile hiçbir veriye erişemez. Ayrılan çalışanlar listesinden \"Kalıcı Sil\" ile tekrar deneyebilirsiniz."; }
+
     setStaff(staff.filter(s => s.id !== departureModal.staffId));
     setDepartureModal(null);
     setUploadedDocs([]);
+    if (girisNotu) swalAlert(girisNotu);
   };
 
   const handleDocUpload = (e) => {
@@ -5939,7 +5953,18 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
     setBusy(false);
     if (error) { swalAlert("Hata: " + error.message); return; }
     await refreshData();
-    swalAlert(`"${name}" tekrar aktif çalışan! Bilgilerini düzenlemek için Çalışanlar sayfasına gidebilirsiniz.`);
+    swalAlert(`"${name}" tekrar aktif çalışan!\n\nGiriş hesabı ayrılırken silindiği için panele girebilmesi için Çalışanlar sayfasında Düzenle'den yeni bir şifre belirleyin.`);
+  };
+
+  // Ayrılan çalışanı tamamen siler: giriş hesabı + çalışan kaydı
+  const deleteStaffForever = async (id, name) => {
+    if (!await swalConfirm(`"${name}" tamamen silinecek: giriş hesabı ve çalışan kaydı kaldırılır.\n\nYaptığı görevler ve paylaşımlar durur ama geçmiş raporlarda adı görünmez. Bu işlem geri alınamaz.\n\nSilinsin mi?`)) return;
+    setBusy(true);
+    try { await removeStaffAccess(id, true); }
+    catch (e) { setBusy(false); swalAlert("Çalışan silinemedi: " + e.message); return; }
+    setBusy(false);
+    await refreshData();
+    swalAlert(`"${name}" tamamen silindi.`);
   };
 
   if (departedClients.length === 0 && departedStaff.length === 0) return null;
@@ -5963,6 +5988,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
         <div style={{ fontSize: 10, color: T.textMuted }}>{s.role || "—"}{s.departure_date ? ` · ${s.departure_date}` : ""}{s.deleted_at ? ` · Silindi: ${new Date(s.deleted_at).toLocaleDateString("tr-TR")}` : ""}</div>
       </div>
       {perms.manageStaff && <button disabled={busy} onClick={() => restoreStaff(s.id, s.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
+      {perms.manageStaff && <button disabled={busy} onClick={() => deleteStaffForever(s.id, s.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.redDim, color: T.redText, border: `1px solid ${T.red}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>Kalıcı Sil</button>}
     </div>
   );
 
