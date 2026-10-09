@@ -1829,10 +1829,16 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           name: form.name, category: form.category||"", initials, accent_color: accentColor,
           phone: form.phone||"", email: form.email||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
-          social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
+          description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
+          work_type: form.workType||"monthly", contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
         }).select().single();
+        if(data){
+          // Aylık ücret ve sosyal medya şifresi müşteri kaydında değil, korumalı tablolarda durur
+          const gizli = await saveClientPrivate(data.id, { monthlyFee: parseInt(form.monthlyFee)||0, socialPassword: form.socialPassword||"", yeni: true });
+          if(gizli) swalAlert("Müşteri eklendi ancak ücret / şifre bilgisi kaydedilemedi: "+gizli);
+          data.monthly_fee = parseInt(form.monthlyFee)||0; data.social_password = form.socialPassword||"";
+        }
         if(error){ swalAlert("HATA: Müşteri eklenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         if(data){
           // Formda eklenen parça başı işleri kaydet
@@ -1886,11 +1892,16 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           name: form.name, category: form.category||"", initials,
           phone: form.phone||"", email: form.email||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
-          social_password: form.socialPassword||"", description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
+          description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          monthly_fee: parseInt(form.monthlyFee)||0, work_type: form.workType||"monthly", contract_end: form.contractEnd||null,
+          work_type: form.workType||"monthly", contract_end: form.contractEnd||null,
         }).eq('id', form.id);
         if(error){ swalAlert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
+        {
+          // Ücreti yalnızca finans yetkisi olan değiştirir; şifre korumalı tabloya yazılır
+          const gizli = await saveClientPrivate(form.id, { monthlyFee: perms.finance ? (parseInt(form.monthlyFee)||0) : undefined, socialPassword: form.socialPassword||"" });
+          if(gizli){ swalAlert("Müşteri güncellendi ancak ücret / şifre bilgisi kaydedilemedi: "+gizli); }
+        }
         // Formda eklenen yeni parça başı işleri kaydet (varsa)
         let addedJobs = [];
         if((form.pieceJobsNew||[]).length>0){
@@ -3130,8 +3141,7 @@ function ClientMedia({client}) {
     if (m.storageType === "google_drive" && m.storagePath) {
       window.open(m.storagePath, "_blank");
     } else if (m.storageType === "supabase" && m.storagePath) {
-      const { data } = supabase.storage.from('client-media').getPublicUrl(m.storagePath);
-      if (data?.publicUrl) window.open(data.publicUrl, "_blank");
+      openStoredFile(m.storagePath);
     }
   };
 
@@ -4933,7 +4943,7 @@ function DriveFilesPage({ clients }) {
                 👤 {f.uploader_name||"—"} · 🏢 {clientName(f.client_id)} · 🕐 {fmtDT(f.uploaded_at)}
               </div>
             </div>
-            {f.link && <a href={f.link} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:600,padding:"6px 14px",borderRadius:8,background:T.amber,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>Aç ↗</a>}
+            {f.link && <a {...storedFileLink(f.link)} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:600,padding:"6px 14px",borderRadius:8,background:T.amber,color:"#fff",textDecoration:"none",whiteSpace:"nowrap"}}>Aç ↗</a>}
           </div>
         ))}
       </div>
@@ -6947,7 +6957,7 @@ function LeadsPage({ refreshData, currentStaff }) {
     const now = new Date();
     const contractStart = `${TR_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
     const colors = ["#6366F1", "#EC4899", "#10B981", "#F59E0B", "#F97316"];
-    const { error } = await supabase.from('clients').insert({
+    const { data: yeni, error } = await supabase.from('clients').insert({
       name: lead.business_name,
       category: "",
       initials,
@@ -6955,9 +6965,10 @@ function LeadsPage({ refreshData, currentStaff }) {
       phone: lead.phone || "", address: lead.address || "", city: lead.city || "", district: lead.district || "",
       tax_number: "", tax_office: "", social_media: lead.social_media || "",
       platforms: [], publish_days: [], shoot_days: [], publish_times: [],
-      monthly_fee: Math.round(price), contract_start: contractStart,
-    });
+      contract_start: contractStart,
+    }).select('id').single();
     if (error) { swalAlert("Taşıma başarısız: " + error.message); return; }
+    if (yeni?.id) await saveClientPrivate(yeni.id, { monthlyFee: Math.round(price), yeni: true });
     await supabase.from('leads').update({ status: 'converted' }).eq('id', lead.id);
     await load();
     if (refreshData) await refreshData();
@@ -8176,6 +8187,28 @@ async function extractInvoiceWithAI(file, kind, clientName) {
   return j;
 }
 
+// Depodaki dosyayı kısa süreli imzalı bağlantıyla açar (depo dışarıya kapalıdır; bağlantı 10 dakika geçerlidir).
+// ref: depo yolu ya da eskiden kaydedilmiş açık bağlantı. Depo dışı bağlantılar (Google Drive vb.) doğrudan açılır.
+async function openStoredFile(ref) {
+  if (!ref) return;
+  const marker = "/object/public/client-media/";
+  let path = null;
+  if (String(ref).includes(marker)) {
+    const raw = String(ref).split(marker)[1].split("?")[0];
+    try { path = decodeURIComponent(raw); } catch (e) { path = raw; }
+  } else if (!/^https?:/i.test(ref)) path = ref;
+  if (!path) { window.open(ref, "_blank", "noopener"); return; }
+  const w = window.open("", "_blank"); // pencereyi önce aç: tarayıcı açılır pencereyi engellemesin
+  const { data, error } = await supabase.storage.from('client-media').createSignedUrl(path, 600);
+  if (error || !data?.signedUrl) {
+    if (w) w.close();
+    swalAlert("Dosya açılamadı: " + (error?.message || "bağlantı oluşturulamadı"));
+    return;
+  }
+  if (w) w.location.href = data.signedUrl; else window.location.href = data.signedUrl;
+}
+const storedFileLink = (ref) => ({ href: ref, onClick: (e) => { e.preventDefault(); openStoredFile(ref); } });
+
 async function uploadAccountingDoc(file, prefix) {
   const safeName = file.name
     .normalize("NFD").replace(/[̀-ͯ]/g, "")   // aksanları kaldır
@@ -8300,7 +8333,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
             <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: T.bgCard, borderRadius: 8, borderLeft: `3px solid ${paid ? T.green : T.amber}` }}>
               <span style={{ fontSize: 16 }}>🧾</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <a href={inv.file_url} target="_blank" rel="noopener" style={{ fontSize: 13, color: T.indigoText, fontWeight: 600, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{inv.invoice_no ? `Fatura ${inv.invoice_no}` : inv.file_name}{inv.description ? ` · ${inv.description}` : ""}</a>
+                <a {...storedFileLink(inv.file_url)} target="_blank" rel="noopener" style={{ fontSize: 13, color: T.indigoText, fontWeight: 600, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{inv.invoice_no ? `Fatura ${inv.invoice_no}` : inv.file_name}{inv.description ? ` · ${inv.description}` : ""}</a>
                 <div style={{ fontSize: 10, color: T.textMuted }}>{inv.invoice_date || (inv.uploaded_at ? new Date(inv.uploaded_at).toLocaleDateString("tr-TR") : "")}{inv.month_ref ? ` · ${monthRefLabel(inv.month_ref)}` : ""}{paid && inv.paid_at ? ` · ✓ ${inv.paid_at} ödendi` : ""}</div>
               </div>
               {Number(inv.total) > 0 && <div style={{ textAlign: "right" }}><div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{fmtMoney(inv.total)}</div>{Number(inv.vat) > 0 && <div style={{ fontSize: 10, color: T.textMuted }}>KDV {fmtMoney(inv.vat)}</div>}</div>}
@@ -8314,7 +8347,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
       )}
       {draft && (
         <Modal title={`Fatura Kontrol — ${clientName}`} onClose={() => setDraft(null)} width={560}>
-          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>Faturadan okunan bilgiler aşağıda. Kontrol edip Kaydet'e basın. <a href={draft.url} target="_blank" rel="noopener" style={{ color: T.indigoText }}>📄 Faturayı aç</a></div>
+          <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12 }}>Faturadan okunan bilgiler aşağıda. Kontrol edip Kaydet'e basın. <a {...storedFileLink(draft.url)} target="_blank" rel="noopener" style={{ color: T.indigoText }}>📄 Faturayı aç</a></div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
             <FormField label="Fatura No"><Input value={F.invoice_no} onChange={e => setF("invoice_no", e.target.value)} /></FormField>
             <FormField label="Fatura Tarihi"><Input type="date" value={F.invoice_date} onChange={e => setF("invoice_date", e.target.value)} /></FormField>
@@ -8444,7 +8477,7 @@ function AccountingSpending() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || expCatLabel(i.category)}</div>
                   <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{expCatLabel(i.category)} · {i.expense_date}{i.notes ? " · " + i.notes : ""}</div>
                 </div>
-                {i.document_url && <a href={i.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
+                {i.document_url && <a {...storedFileLink(i.document_url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.amberText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
                 <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -8549,7 +8582,7 @@ function AccountingIncome() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || i.source || "Gelir"}</div>
                   <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{i.source ? i.source + " · " : ""}{i.income_date}{i.notes ? " · " + i.notes : ""}</div>
                 </div>
-                {i.document_url && <a href={i.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
+                {i.document_url && <a {...storedFileLink(i.document_url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.greenText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
                 <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
@@ -8594,11 +8627,14 @@ function AccountingCari({ clients }) {
   const [err, setErr] = useState("");
 
   const load = async () => {
-    const [{ data: payData, error: e1 }, { data: invData, error: e2 }, { data: allCData, error: e3 }] = await Promise.all([
+    const [{ data: payData, error: e1 }, { data: invData, error: e2 }, { data: allCRaw, error: e3 }, { data: feeData }] = await Promise.all([
       supabase.from('client_payments').select('*').order('payment_date', { ascending: false }),
       supabase.from('client_invoices').select('*'),
-      supabase.from('clients').select('id,name,initials,accent_color,monthly_fee,contract_start,payment_due_date,deleted_at'),
+      supabase.from('clients').select('id,name,initials,accent_color,contract_start,payment_due_date,deleted_at'),
+      supabase.from('client_finance').select('client_id,monthly_fee'),
     ]);
+    const feeOf = {}; (feeData || []).forEach(f => { feeOf[f.client_id] = Number(f.monthly_fee || 0); });
+    const allCData = (allCRaw || []).map(c => ({ ...c, monthly_fee: feeOf[c.id] || 0 }));
     setErr([e1, e2, e3].filter(Boolean).map(e => e.message).join(" · "));
     setPayments(payData || []);
     setClientInvoices(invData || []);
@@ -9257,8 +9293,7 @@ function AccountingDocuments() {
 
   const openDoc = (doc) => {
     if (doc.storage_type === "supabase" && doc.storage_path) {
-      const { data } = supabase.storage.from('client-media').getPublicUrl(doc.storage_path);
-      if (data?.publicUrl) window.open(data.publicUrl, "_blank");
+      openStoredFile(doc.storage_path);
     }
   };
   const deleteDoc = async (doc) => {
@@ -9639,6 +9674,22 @@ function MessagesPage({ currentStaff, staff }) {
   );
 }
 
+// Müşterinin korumalı bilgilerini kaydeder: aylık ücret (client_finance) ve sosyal medya şifresi (şifreli).
+// Hata olursa mesajını döndürür, yoksa null. monthlyFee undefined ise ücrete dokunulmaz.
+async function saveClientPrivate(clientId, { monthlyFee, socialPassword, yeni = false }) {
+  const hatalar = [];
+  if (monthlyFee !== undefined) {
+    const row = { client_id: clientId, monthly_fee: monthlyFee, updated_at: new Date().toISOString() };
+    const { error } = yeni ? await supabase.from('client_finance').insert(row) : await supabase.from('client_finance').upsert(row, { onConflict: 'client_id' });
+    if (error) hatalar.push(error.message);
+  }
+  if (socialPassword !== undefined && !(yeni && !socialPassword)) {
+    const { error } = await supabase.rpc('panel_sifre_yaz', { p_client_id: clientId, p_sifre: socialPassword });
+    if (error) hatalar.push(error.message);
+  }
+  return hatalar.length ? hatalar.join(" · ") : null;
+}
+
 async function loadAllData() {
   const [
     { data: clientsRaw },
@@ -9650,6 +9701,8 @@ async function loadAllData() {
     { data: publishesRaw },
     { data: pieceJobsRaw },
     { data: shootsRaw },
+    { data: financeRaw },
+    { data: secretsRaw },
   ] = await Promise.all([
     supabase.from('clients').select('*'),
     supabase.from('staff').select('*'),
@@ -9660,16 +9713,20 @@ async function loadAllData() {
     supabase.from('publishes').select('*'),
     supabase.from('piece_jobs').select('*'),
     supabase.from('shoots').select('*'),
+    supabase.from('client_finance').select('client_id,monthly_fee'),   // yalnızca finans yetkisi olana satır döner
+    supabase.rpc('panel_sifreler'),                                    // şifreler şifreli saklanır, işlevle çözülür
   ]);
+  const feeOf = {}; (financeRaw || []).forEach(f => { feeOf[f.client_id] = Number(f.monthly_fee || 0); });
+  const sifreOf = {}; (secretsRaw || []).forEach(x => { sifreOf[x.client_id] = x.sifre || ""; });
 
   const clients = (clientsRaw || []).filter(c => !c.deleted_at).map(c => ({
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", email: c.email || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
-    socialMedia: c.social_media || "", socialPassword: c.social_password || "", description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
+    socialMedia: c.social_media || "", socialPassword: sifreOf[c.id] || "", description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
-    monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
+    monthlyFee: feeOf[c.id] || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
     workType: c.work_type || "monthly",
     extraShoots: [
       ...(Array.isArray(c.extra_shoots) ? c.extra_shoots : []),
@@ -9774,7 +9831,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
   const backupAll = async () => {
     setBacking(true);
     try {
-      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails'];
+      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails'];
       const backup = { exportedAt: new Date().toISOString(), tables: {} };
       for (const t of tables) {
         // Tek istekte en çok 1000 satır gelir; tablonun tamamını sayfa sayfa al
