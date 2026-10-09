@@ -8,6 +8,9 @@
 --     yönetici yetkisini yalnızca yönetici verebilir.
 --   * Şifre belirleme işlevi artık dışarıdan çağrılamaz.
 -- Bir adım hata verirse hiçbir değişiklik uygulanmaz. Tekrar çalıştırmak zararsızdır.
+--
+-- DURUM: Bu kuralların eşdeğeri 9 Ekim 2026'da canlı veritabanına uygulandı ve doğrulandı.
+-- Dosya, kurulumu baştan yapmak gerekirse diye duruyor; yeniden çalıştırmak gerekmez.
 
 begin;
 
@@ -61,6 +64,7 @@ begin
   select lower(email) into v_email from auth.users where id = v_uid and email_confirmed_at is not null;
   if v_email is null or v_email = '' then return null; end if;
 
+  perform set_config('panel.hesap_bagla', '1', true);  -- çalışan kaydı korumasına takılmasın
   update public.staff s set auth_id = v_uid
    where s.id = (
      select st.id from public.staff st
@@ -68,6 +72,7 @@ begin
         and (st.auth_id is null or not exists (select 1 from auth.users u where u.id = st.auth_id))
       limit 1)
   returning * into r;
+  perform set_config('panel.hesap_bagla', '', true);
   if found then return to_json(r); end if;
   return null;
 end;
@@ -150,8 +155,8 @@ $function$;
 create or replace function public.staff_yetki_korumasi() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  -- Sunucu tarafı (SQL Editor, servis anahtarı) ve yönetici serbest
-  if auth.uid() is null or public.panel_yoneticisi() then
+  -- Sunucu tarafı (SQL Editor, servis anahtarı), yönetici ve hesap bağlama işlevi serbest
+  if auth.uid() is null or public.panel_yoneticisi() or current_setting('panel.hesap_bagla', true) = '1' then
     if tg_op = 'DELETE' then return old; end if;
     return new;
   end if;
