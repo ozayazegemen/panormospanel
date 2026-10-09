@@ -2060,6 +2060,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
         <Btn onClick={()=>printClientDetail(client, perms)} style={{fontSize:11,padding:"5px 10px"}}>🖨️ Yazdır</Btn>
         <Btn onClick={()=>printMonthlyReport(client)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📄 Aylık Rapor</Btn>
+        {perms.accounting && <Btn onClick={()=>openClientStatement(client)} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📑 Hesap Raporu</Btn>}
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
         <Btn onClick={()=>setMailModal(true)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📧 E-posta</Btn>
         {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,email:client.email||"",address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",workType:client.workType||"monthly",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
@@ -7156,6 +7157,91 @@ function monthRefOptions() {
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const sumAmount = (list, key = "amount") => list.reduce((s, x) => s + Number(x[key] || 0), 0);
 
+// ─────────────────────────────────────────────
+// MÜŞTERİ HESAP RAPORU (PDF) — fatura girişleri ve ödemeler, gün gün
+// ─────────────────────────────────────────────
+function printClientStatement(client, cInvoices, cPayments) {
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const gun = (d) => { if (!d) return "—"; const x = new Date(String(d).length <= 10 ? d + "T00:00:00" : d); return isNaN(x) ? "—" : x.toLocaleDateString("tr-TR"); };
+  const donem = (m) => { const p = String(m || "").split("-"); return p.length === 2 && TR_MONTHS[parseInt(p[1]) - 1] ? `${TR_MONTHS[parseInt(p[1]) - 1]} ${p[0]}` : "—"; };
+  const YONTEM = { "havale": "Havale / EFT", "nakit": "Nakit", "kredi kartı": "Kredi Kartı", "çek": "Çek" };
+  const yontem = (m) => YONTEM[m] || m || "—";
+  const faturaNo = (i) => i.invoice_no || i.parasut_invoice_no || "—";
+
+  const cari = cariHesapla(cPayments, cInvoices);
+  const ayBorcu = {};
+  cari.months.forEach(m => { ayBorcu[m.m] = m.debt; });
+  const odendi = (i) => i.status === "paid" || (ayBorcu[i.month_ref || ""] || 0) <= 0;
+
+  // Gün gün hesap hareketleri (fatura: fatura tarihi, yoksa panele giriş günü; ödeme: ödeme günü)
+  const hareketler = [
+    ...cInvoices.map(i => ({ tarih: String(i.invoice_date || i.uploaded_at || "").slice(0, 10), tur: "Fatura", belge: faturaNo(i), aciklama: i.description || i.file_name || "", donem: i.month_ref, fatura: Number(i.total || 0), odeme: 0 })),
+    ...cPayments.map(p => ({ tarih: String(p.payment_date || p.created_at || "").slice(0, 10), tur: "Ödeme", belge: yontem(p.method), aciklama: p.notes || "", donem: p.month_ref, fatura: 0, odeme: Number(p.amount || 0) })),
+  ].sort((a, b) => a.tarih.localeCompare(b.tarih) || (a.tur === "Fatura" ? -1 : 1));
+
+  const faturalar = [...cInvoices].sort((a, b) => String(a.invoice_date || a.uploaded_at || "").localeCompare(String(b.invoice_date || b.uploaded_at || "")));
+  const odemeler = [...cPayments].sort((a, b) => String(a.payment_date || "").localeCompare(String(b.payment_date || "")));
+  const bos = (n) => `<tr><td colspan="${n}" style="text-align:center;color:#8A8F98;padding:12px;">Kayıt yok</td></tr>`;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hesap Raporu</title><style>${PRINT_STYLES}
+    .ozet { display:flex; gap:10px; margin-bottom:6px; }
+    .ozet .k { flex:1; border:1px solid #E5E7EB; border-radius:9px; padding:10px 12px; }
+    .ozet .k .l { font-size:9px; color:#6B7280; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:3px; }
+    .ozet .k .v { font-size:16px; font-weight:800; color:#1A2B3F; }
+    .ozet .k.borc .v { color:#F25124; } .ozet .k.tamam .v { color:#0A7A4A; }
+    td.r, th.r { text-align:right; white-space:nowrap; }
+    tr.toplam td { font-weight:800; background:#EEF1F5 !important; border-top:2px solid #1A2B3F; }
+    table { page-break-inside:auto; } tr { page-break-inside:avoid; }
+    .fatura { color:#1A2B3F; font-weight:700; } .odeme { color:#0A7A4A; font-weight:700; }
+    @media print { tr.toplam td { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  </style></head><body>
+    <div class="head">
+      <div class="logo">panormos <span class="m">medya.</span></div>
+      <h1>Müşteri Hesap Raporu</h1>
+      <div class="sub">${esc(client.name)} · Rapor tarihi: ${new Date().toLocaleDateString("tr-TR")}${hareketler.length ? ` · Dönem: ${gun(hareketler[0].tarih)} – ${gun(hareketler[hareketler.length - 1].tarih)}` : ""}</div>
+    </div>
+
+    <div class="ozet">
+      <div class="k"><div class="l">Kesilen Fatura (${cInvoices.length} adet)</div><div class="v">${fmtMoney(cari.invoiced)}</div></div>
+      <div class="k"><div class="l">Yapılan Ödeme (${cPayments.length} adet)</div><div class="v">${fmtMoney(cari.paid)}</div></div>
+      <div class="k ${cari.balance > 0 ? "borc" : "tamam"}"><div class="l">Kalan Borç</div><div class="v">${fmtMoney(cari.balance)}</div></div>
+    </div>
+
+    <h2>Hesap Hareketleri (gün gün)</h2>
+    <table>
+      <tr><th>Tarih</th><th>İşlem</th><th>Fatura No / Ödeme Yöntemi</th><th>Açıklama</th><th>Ait Olduğu Ay</th><th class="r">Fatura</th><th class="r">Ödeme</th></tr>
+      ${hareketler.map(h => `<tr><td>${gun(h.tarih)}</td><td class="${h.tur === "Fatura" ? "fatura" : "odeme"}">${h.tur}</td><td>${esc(h.belge)}</td><td>${esc(h.aciklama) || "—"}</td><td>${donem(h.donem)}</td><td class="r">${h.fatura ? fmtMoney(h.fatura) : ""}</td><td class="r">${h.odeme ? fmtMoney(h.odeme) : ""}</td></tr>`).join("") || bos(7)}
+      ${hareketler.length ? `<tr class="toplam"><td colspan="5">Toplam</td><td class="r">${fmtMoney(cari.invoiced)}</td><td class="r">${fmtMoney(cari.paid)}</td></tr>` : ""}
+    </table>
+
+    <h2>Fatura Detayları</h2>
+    <table>
+      <tr><th>Fatura No</th><th>Fatura Tarihi</th><th>Panele Giriş</th><th>Ait Olduğu Ay</th><th class="r">Tutar</th><th class="r">KDV</th><th class="r">Toplam</th><th>Durum</th><th>Ödenme Tarihi</th></tr>
+      ${faturalar.map(i => `<tr><td><strong>${esc(faturaNo(i))}</strong></td><td>${gun(i.invoice_date)}</td><td>${gun(i.uploaded_at)}</td><td>${donem(i.month_ref)}</td><td class="r">${fmtMoney(i.amount)}</td><td class="r">${fmtMoney(i.vat)}</td><td class="r"><strong>${fmtMoney(i.total)}</strong></td><td>${odendi(i) ? "Ödendi" : "Bekliyor"}</td><td>${gun(i.paid_at)}</td></tr>`).join("") || bos(9)}
+    </table>
+
+    <h2>Ödeme Detayları</h2>
+    <table>
+      <tr><th>Ödeme Tarihi</th><th>Panele Giriş</th><th>Ait Olduğu Ay</th><th>Yöntem</th><th>Not</th><th class="r">Tutar</th></tr>
+      ${odemeler.map(p => `<tr><td>${gun(p.payment_date)}</td><td>${gun(p.created_at)}</td><td>${donem(p.month_ref)}</td><td>${esc(yontem(p.method))}</td><td>${esc(p.notes) || "—"}</td><td class="r"><strong>${fmtMoney(p.amount)}</strong></td></tr>`).join("") || bos(6)}
+    </table>
+
+    <div class="terms">Kalan borç, faturası kesilmiş aylarda fatura tutarından o aya yazılan ödemeler düşülerek hesaplanır. Faturası olmayan bir aya girilen ödeme "Yapılan Ödeme" toplamına dahildir ancak başka bir ayın borcunu kapatmaz.</div>
+    ${footerHTML("Panormos Medya", "Bu rapor panel kayıtlarından otomatik oluşturulmuştur.")}
+  </body></html>`;
+  downloadPdfFromHTML(html, `Hesap-Raporu-${String(client.name || "Musteri").replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "").trim()}-${todayStr()}.pdf`);
+}
+
+// Müşterinin fatura ve ödemelerini çekip hesap raporunu açar (muhasebe verisi yalnızca yöneticiye döner)
+async function openClientStatement(client) {
+  const [{ data: inv, error: e1 }, { data: pay, error: e2 }] = await Promise.all([
+    supabase.from('client_invoices').select('*').eq('client_id', client.id),
+    supabase.from('client_payments').select('*').eq('client_id', client.id),
+  ]);
+  if (e1 || e2) { swalAlert("Hesap raporu hazırlanamadı: " + (e1 || e2).message); return; }
+  printClientStatement(client, inv || [], pay || []);
+}
+
 // Bir müşterinin carisi, ay ay: o aya kesilen faturalar ve o aya yazılan ödemeler.
 // Borç yalnızca faturası kesilmiş aydan doğar; faturasız aya girilen ödeme tahsilat sayılır ama başka ayın borcunu kapatmaz.
 function cariHesapla(cPayments, cInvoices) {
@@ -8020,6 +8106,7 @@ function AccountingCari({ clients }) {
                         if(phone.length<10){ swalAlert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
                       }} style={{background:"#25D366",color:"#fff",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📱 WhatsApp Hatırlatma</Btn>
+                      <Btn onClick={() => printClientStatement(cs.client, clientInvoices.filter(i => i.client_id === cs.client.id), payments.filter(p => p.client_id === cs.client.id))} style={{background:T.greenDim,color:T.greenText,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📑 Hesap Raporu (PDF)</Btn>
                       <Btn variant="primary" onClick={() => openPay(cs.client.id)} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
                     </div>
                     {/* Fatura yükleme */}
