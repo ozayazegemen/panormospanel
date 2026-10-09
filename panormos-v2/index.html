@@ -16,7 +16,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Panormos" />
-    <style>*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } html, body, #root { height: 100%; } body { overflow: hidden; background: #0A111D; font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; }</style>
+    <style>*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } html, body, #root { height: 100%; } body { overflow: hidden; background: #0A111D; font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; } html[data-theme="light"] body { background: #F3F5F9; }</style>
+    <script>try { if (localStorage.getItem("panormos_theme") === "light") document.documentElement.setAttribute("data-theme", "light"); } catch (e) {}</script>
   </head>
   <body>
     <div id="root"></div>

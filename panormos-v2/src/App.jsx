@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./supabaseClient";
 import Login from "./Login";
+import { T, THEME, toggleTheme } from "./theme";
 
 
 // ─────────────────────────────────────────────
 // SWEETALERT2 UYARI / ONAY PENCERELERİ (tarayıcı alert/confirm yerine)
 // ─────────────────────────────────────────────
-const SWAL_TEMA = { background: "#151c27", color: "#e8edf5", confirmButtonColor: "#3b82f6", cancelButtonColor: "#475569" };
+const SWAL_TEMA = { background: T.bgCard, color: T.textPrimary, confirmButtonColor: T.amber, cancelButtonColor: "#64748B" };
 function swalTur(m) {
   const t = String(m || "").toLocaleLowerCase("tr");
   if (/hata|edilemedi|olamadı|oluşturulamadı|yazılamadı|gönderilemedi|taşınamadı|güncellenemedi|silinemedi|kaydedilemedi|kaydedilemed|okunamadı|yüklenemedi|açılamadı|başarısız|bulunamadı|sorun/.test(t)) return "error";
@@ -168,18 +169,6 @@ async function uploadFileToGoogleDrive(token, file, folderId) {
   return await res.json();
 }
 
-const T = {
-  bg: "#0A111D", bgCard: "#101927", bgCardHover: "#152033", bgSurface: "#172337", bgInput: "#0B1321",
-  border: "#1D2A3F", borderLight: "#2B3B55",
-  indigo: "#24406A", indigoDim: "#182B47", indigoGlow: "rgba(36,64,106,0.35)", indigoText: "#8FB4DA",
-  amber: "#F25124", amberDim: "rgba(242,81,36,0.15)", amberText: "#F8906E",
-  green: "#10B981", greenDim: "rgba(16,185,129,0.15)", greenText: "#6EE7B7",
-  red: "#EF4444", redDim: "rgba(239,68,68,0.12)", redText: "#FCA5A5",
-  violet: "#F25124", violetDim: "rgba(242,81,36,0.12)", violetText: "#F8906E",
-  textPrimary: "#F1F5FA", textSecondary: "#A2B4C9", textMuted: "#6C8098", white: "#FFFFFF",
-  shadow: "0 1px 2px rgba(0,0,0,0.25), 0 8px 24px -12px rgba(0,0,0,0.45)",
-};
-
 const platformConfig = {
   ig: { label: "Instagram", color: "#E1306C", bg: "rgba(225,48,108,0.12)", icon: "IG" },
   tk: { label: "TikTok", color: "#69C9D0", bg: "rgba(105,201,208,0.12)", icon: "TK" },
@@ -217,22 +206,22 @@ function QuotaEditor({ value, onChange }) {
     if (Object.keys(next[plat]).length === 0) delete next[plat];
     onChange(next);
   };
-  const inp = { width: "100%", background: "#0A1018", border: "1px solid #1E2E42", borderRadius: 6, padding: "6px 4px", color: "#EEF3F9", fontSize: 12, outline: "none", textAlign: "center", boxSizing: "border-box" };
+  const inp = { width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 6, padding: "6px 4px", color: T.textPrimary, fontSize: 12, outline: "none", textAlign: "center", boxSizing: "border-box" };
   return (
-    <div style={{ overflowX: "auto", border: "1px solid #1E2E42", borderRadius: 8 }}>
+    <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 8 }}>
       <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 360 }}>
         <thead>
-          <tr style={{ background: "#1A2535" }}>
-            <th style={{ fontSize: 11, color: "#7A9BB8", fontWeight: 600, textAlign: "left", padding: "8px 10px" }}>Platform</th>
-            {PUBLISH_CONTENT_TYPES.map(ct => <th key={ct.id} style={{ fontSize: 10, color: "#7A9BB8", fontWeight: 600, padding: "8px 4px", minWidth: 56 }}>{ct.label}</th>)}
+          <tr style={{ background: T.bgSurface }}>
+            <th style={{ fontSize: 11, color: T.textSecondary, fontWeight: 600, textAlign: "left", padding: "8px 10px" }}>Platform</th>
+            {PUBLISH_CONTENT_TYPES.map(ct => <th key={ct.id} style={{ fontSize: 10, color: T.textSecondary, fontWeight: 600, padding: "8px 4px", minWidth: 56 }}>{ct.label}</th>)}
           </tr>
         </thead>
         <tbody>
           {PUBLISH_PLATFORMS.map((p, i) => {
             const rowTotal = PUBLISH_CONTENT_TYPES.reduce((s, ct) => s + (val[p.id]?.[ct.id] || 0), 0);
             return (
-              <tr key={p.id} style={{ borderTop: "1px solid #1E2E42", background: rowTotal > 0 ? "rgba(242,81,36,0.06)" : "transparent" }}>
-                <td style={{ fontSize: 12, color: "#EEF3F9", fontWeight: rowTotal > 0 ? 600 : 400, padding: "6px 10px" }}>{p.label}</td>
+              <tr key={p.id} style={{ borderTop: `1px solid ${T.border}`, background: rowTotal > 0 ? "rgba(242,81,36,0.06)" : "transparent" }}>
+                <td style={{ fontSize: 12, color: T.textPrimary, fontWeight: rowTotal > 0 ? 600 : 400, padding: "6px 10px" }}>{p.label}</td>
                 {PUBLISH_CONTENT_TYPES.map(ct => (
                   <td key={ct.id} style={{ padding: "5px 4px" }}>
                     <input type="number" min="0" placeholder="0" value={val[p.id]?.[ct.id] || ""} onChange={e => setCell(p.id, ct.id, parseInt(e.target.value) || 0)} style={inp} />
@@ -482,7 +471,7 @@ function ClientCalendar({ client }) {
           {publishTimes.length > 0 && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>🕐 {publishTimes.join(", ")}</div>}
         </div>
         <div style={{ flex: 1, minWidth: 160, background: "rgba(236,72,153,0.1)", border: "1px solid #EC489944", borderRadius: 10, padding: "12px 14px" }}>
-          <div style={{ fontSize: 10, color: "#F9A8D4", fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>📷 Çekim Günleri</div>
+          <div style={{ fontSize: 10, color: T.pinkText, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>📷 Çekim Günleri</div>
           <div style={{ fontSize: 13, color: T.textPrimary, fontWeight: 500 }}>{(client.shootDays || []).join(", ") || "Belirtilmemiş"}</div>
         </div>
       </div>
@@ -528,9 +517,9 @@ function ClientCalendar({ client }) {
               cursor: cell.currentMonth ? "pointer" : "default",
             }}>
               <div style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? T.amberText : T.textSecondary, marginBottom: 3 }}>{cell.day}</div>
-              {isExtraShoot && <div style={{ fontSize: 8, fontWeight: 700, color: "#C4B5FD", marginBottom: 1 }}>📸 Ek Çekim</div>}
+              {isExtraShoot && <div style={{ fontSize: 8, fontWeight: 700, color: T.purpleText, marginBottom: 1 }}>📸 Ek Çekim</div>}
               {isPublish && <div style={{ fontSize: 8, fontWeight: 700, color: T.amberText, marginBottom: 1 }}>📅 Paylaşım</div>}
-              {isShoot && <div style={{ fontSize: 8, fontWeight: 700, color: "#F9A8D4" }}>📷 Çekim</div>}
+              {isShoot && <div style={{ fontSize: 8, fontWeight: 700, color: T.pinkText }}>📷 Çekim</div>}
               {dayPublishes.map((p, pi) => (
                 <div key={"pub"+pi} style={{ fontSize: 8, fontWeight: 700, color: T.greenText, background: "rgba(16,185,129,0.18)", borderRadius: 4, padding: "1px 4px", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>✅ {new Date(p.publishedAt).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})} {p.contentType}</div>
               ))}
@@ -585,7 +574,7 @@ function ClientCalendar({ client }) {
               )}
               {selectedDay.isShoot && (
                 <div style={{ padding: "14px 16px", background: "rgba(236,72,153,0.1)", borderRadius: 10, borderLeft: "3px solid #EC4899" }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#F9A8D4", marginBottom: 4 }}>📷 Çekim Günü</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.pinkText, marginBottom: 4 }}>📷 Çekim Günü</div>
                   <div style={{ fontSize: 12, color: T.textMuted }}>Bu gün {client.name} için çekim planlanmış</div>
                 </div>
               )}
@@ -3363,7 +3352,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
-    {id:"inprogress",label:"Başlandı",color:"#7DA4C7"},
+    {id:"inprogress",label:"Başlandı",color:T.indigoText},
     {id:"review",label:"İncelemede",color:T.amber},
     {id:"done",label:"Tamamlandı",color:T.green},
     {id:"revision",label:"Revize",color:"#EF4444"},
@@ -3597,8 +3586,8 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           </div>
         )}
         {task.assignedAt && <div style={{ fontSize: 9, color: T.textMuted, marginBottom: 5 }}>📌 {fmtDateTime(task.assignedAt)}</div>}
-        {task.col==="published" && publishDateByTask[task.id] && <div style={{ fontSize: 9, color: "#C4B5FD", marginBottom: 5, fontWeight: 600 }}>✅ {fmtDateTime(publishDateByTask[task.id])}</div>}
-        {task.col==="revision" && task.revisionNote && <div style={{ fontSize: 9, color: "#F87171", marginBottom: 5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔄 {task.revisionNote}</div>}
+        {task.col==="published" && publishDateByTask[task.id] && <div style={{ fontSize: 9, color: T.purpleText, marginBottom: 5, fontWeight: 600 }}>✅ {fmtDateTime(publishDateByTask[task.id])}</div>}
+        {task.col==="revision" && task.revisionNote && <div style={{ fontSize: 9, color: T.redText, marginBottom: 5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔄 {task.revisionNote}</div>}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
           <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4, background: priorityConfig[task.priority]?.bg, color: priorityConfig[task.priority]?.color }}>{priorityConfig[task.priority]?.label}</span>
           {task.client && <span style={{ fontSize: 9, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 80 }}>{task.client}</span>}
@@ -3659,7 +3648,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.textPrimary}}>{st.total}</div><div style={{fontSize:9,color:T.textMuted}}>TOPLAM GÖREV</div></div>
                 <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.greenText}}>{st.done}</div><div style={{fontSize:9,color:T.textMuted}}>TAMAMLANAN</div></div>
-                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:"#7DA4C7"}}>{st.active}</div><div style={{fontSize:9,color:T.textMuted}}>AKTİF</div></div>
+                <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:T.indigoText}}>{st.active}</div><div style={{fontSize:9,color:T.textMuted}}>AKTİF</div></div>
                 <div style={{background:T.bgInput,borderRadius:8,padding:"8px 10px"}}><div style={{fontSize:18,fontWeight:700,color:"#A855F7"}}>{st.publishCount}</div><div style={{fontSize:9,color:T.textMuted}}>PAYLAŞIM</div></div>
               </div>
             </div>
@@ -3709,7 +3698,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
             </div>
             {selectedTask.revisionNote && (
               <div style={{background:"rgba(239,68,68,0.1)",border:`1px solid rgba(239,68,68,0.3)`,borderRadius:10,padding:"12px 14px"}}>
-                <div style={{fontSize:11,color:"#F87171",fontWeight:700,marginBottom:6,textTransform:"uppercase"}}>🔄 Revize Talebi</div>
+                <div style={{fontSize:11,color:T.redText,fontWeight:700,marginBottom:6,textTransform:"uppercase"}}>🔄 Revize Talebi</div>
                 <div style={{fontSize:13,color:T.textPrimary,marginBottom:8,lineHeight:1.5}}>{selectedTask.revisionNote}</div>
                 <div style={{fontSize:11,color:T.textMuted}}>✍️ {selectedTask.revisionBy||"—"}{selectedTask.revisionAt?` · ${fmtDateTime(selectedTask.revisionAt)}`:""}</div>
               </div>
@@ -3726,7 +3715,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           </div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
             <button onClick={()=>{setDeleteModal({taskId:selectedTask.id,reason:"",note:""});}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.redDim,color:T.redText,border:"none",cursor:"pointer"}}>🗑 Sil</button>
-            <button onClick={()=>setRevisionModal({taskId:selectedTask.id,note:""})} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:"rgba(239,68,68,0.15)",color:"#F87171",border:"none",cursor:"pointer"}}>🔄 Revize</button>
+            <button onClick={()=>setRevisionModal({taskId:selectedTask.id,note:""})} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:"rgba(239,68,68,0.15)",color:T.redText,border:"none",cursor:"pointer"}}>🔄 Revize</button>
             <button onClick={()=>{setEditForm({id:selectedTask.id,title:selectedTask.title,client:selectedTask.client,type:selectedTask.type||"Tasarım",priority:selectedTask.priority||"mid",due:selectedTask.due||""});setEditModal(true);}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.bgSurface,color:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>✏️ Düzenle</button>
             <button onClick={()=>setSelectedTask(null)} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
           </div>
@@ -3866,7 +3855,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
           <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#A855F7"}}>{periodPublishes.length}</div><div style={{fontSize:10,color:T.textMuted}}>DÖNEMDE PAYLAŞIM</div></div>
           <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.greenText}}>{tasks.filter(t=>t.col==="done"||t.col==="published").length}</div><div style={{fontSize:10,color:T.textMuted}}>TOPLAM TAMAMLANAN</div></div>
-          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#7DA4C7"}}>{tasks.filter(t=>t.col==="inprogress"||t.col==="review").length}</div><div style={{fontSize:10,color:T.textMuted}}>DEVAM EDEN</div></div>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.indigoText}}>{tasks.filter(t=>t.col==="inprogress"||t.col==="review").length}</div><div style={{fontSize:10,color:T.textMuted}}>DEVAM EDEN</div></div>
         </div>
 
         <div style={{fontSize:12,fontWeight:700,color:T.textSecondary,marginBottom:8}}>Çalışan Bazlı</div>
@@ -4485,8 +4474,8 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
                 return (
                   <div key={i} style={{ background: isToday ? "rgba(236,72,153,0.08)" : T.bgCard, border: `1px solid ${isToday ? "#EC489966" : T.border}`, borderRadius: 12, padding: 10, minHeight: 170, display: "flex", flexDirection: "column", gap: 6 }}>
                     <div style={{ paddingBottom: 8, borderBottom: `1px solid ${T.border}`, marginBottom: 2 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? "#F9A8D4" : T.textSecondary }}>{WD_NAMES[i]}</div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? "#F9A8D4" : T.textPrimary }}>{d.date.getDate()}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isToday ? T.pinkText : T.textSecondary }}>{WD_NAMES[i]}</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: isToday ? T.pinkText : T.textPrimary }}>{d.date.getDate()}</div>
                     </div>
                     {list.length === 0 && <div style={{ fontSize: 10, color: T.textMuted, textAlign: "center", padding: "10px 0" }}>—</div>}
                     {list.map(s => {
@@ -5018,7 +5007,7 @@ function CalendarPage({clients, staff, setPage}) {
       }} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>🖨️ Yazdır</button>
       {setPage && <button onClick={()=>setPage("shoots")} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"5px 12px",color:T.textSecondary,cursor:"pointer",fontSize:11,fontWeight:600}}>📷 Çekimleri Yönet</button>}
       <div style={{display:"flex",gap:12}}>
-        {[{l:"Çekim",c:"#F9A8D4"},{l:"Tamamlandı",c:T.greenText},{l:"Görevden",c:"#C4B5FD"}].map(l=>(
+        {[{l:"Çekim",c:T.pinkText},{l:"Tamamlandı",c:T.greenText},{l:"Görevden",c:T.purpleText}].map(l=>(
           <div key={l.l} style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:T.textSecondary}}><div style={{width:8,height:8,borderRadius:2,background:l.c}}/>{l.l}</div>
         ))}
       </div>
@@ -5034,22 +5023,22 @@ function CalendarPage({clients, staff, setPage}) {
         const total = dayShoots.length + dayTaskShoots.length;
         return <div key={i} onClick={()=>{ if(cell.currentMonth) setSelectedDate(dateStr); }} style={{
           minHeight:90,
-          background:isToday?"rgba(34,58,89,0.4)":T.bgCard,
-          border:`1px solid ${isToday?"#223A5988":T.border}`,
+          background:isToday?T.indigoGlow:T.bgCard,
+          border:`1px solid ${isToday?(T.indigo+"88"):T.border}`,
           borderRadius:10, padding:"6px 7px",
           opacity: cell.currentMonth ? 1 : 0.35,
           cursor: cell.currentMonth ? "pointer" : "default",
           transition:"all 0.12s",
         }}
         onMouseEnter={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=T.borderLight; }}
-        onMouseLeave={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=isToday?"#223A5988":T.border; }}>
+        onMouseLeave={e=>{ if(cell.currentMonth) e.currentTarget.style.borderColor=isToday?(T.indigo+"88"):T.border; }}>
           <div style={{fontSize:12,fontWeight:isToday?700:400,color:isToday?T.indigoText:T.textSecondary,marginBottom:5}}>{cell.day}</div>
           {dayShoots.slice(0,3).map(s=>{
             const done = s.status === "done";
-            return <div key={s.id} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:done?"rgba(16,185,129,0.16)":"rgba(236,72,153,0.16)",color:done?T.greenText:"#F9A8D4",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${clientOf(s.client_id)?.accentColor||"#EC4899"}`,fontWeight:600}}>{done?"✓ ":"📷 "}{s.shoot_time?s.shoot_time+" ":""}{clientOf(s.client_id)?.name||s.title}</div>;
+            return <div key={s.id} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:done?"rgba(16,185,129,0.16)":"rgba(236,72,153,0.16)",color:done?T.greenText:T.pinkText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid ${clientOf(s.client_id)?.accentColor||"#EC4899"}`,fontWeight:600}}>{done?"✓ ":"📷 "}{s.shoot_time?s.shoot_time+" ":""}{clientOf(s.client_id)?.name||s.title}</div>;
           })}
           {dayTaskShoots.slice(0,Math.max(0,3-dayShoots.length)).map((x,xi)=>(
-            <div key={"t"+xi} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(168,85,247,0.2)",color:"#C4B5FD",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid #A855F7`,fontWeight:600}}>📸 {x.client.name}</div>
+            <div key={"t"+xi} style={{fontSize:9,padding:"2px 5px",borderRadius:3,marginBottom:2,background:"rgba(168,85,247,0.2)",color:T.purpleText,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderLeft:`2px solid #A855F7`,fontWeight:600}}>📸 {x.client.name}</div>
           ))}
           {total>3 && <div style={{fontSize:9,color:T.textMuted}}>+{total-3}</div>}
         </div>;
@@ -5065,7 +5054,7 @@ function CalendarPage({clients, staff, setPage}) {
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             {selShoots.length > 0 && (
               <div>
-                <div style={{fontSize:12,fontWeight:700,color:"#F9A8D4",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📷 Çekimler ({selShoots.length})</div>
+                <div style={{fontSize:12,fontWeight:700,color:T.pinkText,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📷 Çekimler ({selShoots.length})</div>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {selShoots.map(s=>{
                     const c = clientOf(s.client_id);
@@ -5092,7 +5081,7 @@ function CalendarPage({clients, staff, setPage}) {
             {/* Görevlerden eklenen ek çekimler */}
             {selTaskShoots.length > 0 && (
               <div>
-                <div style={{fontSize:12,fontWeight:700,color:"#C4B5FD",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📸 Görevden Ek Çekim ({selTaskShoots.length})</div>
+                <div style={{fontSize:12,fontWeight:700,color:T.purpleText,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.04em"}}>📸 Görevden Ek Çekim ({selTaskShoots.length})</div>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {selTaskShoots.map((x,xi)=>(
                     <div key={xi} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:"rgba(168,85,247,0.12)",borderRadius:10,borderLeft:`3px solid #A855F7`}}>
@@ -5578,10 +5567,10 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       const pendingApproval = tasks.filter(t=>t.col==="approval");
       const items = [
         {icon:"📅",label:"Bugün Paylaşım",val:todayPublish.length,color:T.amberText,page:"clients"},
-        {icon:"📷",label:"Bugün Çekim",val:todayShoot.length+todayExtraShoot.length,color:"#F9A8D4",page:"calendar"},
+        {icon:"📷",label:"Bugün Çekim",val:todayShoot.length+todayExtraShoot.length,color:T.pinkText,page:"calendar"},
         {icon:"⏰",label:"Bugün Teslim",val:dueToday.length,color:T.indigoText,page:"tasks"},
         {icon:"🔴",label:"Geciken Görev",val:overdue.length,color:T.redText,page:"tasks"},
-        {icon:"🔄",label:"Revizede",val:inRevision.length,color:"#F87171",page:"tasks"},
+        {icon:"🔄",label:"Revizede",val:inRevision.length,color:T.redText,page:"tasks"},
         {icon:"📤",label:"Onay Bekleyen",val:pendingApproval.length,color:"#25D366",page:"tasks"},
       ];
       const greeting = (()=>{ const h=today.getHours(); if(h<12) return "Günaydın ☀️"; if(h<18) return "İyi çalışmalar 👋"; return "İyi akşamlar 🌙"; })();
@@ -5646,7 +5635,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
           )}
         </div>
         <div>
-          <div style={{fontSize:11,color:"#F9A8D4",fontWeight:600,marginBottom:8}}>ÇEKİM ({todayShoot.length})</div>
+          <div style={{fontSize:11,color:T.pinkText,fontWeight:600,marginBottom:8}}>ÇEKİM ({todayShoot.length})</div>
           {todayShoot.length === 0 ? (
             <div style={{fontSize:12,color:T.textMuted}}>Bugün çekim yok</div>
           ) : (
@@ -5664,12 +5653,12 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       {/* Bugünkü ek çekimler (belirli tarihli) */}
       {todayExtraShoot.length > 0 && (
         <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
-          <div style={{fontSize:11,color:"#C4B5FD",fontWeight:600,marginBottom:8}}>📸 EK ÇEKİM ({todayExtraShoot.length})</div>
+          <div style={{fontSize:11,color:T.purpleText,fontWeight:600,marginBottom:8}}>📸 EK ÇEKİM ({todayExtraShoot.length})</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {todayExtraShoot.map(c=>(
               <div key={c.id} onClick={()=>setPage("clients")} style={{fontSize:12,color:T.textPrimary,padding:"8px 10px",background:"rgba(168,85,247,0.14)",borderRadius:6,borderLeft:`2px solid #A855F7`,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span>📸 <strong>{c.name}</strong>{c._shootTitle?` — ${c._shootTitle}`:""}</span>
-                <span style={{fontSize:10,color:"#C4B5FD",fontWeight:600}}>Ek Çekim</span>
+                <span style={{fontSize:10,color:T.purpleText,fontWeight:600}}>Ek Çekim</span>
               </div>
             ))}
           </div>
@@ -5932,7 +5921,7 @@ const INVENTORY_CATEGORIES = [
   { id: "bilgisayar", label: "💻 Bilgisayar / Tablet" }, { id: "depolama", label: "💾 Hafıza / Disk" },
   { id: "aksesuar", label: "🔋 Batarya / Aksesuar" }, { id: "ofis", label: "🏢 Ofis Eşyası" }, { id: "diger", label: "📦 Diğer" },
 ];
-const INVENTORY_STATUS = { aktif: { label: "Aktif", color: "#34D399" }, arizali: { label: "Arızalı", color: "#FCA5A5" }, serviste: { label: "Serviste", color: "#F8906E" }, kayip: { label: "Kayıp", color: "#9CA3AF" }, satildi: { label: "Satıldı", color: "#9CA3AF" } };
+const INVENTORY_STATUS = { aktif: { label: "Aktif", color: T.greenText }, arizali: { label: "Arızalı", color: T.redText }, serviste: { label: "Serviste", color: T.amberText }, kayip: { label: "Kayıp", color: "#9CA3AF" }, satildi: { label: "Satıldı", color: "#9CA3AF" } };
 const invCatLabel = (id) => INVENTORY_CATEGORIES.find(c => c.id === id)?.label || id;
 
 function InventoryPage({ perms }) {
@@ -9775,7 +9764,7 @@ function LandingPage({ onEnter }) {
 // ═══════════════════════════════════════════════════════════
 // Panelin tamamına uygulanan temel görünüm (yazı tipi, odak halkası, kaydırma çubuğu, düğme geçişleri)
 const BASE_CSS = `
-:root { color-scheme: dark; }
+:root { color-scheme: ${THEME}; }
 .pm-app, .pm-app button, .pm-app input, .pm-app select, .pm-app textarea {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
@@ -9786,29 +9775,29 @@ const BASE_CSS = `
 .pm-app input, .pm-app select, .pm-app textarea { transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
 .pm-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
 .pm-app select:focus, .pm-app textarea:focus { border-color: #F25124 !important; box-shadow: 0 0 0 3px rgba(242,81,36,0.16); }
-.pm-app input::placeholder, .pm-app textarea::placeholder { color: #566A82; opacity: 1; }
-.pm-app select option { background: #101927; color: #F1F5FA; }
+.pm-app input::placeholder, .pm-app textarea::placeholder { color: ${T.placeholder}; opacity: 1; }
+.pm-app select option { background: ${T.bgCard}; color: ${T.textPrimary}; }
 .pm-app input[type="checkbox"], .pm-app input[type="radio"] { accent-color: #F25124; }
 
 /* Düğmeler: yumuşak geçiş, basış hissi, klavye odağı */
 .pm-app button { transition: background-color .12s ease, border-color .12s ease, color .12s ease, filter .12s ease, transform .06s ease, box-shadow .12s ease; }
-.pm-app button:not(:disabled):hover { filter: brightness(1.1); }
+.pm-app button:not(:disabled):hover { filter: brightness(${THEME === "light" ? "0.96" : "1.1"}); }
 .pm-app button:not(:disabled):active { transform: translateY(1px); }
 .pm-app button:disabled { cursor: default; }
 .pm-app button:focus-visible, .pm-app a:focus-visible { outline: 2px solid #F25124; outline-offset: 2px; }
-.pm-app .pm-icon-btn:hover { background: rgba(255,255,255,0.07) !important; color: #F1F5FA !important; }
-.pm-app .pm-nav:hover { background: rgba(255,255,255,0.045); color: #F1F5FA !important; }
+.pm-app .pm-icon-btn:hover { background: ${T.hover} !important; color: ${T.textPrimary} !important; }
+.pm-app .pm-nav:hover { background: ${T.hover}; color: ${T.textPrimary} !important; }
 
 /* Tablolar */
 .pm-app table { border-collapse: collapse; }
 .pm-app th { font-weight: 600; letter-spacing: 0.03em; }
 
 /* İnce, koyu kaydırma çubukları */
-.pm-app, .pm-app * { scrollbar-width: thin; scrollbar-color: #2B3B55 transparent; }
+.pm-app, .pm-app * { scrollbar-width: thin; scrollbar-color: ${T.scrollThumb} transparent; }
 .pm-app ::-webkit-scrollbar { width: 10px; height: 10px; }
 .pm-app ::-webkit-scrollbar-track { background: transparent; }
-.pm-app ::-webkit-scrollbar-thumb { background: #24334B; border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
-.pm-app ::-webkit-scrollbar-thumb:hover { background: #34486A; background-clip: content-box; border: 2px solid transparent; }
+.pm-app ::-webkit-scrollbar-thumb { background: ${T.scrollThumb}; border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+.pm-app ::-webkit-scrollbar-thumb:hover { background: ${T.scrollThumbHover}; background-clip: content-box; border: 2px solid transparent; }
 
 /* Pencere açılışı */
 @keyframes pmModalIn { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
@@ -10125,7 +10114,7 @@ export default function App() {
     {isMobile && drawerOpen && <div onClick={()=>setDrawerOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:90}} />}
 
     <div style={{
-      width:236,flexShrink:0,background:"#0D1522",borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",
+      width:236,flexShrink:0,background:T.sidebarBg,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",
       ...(isMobile ? {position:"fixed",top:0,left:0,bottom:0,zIndex:100,transform:drawerOpen?"translateX(0)":"translateX(-100%)",transition:"transform 0.25s ease",boxShadow:drawerOpen?"4px 0 24px rgba(0,0,0,0.4)":"none"} : {})
     }}>
       <div style={{padding:"20px 20px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -10146,7 +10135,7 @@ export default function App() {
               return (
                 <div key={item.id} className="pm-nav" onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
                   position:"relative",display:"flex",alignItems:"center",gap:11,padding:"8px 10px",borderRadius:9,marginBottom:1,
-                  ...(active ? {background:"rgba(242,81,36,0.11)"} : {}),
+                  ...(active ? {background:T.amberDim} : {}),
                   color:active?T.textPrimary:T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:active?600:500,transition:"background 0.12s, color 0.12s",
                 }}>
                   {active && <span style={{position:"absolute",left:-12,top:7,bottom:7,width:3,borderRadius:"0 3px 3px 0",background:T.amber}} />}
@@ -10188,13 +10177,22 @@ export default function App() {
 
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
       {isMobile && <InstallBanner />}
-      <div style={{padding:isMobile?"12px 14px":"14px 32px",borderBottom:`1px solid ${T.border}`,background:"rgba(13,21,34,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
+      <div style={{padding:isMobile?"12px 14px":"14px 32px",borderBottom:`1px solid ${T.border}`,background:T.headerBg,backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
         <div style={{fontSize:isMobile?16:19,fontWeight:700,color:T.textPrimary,letterSpacing:"-0.02em",flexShrink:isMobile?1:0,minWidth:0,flex:isMobile?1:"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {PAGE_TITLES[page] || NAV.find(n => n.id === page)?.label || "Panel"}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
-        <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <button onClick={toggleTheme} title={THEME==="light"?"Koyu moda geç":"Açık moda geç"} aria-label={THEME==="light"?"Koyu moda geç":"Açık moda geç"} style={{width:38,height:38,borderRadius:10,background:T.bgSurface,border:`1px solid ${T.border}`,color:T.textSecondary,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              {THEME==="light"
+                ? <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
+                : <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>}
+            </svg>
+          </button>
+          <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
+        </div>
       </div>
       <div style={{flex:1,overflow:"auto",padding:isMobile?14:"28px 32px"}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData} currentStaff={currentStaff}/>}

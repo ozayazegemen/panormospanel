@@ -1,14 +1,6 @@
 import { useState } from "react";
 import { supabase } from "./supabaseClient";
-
-const T = {
-  bg: "#0A111D", bgCard: "#101927", bgInput: "#0B1321",
-  border: "#1D2A3F", borderLight: "#2B3B55",
-  amber: "#F25124", amberText: "#F8906E",
-  green: "#10B981", greenText: "#6EE7B7",
-  red: "#EF4444", redText: "#FCA5A5",
-  textPrimary: "#F1F5FA", textSecondary: "#A2B4C9", textMuted: "#6C8098", white: "#FFFFFF",
-};
+import { T, THEME } from "./theme";
 
 // Supabase hatalarını Türkçe'ye çevir
 function translateError(msg) {
@@ -88,7 +80,7 @@ export default function Login({ onLogin }) {
   const onKey = (e) => { if (e.key === "Enter") submit(); };
 
   return (
-    <div style={{ minHeight: "100vh", background: `radial-gradient(900px 500px at 50% -10%, rgba(36,64,106,0.35), transparent 70%), ${T.bg}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Inter',-apple-system,sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: `radial-gradient(900px 500px at 50% -10%, ${T.indigoGlow}, transparent 70%), ${T.bg}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Inter',-apple-system,sans-serif" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -99,7 +91,7 @@ export default function Login({ onLogin }) {
         </div>
 
         {/* Kart */}
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: 30, boxShadow: "0 24px 60px -20px rgba(0,0,0,0.7)" }}>
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: 30, boxShadow: THEME === "light" ? "0 24px 60px -28px rgba(16,24,40,0.35)" : "0 24px 60px -20px rgba(0,0,0,0.7)" }}>
           {/* Sekmeler */}
           <div style={{ display: "flex", background: T.bgInput, borderRadius: 10, padding: 4, marginBottom: 22 }}>
             {[{ id: "login", l: "Giriş Yap" }, { id: "signup", l: "Kayıt Ol" }].map(t => (
@@ -158,5 +150,5 @@ export default function Login({ onLogin }) {
 
 const inputStyle = {
   width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10,
-  padding: "12px 14px", color: "#F1F5FA", fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box",
+  padding: "12px 14px", color: T.textPrimary, fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box",
 };
