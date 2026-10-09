@@ -169,14 +169,15 @@ async function uploadFileToGoogleDrive(token, file, folderId) {
 }
 
 const T = {
-  bg: "#0D1219", bgCard: "#121A25", bgCardHover: "#172030", bgSurface: "#1A2535", bgInput: "#0A1018",
-  border: "#1E2E42", borderLight: "#263B55",
-  indigo: "#223A59", indigoDim: "#1A2D47", indigoGlow: "rgba(34,58,89,0.35)", indigoText: "#7DA4C7",
+  bg: "#0A111D", bgCard: "#101927", bgCardHover: "#152033", bgSurface: "#172337", bgInput: "#0B1321",
+  border: "#1D2A3F", borderLight: "#2B3B55",
+  indigo: "#24406A", indigoDim: "#182B47", indigoGlow: "rgba(36,64,106,0.35)", indigoText: "#8FB4DA",
   amber: "#F25124", amberDim: "rgba(242,81,36,0.15)", amberText: "#F8906E",
   green: "#10B981", greenDim: "rgba(16,185,129,0.15)", greenText: "#6EE7B7",
   red: "#EF4444", redDim: "rgba(239,68,68,0.12)", redText: "#FCA5A5",
   violet: "#F25124", violetDim: "rgba(242,81,36,0.12)", violetText: "#F8906E",
-  textPrimary: "#EEF3F9", textSecondary: "#7A9BB8", textMuted: "#405A73", white: "#FFFFFF",
+  textPrimary: "#F1F5FA", textSecondary: "#A2B4C9", textMuted: "#6C8098", white: "#FFFFFF",
+  shadow: "0 1px 2px rgba(0,0,0,0.25), 0 8px 24px -12px rgba(0,0,0,0.45)",
 };
 
 const platformConfig = {
@@ -1515,7 +1516,7 @@ const priorityConfig = {
 
 function Badge({status}) {
   const cfg = statusConfig[status] || statusConfig.planned;
-  return <span style={{fontSize:11,fontWeight:500,padding:"3px 9px",borderRadius:20,background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.color}22`}}>{cfg.label}</span>;
+  return <span style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:11,fontWeight:600,padding:"3px 10px",borderRadius:20,background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.color}33`,whiteSpace:"nowrap"}}><span style={{width:5,height:5,borderRadius:"50%",background:cfg.color}}/>{cfg.label}</span>;
 }
 
 function PlatformTag({id}) {
@@ -1529,32 +1530,32 @@ function Avatar({initials,color,size=36}) {
 
 function Card({children,style={},onClick,hover=false}) {
   const [hov,setHov]=useState(false);
-  return <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:hov&&hover?T.bgCardHover:T.bgCard,border:`1px solid ${hov&&hover?T.borderLight:T.border}`,borderRadius:12,transition:"all 0.15s ease",cursor:onClick?"pointer":"default",...style}}>{children}</div>;
+  return <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:hov&&hover?T.bgCardHover:T.bgCard,border:`1px solid ${hov&&hover?T.borderLight:T.border}`,borderRadius:14,boxShadow:T.shadow,transition:"all 0.15s ease",cursor:onClick?"pointer":"default",...style}}>{children}</div>;
 }
 
 function StatCard({label,value,color,sub}) {
-  return <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:10,padding:"14px 16px"}}>
-    <div style={{fontSize:11,color:T.textMuted,marginBottom:6,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>{label}</div>
-    <div style={{fontSize:22,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em"}}>{value}</div>
-    {sub&&<div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{sub}</div>}
+  return <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px",boxShadow:T.shadow}}>
+    <div style={{fontSize:10.5,color:T.textMuted,marginBottom:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase"}}>{label}</div>
+    <div style={{fontSize:23,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em",lineHeight:1.15}}>{value}</div>
+    {sub&&<div style={{fontSize:11.5,color:T.textMuted,marginTop:6}}>{sub}</div>}
   </div>;
 }
 
-function Btn({children,onClick,variant="ghost",style={}}) {
+function Btn({children,onClick,variant="ghost",style={},disabled=false,title}) {
   const [hov,setHov]=useState(false);
   const styles={
-    primary:{background:T.amber,color:T.white,border:"none"},
-    ghost:{background:hov?T.bgSurface:"transparent",color:T.textSecondary,border:`1px solid ${T.border}`},
+    primary:{background:T.amber,color:T.white,border:"1px solid transparent",boxShadow:"0 1px 2px rgba(0,0,0,0.3), 0 6px 16px -8px rgba(242,81,36,0.7)"},
+    ghost:{background:hov?T.bgSurface:"transparent",color:hov?T.textPrimary:T.textSecondary,border:`1px solid ${hov?T.borderLight:T.border}`},
   };
-  return <button onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12,fontWeight:500,padding:"6px 14px",borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} title={title} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12.5,fontWeight:600,padding:"7px 14px",borderRadius:9,cursor:disabled?"default":"pointer",opacity:disabled?0.55:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
 }
 
 function Modal({title,onClose,children,width=500}) {
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onMouseDown={e=>{ if(e.target===e.currentTarget) e.currentTarget.dataset.closing="1"; else delete e.currentTarget.dataset.closing; }} onClick={e=>{ if(e.target===e.currentTarget && e.currentTarget.dataset.closing==="1") onClose(); delete e.currentTarget.dataset.closing; }}>
-    <div className="pm-modal" style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{title}</div>
-        <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer",lineHeight:1}}>✕</button>
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(6px)"}} onMouseDown={e=>{ if(e.target===e.currentTarget) e.currentTarget.dataset.closing="1"; else delete e.currentTarget.dataset.closing; }} onClick={e=>{ if(e.target===e.currentTarget && e.currentTarget.dataset.closing==="1") onClose(); delete e.currentTarget.dataset.closing; }}>
+    <div className="pm-modal" style={{background:T.bgCard,border:`1px solid ${T.borderLight}`,borderRadius:18,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 70px -12px rgba(0,0,0,0.75)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:18,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
+        <div style={{fontSize:16,fontWeight:700,color:T.textPrimary,letterSpacing:"-0.01em"}}>{title}</div>
+        <button onClick={onClose} aria-label="Kapat" className="pm-icon-btn" style={{background:"transparent",border:"none",color:T.textMuted,fontSize:15,cursor:"pointer",lineHeight:1,width:30,height:30,borderRadius:8,flexShrink:0}}>✕</button>
       </div>
       {children}
     </div>
@@ -1562,22 +1563,22 @@ function Modal({title,onClose,children,width=500}) {
 }
 
 function FormField({label,children}) {
-  return <div style={{marginBottom:12}}>
-    <label style={{fontSize:11,color:T.textMuted,display:"block",marginBottom:5,fontWeight:500,letterSpacing:"0.04em",textTransform:"uppercase"}}>{label}</label>
+  return <div style={{marginBottom:14}}>
+    <label style={{fontSize:11,color:T.textSecondary,display:"block",marginBottom:6,fontWeight:600,letterSpacing:"0.05em",textTransform:"uppercase"}}>{label}</label>
     {children}
   </div>;
 }
 
 function Input({value,onChange,placeholder,type="text"}) {
-  return <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />;
+  return <input value={value} onChange={onChange} placeholder={placeholder} type={type} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:9,padding:"10px 12px",fontSize:13.5,color:T.textPrimary,outline:"none",boxSizing:"border-box"}} />;
 }
 
 function Textarea({value,onChange,placeholder,minHeight=80}) {
-  return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none",boxSizing:"border-box",minHeight,fontFamily:"inherit",resize:"vertical"}} />;
+  return <textarea value={value} onChange={onChange} placeholder={placeholder} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:9,padding:"10px 12px",fontSize:13.5,color:T.textPrimary,outline:"none",boxSizing:"border-box",minHeight,fontFamily:"inherit",resize:"vertical"}} />;
 }
 
 function Select({value,onChange,children}) {
-  return <select value={value} onChange={onChange} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:T.textPrimary,outline:"none"}}>{children}</select>;
+  return <select value={value} onChange={onChange} style={{width:"100%",background:T.bgInput,border:`1px solid ${T.border}`,borderRadius:9,padding:"10px 12px",fontSize:13.5,color:T.textPrimary,outline:"none"}}>{children}</select>;
 }
 
 function ModalActions({onClose,onSave,saveLabel}) {
@@ -6317,6 +6318,40 @@ const NAV=[
   {id:"emlakpanelim",label:"EmlakPanelim",icon:"🏘️"},
 ];
 
+// Menü bölümleri (sırası ve başlıkları)
+const NAV_GROUPS = [
+  { label: "", ids: ["dashboard"] },
+  { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "ideas"] },
+  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail"] },
+  { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
+  { label: "Yönetim", ids: ["inventory", "staff", "emlakpanelim"] },
+];
+const PAGE_TITLES = { calendar: "Çekim Takvimi" };
+
+// Menü ikonları: tek tip, ince çizgili
+const NAV_ICON_PATHS = {
+  dashboard: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
+  clients: <><rect x="4" y="3" width="16" height="18" rx="1.5" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M10 21v-4h4v4" /></>,
+  leads: <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z" />,
+  pricing: <><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" /><circle cx="7.5" cy="7.5" r="1.2" /></>,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
+  shoots: <><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.5" /></>,
+  ideas: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z" />,
+  tasks: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 12 2.5 2.5L16 9" /></>,
+  reports: <path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />,
+  files: <path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />,
+  messages: <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />,
+  mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+  accounting: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></>,
+  inventory: <><path d="M3 8l9-5 9 5v8l-9 5-9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></>,
+  yearly: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+  staff: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></>,
+  emlakpanelim: <path d="M3 21V9l6-4v16M9 21V11l6-3 6 3v10M3 21h18M13 13h.01M17 13h.01M13 17h.01M17 17h.01" />,
+};
+function NavIcon({ id, size = 17 }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{NAV_ICON_PATHS[id] || <circle cx="12" cy="12" r="8" />}</svg>;
+}
+
 // ─────────────────────────────────────────────
 // FİYATLANDIRMA - yazdırma yardımcıları
 // ─────────────────────────────────────────────
@@ -9738,6 +9773,49 @@ function LandingPage({ onEnter }) {
 // ═══════════════════════════════════════════════════════════
 // TELEFON / TABLET UYUMU — genel responsive kurallar
 // ═══════════════════════════════════════════════════════════
+// Panelin tamamına uygulanan temel görünüm (yazı tipi, odak halkası, kaydırma çubuğu, düğme geçişleri)
+const BASE_CSS = `
+:root { color-scheme: dark; }
+.pm-app, .pm-app button, .pm-app input, .pm-app select, .pm-app textarea {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+.pm-app { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; font-feature-settings: "tnum" 1, "cv11" 1; line-height: 1.45; }
+.pm-app ::selection { background: rgba(242,81,36,0.35); color: #fff; }
+
+/* Form alanları: belirgin odak, okunaklı yer tutucu */
+.pm-app input, .pm-app select, .pm-app textarea { transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
+.pm-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+.pm-app select:focus, .pm-app textarea:focus { border-color: #F25124 !important; box-shadow: 0 0 0 3px rgba(242,81,36,0.16); }
+.pm-app input::placeholder, .pm-app textarea::placeholder { color: #566A82; opacity: 1; }
+.pm-app select option { background: #101927; color: #F1F5FA; }
+.pm-app input[type="checkbox"], .pm-app input[type="radio"] { accent-color: #F25124; }
+
+/* Düğmeler: yumuşak geçiş, basış hissi, klavye odağı */
+.pm-app button { transition: background-color .12s ease, border-color .12s ease, color .12s ease, filter .12s ease, transform .06s ease, box-shadow .12s ease; }
+.pm-app button:not(:disabled):hover { filter: brightness(1.1); }
+.pm-app button:not(:disabled):active { transform: translateY(1px); }
+.pm-app button:disabled { cursor: default; }
+.pm-app button:focus-visible, .pm-app a:focus-visible { outline: 2px solid #F25124; outline-offset: 2px; }
+.pm-app .pm-icon-btn:hover { background: rgba(255,255,255,0.07) !important; color: #F1F5FA !important; }
+.pm-app .pm-nav:hover { background: rgba(255,255,255,0.045); color: #F1F5FA !important; }
+
+/* Tablolar */
+.pm-app table { border-collapse: collapse; }
+.pm-app th { font-weight: 600; letter-spacing: 0.03em; }
+
+/* İnce, koyu kaydırma çubukları */
+.pm-app, .pm-app * { scrollbar-width: thin; scrollbar-color: #2B3B55 transparent; }
+.pm-app ::-webkit-scrollbar { width: 10px; height: 10px; }
+.pm-app ::-webkit-scrollbar-track { background: transparent; }
+.pm-app ::-webkit-scrollbar-thumb { background: #24334B; border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+.pm-app ::-webkit-scrollbar-thumb:hover { background: #34486A; background-clip: content-box; border: 2px solid transparent; }
+
+/* Pencere açılışı */
+@keyframes pmModalIn { from { opacity: 0; transform: translateY(8px) scale(0.985); } to { opacity: 1; transform: none; } }
+.pm-app .pm-modal { animation: pmModalIn .16s ease-out; }
+@media (prefers-reduced-motion: reduce) { .pm-app .pm-modal { animation: none; } .pm-app button { transition: none; } }
+`;
+
 const RESPONSIVE_CSS = `
 /* ---------- TABLET (≤1024px) ---------- */
 @media (max-width: 1024px) {
@@ -10041,40 +10119,50 @@ export default function App() {
 
   if (dataLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Veriler yükleniyor...</div>;
 
-  return <div style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',sans-serif",position:"relative"}}>
-    <style>{RESPONSIVE_CSS}</style>
+  return <div className="pm-app" style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',-apple-system,'Segoe UI',sans-serif",position:"relative"}}>
+    <style>{BASE_CSS + RESPONSIVE_CSS}</style>
     {/* Mobilde drawer açıkken arka plan karartma */}
     {isMobile && drawerOpen && <div onClick={()=>setDrawerOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:90}} />}
 
     <div style={{
-      width:220,background:T.bgCard,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",
+      width:236,flexShrink:0,background:"#0D1522",borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",
       ...(isMobile ? {position:"fixed",top:0,left:0,bottom:0,zIndex:100,transform:drawerOpen?"translateX(0)":"translateX(-100%)",transition:"transform 0.25s ease",boxShadow:drawerOpen?"4px 0 24px rgba(0,0,0,0.4)":"none"} : {})
     }}>
-      <div style={{padding:"16px 16px 14px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{marginBottom:0}}>
-          <div style={{fontSize:20,fontWeight:700,color:"#1A2B3F",letterSpacing:"-0.02em"}}>panormos</div>
-          <div style={{fontSize:18,fontWeight:700,color:"#F25124",letterSpacing:"-0.02em"}}>medya.</div>
+      <div style={{padding:"20px 20px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:19,fontWeight:800,letterSpacing:"-0.03em",lineHeight:1.1}}><span style={{color:T.textPrimary}}>panormos</span> <span style={{color:T.amber}}>medya.</span></div>
+          <div style={{fontSize:10,fontWeight:600,color:T.textMuted,letterSpacing:"0.14em",textTransform:"uppercase",marginTop:5}}>Yönetim Paneli</div>
         </div>
         {isMobile && <button onClick={()=>setDrawerOpen(false)} style={{background:"none",border:"none",color:T.textMuted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>}
       </div>
-      <div style={{flex:1,padding:"12px 8px",overflow:"auto"}}>
-        {NAV.filter(item => canAccessPage(item.id, perms)).map(item=>(
-          <div key={item.id} onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
-            display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:10,marginBottom:2,
-            background:page===item.id?"rgba(34,58,89,0.45)":"transparent",
-            border:`1px solid ${page===item.id?T.indigo+"88":"transparent"}`,
-            color:page===item.id?"#A8C4DC":T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:page===item.id?600:400,transition:"all 0.12s",
-          }}>
-            <span style={{fontSize:15}}>{item.icon}</span>
-            <span style={{flex:1}}>{item.label}</span>
-            {item.id==="messages" && unreadMsgs>0 && (
-              <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:"#EF4444",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMsgs}</span>
-            )}
-            {item.id==="mail" && unreadMails>0 && (
-              <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:"#EF4444",color:"#fff",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMails}</span>
-            )}
-          </div>
-        ))}
+      <div style={{flex:1,padding:"4px 12px 12px",overflow:"auto"}}>
+        {[...NAV_GROUPS, { label: "Diğer", ids: NAV.map(n => n.id).filter(id => !NAV_GROUPS.some(g => g.ids.includes(id))) }].map(g => {
+          const items = g.ids.map(id => NAV.find(n => n.id === id)).filter(item => item && canAccessPage(item.id, perms));
+          if (!items.length) return null;
+          return <div key={g.label || "ana"} style={{marginBottom:14}}>
+            {g.label && <div style={{fontSize:10,fontWeight:700,color:T.textMuted,letterSpacing:"0.1em",textTransform:"uppercase",padding:"0 10px",marginBottom:6}}>{g.label}</div>}
+            {items.map(item => {
+              const active = page === item.id;
+              return (
+                <div key={item.id} className="pm-nav" onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
+                  position:"relative",display:"flex",alignItems:"center",gap:11,padding:"8px 10px",borderRadius:9,marginBottom:1,
+                  ...(active ? {background:"rgba(242,81,36,0.11)"} : {}),
+                  color:active?T.textPrimary:T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:active?600:500,transition:"background 0.12s, color 0.12s",
+                }}>
+                  {active && <span style={{position:"absolute",left:-12,top:7,bottom:7,width:3,borderRadius:"0 3px 3px 0",background:T.amber}} />}
+                  <span style={{display:"flex",color:active?T.amber:T.textMuted}}><NavIcon id={item.id} /></span>
+                  <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.label}</span>
+                  {item.id==="messages" && unreadMsgs>0 && (
+                    <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:T.amber,color:"#fff",fontSize:10.5,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMsgs}</span>
+                  )}
+                  {item.id==="mail" && unreadMails>0 && (
+                    <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:T.amber,color:"#fff",fontSize:10.5,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMails}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>;
+        })}
       </div>
 
       {/* Kullanıcı bilgisi + Çıkış */}
@@ -10093,22 +10181,22 @@ export default function App() {
         }}
         onMouseEnter={e=>{e.currentTarget.style.background=T.redDim;e.currentTarget.style.color=T.redText;e.currentTarget.style.borderColor=T.red+"66";}}
         onMouseLeave={e=>{e.currentTarget.style.background=T.bgSurface;e.currentTarget.style.color=T.textSecondary;e.currentTarget.style.borderColor=T.border;}}>
-          <span style={{fontSize:15}}>🚪</span><span>Çıkış Yap</span>
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h4M16 17l5-5-5-5M21 12H9" /></svg><span>Çıkış Yap</span>
         </button>
       </div>
     </div>
 
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
       {isMobile && <InstallBanner />}
-      <div style={{padding:isMobile?"12px 14px":"14px 28px",borderBottom:`1px solid ${T.border}`,background:T.bgCard,display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
+      <div style={{padding:isMobile?"12px 14px":"14px 32px",borderBottom:`1px solid ${T.border}`,background:"rgba(13,21,34,0.85)",backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
-        <div style={{fontSize:isMobile?15:18,fontWeight:700,color:T.textPrimary,flexShrink:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {page === 'dashboard' ? (isMobile?'🏠':'🏠 Ana Sayfa') : page === 'clients' ? (isMobile?'🏢':'🏢 Müşteriler') : page === 'leads' ? (isMobile?'📞':'📞 Soğuk Arama') : page === 'pricing' ? (isMobile?'💰':'💰 Fiyatlar') : page === 'calendar' ? (isMobile?'📅':'📅 Çekim Takvimi') : page === 'shoots' ? (isMobile?'📷':'📷 Çekimler') : page === 'ideas' ? (isMobile?'💡':'💡 Fikirler') : page === 'tasks' ? (isMobile?'📋':'📋 Görevler') : page === 'reports' ? (isMobile?'📊':'📊 Raporlar') : page === 'yearly' ? (isMobile?'📊':'📊 Yıllık Özet') : page === 'files' ? (isMobile?'📁':'📁 Dosyalar') : page === 'messages' ? (isMobile?'💬':'💬 Mesajlar') : page === 'mail' ? (isMobile?'📧':'📧 E-posta') : page === 'accounting' ? (isMobile?'🧮':'🧮 Muhasebe') : page === 'emlakpanelim' ? (isMobile?'🏘️':'🏘️ EmlakPanelim') : (isMobile?'👥':'👥 Çalışanlar')}
+        <div style={{fontSize:isMobile?16:19,fontWeight:700,color:T.textPrimary,letterSpacing:"-0.02em",flexShrink:isMobile?1:0,minWidth:0,flex:isMobile?1:"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {PAGE_TITLES[page] || NAV.find(n => n.id === page)?.label || "Panel"}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}
         <NotificationBell clients={clients} tasks={tasks} perms={perms} setPage={setPage} currentStaff={currentStaff} />
       </div>
-      <div style={{flex:1,overflow:"auto",padding:isMobile?14:28}}>
+      <div style={{flex:1,overflow:"auto",padding:isMobile?14:"28px 32px"}}>
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData} currentStaff={currentStaff}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms} currentStaff={currentStaff}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData} currentStaff={currentStaff}/>}

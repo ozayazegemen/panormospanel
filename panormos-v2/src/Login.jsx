@@ -2,12 +2,12 @@ import { useState } from "react";
 import { supabase } from "./supabaseClient";
 
 const T = {
-  bg: "#0D1219", bgCard: "#121A25", bgInput: "#0A1018",
-  border: "#1E2E42", borderLight: "#263B55",
+  bg: "#0A111D", bgCard: "#101927", bgInput: "#0B1321",
+  border: "#1D2A3F", borderLight: "#2B3B55",
   amber: "#F25124", amberText: "#F8906E",
   green: "#10B981", greenText: "#6EE7B7",
   red: "#EF4444", redText: "#FCA5A5",
-  textPrimary: "#EEF3F9", textSecondary: "#7A9BB8", textMuted: "#405A73", white: "#FFFFFF",
+  textPrimary: "#F1F5FA", textSecondary: "#A2B4C9", textMuted: "#6C8098", white: "#FFFFFF",
 };
 
 // Supabase hatalarını Türkçe'ye çevir
@@ -88,18 +88,18 @@ export default function Login({ onLogin }) {
   const onKey = (e) => { if (e.key === "Enter") submit(); };
 
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Inter',-apple-system,sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: `radial-gradient(900px 500px at 50% -10%, rgba(36,64,106,0.35), transparent 70%), ${T.bg}`, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "'Inter',-apple-system,sans-serif" }}>
       <div style={{ width: "100%", maxWidth: 400 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-            <span style={{ color: "#7DA4C7" }}>panormos</span> <span style={{ color: T.amber }}>medya.</span>
+            <span style={{ color: T.textPrimary }}>panormos</span> <span style={{ color: T.amber }}>medya.</span>
           </div>
-          <div style={{ fontSize: 13, color: T.textMuted, marginTop: 6 }}>Sosyal Medya Yönetim Paneli</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: T.textMuted, marginTop: 8, letterSpacing: "0.14em", textTransform: "uppercase" }}>Yönetim Paneli</div>
         </div>
 
         {/* Kart */}
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 16, padding: 28 }}>
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: 30, boxShadow: "0 24px 60px -20px rgba(0,0,0,0.7)" }}>
           {/* Sekmeler */}
           <div style={{ display: "flex", background: T.bgInput, borderRadius: 10, padding: 4, marginBottom: 22 }}>
             {[{ id: "login", l: "Giriş Yap" }, { id: "signup", l: "Kayıt Ol" }].map(t => (
@@ -141,7 +141,7 @@ export default function Login({ onLogin }) {
             <button onClick={submit} disabled={loading} style={{
               marginTop: 4, padding: "12px 0", borderRadius: 10, border: "none",
               background: loading ? T.textMuted : T.amber, color: "#fff",
-              fontSize: 14, fontWeight: 700, cursor: loading ? "default" : "pointer", transition: "0.15s",
+              fontSize: 14, fontWeight: 700, fontFamily: "inherit", cursor: loading ? "default" : "pointer", transition: "0.15s", boxShadow: "0 8px 20px -10px rgba(242,81,36,0.8)",
             }}>
               {loading ? "Lütfen bekleyin..." : mode === "login" ? "Giriş Yap" : "Kayıt Ol"}
             </button>
@@ -158,5 +158,5 @@ export default function Login({ onLogin }) {
 
 const inputStyle = {
   width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10,
-  padding: "11px 14px", color: "#EEF3F9", fontSize: 14, outline: "none", boxSizing: "border-box",
+  padding: "12px 14px", color: "#F1F5FA", fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box",
 };
