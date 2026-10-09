@@ -2541,7 +2541,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
   const load = async () => {
     const [{ data: r }, { data: s }, { data: l }, { data: f }] = await Promise.all([
       supabase.from('received_mails').select('id,uid,from_email,from_name,to_email,subject,body_text,has_attachments,attachments,received_at,is_read,client_id,folder').order('received_at', { ascending: false }).limit(300),
-      supabase.from('sent_mails').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('sent_mails').select('*').order('sent_at', { ascending: false }).limit(200),
       supabase.from('leads').select('id,business_name,email'),
       supabase.from('mail_folders').select('*').order('created_at'),
     ]);
@@ -2837,7 +2837,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
                     <div style={{ fontSize: 12, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.subject}</div>
                     <div style={{ fontSize: 11, color: T.textMuted }}>{m.sent_by ? "Gönderen: " + m.sent_by : ""}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: T.textMuted, whiteSpace: "nowrap" }}>{fmt(m.created_at)}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, whiteSpace: "nowrap" }}>{fmt(m.sent_at || m.created_at)}</div>
                 </div>
               );
             })}
@@ -2854,7 +2854,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
             </> : <>
               <div><b>Kime:</b> {open.to_email} <Tag who={whoIs(open.to_email, open.client_id, open.lead_id)} /></div>
               <div><b>Gönderen:</b> {open.sent_by || "—"} · info@panormosmedya.com</div>
-              <div><b>Tarih:</b> {open.created_at ? new Date(open.created_at).toLocaleString("tr-TR") : ""}</div>
+              <div><b>Tarih:</b> {(open.sent_at || open.created_at) ? new Date(open.sent_at || open.created_at).toLocaleString("tr-TR") : ""}</div>
               {open.attachment_name && <div>📎 {open.attachment_name}</div>}
             </>}
           </div>
@@ -9774,10 +9774,20 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
   const backupAll = async () => {
     setBacking(true);
     try {
-      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'client_payments', 'company_incomes', 'company_expenses', 'accounting_entries', 'piece_jobs', 'social_reports', 'publishes', 'client_invoices'];
+      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails'];
       const backup = { exportedAt: new Date().toISOString(), tables: {} };
       for (const t of tables) {
-        try { const { data } = await supabase.from(t).select('*'); backup.tables[t] = data || []; } catch (e) { backup.tables[t] = []; }
+        // Tek istekte en çok 1000 satır gelir; tablonun tamamını sayfa sayfa al
+        const all = [];
+        try {
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await supabase.from(t).select('*').range(from, from + 999);
+            if (error || !data) break;
+            all.push(...data);
+            if (data.length < 1000) break;
+          }
+        } catch (e) {}
+        backup.tables[t] = all;
       }
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -9994,7 +10004,7 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
     notifs.push({ icon: "🔄", title: `${totalRev} içerik revize bekliyor`, sub: revisionClients.map(c => c.name).join(", "), page: "clients", sev: "high" });
   }
   if (todayPublish.length) notifs.push({ icon: "📅", title: `Bugün ${todayPublish.length} paylaşım günü`, sub: todayPublish.map(c => c.name).join(", "), page: "clients", sev: "info" });
-  if (todayShoot.length) notifs.push({ icon: "📷", title: `Bugün ${todayShoot.length} çekim günü`, sub: todayShoot.map(c => c.name).join(", "), page: "calendar", sev: "info" });
+  if (todayShoot.length) notifs.push({ icon: "📷", title: `Bugün ${todayShoot.length} çekim günü`, sub: todayShoot.map(c => c.name).join(", "), page: "clients", sev: "info" });
 
   if (perms.finance) {
     const overdueInv = clients.filter(c => (c.invoices || []).some(i => i.status === "overdue"));
@@ -10578,7 +10588,7 @@ export default function App() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const [rawPage, setPage] = useState(() => {
-    const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'mail', 'accounting', 'inventory', 'yearly', 'staff'];
+    const validPages = NAV.map(n => n.id);
     const hash = window.location.hash.replace('#', '');
     if (validPages.includes(hash)) return hash;
     const saved = localStorage.getItem('currentPage');
@@ -10604,7 +10614,7 @@ export default function App() {
   // Tarayıcı geri/ileri butonlarını dinle
   useEffect(() => {
     const onHashChange = () => {
-      const validPages = ['dashboard', 'clients', 'leads', 'pricing', 'calendar', 'shoots', 'ideas', 'tasks', 'reports', 'files', 'messages', 'accounting', 'yearly', 'staff'];
+      const validPages = NAV.map(n => n.id);
       const hash = window.location.hash.replace('#', '');
       if (validPages.includes(hash)) setPage(hash);
     };
