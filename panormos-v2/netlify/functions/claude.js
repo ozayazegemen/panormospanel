@@ -1,9 +1,15 @@
 // netlify/functions/claude.cjs
 // Panel -> bu fonksiyon -> Anthropic API. API anahtari tarayiciya hic gitmez.
+const { yetkili } = require("../lib/auth.cjs");
+
 exports.handler = async (event) => {
-  const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+  const headers = { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type, Authorization", "Access-Control-Allow-Methods": "POST, OPTIONS" };
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "POST bekleniyor" }) };
+
+  // Yalnızca panele giriş yapmış çalışanlar kullanabilir
+  const red = await yetkili(event);
+  if (red) return { ...red, headers };
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY tanimli degil (Netlify > Environment variables)" }) };

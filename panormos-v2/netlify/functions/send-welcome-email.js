@@ -1,8 +1,14 @@
 // Netlify Function — çalışan davet e-postası gönderir (Resend API kullanır)
+const { yetkili } = require("../lib/auth.cjs");
+
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
+
+  // Yalnızca çalışan yönetme yetkisi olanlar davet e-postası gönderebilir
+  const red = await yetkili(event, { calisanYonetir: true });
+  if (red) return red;
 
   try {
     const { to, name, email, password, loginUrl } = JSON.parse(event.body);

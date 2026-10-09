@@ -2,6 +2,7 @@
 // Panormos Panel -> bu fonksiyon -> EmlakPanelim'in Supabase projesi (service role ile).
 // Servis anahtarı yalnızca burada, sunucu tarafında kullanılır; tarayıcıya hiç gitmez.
 const { createClient } = require("@supabase/supabase-js");
+const { yetkili } = require("../lib/auth.cjs");
 
 const supabase = createClient(
   process.env.EMLAK_SUPABASE_URL,
@@ -12,10 +13,14 @@ exports.handler = async (event) => {
   const headers = {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   };
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
+
+  // EmlakPanelim yönetimi yalnızca Panormos paneline giriş yapmış yöneticiye açık
+  const red = await yetkili(event, { yonetici: true });
+  if (red) return { ...red, headers };
 
   if (!process.env.EMLAK_SUPABASE_URL || !process.env.EMLAK_SUPABASE_SERVICE_KEY) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: "EMLAK_SUPABASE_URL / EMLAK_SUPABASE_SERVICE_KEY tanımlı değil (Netlify > Environment variables)" }) };

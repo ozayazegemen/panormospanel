@@ -1,6 +1,7 @@
 const { ImapFlow } = require("imapflow");
 const { simpleParser } = require("mailparser");
 const { createClient } = require("@supabase/supabase-js");
+const { yetkili } = require("../lib/auth.cjs");
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -21,7 +22,11 @@ function safeName(name) {
     .slice(0, 120);
 }
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  // E-posta kutusu yalnızca yöneticiye açık
+  const red = await yetkili(event, { yonetici: true });
+  if (red) return { ...red, headers: { "Content-Type": "application/json" } };
+
   const client = new ImapFlow({
     host: "imap.secureserver.net",
     port: 993,

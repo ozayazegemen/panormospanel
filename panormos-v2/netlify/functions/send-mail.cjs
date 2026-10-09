@@ -1,9 +1,14 @@
 // netlify/functions/send-mail.js — info@panormosmedya.com üzerinden SMTP ile e-posta gönderir (GoDaddy Kurumsal E-posta)
 const nodemailer = require("nodemailer");
+const { yetkili } = require("../lib/auth.cjs");
 
 exports.handler = async (event) => {
   const headers = { "Content-Type": "application/json" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "POST bekleniyor" }) };
+
+  // Yalnızca panele giriş yapmış çalışanlar e-posta gönderebilir
+  const red = await yetkili(event);
+  if (red) return { ...red, headers };
 
   const user = process.env.MAIL_USER, pass = process.env.MAIL_PASS;
   if (!user || !pass) return { statusCode: 500, headers, body: JSON.stringify({ error: "MAIL_USER / MAIL_PASS tanımlı değil (Netlify > Environment variables)" }) };

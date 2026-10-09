@@ -53,10 +53,17 @@ export default function Login({ onLogin }) {
 
     setLoading(true);
     // Güvenlik: sadece yöneticinin eklediği (staff tablosunda olan) e-postalar kayıt olabilir
-    const { data: matches, error: qErr } = await supabase
-      .from('staff').select('id,name').ilike('email', mail).is('deleted_at', null).limit(1);
-    if (qErr) { setLoading(false); setError("Sistem kontrolü başarısız. Tekrar deneyin."); return; }
-    if (!matches || matches.length === 0) {
+    let kayitli = false;
+    const { data: var_, error: rpcErr } = await supabase.rpc('panel_eposta_kayitli', { p_email: mail });
+    if (!rpcErr) kayitli = var_ === true;
+    else {
+      // İşlev henüz kurulu değilse eski yöntem
+      const { data: matches, error: qErr } = await supabase
+        .from('staff').select('id,name').ilike('email', mail).is('deleted_at', null).limit(1);
+      if (qErr) { setLoading(false); setError("Sistem kontrolü başarısız. Tekrar deneyin."); return; }
+      kayitli = !!(matches && matches.length > 0);
+    }
+    if (!kayitli) {
       setLoading(false);
       setError("Bu e-posta sistemde kayıtlı değil. Yöneticinizden sizi bu e-posta ile eklemesini isteyin.");
       return;

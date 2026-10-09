@@ -2300,8 +2300,15 @@ function ClientSetup({ client, setClients }) {
 // ─────────────────────────────────────────────
 // CLAUDE ASİSTAN (Netlify Function üzerinden)
 // ─────────────────────────────────────────────
+// Sunucu işlevlerine oturum anahtarıyla istek atar (işlevler girişsiz çağrıyı reddeder)
+async function panelFetch(path, opts = {}) {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  return fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+}
+
 async function askClaude({ prompt, system, messages, maxTokens }) {
-  const r = await fetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, system, messages, maxTokens }) });
+  const r = await panelFetch("/.netlify/functions/claude", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, system, messages, maxTokens }) });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
   return data.text || "";
@@ -2421,7 +2428,7 @@ function ClientAI({ client }) {
 // MÜŞTERİYE E-POSTA (info@panormosmedya.com üzerinden, Netlify send-mail)
 // ─────────────────────────────────────────────
 async function sendMailViaPanel({ to, subject, text, attachment }) {
-  const r = await fetch("/.netlify/functions/send-mail", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to, subject, text, attachment }) });
+  const r = await panelFetch("/.netlify/functions/send-mail", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to, subject, text, attachment }) });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
   return data;
@@ -2558,7 +2565,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
       await load();
       try {
         setSyncing(true);
-        const r = await fetch("/.netlify/functions/fetch-mails");
+        const r = await panelFetch("/.netlify/functions/fetch-mails");
         const d = await r.json().catch(() => ({}));
         if (alive && r.ok && d.ok && d.inserted > 0) await load();
       } catch (e) {}
@@ -2575,7 +2582,7 @@ function MailPage({ clients, currentStaff, onUnreadChange }) {
   const sync = async () => {
     setSyncing(true);
     try {
-      const r = await fetch("/.netlify/functions/fetch-mails");
+      const r = await panelFetch("/.netlify/functions/fetch-mails");
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || ("HTTP " + r.status));
       await load();
@@ -6042,7 +6049,7 @@ function EmlakPanelimPage() {
   async function yukle() {
     setHata("");
     try {
-      const res = await fetch("/.netlify/functions/emlakpanelim-admin");
+      const res = await panelFetch("/.netlify/functions/emlakpanelim-admin");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Yüklenemedi");
       setVeri(data);
@@ -6060,7 +6067,7 @@ function EmlakPanelimPage() {
   useEffect(() => { yukle(); }, []);
 
   async function gonder(body) {
-    const res = await fetch("/.netlify/functions/emlakpanelim-admin", {
+    const res = await panelFetch("/.netlify/functions/emlakpanelim-admin", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -9837,10 +9844,14 @@ export default function App() {
     (async () => {
       const uid = session.user.id;
       const email = (session.user.email || "").toLowerCase();
-      // 1) auth_id ile eşleştir
-      let { data: row } = await supabase.from('staff').select('*').eq('auth_id', uid).maybeSingle();
-      // 2) bulunamazsa: email ile eşleştir ve auth_id'yi bağla (ilk girişte otomatik)
-      if (!row && email) {
+      let row = null;
+      // Oturumu çalışan kaydına sunucu tarafında bağla (ilk girişte e-posta ile eşleştirir)
+      const { data: linked, error: linkErr } = await supabase.rpc('panel_hesap_bagla');
+      if (!linkErr) row = linked || null;
+      // İşlev henüz kurulu değilse eski yöntem: 1) auth_id ile eşleştir
+      if (linkErr) ({ data: row } = await supabase.from('staff').select('*').eq('auth_id', uid).maybeSingle());
+      // 2) bulunamazsa: email ile eşleştir ve auth_id'yi bağla
+      if (linkErr && !row && email) {
         const { data: matches } = await supabase.from('staff').select('*').ilike('email', email).is('deleted_at', null).limit(1);
         const byEmail = matches && matches[0];
         if (byEmail) {
@@ -9848,6 +9859,7 @@ export default function App() {
           row = { ...byEmail, auth_id: uid };
         }
       }
+      if (row && row.deleted_at) row = null; // ayrılan çalışan giremez
       if (row) { setCurrentStaff(row); setAuthDenied(false); }
       else { setCurrentStaff(null); setAuthDenied(true); }
       setStaffResolving(false);
