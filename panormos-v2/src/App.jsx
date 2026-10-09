@@ -1495,7 +1495,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
   );
 }
 
-const fmtMoney = n => n.toLocaleString("tr-TR") + " ₺";
+const fmtMoney = n => (Number(n) || 0).toLocaleString("tr-TR", { maximumFractionDigits: 2 }) + " ₺";
 
 const statusConfig = {
   done:{label:"Yayınlandı",color:T.green,bg:T.greenDim},
@@ -5732,15 +5732,15 @@ function RevenueChart() {
   useEffect(() => {
     (async () => {
       try {
-        const { data: p } = await supabase.from('client_payments').select('amount,month_ref');
+        const { data: p } = await supabase.from('client_payments').select('id,amount,month_ref,payment_date');
         setPayments(p || []);
-        const { data: e } = await supabase.from('accounting_entries').select('amount,month_ref');
+        const { data: e } = await supabase.from('accounting_entries').select('id,amount,month_ref,is_paid,paid_date,due_date');
         setEntries(e || []);
-        const { data: ex } = await supabase.from('company_expenses').select('amount,expense_date');
+        const { data: ex } = await supabase.from('company_expenses').select('id,amount,expense_date');
         setExpenses(ex || []);
-        const { data: inc } = await supabase.from('company_incomes').select('amount,income_date');
+        const { data: inc } = await supabase.from('company_incomes').select('id,amount,income_date');
         setIncomes(inc || []);
-        const { data: pj } = await supabase.from('piece_jobs').select('amount,month_ref,status');
+        const { data: pj } = await supabase.from('piece_jobs').select('id,amount,month_ref,status,due_date');
         setPieceJobs(pj || []);
       } catch (err) { /* tablo yoksa boş */ }
       setLoading(false);
@@ -5756,14 +5756,12 @@ function RevenueChart() {
   }
   const toMonthRef = (dateStr) => dateStr ? String(dateStr).slice(0, 7) : "";
 
+  // Muhasebe > Özet ile aynı kural: para hangi gün girdi/çıktıysa o ayda sayılır
+  const hareketler = muhasebeHareketleri({ payments, incomes, expenses, entries, pieceJobs });
   const data = months.map(m => {
-    // Gelir = müşteri ödemeleri + diğer gelirler + tamamlanan parça başı işler
-    const income = payments.filter(p => p.month_ref === m).reduce((s, p) => s + Number(p.amount || 0), 0)
-      + incomes.filter(i => toMonthRef(i.income_date) === m).reduce((s, i) => s + Number(i.amount || 0), 0)
-      + pieceJobs.filter(j => j.status === "done" && j.month_ref === m).reduce((s, j) => s + Number(j.amount || 0), 0);
-    // Gider = SGK/vergi/maaş + kategorili giderler
-    const expense = entries.filter(e => e.month_ref === m).reduce((s, e) => s + Number(e.amount || 0), 0)
-      + expenses.filter(x => toMonthRef(x.expense_date) === m).reduce((s, x) => s + Number(x.amount || 0), 0);
+    const ay = hareketler.filter(r => toMonthRef(r.date) === m);
+    const income = sumAmount(ay.filter(r => r.kind === "gelir"));
+    const expense = sumAmount(ay.filter(r => r.kind === "gider"));
     return { m, income, expense, net: income - expense };
   });
 
@@ -7146,9 +7144,157 @@ function monthRefOptions() {
   return opts;
 }
 
+// ═══════════════ MUHASEBE ORTAK HESAPLAR ═══════════════
+// Bugünün tarihi kullanıcının saatine göre (toISOString gece 00:00–03:00 arası bir önceki günü verir)
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const sumAmount = (list, key = "amount") => list.reduce((s, x) => s + Number(x[key] || 0), 0);
+
+// Bir müşterinin carisi, ay ay: o aya kesilen faturalar ve o aya yazılan ödemeler.
+// Borç yalnızca faturası kesilmiş aydan doğar; faturasız aya girilen ödeme tahsilat sayılır ama başka ayın borcunu kapatmaz.
+function cariHesapla(cPayments, cInvoices) {
+  const byMonth = {};
+  const ay = (m) => (byMonth[m || ""] = byMonth[m || ""] || { m: m || "", invoiced: 0, paid: 0 });
+  cInvoices.forEach(i => { ay(i.month_ref).invoiced += Number(i.total || 0); });
+  cPayments.forEach(p => { ay(p.month_ref).paid += Number(p.amount || 0); });
+  const months = Object.values(byMonth).sort((a, b) => a.m.localeCompare(b.m)).map(x => ({ ...x, debt: Math.max(0, x.invoiced - x.paid) }));
+  return { months, invoiced: sumAmount(months, "invoiced"), paid: sumAmount(months, "paid"), balance: sumAmount(months, "debt") };
+}
+
+// Bütün para hareketleri tek listede. Para hangi gün girdi/çıktıysa o tarihle sayılır;
+// SGK/vergi/maaş kayıtları ancak "ödendi" işaretlenince gider olur. Özet sekmesi ve Ana Sayfa grafiği bunu kullanır.
+function muhasebeHareketleri({ payments = [], incomes = [], expenses = [], entries = [], pieceJobs = [], clientName = () => "Müşteri" }) {
+  const ayBasi = (ref) => (ref ? `${ref}-01` : "");
+  const rows = [];
+  payments.forEach(p => rows.push({ key: "p" + p.id, kind: "gelir", date: p.payment_date || ayBasi(p.month_ref), type: "Müşteri ödemesi", title: clientName(p.client_id), sub: [p.month_ref ? `${monthRefLabel(p.month_ref)} ayına ait` : "", p.method, p.notes].filter(Boolean).join(" · "), amount: Number(p.amount || 0) }));
+  incomes.forEach(i => rows.push({ key: "i" + i.id, kind: "gelir", date: i.income_date || "", type: "Diğer gelir", title: i.title || i.source || "Gelir", sub: [i.title ? i.source : "", i.notes].filter(Boolean).join(" · "), amount: Number(i.amount || 0) }));
+  pieceJobs.filter(j => j.status === "done").forEach(j => rows.push({ key: "j" + j.id, kind: "gelir", date: j.due_date || ayBasi(j.month_ref), type: "Parça başı iş", title: [clientName(j.client_id), j.title].filter(Boolean).join(" — "), sub: "", amount: Number(j.amount || 0) }));
+  expenses.forEach(x => rows.push({ key: "x" + x.id, kind: "gider", date: x.expense_date || "", type: expCatLabel(x.category), title: x.title || expCatLabel(x.category), sub: x.notes || "", amount: Number(x.amount || 0) }));
+  entries.filter(e => e.is_paid).forEach(e => rows.push({ key: "e" + e.id, kind: "gider", date: e.paid_date || e.due_date || ayBasi(e.month_ref), type: EXPENSE_TYPES[e.entry_type]?.label || "Diğer gider", title: e.title || "", sub: e.month_ref ? `${monthRefLabel(e.month_ref)} ayına ait` : "", amount: Number(e.amount || 0) }));
+  return rows.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+}
+
+// ═══════════════ MUHASEBE ÖZET ═══════════════
+function AccountingOverview({ clients, goTab }) {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState("");
+  const [period, setPeriod] = useState(currentMonthRef());
+  const [kind, setKind] = useState("all");
+
+  useEffect(() => {
+    (async () => {
+      const tables = ["client_payments", "company_incomes", "company_expenses", "accounting_entries", "piece_jobs", "client_invoices"];
+      const res = await Promise.all([...tables.map(t => supabase.from(t).select('*')), supabase.from('clients').select('id,name')]);
+      setErr(res.map((r, i) => (r.error ? `${tables[i] || "clients"}: ${r.error.message}` : "")).filter(Boolean).join(" · "));
+      const [payments, incomes, expenses, entries, pieceJobs, invoices, names] = res.map(r => r.data || []);
+      setD({ payments, incomes, expenses, entries, pieceJobs, invoices, names: Object.fromEntries(names.map(c => [c.id, c.name])) });
+    })();
+  }, []);
+
+  if (!d) return <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>;
+
+  const clientName = (id) => d.names[id] || clients.find(c => c.id === id)?.name || "Müşteri";
+  const all = muhasebeHareketleri({ ...d, clientName });
+  const ayi = (r) => (r.date || "").slice(0, 7);
+  const toplam = (rows, k) => sumAmount(rows.filter(r => r.kind === k));
+  const inPeriod = period === "all" ? all : all.filter(r => ayi(r) === period);
+  const income = toplam(inPeriod, "gelir");
+  const expense = toplam(inPeriod, "gider");
+  const net = income - expense;
+  const shown = kind === "all" ? inPeriod : inPeriod.filter(r => r.kind === kind);
+  const periodLabel = period === "all" ? "Tüm zamanlar" : monthRefLabel(period);
+
+  // Müşterilerden alacak ve ödenmeyi bekleyen giderler dönemden bağımsızdır
+  const ids = [...new Set([...d.payments, ...d.invoices].map(x => x.client_id))];
+  const receivable = ids.reduce((s, id) => s + cariHesapla(d.payments.filter(p => p.client_id === id), d.invoices.filter(i => i.client_id === id)).balance, 0);
+  const unpaidEntries = d.entries.filter(e => !e.is_paid);
+
+  const nowRef = currentMonthRef();
+  const periodOptions = [...new Set([nowRef, ...all.map(ayi).filter(Boolean)])].sort().reverse();
+  const lastMonths = [];
+  for (let i = 0; i < 6; i++) { const t = new Date(); t.setDate(1); t.setMonth(t.getMonth() - i); lastMonths.push(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`); }
+
+  const exportRows = async () => {
+    const rows = shown.map(r => ({ "Tarih": r.date || "—", "Tür": r.kind === "gelir" ? "Gelir" : "Gider", "Kalem": r.type, "Açıklama": r.title, "Detay": r.sub || "—", "Tutar (₺)": r.kind === "gelir" ? r.amount : -r.amount }));
+    await exportPerfectExcel([{ name: "Hareketler", rows, title: `PANORMOS MEDYA — GELİR / GİDER HAREKETLERİ (${periodLabel})` }], `panormos-hareketler-${period === "all" ? "tumu" : period}.xlsx`);
+  };
+
+  const th = { textAlign: "right", padding: "6px 10px", fontSize: 11, color: T.textMuted, fontWeight: 600 };
+  const td = { textAlign: "right", padding: "7px 10px", fontSize: 13, borderTop: `1px solid ${T.border}`, whiteSpace: "nowrap" };
+
+  return (
+    <div>
+      {err && <div style={{ background: T.redDim, color: T.redText, padding: "10px 14px", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>Bazı kayıtlar okunamadı, toplamlar eksik olabilir: {err}</div>}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <div style={{ width: 190 }}>
+          <Select value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="all">Tüm zamanlar</option>
+            {periodOptions.map(m => <option key={m} value={m}>{monthRefLabel(m)}{m === nowRef ? " (bu ay)" : ""}</option>)}
+          </Select>
+        </div>
+        <Btn variant="primary" onClick={() => goTab("cari")}>+ Müşteri Ödemesi</Btn>
+        <Btn onClick={() => goTab("harcamalar")}>+ Gider</Btn>
+        <Btn onClick={() => goTab("gelirler")}>+ Diğer Gelir</Btn>
+        <Btn onClick={() => goTab("giderler")}>+ SGK / Vergi / Maaş</Btn>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Gelir" value={fmtMoney(income)} color={T.greenText} sub={periodLabel} />
+        <StatCard label="Gider" value={fmtMoney(expense)} color={T.redText} sub={periodLabel} />
+        <StatCard label={net >= 0 ? "Net Kâr" : "Net Zarar"} value={fmtMoney(net)} color={net >= 0 ? T.greenText : T.redText} sub={periodLabel} />
+        <StatCard label="Müşterilerden Alacak" value={fmtMoney(receivable)} color={T.amberText} sub="Ödenmemiş faturalar" />
+        <StatCard label="Bekleyen Ödemeler" value={fmtMoney(sumAmount(unpaidEntries))} color={T.amberText} sub={`${unpaidEntries.length} kayıt · SGK / vergi / maaş`} />
+      </div>
+
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "12px 8px", marginBottom: 18, overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><th style={{ ...th, textAlign: "left" }}>SON 6 AY</th><th style={th}>GELİR</th><th style={th}>GİDER</th><th style={th}>NET</th></tr></thead>
+          <tbody>
+            {lastMonths.map(m => {
+              const rows = all.filter(r => ayi(r) === m);
+              const g = toplam(rows, "gelir"), x = toplam(rows, "gider");
+              return (
+                <tr key={m} onClick={() => setPeriod(m)} style={{ cursor: "pointer", background: m === period ? T.bgSurface : "transparent" }}>
+                  <td style={{ ...td, textAlign: "left", color: T.textPrimary, fontWeight: 600 }}>{monthRefLabel(m)}</td>
+                  <td style={{ ...td, color: T.greenText }}>{fmtMoney(g)}</td>
+                  <td style={{ ...td, color: T.redText }}>{fmtMoney(x)}</td>
+                  <td style={{ ...td, color: g - x >= 0 ? T.greenText : T.redText, fontWeight: 700 }}>{fmtMoney(g - x)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginRight: "auto" }}>Tüm Hareketler · {periodLabel} ({shown.length})</div>
+        {[["all", "Tümü"], ["gelir", "Gelir"], ["gider", "Gider"]].map(([id, l]) => (
+          <button key={id} onClick={() => setKind(id)} style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, background: kind === id ? T.amber : T.bgInput, color: kind === id ? T.white : T.textSecondary, border: `1px solid ${kind === id ? T.amber : T.border}`, cursor: "pointer" }}>{l}</button>
+        ))}
+        <Btn onClick={exportRows} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel</Btn>
+      </div>
+      {shown.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>{periodLabel} için kayıt yok. Başka bir dönem seçin ya da yukarıdaki düğmelerle kayıt ekleyin.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {shown.map(r => (
+            <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${r.kind === "gelir" ? T.green : T.red}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title || r.type}</div>
+                <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{r.type} · {r.date ? new Date(r.date + "T00:00:00").toLocaleDateString("tr-TR") : "tarih yok"}{r.sub ? " · " + r.sub : ""}</div>
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: r.kind === "gelir" ? T.greenText : T.redText, whiteSpace: "nowrap" }}>{r.kind === "gelir" ? "+" : "−"}{fmtMoney(r.amount)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════ MUHASEBE ANA SAYFA ═══════════════
 function AccountingPage({ clients, staff, perms }) {
-  const [tab, setTab] = useState("cari");
+  const [tab, setTab] = useState("ozet");
   // Güvenlik: muhasebe yetkisi yoksa erişimi engelle
   if (!perms.accounting) {
     return <div style={{textAlign:"center",color:T.textMuted,padding:60}}>
@@ -7158,6 +7304,7 @@ function AccountingPage({ clients, staff, perms }) {
     </div>;
   }
   const tabs = [
+    { id: "ozet", lbl: "📊 Özet" },
     { id: "cari", lbl: "💳 Müşteri Cari" },
     { id: "harcamalar", lbl: "🧾 Giderler" },
     { id: "gelirler", lbl: "💵 Gelirler" },
@@ -7178,6 +7325,7 @@ function AccountingPage({ clients, staff, perms }) {
           }}>{t.lbl}</button>;
         })}
       </div>
+      {tab === "ozet" && <AccountingOverview clients={clients} goTab={setTab} />}
       {tab === "cari" && <AccountingCari clients={clients} />}
       {tab === "harcamalar" && <AccountingSpending />}
       {tab === "gelirler" && <AccountingIncome />}
@@ -7196,6 +7344,11 @@ const EXPENSE_CATEGORIES = [
   { id: "kirtasiye", label: "✏️ Kırtasiye", color: "#6366F1" },
   { id: "ofis", label: "🏢 Ofis İçi Genel", color: "#10B981" },
   { id: "ekipman", label: "🎥 Ekipman", color: "#A855F7" },
+  { id: "kira", label: "🏠 Kira", color: "#0EA5E9" },
+  { id: "fatura", label: "💡 Elektrik / Su / İnternet", color: "#EAB308" },
+  { id: "yazilim", label: "💻 Yazılım / Abonelik", color: "#14B8A6" },
+  { id: "reklam", label: "📣 Reklam", color: "#F97316" },
+  { id: "diger", label: "📌 Diğer", color: "#8A8F98" },
 ];
 const expCatLabel = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.label || id;
 const expCatColor = (id) => EXPENSE_CATEGORIES.find(c => c.id === id)?.color || "#8A8F98";
@@ -7228,7 +7381,7 @@ async function extractInvoiceWithAI(file, kind, clientName) {
     : { type: "image", source: { type: "base64", media_type: "image/jpeg", data: await resmiHazirla(file) } };
   const ask = kind === "expense"
     ? `Bu bir GİDER faturası/fişi (Panormos Medya satın almış). Şu alanları JSON olarak çıkar:
-{"vendor":"satıcı/firma adı","invoice_no":"fatura/fiş no","date":"YYYY-MM-DD","amount":KDV hariç tutar (sayı),"vat":KDV tutarı (sayı),"total":KDV dahil genel toplam (sayı),"category":"yakit|yemek|kirtasiye|ofis|ekipman","description":"kısa açıklama (ne alınmış)"}`
+{"vendor":"satıcı/firma adı","invoice_no":"fatura/fiş no","date":"YYYY-MM-DD","amount":KDV hariç tutar (sayı),"vat":KDV tutarı (sayı),"total":KDV dahil genel toplam (sayı),"category":"${EXPENSE_CATEGORIES.map(c => c.id).join("|")} (kira=işyeri kirası, fatura=elektrik/su/internet/telefon, yazilim=yazılım ve abonelik, reklam=reklam harcaması, diger=hiçbiri uymuyorsa)","description":"kısa açıklama (ne alınmış)"}`
     : `Bu Panormos Medya'nın ${clientName ? `"${clientName}" adlı müşterisine` : "bir müşterisine"} kestiği SATIŞ faturası. Şu alanları JSON olarak çıkar:
 {"invoice_no":"fatura no","date":"YYYY-MM-DD","amount":KDV hariç tutar (sayı),"vat":KDV tutarı (sayı),"total":KDV dahil genel toplam (sayı),"month_ref":"hizmetin ait olduğu ay YYYY-MM (faturada dönem yazıyorsa onu, yoksa fatura tarihinin ayını kullan)","description":"hizmet açıklaması kısa"}`;
   const text = await askClaude({
@@ -7262,7 +7415,7 @@ async function uploadAccountingDoc(file, prefix) {
 }
 
 // Müşteri carisine fatura yükleme + AI okuma + ödendi işaretleme
-function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
+function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
   const [invoices, setInvoices] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [stage, setStage] = useState("");
@@ -7288,7 +7441,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
       try { fields = await extractInvoiceWithAI(file, "sale", clientName); } catch (ex) { swalAlert("Fatura otomatik okunamadı, bilgileri elle girin.\n" + ex.message); }
       const d = new Date();
       setDraft({ url: r.url, name: r.name, fields: {
-        invoice_no: fields.invoice_no || "", invoice_date: fields.date || d.toISOString().slice(0, 10),
+        invoice_no: fields.invoice_no || "", invoice_date: fields.date || todayStr(),
         amount: fields.amount || "", vat: fields.vat || "", total: fields.total || "",
         month_ref: fields.month_ref || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
         description: fields.description || "",
@@ -7311,11 +7464,19 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
     setDraft(null); load();
   };
 
+  // Fatura, kendi "ödendi" işaretiyle ya da o aya girilmiş ödemeler tutarını karşılıyorsa ödenmiş sayılır
+  const ayBilgisi = (inv) => monthInfo[inv.month_ref || ""];
+  const odemeyleKapali = (inv) => { const x = ayBilgisi(inv); return !!x && x.invoiced > 0 && x.debt === 0; };
+  const odendi = (inv) => inv.status === "paid" || odemeyleKapali(inv);
+
   const markPaid = async (inv) => {
-    if (!await swalConfirm(`${inv.invoice_no || inv.file_name} — ${fmtMoney(inv.total)} ödendi olarak işaretlensin ve cariye ödeme kaydı düşülsün mü?`)) return;
-    const today = new Date().toISOString().slice(0, 10);
+    // O aya daha önce kısmi ödeme girildiyse yalnızca kalan tutar için ödeme kaydı açılır
+    const x = ayBilgisi(inv);
+    const tutar = x ? Math.min(Number(inv.total || 0), x.debt) : Number(inv.total || 0);
+    if (!await swalConfirm(`${inv.invoice_no || inv.file_name} — ${fmtMoney(tutar)} ödendi olarak işaretlensin ve cariye ödeme kaydı düşülsün mü?`)) return;
+    const today = todayStr();
     const { data: pay, error: e1 } = await supabase.from('client_payments').insert({
-      client_id: clientId, amount: Number(inv.total || 0), payment_date: today,
+      client_id: clientId, amount: tutar, payment_date: today,
       month_ref: inv.month_ref || today.slice(0, 7), method: "havale", notes: `Fatura ${inv.invoice_no || ""}`.trim(),
     }).select().single();
     if (e1) { swalAlert("Ödeme kaydı oluşturulamadı: " + e1.message); return; }
@@ -7329,6 +7490,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
   };
 
   const markUnpaid = async (inv) => {
+    if (!inv.payment_id && odemeyleKapali(inv)) { swalAlert("Bu fatura, aşağıdaki Ödeme Geçmişi'nde kayıtlı ödemelerle kapanmış.\n\nÖdendi işaretini kaldırmak için ilgili ödemeyi Ödeme Geçmişi'nden silin."); return; }
     if (!await swalConfirm("Ödendi işareti kaldırılsın mı? (Bağlı ödeme kaydı da silinir)")) return;
     if (inv.payment_id) await supabase.from('client_payments').delete().eq('id', inv.payment_id);
     await supabase.from('client_invoices').update({ status: "pending", paid_at: null, payment_id: null }).eq('id', inv.id);
@@ -7341,7 +7503,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
     await supabase.from('client_invoices').delete().eq('id', inv.id); load(); onPaid && onPaid();
   };
 
-  const pending = invoices.filter(i => i.status !== "paid").reduce((s, i) => s + Number(i.total || 0), 0);
+  const pending = invoices.filter(i => !odendi(i)).reduce((s, i) => s + Number(i.total || 0), 0);
   const F = draft?.fields;
   const setF = (k, v) => setDraft(d => ({ ...d, fields: { ...d.fields, [k]: v } }));
 
@@ -7357,7 +7519,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
       {invoices.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {invoices.map(inv => {
-            const paid = inv.status === "paid";
+            const paid = odendi(inv);
             return (
             <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: T.bgCard, borderRadius: 8, borderLeft: `3px solid ${paid ? T.green : T.amber}` }}>
               <span style={{ fontSize: 16 }}>🧾</span>
@@ -7383,7 +7545,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid }) {
             <FormField label="KDV Hariç (₺)"><Input type="number" value={F.amount} onChange={e => setF("amount", e.target.value)} /></FormField>
             <FormField label="KDV (₺)"><Input type="number" value={F.vat} onChange={e => setF("vat", e.target.value)} /></FormField>
             <FormField label="Genel Toplam (₺)"><Input type="number" value={F.total} onChange={e => setF("total", e.target.value)} /></FormField>
-            <FormField label="Ait Olduğu Ay (YYYY-AA)"><Input value={F.month_ref} onChange={e => setF("month_ref", e.target.value)} placeholder="2026-08" /></FormField>
+            <FormField label="Ait Olduğu Ay"><Select value={F.month_ref} onChange={e => setF("month_ref", e.target.value)}>{[...new Set([F.month_ref, ...monthRefOptions()])].filter(Boolean).map(m => <option key={m} value={m}>{monthRefLabel(m)}</option>)}</Select></FormField>
           </div>
           <FormField label="Açıklama"><Input value={F.description} onChange={e => setF("description", e.target.value)} /></FormField>
           <ModalActions onClose={() => setDraft(null)} onSave={saveDraft} saveLabel="Kaydet (Bekliyor)" />
@@ -7409,35 +7571,46 @@ function AccountingSpending() {
     try {
       const j = await extractInvoiceWithAI(f, "expense");
       const cat = EXPENSE_CATEGORIES.find(c => c.id === j.category) ? j.category : "ofis";
-      setForm({ category: cat, title: [j.vendor, j.description].filter(Boolean).join(" - "), amount: j.total || j.amount || "", expense_date: j.date || new Date().toISOString().slice(0, 10), notes: j.invoice_no ? `Fatura no: ${j.invoice_no}` : "", vendor: j.vendor || "", invoice_no: j.invoice_no || "" });
+      setForm({ category: cat, title: [j.vendor, j.description].filter(Boolean).join(" - "), amount: j.total || j.amount || "", expense_date: j.date || todayStr(), notes: j.invoice_no ? `Fatura no: ${j.invoice_no}` : "", vendor: j.vendor || "", invoice_no: j.invoice_no || "" });
       setFile(f); setModal(true);
     } catch (ex) { swalAlert("Fatura okunamadı: " + ex.message); }
     setAiBusy(false);
   };
 
+  const [err, setErr] = useState("");
+  const [period, setPeriod] = useState("all");
   const load = async () => {
-    const { data } = await supabase.from('company_expenses').select('*').order('expense_date', { ascending: false });
+    const { data, error } = await supabase.from('company_expenses').select('*').order('expense_date', { ascending: false }).order('id', { ascending: false });
+    setErr(error ? error.message : "");
     setItems(data || []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const save = async () => {
+    if (uploading) return;
     if (!form.category || !form.amount) { swalAlert("Kategori ve tutar zorunlu"); return; }
     setUploading(true);
-    let docUrl = "", docName = "";
+    let doc = null;
     if (file) {
-      try { const r = await uploadAccountingDoc(file, "giderler"); docUrl = r.url; docName = r.name; }
+      try { doc = await uploadAccountingDoc(file, "giderler"); }
       catch (e) { setUploading(false); swalAlert("Belge yüklenemedi: " + e.message); return; }
     }
-    const { error } = await supabase.from('company_expenses').insert({
+    const row = {
       category: form.category, title: form.title || "", amount: parseFloat(form.amount) || 0,
-      expense_date: form.expense_date || new Date().toISOString().slice(0, 10),
-      document_url: docUrl, document_name: docName, notes: form.notes || "",
+      expense_date: form.expense_date || todayStr(), notes: form.notes || "",
       vendor: form.vendor || "", invoice_no: form.invoice_no || "",
-    });
+    };
+    // Düzenlemede yeni belge seçilmediyse eski belge korunur
+    if (doc || !form.id) { row.document_url = doc?.url || ""; row.document_name = doc?.name || ""; }
+    const { error } = form.id
+      ? await supabase.from('company_expenses').update(row).eq('id', form.id)
+      : await supabase.from('company_expenses').insert(row);
     setUploading(false);
-    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    // Yeni kayıt, seçili dönem ya da kategori süzgeci yüzünden listede gizli kalmasın
+    setPeriod(pr => (pr === "all" || pr === row.expense_date.slice(0, 7) ? pr : "all"));
+    setFilterCat(fc => (fc === "all" || fc === row.category ? fc : "all"));
     setModal(false); setForm({}); setFile(null);
     load();
   };
@@ -7445,11 +7618,14 @@ function AccountingSpending() {
   const del = async (id) => { if (!await swalConfirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); load(); };
 
   const now = new Date();
-  const filtered = filterCat === "all" ? items : items.filter(i => i.category === filterCat);
-  const total = items.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const thisMonth = items.filter(i => { const d = new Date(i.expense_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((s, i) => s + Number(i.amount || 0), 0);
+  const ayi = (i) => String(i.expense_date || "").slice(0, 7);
+  const inPeriod = period === "all" ? items : items.filter(i => ayi(i) === period);
+  const filtered = filterCat === "all" ? inPeriod : inPeriod.filter(i => i.category === filterCat);
+  const total = sumAmount(items);
+  const thisMonth = sumAmount(items.filter(i => ayi(i) === currentMonthRef()));
+  const periodOptions = [...new Set([currentMonthRef(), ...items.map(ayi).filter(Boolean)])].sort().reverse();
   const byCat = {};
-  items.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + Number(i.amount || 0); });
+  inPeriod.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + Number(i.amount || 0); });
 
   return (
     <div>
@@ -7457,6 +7633,7 @@ function AccountingSpending() {
         <StatCard label="Toplam Gider" value={fmtMoney(total)} color={T.amberText} />
         <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.redText} />
       </div>
+      {err && <div style={{ background: T.redDim, color: T.redText, padding: "10px 14px", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>Giderler okunamadı: {err}</div>}
 
       {/* Kategori özet kartları */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10, marginBottom: 16 }}>
@@ -7469,11 +7646,18 @@ function AccountingSpending() {
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-        <Btn variant="primary" onClick={() => { setForm({ category: "yakit", expense_date: new Date().toISOString().slice(0, 10) }); setFile(null); setModal(true); }}>+ Gider Ekle</Btn>
+        <Btn variant="primary" onClick={() => { setForm({ category: "yakit", expense_date: todayStr() }); setFile(null); setModal(true); }}>+ Gider Ekle</Btn>
         <input ref={aiFileRef} type="file" accept=".pdf,image/*" onChange={onAiFile} style={{ display: "none" }} />
         <Btn onClick={() => !aiBusy && aiFileRef.current?.click()} style={{ background: T.indigoDim, color: T.indigoText, opacity: aiBusy ? 0.7 : 1 }}>{aiBusy ? "⏳ Fatura okunuyor…" : "📄 Faturadan Gider Ekle (PDF / JPG / PNG, otomatik oku)"}</Btn>
         {filterCat !== "all" && <Btn onClick={() => setFilterCat("all")} style={{ fontSize: 12 }}>✕ Filtreyi Temizle ({expCatLabel(filterCat)})</Btn>}
+        <div style={{ width: 170, marginLeft: "auto" }}>
+          <Select value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="all">Tüm zamanlar</option>
+            {periodOptions.map(m => <option key={m} value={m}>{monthRefLabel(m)}</option>)}
+          </Select>
+        </div>
       </div>
+      {(period !== "all" || filterCat !== "all") && <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10 }}>Listelenen: {filtered.length} kayıt · {fmtMoney(sumAmount(filtered))}</div>}
 
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
         filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gider kaydı yok</div> : (
@@ -7486,6 +7670,7 @@ function AccountingSpending() {
                 </div>
                 {i.document_url && <a href={i.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.amberText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
+                <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
@@ -7493,7 +7678,7 @@ function AccountingSpending() {
         )}
 
       {modal && (
-        <Modal title="Gider Ekle" onClose={() => setModal(false)}>
+        <Modal title={form.id ? "Gider Düzenle" : "Gider Ekle"} onClose={() => setModal(false)}>
           <FormField label="Kategori">
             <Select value={form.category || "yakit"} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
               {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -7505,11 +7690,12 @@ function AccountingSpending() {
           <FormField label="📄 Belge (PDF/Görsel — fatura, fiş vb.)">
             <input type="file" accept=".pdf,image/*" onChange={e => setFile(e.target.files[0])} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
             {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
+            {!file && form.id && form.document_name && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Kayıtlı belge: {form.document_name} (yeni dosya seçmezseniz korunur)</div>}
           </FormField>
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
             <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
-            <Btn variant="primary" onClick={save} disabled={uploading}>{uploading ? "Yükleniyor..." : "Kaydet"}</Btn>
+            <Btn variant="primary" onClick={save} style={{ opacity: uploading ? 0.6 : 1 }}>{uploading ? "Kaydediliyor..." : "Kaydet"}</Btn>
           </div>
         </Modal>
       )}
@@ -7526,28 +7712,35 @@ function AccountingIncome() {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
+  const [err, setErr] = useState("");
   const load = async () => {
-    const { data } = await supabase.from('company_incomes').select('*').order('income_date', { ascending: false });
+    const { data, error } = await supabase.from('company_incomes').select('*').order('income_date', { ascending: false }).order('id', { ascending: false });
+    setErr(error ? error.message : "");
     setItems(data || []);
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const save = async () => {
+    if (uploading) return;
     if (!form.amount) { swalAlert("Tutar zorunlu"); return; }
     setUploading(true);
-    let docUrl = "", docName = "";
+    let doc = null;
     if (file) {
-      try { const r = await uploadAccountingDoc(file, "gelirler"); docUrl = r.url; docName = r.name; }
+      try { doc = await uploadAccountingDoc(file, "gelirler"); }
       catch (e) { setUploading(false); swalAlert("Belge yüklenemedi: " + e.message); return; }
     }
-    const { error } = await supabase.from('company_incomes').insert({
+    const row = {
       source: form.source || "", title: form.title || "", amount: parseFloat(form.amount) || 0,
-      income_date: form.income_date || new Date().toISOString().slice(0, 10),
-      document_url: docUrl, document_name: docName, notes: form.notes || "",
-    });
+      income_date: form.income_date || todayStr(), notes: form.notes || "",
+    };
+    // Düzenlemede yeni belge seçilmediyse eski belge korunur
+    if (doc || !form.id) { row.document_url = doc?.url || ""; row.document_name = doc?.name || ""; }
+    const { error } = form.id
+      ? await supabase.from('company_incomes').update(row).eq('id', form.id)
+      : await supabase.from('company_incomes').insert(row);
     setUploading(false);
-    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nGIDER-GELIR-SQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
     setModal(false); setForm({}); setFile(null);
     load();
   };
@@ -7555,18 +7748,20 @@ function AccountingIncome() {
   const del = async (id) => { if (!await swalConfirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); load(); };
 
   const now = new Date();
-  const total = items.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const thisMonth = items.filter(i => { const d = new Date(i.income_date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).reduce((s, i) => s + Number(i.amount || 0), 0);
+  const total = sumAmount(items);
+  const thisMonth = sumAmount(items.filter(i => String(i.income_date || "").slice(0, 7) === currentMonthRef()));
 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Toplam Gelir" value={fmtMoney(total)} color={T.greenText} />
+        <StatCard label="Diğer Gelirler Toplamı" value={fmtMoney(total)} color={T.greenText} />
         <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.greenText} />
       </div>
+      <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 14 }}>Burası müşteri ödemeleri dışındaki gelirler içindir. Müşteri ödemeleri Müşteri Cari sekmesinde girilir; bütün gelirlerin toplamı Özet sekmesindedir.</div>
+      {err && <div style={{ background: T.redDim, color: T.redText, padding: "10px 14px", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>Gelirler okunamadı: {err}</div>}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-        <Btn variant="primary" onClick={() => { setForm({ income_date: new Date().toISOString().slice(0, 10) }); setFile(null); setModal(true); }}>+ Gelir Ekle</Btn>
+        <Btn variant="primary" onClick={() => { setForm({ income_date: todayStr() }); setFile(null); setModal(true); }}>+ Gelir Ekle</Btn>
       </div>
 
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
@@ -7580,6 +7775,7 @@ function AccountingIncome() {
                 </div>
                 {i.document_url && <a href={i.document_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.greenText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
+                <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
@@ -7587,7 +7783,7 @@ function AccountingIncome() {
         )}
 
       {modal && (
-        <Modal title="Gelir Ekle" onClose={() => setModal(false)}>
+        <Modal title={form.id ? "Gelir Düzenle" : "Gelir Ekle"} onClose={() => setModal(false)}>
           <FormField label="Gelir Kaynağı"><Input placeholder="Örn: Reklam geliri, Ek proje" value={form.source || ""} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} /></FormField>
           <FormField label="Açıklama"><Input placeholder="Detay" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
           <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
@@ -7595,11 +7791,12 @@ function AccountingIncome() {
           <FormField label="📄 Belge (PDF/Görsel — dekont, fatura vb.)">
             <input type="file" accept=".pdf,image/*" onChange={e => setFile(e.target.files[0])} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
             {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
+            {!file && form.id && form.document_name && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Kayıtlı belge: {form.document_name} (yeni dosya seçmezseniz korunur)</div>}
           </FormField>
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
             <Btn onClick={() => setModal(false)}>Vazgeç</Btn>
-            <Btn variant="primary" onClick={save} disabled={uploading}>{uploading ? "Yükleniyor..." : "Kaydet"}</Btn>
+            <Btn variant="primary" onClick={save} style={{ opacity: uploading ? 0.6 : 1 }}>{uploading ? "Kaydediliyor..." : "Kaydet"}</Btn>
           </div>
         </Modal>
       )}
@@ -7617,13 +7814,16 @@ function AccountingCari({ clients }) {
   const [form, setForm] = useState({});
   const [expanded, setExpanded] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
 
   const load = async () => {
-    const [{ data: payData }, { data: invData }, { data: allCData }] = await Promise.all([
+    const [{ data: payData, error: e1 }, { data: invData, error: e2 }, { data: allCData, error: e3 }] = await Promise.all([
       supabase.from('client_payments').select('*').order('payment_date', { ascending: false }),
       supabase.from('client_invoices').select('*'),
       supabase.from('clients').select('id,name,initials,accent_color,monthly_fee,contract_start,payment_due_date,deleted_at'),
     ]);
+    setErr([e1, e2, e3].filter(Boolean).map(e => e.message).join(" · "));
     setPayments(payData || []);
     setClientInvoices(invData || []);
     setAllClientsRaw(allCData || []);
@@ -7634,10 +7834,10 @@ function AccountingCari({ clients }) {
   // Aktif müşteriler + sözleşmesi bitmiş ama alacaklı olduğumuz müşteriler
   const mergedClients = useMemo(() => {
     const activeIds = new Set(clients.map(c => c.id));
-    // Silinmiş/pasif müşterilerden faturası olanları ekle
+    // Silinmiş/pasif müşterilerden faturası ya da ödemesi olanları ekle
     const departed = (allClientsRaw || [])
       .filter(c => c.deleted_at && !activeIds.has(c.id))
-      .filter(c => clientInvoices.some(i => i.client_id === c.id))
+      .filter(c => clientInvoices.some(i => i.client_id === c.id) || payments.some(p => p.client_id === c.id))
       .map(c => ({
         id: c.id, name: c.name, initials: (c.initials || ""), accentColor: c.accent_color || "#9CA3AF",
         monthlyFee: c.monthly_fee || 0, contractStart: c.contract_start || "",
@@ -7645,64 +7845,67 @@ function AccountingCari({ clients }) {
         _departed: true,
       }));
     return [...clients, ...departed];
-  }, [clients, allClientsRaw, clientInvoices]);
+  }, [clients, allClientsRaw, clientInvoices, payments]);
 
   const nowRef = currentMonthRef();
+  // Borçlular üstte; girilen her ödeme, faturası olsun olmasın tahsilata sayılır
   const clientStats = mergedClients.map(c => {
-    const startRef = parseContractStartToRef(c.contractStart) || `${new Date().getFullYear()}-01`;
-    const months = generateMonthRange(startRef, nowRef);
     const cPayments = payments.filter(p => p.client_id === c.id);
-    const paidByMonth = {};
-    cPayments.forEach(p => { if (p.month_ref) paidByMonth[p.month_ref] = (paidByMonth[p.month_ref] || 0) + Number(p.amount || 0); });
+    const cInvoices = clientInvoices.filter(i => i.client_id === c.id);
+    const h = cariHesapla(cPayments, cInvoices);
+    return {
+      client: c, cPayments, cInvoices, months: h.months,
+      monthInfo: Object.fromEntries(h.months.map(x => [x.m, x])),
+      totalPaid: h.paid, expected: h.invoiced, balance: h.balance,
+      unpaidMonths: h.months.filter(x => x.debt > 0).map(x => x.m),
+    };
+  }).sort((a, b) => (b.balance - a.balance) || (b.totalPaid - a.totalPaid));
 
-    // Fatura tabanlı hesaplama: sadece gerçekten fatura kesilmiş aylar borç sayılır
-    const cInvoices = clientInvoices.filter(i => i.client_id === c.id && i.month_ref);
-    const invoicedMonthSet = new Set(cInvoices.map(i => i.month_ref));
-    const hasInvoices = cInvoices.length > 0;
+  const totalExpected = sumAmount(clientStats, "expected");
+  const totalCollected = sumAmount(clientStats, "totalPaid");
+  const totalOutstanding = sumAmount(clientStats, "balance");
+  // Açık olan müşteri, ilk 6'nın dışında kalsa da listede görünür
+  const visibleStats = showAll ? clientStats : clientStats.filter((cs, i) => i < 6 || cs.client.id === expanded);
 
-    // Tahsilat: sadece faturalı aylara yapılan ödemeler sayılır
-    const invoicedTotalPaid = hasInvoices
-      ? cInvoices.reduce((s, inv) => s + (paidByMonth[inv.month_ref] || 0), 0)
-      : 0;
-    const totalPaid = invoicedTotalPaid; // özet kartlarda gerçek tahsilat
-
-    const expected = hasInvoices
-      ? cInvoices.reduce((s, i) => s + Number(i.total || 0), 0)
-      : 0; // fatura yoksa beklenen de sıfır
-
-    const balance = expected - totalPaid;
-
-    const unpaidMonths = cInvoices.filter(inv => {
-      const paid = paidByMonth[inv.month_ref] || 0;
-      return paid < Number(inv.total || 0);
-    }).map(inv => inv.month_ref);
-
-    return { client: c, months, cPayments, paidByMonth, totalPaid, unpaidMonths, expected, balance, cInvoices, invoicedMonthSet };
-  });
-
-  const totalExpected = clientStats.reduce((s, cs) => s + cs.expected, 0);
-  const totalCollected = clientStats.reduce((s, cs) => s + cs.totalPaid, 0);
-  const totalOutstanding = totalExpected - totalCollected;
+  // Ödeme penceresi: müşterinin en eski ödenmemiş faturalı ayı ve kalan borcu hazır gelir
+  const payDefaults = (clientId) => {
+    const cs = clientStats.find(x => String(x.client.id) === String(clientId));
+    const borc = cs?.months.find(x => x.debt > 0 && x.m);
+    return { client_id: clientId || "", amount: borc ? borc.debt : (cs?.client.monthlyFee || ""), month_ref: borc?.m || nowRef };
+  };
+  const openPay = (clientId) => { setForm({ ...payDefaults(clientId), payment_date: todayStr(), method: "havale" }); setModal(true); };
 
   const savePayment = async () => {
+    if (saving) return;
     if (!form.client_id || !form.amount) { swalAlert("Müşteri ve tutar zorunlu"); return; }
+    setSaving(true);
     const { error } = await supabase.from('client_payments').insert({
       client_id: form.client_id,
       amount: parseFloat(form.amount) || 0,
-      payment_date: form.payment_date || new Date().toISOString().slice(0, 10),
+      payment_date: form.payment_date || todayStr(),
       month_ref: form.month_ref || nowRef,
       method: form.method || "havale",
       notes: form.notes || "",
     });
-    if (error) { swalAlert("Ödeme kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
+    setSaving(false);
+    if (error) { swalAlert("Ödeme kaydedilemedi: " + error.message); return; }
+    // Kaydedilen ödeme hemen görünsün diye müşterinin kartı açılır
+    setExpanded(mergedClients.find(c => String(c.id) === String(form.client_id))?.id ?? form.client_id);
     setModal(false); setForm({});
     load();
   };
 
+  // Silinen ödemeye bağlı fatura varsa "ödendi" işareti de kalkar
+  const removePayments = async (ids) => {
+    if (!ids.length) return;
+    const { error } = await supabase.from('client_payments').delete().in('id', ids);
+    if (error) { swalAlert("Ödeme silinemedi: " + error.message); return; }
+    await supabase.from('client_invoices').update({ status: "pending", paid_at: null, payment_id: null }).in('payment_id', ids);
+    load();
+  };
   const deletePayment = async (id) => {
     if (!await swalConfirm("Bu ödeme kaydı silinsin mi?")) return;
-    await supabase.from('client_payments').delete().eq('id', id);
-    load();
+    await removePayments([id]);
   };
 
   const exportCari = async () => {
@@ -7710,7 +7913,7 @@ function AccountingCari({ clients }) {
     const summaryRows = clientStats.map(cs => ({
       "Müşteri": cs.client.name,
       "Aylık Ücret (₺)": cs.client.monthlyFee || 0,
-      "Beklenen Toplam (₺)": cs.expected,
+      "Faturalanan (₺)": cs.expected,
       "Tahsil Edilen (₺)": cs.totalPaid,
       "Kalan Bakiye (₺)": cs.balance,
       "Ödenmemiş Ay Sayısı": cs.unpaidMonths.length,
@@ -7721,14 +7924,13 @@ function AccountingCari({ clients }) {
     // Sayfa 2: Ödenmemiş aylar
     const unpaidRows = [];
     clientStats.forEach(cs => {
-      cs.unpaidMonths.forEach(m => {
-        const paid = cs.paidByMonth[m] || 0;
+      cs.months.filter(x => x.debt > 0).forEach(x => {
         unpaidRows.push({
           "Müşteri": cs.client.name,
-          "Ödenmemiş Ay": monthRefLabel(m),
-          "Aylık Ücret (₺)": cs.client.monthlyFee || 0,
-          "Ödenen (₺)": paid,
-          "Eksik (₺)": (cs.client.monthlyFee || 0) - paid,
+          "Ödenmemiş Ay": monthRefLabel(x.m),
+          "Fatura (₺)": x.invoiced,
+          "Ödenen (₺)": x.paid,
+          "Eksik (₺)": x.debt,
         });
       });
     });
@@ -7736,7 +7938,7 @@ function AccountingCari({ clients }) {
 
     // Sayfa 3: Tüm ödemeler
     const payRows = payments.map(p => ({
-      "Müşteri": clients.find(c => c.id === p.client_id)?.name || "?",
+      "Müşteri": mergedClients.find(c => c.id === p.client_id)?.name || "?",
       "Ödeme Tarihi": p.payment_date || "—",
       "Ait Olduğu Ay": monthRefLabel(p.month_ref),
       "Tutar (₺)": Number(p.amount || 0),
@@ -7745,20 +7947,21 @@ function AccountingCari({ clients }) {
     }));
     if (payRows.length > 0) sheets.push({ name: "Tüm Ödemeler", rows: payRows, title: "TÜM TAHSİLATLAR" });
 
-    await exportPerfectExcel(sheets, `panormos-musteri-cari-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    await exportPerfectExcel(sheets, `panormos-musteri-cari-${todayStr()}.xlsx`);
   };
 
   return (
     <div>
       {/* Özet kartlar */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
-        <StatCard label="Beklenen Toplam" value={fmtMoney(totalExpected)} color={T.indigoText} />
-        <StatCard label="Tahsil Edilen" value={fmtMoney(totalCollected)} color={T.greenText} />
-        <StatCard label="Kalan Alacak" value={fmtMoney(totalOutstanding)} color={T.amberText} />
+        <StatCard label="Faturalanan" value={fmtMoney(totalExpected)} color={T.indigoText} sub="Yüklenen faturalar" />
+        <StatCard label="Tahsil Edilen" value={fmtMoney(totalCollected)} color={T.greenText} sub="Girilen bütün ödemeler" />
+        <StatCard label="Kalan Alacak" value={fmtMoney(totalOutstanding)} color={T.amberText} sub="Ödenmemiş faturalar" />
       </div>
+      {err && <div style={{ background: T.redDim, color: T.redText, padding: "10px 14px", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>Cari kayıtları okunamadı: {err}</div>}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
-        <Btn variant="primary" onClick={() => { setForm({ payment_date: new Date().toISOString().slice(0, 10), month_ref: nowRef, method: "havale" }); setModal(true); }}>+ Ödeme Kaydet</Btn>
+        <Btn variant="primary" onClick={() => openPay("")}>+ Ödeme Kaydet</Btn>
         <Btn onClick={exportCari} style={{ background: T.greenDim, color: T.greenText }}>📊 Cari Excel</Btn>
       </div>
 
@@ -7768,7 +7971,7 @@ function AccountingCari({ clients }) {
         <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Müşteri yok</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {(showAll ? clientStats : clientStats.slice(0,6)).map(cs => {
+          {visibleStats.map(cs => {
             const isOpen = expanded === cs.client.id;
             return (
               <div key={cs.client.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
@@ -7776,7 +7979,7 @@ function AccountingCari({ clients }) {
                   <div style={{ width: 38, height: 38, borderRadius: "50%", background: cs.client.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{cs.client.initials}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{cs.client.name}{cs.client._departed && <span style={{ marginLeft: 6, fontSize: 10, background: T.bgInput, color: T.textMuted, borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>Ayrıldı</span>}</div>
-                    <div style={{ fontSize: 11, color: T.textMuted }}>Aylık {fmtMoney(cs.client.monthlyFee)} · {cs.unpaidMonths.length} ay ödenmemiş</div>
+                    <div style={{ fontSize: 11, color: T.textMuted }}>Aylık {fmtMoney(cs.client.monthlyFee)} · Tahsil edilen {fmtMoney(cs.totalPaid)}{cs.unpaidMonths.length > 0 ? ` · ${cs.unpaidMonths.length} ay ödenmemiş` : ""}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 15, fontWeight: 700, color: cs.balance > 0 ? T.amberText : T.greenText }}>{fmtMoney(cs.balance)}</div>
@@ -7810,37 +8013,32 @@ function AccountingCari({ clients }) {
                         if(phone.length<10){ swalAlert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
                       }} style={{background:"#25D366",color:"#fff",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📱 WhatsApp Hatırlatma</Btn>
-                      <Btn variant="primary" onClick={()=>{ setForm({ client_id: cs.client.id, amount: cs.client.monthlyFee || "", payment_date: new Date().toISOString().slice(0,10), month_ref: nowRef, method: "havale" }); setModal(true); }} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
+                      <Btn variant="primary" onClick={() => openPay(cs.client.id)} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
                     </div>
                     {/* Fatura yükleme */}
-                    <ClientInvoiceUpload clientId={cs.client.id} clientName={cs.client.name} onPaid={load} />
-                    <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Faturalı Aylar</div>
-                    {cs.cInvoices.length === 0 ? (
-                      <div style={{ fontSize: 12, color: T.textMuted, padding: "10px 0 8px" }}>Henüz fatura girilmemiş — fatura yüklendiğinde burada görünür.</div>
+                    <ClientInvoiceUpload clientId={cs.client.id} clientName={cs.client.name} onPaid={load} monthInfo={cs.monthInfo} />
+                    <div style={{ fontSize: 11, color: T.textMuted, margin: "12px 0 8px", fontWeight: 600, textTransform: "uppercase" }}>Aylara Göre Durum</div>
+                    {cs.months.length === 0 ? (
+                      <div style={{ fontSize: 12, color: T.textMuted, padding: "10px 0 8px" }}>Henüz fatura ya da ödeme yok. Fatura yüklediğinizde veya ödeme kaydettiğinizde burada görünür.</div>
                     ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 6, marginBottom: 12 }}>
-                        {cs.cInvoices.sort((a,b) => (a.month_ref||"").localeCompare(b.month_ref||"")).map(inv => {
-                          const m = inv.month_ref;
-                          const invAmount = Number(inv.total || 0);
-                          const paid = cs.paidByMonth[m] || 0;
-                          const full = paid >= invAmount;
-                          const partial = paid > 0 && !full;
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6, marginBottom: 12 }}>
+                        {cs.months.map(x => {
+                          const noInv = x.invoiced === 0;
+                          const full = !noInv && x.debt === 0;
+                          const partial = x.debt > 0 && x.paid > 0;
+                          const ok = full || (noInv && x.paid > 0);
                           return (
-                            <div key={inv.id} style={{ position: "relative", padding: "8px 10px", borderRadius: 8, background: full ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${full ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
-                              {paid > 0 && (
+                            <div key={x.m || "ay-yok"} style={{ position: "relative", padding: "8px 10px", borderRadius: 8, background: ok ? T.greenDim : partial ? T.amberDim : T.bgInput, border: `1px solid ${ok ? T.green + "44" : partial ? T.amber + "44" : T.border}` }}>
+                              {x.paid > 0 && (
                                 <button onClick={async (e) => {
                                   e.stopPropagation();
-                                  if (!await swalConfirm(`${monthRefLabel(m)} ayına ait tüm ödemeler silinsin mi?`)) return;
-                                  const toDelete = cs.cPayments.filter(p => p.month_ref === m);
-                                  for (const p of toDelete) {
-                                    await supabase.from('client_payments').delete().eq('id', p.id);
-                                  }
-                                  load();
+                                  if (!await swalConfirm(`${x.m ? monthRefLabel(x.m) : "Ayı belirtilmemiş"} ayına ait tüm ödemeler silinsin mi?`)) return;
+                                  await removePayments(cs.cPayments.filter(p => (p.month_ref || "") === x.m).map(p => p.id));
                                 }} style={{ position: "absolute", top: 4, right: 4, background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 11, lineHeight: 1, padding: "1px 3px", borderRadius: 4 }} title="Bu ayın ödemelerini sil">✕</button>
                               )}
-                              <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{m ? monthRefLabel(m) : "—"}</div>
-                              <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>{fmtMoney(invAmount)}</div>
-                              <div style={{ fontSize: 10, color: full ? T.greenText : partial ? T.amberText : T.redText, fontWeight: 500 }}>{full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(paid)}` : "⚠ Ödenmedi"}</div>
+                              <div style={{ fontSize: 11, fontWeight: 600, color: T.textPrimary }}>{x.m ? monthRefLabel(x.m) : "Ay belirtilmemiş"}</div>
+                              <div style={{ fontSize: 10, color: T.textMuted, marginBottom: 2 }}>{noInv ? "Fatura yüklenmemiş" : `Fatura ${fmtMoney(x.invoiced)}`}</div>
+                              <div style={{ fontSize: 10, color: ok ? T.greenText : partial ? T.amberText : T.redText, fontWeight: 500 }}>{noInv ? (x.paid > 0 ? `✓ Tahsil edildi: ${fmtMoney(x.paid)}` : "Fatura tutarı girilmemiş") : full ? "✓ Ödendi" : partial ? `Kısmi: ${fmtMoney(x.paid)} · kalan ${fmtMoney(x.debt)}` : "⚠ Ödenmedi"}</div>
                             </div>
                           );
                         })}
@@ -7878,9 +8076,9 @@ function AccountingCari({ clients }) {
       {modal && (
         <Modal title="Müşteri Ödemesi Kaydet" onClose={() => setModal(false)}>
           <FormField label="Müşteri">
-            <Select value={form.client_id || ""} onChange={e => { const cid = e.target.value; const c = clients.find(x => String(x.id) === cid); setForm(f => ({ ...f, client_id: cid, amount: f.amount || (c ? c.monthlyFee : "") })); }}>
+            <Select value={form.client_id || ""} onChange={e => { const cid = e.target.value; setForm(f => ({ ...f, ...payDefaults(cid) })); }}>
               <option value="">Seç...</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {mergedClients.map(c => <option key={c.id} value={c.id}>{c.name}{c._departed ? " (ayrıldı)" : ""}</option>)}
             </Select>
           </FormField>
           <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
@@ -7899,7 +8097,7 @@ function AccountingCari({ clients }) {
             </Select>
           </FormField>
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
-          <ModalActions onClose={() => setModal(false)} onSave={savePayment} />
+          <ModalActions onClose={() => setModal(false)} onSave={savePayment} saveLabel={saving ? "Kaydediliyor..." : "Kaydet"} />
         </Modal>
       )}
     </div>
@@ -7922,7 +8120,8 @@ function AccountingExpenses({ staff }) {
   const [filter, setFilter] = useState("all");
 
   const load = async () => {
-    const { data } = await supabase.from('accounting_entries').select('*').order('due_date', { ascending: false });
+    const { data, error } = await supabase.from('accounting_entries').select('*').order('due_date', { ascending: false });
+    if (error) swalAlert("Kayıtlar okunamadı: " + error.message);
     setEntries(data || []);
     setLoading(false);
   };
@@ -7943,13 +8142,14 @@ function AccountingExpenses({ staff }) {
       is_paid: false,
       notes: form.notes || "",
     });
-    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırın."); return; }
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    setFilter(fl => (fl === "all" || fl === form.entry_type ? fl : "all"));
     setModal(false); setForm({ entry_type: "sgk" });
     load();
   };
 
   const togglePaid = async (entry) => {
-    await supabase.from('accounting_entries').update({ is_paid: !entry.is_paid, paid_date: !entry.is_paid ? new Date().toISOString().slice(0, 10) : null }).eq('id', entry.id);
+    await supabase.from('accounting_entries').update({ is_paid: !entry.is_paid, paid_date: !entry.is_paid ? todayStr() : null }).eq('id', entry.id);
     load();
   };
   const deleteEntry = async (id) => {
@@ -7972,7 +8172,7 @@ function AccountingExpenses({ staff }) {
       "Durum": e.is_paid ? "Ödendi" : "Bekliyor",
       "Ödeme Tarihi": e.paid_date || "—",
     }));
-    await exportPerfectExcel([{ name: "Giderler", rows, title: "PANORMOS MEDYA — GİDER ÖDEMELERİ" }], `panormos-giderler-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    await exportPerfectExcel([{ name: "Giderler", rows, title: "PANORMOS MEDYA — GİDER ÖDEMELERİ" }], `panormos-giderler-${todayStr()}.xlsx`);
   };
 
   return (
