@@ -10235,6 +10235,8 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
         } catch (e) {}
         backup.tables[t] = all;
       }
+      // Sosyal medya şifreleri veritabanında şifreli durur; yedekten geri yüklenebilsin diye çözülmüş hâliyle eklenir
+      try { const { data: sifreler } = await supabase.rpc('panel_sifreler'); backup.tables.client_passwords = sifreler || []; } catch (e) { backup.tables.client_passwords = []; }
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -10261,7 +10263,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
       {/* Yedekleme kartı */}
       <div style={{ background: `linear-gradient(135deg, ${T.bgCard}, rgba(16,185,129,0.06))`, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 6 }}>💾 Yedekleme & Dışa Aktarma</div>
-        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Tüm verilerini (müşteriler, ödemeler, görevler, raporlar...) tek dosyada yedekle. Düzenli yedek almanı öneririz.</div>
+        <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Tüm verilerini (müşteriler, ödemeler, görevler, raporlar...) tek dosyada yedekle. Düzenli yedek almanı öneririz. Yedek dosyası müşteri sosyal medya şifrelerini de içerir; güvenli bir yerde sakla.</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Btn variant="primary" onClick={backupAll} disabled={backing} style={{ background: "#10B981", border: "none" }}>{backing ? "Yedekleniyor..." : "💾 Tam Yedek Al (JSON)"}</Btn>
           <Btn onClick={exportExcel}>📊 Excel Özet İndir</Btn>
@@ -11165,7 +11167,11 @@ export default function App() {
     if ("Notification" in window && Notification.permission === "default") {
       try { Notification.requestPermission(); } catch (e) {}
     }
+    let sonDenetim = 0;
     const check = async () => {
+      // Sekme arka plandayken sunucuyu gereksiz yormamak için 20 saniyede bir denetle
+      if (document.hidden && Date.now() - sonDenetim < 20000) return;
+      sonDenetim = Date.now();
       try {
         const { data: members } = await supabase.from('conversation_members').select('conversation_id').eq('staff_id', currentStaff.id);
         const convIds = (members || []).map(m => m.conversation_id);
