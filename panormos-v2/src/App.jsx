@@ -7423,6 +7423,7 @@ function AccountingPage({ clients, staff, perms }) {
   const tabs = [
     { id: "ozet", lbl: "📊 Özet" },
     { id: "cari", lbl: "💳 Müşteri Cari" },
+    { id: "banka", lbl: "🏦 Banka ve Ekstre" },
     { id: "harcamalar", lbl: "🧾 Giderler" },
     { id: "gelirler", lbl: "💵 Gelirler" },
     { id: "giderler", lbl: "🏛️ SGK / Vergi / Maaş" },
@@ -7444,12 +7445,670 @@ function AccountingPage({ clients, staff, perms }) {
       </div>
       {tab === "ozet" && <AccountingOverview clients={clients} goTab={setTab} />}
       {tab === "cari" && <AccountingCari clients={clients} />}
+      {tab === "banka" && <AccountingBank />}
       {tab === "harcamalar" && <AccountingSpending />}
       {tab === "gelirler" && <AccountingIncome />}
       {tab === "giderler" && <AccountingExpenses staff={staff} />}
       {tab === "izin" && <AccountingLeave staff={staff} />}
       {tab === "takvim" && <AccountingCalendar staff={staff} />}
       {tab === "belgeler" && <AccountingDocuments />}
+    </div>
+  );
+}
+
+// ═══════════════ BANKA VE EKSTRE (şirket / şahsi ayrı gelir-gider) ═══════════════
+const BANK_CATEGORIES = [
+  { id: "gelir", label: "Gelir / Tahsilat" },
+  { id: "iade", label: "İade" },
+  { id: "yakit", label: "Yakıt" },
+  { id: "yemek", label: "Yemek / Restoran" },
+  { id: "market", label: "Market" },
+  { id: "alisveris", label: "Alışveriş" },
+  { id: "yazilim", label: "Yazılım / Abonelik" },
+  { id: "reklam", label: "Reklam" },
+  { id: "fatura", label: "Elektrik / Su / İnternet / Telefon" },
+  { id: "kira", label: "Kira" },
+  { id: "ekipman", label: "Ekipman" },
+  { id: "ulasim", label: "Ulaşım / Seyahat" },
+  { id: "vergi", label: "Vergi / SGK" },
+  { id: "maas", label: "Maaş / Personel" },
+  { id: "banka", label: "Banka Masrafı / Faiz" },
+  { id: "saglik", label: "Sağlık" },
+  { id: "nakit", label: "Nakit Çekim" },
+  { id: "kart_odeme", label: "Kart Borcu Ödemesi (hesaba katılmaz)", excluded: true },
+  { id: "transfer", label: "Hesaplar Arası Transfer (hesaba katılmaz)", excluded: true },
+  { id: "diger", label: "Diğer" },
+];
+const bankCat = (id) => BANK_CATEGORIES.find(c => c.id === id) || BANK_CATEGORIES[BANK_CATEGORIES.length - 1];
+const bankCatLabel = (id) => bankCat(id).label.replace(" (hesaba katılmaz)", "");
+const BANK_OWNERS = { sirket: "Şirket", sahsi: "Şahsi" };
+const BANK_KINDS = { banka: "Banka Hesabı", kredi_karti: "Kredi Kartı" };
+
+// Açıklamadan kategori tahmini (sıra önemli: ilk eşleşen kazanır)
+const BANK_RULES = [
+  [/KREDI KARTI.*ODE|KART BORC|EKSTRE ODE|KK ODEME|ODEME.*TESEKKUR|ODEMENIZ ICIN/, "kart_odeme"],
+  [/VIRMAN|KENDI HESAB|HESAPLAR ARASI/, "transfer"],
+  [/KOMISYON|MASRAF|BSMV|KKDF|FAIZ|HESAP ISLETIM|YILLIK UCRET|KART AIDAT/, "banka"],
+  [/VERGI|\bSGK\b|\bGIB\b|BAGKUR|\bMTV\b|\bKDV\b|STOPAJ/, "vergi"],
+  [/MAAS|BORDRO/, "maas"],
+  [/OPET|SHELL|\bBP\b|PETROL|AYTEMIZ|AKARYAKIT|TOTAL ?ENERJ|LUKOIL|ALPET|\bPO\b/, "yakit"],
+  [/FACEBK|FACEBOOK|META ?ADS|GOOGLE ?ADS|TIKTOK ?ADS|REKLAM/, "reklam"],
+  [/ADOBE|CANVA|GOOGLE|APPLE\.COM|MICROSOFT|OPENAI|ANTHROPIC|NETFLIX|SPOTIFY|YOUTUBE|HOSTING|GODADDY|NETLIFY|SUPABASE|CAPCUT|ENVATO|PARASUT/, "yazilim"],
+  [/ELEKTRIK|DOGALGAZ|TURK TELEKOM|TURKCELL|VODAFONE|SUPERONLINE|TURKNET|INTERNET|UEDAS|ENERJISA|\bSU FATURA|FATURA ODE/, "fatura"],
+  [/\bKIRA\b/, "kira"],
+  [/RESTORAN|RESTAURANT|CAFE|KAFE|LOKANTA|BURGER|PIZZA|STARBUCKS|YEMEKSEPETI|GETIR ?YEMEK|KEBAP|DONER|PASTANE|FIRIN|KAHVE/, "yemek"],
+  [/MIGROS|\bBIM\b|A101|\bSOK\b|CARREFOUR|MARKET|GETIR|MACRO ?CENTER|FILE MARKET/, "market"],
+  [/\bTHY\b|PEGASUS|TURKISH AIR|OTOPARK|\bHGS\b|\bOGS\b|TAKSI|UBER|BITAKSI|OTOBUS|BILET|\bOTEL\b|HOTEL|BOOKING|\bIDO\b|FERIBOT|BUDO/, "ulasim"],
+  [/ECZANE|HASTANE|SAGLIK|KLINIK|DIS HEKIM/, "saglik"],
+  [/\bATM\b|PARA CEKME|NAKIT AVANS/, "nakit"],
+  [/TEKNOSA|MEDIA ?MARKT|VATAN BILG|HEPSIBURADA|TRENDYOL|AMAZON|\bN11\b|LC WAIKIKI|ZARA|KOTON|DEFACTO|\bMAVI\b|IKEA|KOCTAS/, "alisveris"],
+];
+const bankNorm = (s) => String(s || "").toLocaleUpperCase("tr-TR").replace(/İ/g, "I").replace(/Ş/g, "S").replace(/Ğ/g, "G").replace(/Ü/g, "U").replace(/Ö/g, "O").replace(/Ç/g, "C");
+function bankGuessCategory(description, amount, kind) {
+  const d = bankNorm(description);
+  if (amount > 0) {
+    // Giren para: yalnızca "hesaba katılmaz" kuralları (kart ödemesi, transfer) denenir; gider kategorisi verilmez
+    if (/\bIADE\b/.test(d)) return "iade";
+    for (const [re, id] of BANK_RULES) if (bankCat(id).excluded && re.test(d)) return id;
+    return kind === "kredi_karti" ? "kart_odeme" : "gelir"; // karta giren para borç ödemesidir
+  }
+  for (const [re, id] of BANK_RULES) if (re.test(d)) return id;
+  return "diger";
+}
+
+// "1.234,56 TL", "-1,234.56", "(250,00)", "1.234,56-" gibi yazımları sayıya çevirir
+function bankParseAmount(v) {
+  if (typeof v === "number") return isFinite(v) ? v : NaN;
+  let s = String(v ?? "").trim();
+  if (!s) return NaN;
+  let neg = /^\(.*\)$/.test(s) || /-\s*$/.test(s) || /^\s*-/.test(s);
+  if (/\(B\)|\bBORC\b/i.test(s)) neg = true;
+  s = s.replace(/[^0-9.,]/g, "");
+  if (!s) return NaN;
+  const lastDot = s.lastIndexOf("."), lastComma = s.lastIndexOf(",");
+  if (lastDot >= 0 && lastComma >= 0) {
+    s = lastComma > lastDot ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  } else if (lastComma >= 0) {
+    s = /,\d{1,2}$/.test(s) ? s.replace(/,(?=\d{1,2}$)/, ".").replace(/,/g, "") : s.replace(/,/g, "");
+  } else if (lastDot >= 0) {
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ""); // 1.234 → bin ayırıcı
+  }
+  const n = parseFloat(s);
+  return isFinite(n) ? (neg ? -n : n) : NaN;
+}
+
+// Excel seri numarası ya da "31.12.2026", "31/12/26 14:05", "2026-12-31" → "2026-12-31"
+function bankParseDate(v) {
+  const pad = (n) => String(n).padStart(2, "0");
+  if (typeof v === "number" && v > 20000 && v < 80000) {
+    const d = new Date(Math.round((v - 25569) * 86400000));
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  }
+  if (v instanceof Date && !isNaN(v)) return `${v.getFullYear()}-${pad(v.getMonth() + 1)}-${pad(v.getDate())}`;
+  const s = String(v ?? "").trim();
+  let m = s.match(/^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+  if (m) return `${m[1]}-${pad(m[2])}-${pad(m[3])}`;
+  m = s.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{2,4})/);
+  if (m) {
+    const y = m[3].length === 2 ? "20" + m[3] : m[3];
+    if (+m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31) return `${y}-${pad(m[2])}-${pad(m[1])}`;
+  }
+  return "";
+}
+
+// Başlık satırını ve sütunları bulur (bankadan bankaya değişir; kullanıcı ekranda düzeltebilir)
+function bankDetectColumns(aoa) {
+  let headerRow = 0, best = 0;
+  for (let r = 0; r < Math.min(aoa.length, 40); r++) {
+    const cells = (aoa[r] || []).map(bankNorm);
+    const score = cells.filter(c => /TARIH|ACIKLAMA|TUTAR|BORC|ALACAK|BAKIYE|ISLEM/.test(c)).length;
+    if (score > best) { best = score; headerRow = r; }
+  }
+  const heads = (aoa[headerRow] || []).map(bankNorm);
+  const find = (...tests) => { for (const t of tests) { const i = heads.findIndex(h => h && t(h)); if (i >= 0) return i; } return -1; };
+  return {
+    headerRow,
+    map: {
+      date: find(h => /ISLEM TARIH/.test(h), h => /TARIH/.test(h)),
+      desc: find(h => /ACIKLAMA/.test(h), h => /DETAY|ISLEM ADI|ISLEM TIPI/.test(h), h => /ISLEM/.test(h) && !/TARIH|TUTAR/.test(h)),
+      amount: find(h => /TUTAR/.test(h) && !/BAKIYE|TAKSIT/.test(h), h => /MIKTAR/.test(h)),
+      debit: find(h => /BORC|CIKAN|HARCAMA/.test(h) && !/BAKIYE/.test(h)),
+      credit: find(h => /ALACAK|GIREN|YATAN/.test(h) && !/BAKIYE/.test(h)),
+    },
+  };
+}
+
+// Dosya satırlarını hareketlere çevirir. flip: tek tutar sütununda artı yazılanlar harcamadır (kredi kartı ekstreleri)
+function bankBuildRows(aoa, headerRow, map, flip) {
+  const out = [];
+  const useSplit = map.amount < 0 && (map.debit >= 0 || map.credit >= 0);
+  for (let r = headerRow + 1; r < aoa.length; r++) {
+    const row = aoa[r] || [];
+    const tx_date = bankParseDate(row[map.date]);
+    if (!tx_date) continue;
+    let amount;
+    if (useSplit) {
+      const borc = map.debit >= 0 ? Math.abs(bankParseAmount(row[map.debit]) || 0) : 0;
+      const alacak = map.credit >= 0 ? Math.abs(bankParseAmount(row[map.credit]) || 0) : 0;
+      amount = alacak - borc;
+    } else {
+      amount = bankParseAmount(row[map.amount]);
+      if (flip) amount = -amount;
+    }
+    if (!isFinite(amount) || amount === 0) continue;
+    out.push({ tx_date, description: String(row[map.desc] ?? "").replace(/\s+/g, " ").trim(), amount: Math.round(amount * 100) / 100 });
+  }
+  return out;
+}
+
+// Gelir / gider özeti. "Hesaba katılmaz" kategoriler (kart borcu ödemesi, hesaplar arası transfer) toplamlara girmez.
+function bankOzet(list) {
+  let gelir = 0, gider = 0, haric = 0;
+  const byCat = {}, byMonth = {};
+  list.forEach(t => {
+    const a = Number(t.amount || 0);
+    if (bankCat(t.category).excluded) { haric += Math.abs(a); return; }
+    const m = String(t.tx_date).slice(0, 7);
+    const ay = (byMonth[m] = byMonth[m] || { m, gelir: 0, gider: 0 });
+    if (a > 0) { gelir += a; ay.gelir += a; }
+    else {
+      gider += -a; ay.gider += -a;
+      const c = (byCat[t.category] = byCat[t.category] || { id: t.category, tutar: 0, adet: 0 });
+      c.tutar += -a; c.adet += 1;
+    }
+  });
+  return {
+    gelir, gider, net: gelir - gider, haric, adet: list.length,
+    byCat: Object.values(byCat).sort((a, b) => b.tutar - a.tutar),
+    byMonth: Object.values(byMonth).sort((a, b) => a.m.localeCompare(b.m)),
+  };
+}
+const bankAyAdi = (m) => { const p = String(m).split("-"); return `${TR_MONTHS[parseInt(p[1]) - 1] || ""} ${p[0]}`; };
+const bankGun = (d) => { const p = String(d || "").slice(0, 10).split("-"); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : "—"; };
+
+// Rapor verisi: şirket ve şahsi ayrı; kredi kartı kalemleri kart kart
+function bankRaporVerisi(accounts, txs) {
+  const accOf = (id) => accounts.find(a => a.id === id);
+  const bolum = (owner) => {
+    const list = txs.filter(t => accOf(t.account_id)?.owner === owner).sort((a, b) => String(a.tx_date).localeCompare(String(b.tx_date)));
+    return { owner, baslik: BANK_OWNERS[owner], list, ozet: bankOzet(list) };
+  };
+  const kartlar = accounts.filter(a => a.kind === "kredi_karti").map(a => {
+    const list = txs.filter(t => t.account_id === a.id).sort((x, y) => String(x.tx_date).localeCompare(String(y.tx_date)));
+    return { hesap: a, list, ozet: bankOzet(list) };
+  }).filter(k => k.list.length > 0);
+  return { bolumler: [bolum("sirket"), bolum("sahsi")], kartlar, accOf };
+}
+
+async function bankExcelRapor(accounts, txs, donemEtiketi) {
+  const { bolumler, kartlar, accOf } = bankRaporVerisi(accounts, txs);
+  const satir = (t) => ({ "Tarih": bankGun(t.tx_date), "Hesap": accOf(t.account_id)?.name || "—", "Açıklama": t.description, "Kategori": bankCatLabel(t.category), "Gelir": t.amount > 0 ? Number(t.amount) : "", "Gider": t.amount < 0 ? -Number(t.amount) : "", "Not": bankCat(t.category).excluded ? "Hesaba katılmaz" : (t.note || "") });
+  const sheets = [];
+  bolumler.forEach(b => {
+    const o = b.ozet;
+    const ozetRows = [
+      { "Kalem": "Toplam Gelir", "Tutar": o.gelir, "Adet": "" },
+      { "Kalem": "Toplam Gider", "Tutar": o.gider, "Adet": "" },
+      { "Kalem": "Net (Gelir − Gider)", "Tutar": o.net, "Adet": "" },
+      { "Kalem": "Hesaba katılmayan (kart ödemesi / transfer)", "Tutar": o.haric, "Adet": "" },
+      { "Kalem": "", "Tutar": "", "Adet": "" },
+      { "Kalem": "GİDER KATEGORİLERİ", "Tutar": "", "Adet": "" },
+      ...o.byCat.map(c => ({ "Kalem": bankCatLabel(c.id), "Tutar": c.tutar, "Adet": c.adet })),
+      { "Kalem": "", "Tutar": "", "Adet": "" },
+      { "Kalem": "AYLARA GÖRE (Gelir / Gider)", "Tutar": "", "Adet": "" },
+      ...o.byMonth.flatMap(m => [{ "Kalem": `${bankAyAdi(m.m)} — Gelir`, "Tutar": m.gelir, "Adet": "" }, { "Kalem": `${bankAyAdi(m.m)} — Gider`, "Tutar": m.gider, "Adet": "" }]),
+    ];
+    sheets.push({ name: `${b.baslik} Özet`, title: `${b.baslik.toLocaleUpperCase("tr-TR")} GELİR / GİDER ÖZETİ (${donemEtiketi})`, rows: ozetRows });
+    if (b.list.length) sheets.push({ name: `${b.baslik} Hareketler`, title: `${b.baslik.toLocaleUpperCase("tr-TR")} HESAP HAREKETLERİ (${donemEtiketi})`, rows: b.list.map(satir) });
+  });
+  kartlar.forEach(k => {
+    sheets.push({ name: `Kart ${k.hesap.name}`.replace(/[\\/?*[\]:]/g, " ").slice(0, 31), title: `KREDİ KARTI KALEMLERİ — ${k.hesap.name} (${donemEtiketi})`, rows: k.list.map(satir) });
+  });
+  await exportPerfectExcel(sheets, `gelir-gider-raporu-${todayStr()}.xlsx`);
+}
+
+function bankPdfRapor(accounts, txs, donemEtiketi) {
+  const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const { bolumler, kartlar, accOf } = bankRaporVerisi(accounts, txs);
+  const hareketTablosu = (list, hesapSutunu) => `<table>
+      <tr><th>Tarih</th>${hesapSutunu ? "<th>Hesap</th>" : ""}<th>Açıklama</th><th>Kategori</th><th class="r">Gelir</th><th class="r">Gider</th></tr>
+      ${list.map(t => `<tr${bankCat(t.category).excluded ? ' class="haric"' : ""}><td>${bankGun(t.tx_date)}</td>${hesapSutunu ? `<td>${esc(accOf(t.account_id)?.name || "—")}</td>` : ""}<td>${esc(t.description) || "—"}</td><td>${esc(bankCatLabel(t.category))}</td><td class="r">${t.amount > 0 ? fmtMoney(t.amount) : ""}</td><td class="r">${t.amount < 0 ? fmtMoney(-t.amount) : ""}</td></tr>`).join("")}
+    </table>`;
+  const ozetKutulari = (o) => `<div class="ozet">
+      <div class="k tamam"><div class="l">Toplam Gelir</div><div class="v">${fmtMoney(o.gelir)}</div></div>
+      <div class="k borc"><div class="l">Toplam Gider</div><div class="v">${fmtMoney(o.gider)}</div></div>
+      <div class="k ${o.net >= 0 ? "tamam" : "borc"}"><div class="l">Net</div><div class="v">${fmtMoney(o.net)}</div></div>
+    </div>`;
+  const bolumHTML = bolumler.map(b => {
+    const o = b.ozet;
+    if (!b.list.length) return `<h2 class="bolum">${b.owner === "sirket" ? "Şirket Hesapları" : "Şahsi Hesaplar"}</h2><div class="terms">Bu dönemde ${b.baslik.toLocaleLowerCase("tr-TR")} hesaplarında hareket yok.</div>`;
+    return `<h2 class="bolum">${b.owner === "sirket" ? "Şirket Hesapları" : "Şahsi Hesaplar"}</h2>
+      ${ozetKutulari(o)}
+      <div class="iki">
+        <div><h2>Gider Kategorileri</h2><table><tr><th>Kategori</th><th class="r">Adet</th><th class="r">Tutar</th><th class="r">Pay</th></tr>
+          ${o.byCat.map(c => `<tr><td>${esc(bankCatLabel(c.id))}</td><td class="r">${c.adet}</td><td class="r">${fmtMoney(c.tutar)}</td><td class="r">%${o.gider > 0 ? Math.round(c.tutar / o.gider * 100) : 0}</td></tr>`).join("") || '<tr><td colspan="4">Gider yok</td></tr>'}
+        </table></div>
+        <div><h2>Aylara Göre</h2><table><tr><th>Ay</th><th class="r">Gelir</th><th class="r">Gider</th><th class="r">Net</th></tr>
+          ${o.byMonth.map(m => `<tr><td>${bankAyAdi(m.m)}</td><td class="r">${fmtMoney(m.gelir)}</td><td class="r">${fmtMoney(m.gider)}</td><td class="r">${fmtMoney(m.gelir - m.gider)}</td></tr>`).join("")}
+        </table></div>
+      </div>
+      <h2>${b.baslik} Hesap Hareketleri (${b.list.length} kalem)</h2>
+      ${hareketTablosu(b.list, true)}
+      ${o.haric > 0 ? `<div class="terms">Gri satırlar (kart borcu ödemesi, hesaplar arası transfer; toplam ${fmtMoney(o.haric)}) gelir-gider toplamına katılmaz; aynı para iki kez sayılmasın diye.</div>` : ""}`;
+  }).join("");
+  const kartHTML = kartlar.map(k => `<h2 class="bolum">Kredi Kartı — ${esc(k.hesap.name)} (${BANK_OWNERS[k.hesap.owner]})</h2>
+      <div class="terms" style="margin:0 0 8px">${esc(k.hesap.bank || "")} · ${k.list.length} kalem · Harcama toplamı ${fmtMoney(k.ozet.gider)}</div>
+      ${hareketTablosu(k.list, false)}`).join("");
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gelir Gider Raporu</title><style>${PRINT_STYLES}
+    .ozet { display:flex; gap:10px; margin-bottom:6px; }
+    .ozet .k { flex:1; border:1px solid #E5E7EB; border-radius:9px; padding:10px 12px; }
+    .ozet .k .l { font-size:9px; color:#6B7280; text-transform:uppercase; letter-spacing:0.4px; margin-bottom:3px; }
+    .ozet .k .v { font-size:16px; font-weight:800; }
+    .ozet .k.borc .v { color:#F25124; } .ozet .k.tamam .v { color:#0A7A4A; }
+    .iki { display:flex; gap:14px; } .iki > div { flex:1; }
+    h2.bolum { font-size:17px; border-bottom:2px solid #F25124; padding-bottom:5px; margin-top:22px; page-break-after:avoid; }
+    td.r, th.r { text-align:right; white-space:nowrap; }
+    table { page-break-inside:auto; } tr { page-break-inside:avoid; }
+    tr.haric td { color:#9CA3AF; }
+  </style></head><body>
+    <div class="head">
+      <div class="logo">panormos <span class="m">medya.</span></div>
+      <h1>Gelir / Gider Raporu</h1>
+      <div class="sub">Dönem: ${esc(donemEtiketi)} · Rapor tarihi: ${new Date().toLocaleDateString("tr-TR")} · Kaynak: yüklenen banka ve kredi kartı ekstreleri</div>
+    </div>
+    ${bolumHTML}
+    ${kartHTML}
+  </body></html>`;
+  downloadPdfFromHTML(html, `Gelir-Gider-Raporu-${todayStr()}.pdf`);
+}
+
+function AccountingBank() {
+  const [accounts, setAccounts] = useState([]);
+  const [txs, setTxs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [scope, setScope] = useState("sirket");            // sirket | sahsi | all
+  const [accountId, setAccountId] = useState("");
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [month, setMonth] = useState("");                  // "" = tüm yıl
+  const [q, setQ] = useState("");
+  const [pageNo, setPageNo] = useState(0);
+  const [accModal, setAccModal] = useState(null);          // hesap formu
+  const [imp, setImp] = useState(null);                    // ekstre yükleme durumu
+  const [txModal, setTxModal] = useState(null);            // elle hareket formu
+  const [busy, setBusy] = useState(false);
+  const PER_PAGE = 50;
+
+  const load = async () => {
+    const { data: acc, error: e1 } = await supabase.from('bank_accounts').select('*').order('created_at');
+    // Supabase tek istekte en çok 1000 satır döndürür; hepsini sayfa sayfa al
+    const all = []; let e2 = null;
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('bank_transactions').select('*').order('tx_date', { ascending: false }).order('id', { ascending: false }).range(from, from + 999);
+      if (error) { e2 = error; break; }
+      all.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    setErr([e1, e2].filter(Boolean).map(e => e.message).join(" · "));
+    setAccounts(acc || []); setTxs(all); setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+  useEffect(() => { setPageNo(0); }, [scope, accountId, year, month, q]);
+
+  const accOf = (id) => accounts.find(a => a.id === id);
+  const years = [...new Set([String(new Date().getFullYear()), ...txs.map(t => String(t.tx_date).slice(0, 4))])].sort().reverse();
+  const inPeriod = (t) => (year === "all" || String(t.tx_date).startsWith(year)) && (!month || String(t.tx_date).slice(5, 7) === month);
+  const periodTxs = txs.filter(inPeriod);
+  const donemEtiketi = year === "all" ? "Tüm zamanlar" : month ? `${TR_MONTHS[parseInt(month) - 1]} ${year}` : `${year} yılı`;
+  const term = q.toLocaleLowerCase("tr-TR");
+  const shown = periodTxs.filter(t => {
+    const a = accOf(t.account_id);
+    if (scope !== "all" && a?.owner !== scope) return false;
+    if (accountId && String(t.account_id) !== String(accountId)) return false;
+    if (term && !(t.description || "").toLocaleLowerCase("tr-TR").includes(term) && !bankCatLabel(t.category).toLocaleLowerCase("tr-TR").includes(term)) return false;
+    return true;
+  });
+  const ozet = bankOzet(shown);
+  const pageCount = Math.max(1, Math.ceil(shown.length / PER_PAGE));
+  const curPage = Math.min(pageNo, pageCount - 1);
+  const pageRows = shown.slice(curPage * PER_PAGE, (curPage + 1) * PER_PAGE);
+  const scopeAccounts = accounts.filter(a => scope === "all" || a.owner === scope);
+
+  // ── Hesap ekle / düzenle / sil ──
+  const saveAccount = async () => {
+    if (!accModal.name?.trim()) { swalAlert("Lütfen hesap adı girin"); return; }
+    const payload = { name: accModal.name.trim(), bank: accModal.bank || "", kind: accModal.kind || "banka", owner: accModal.owner || "sirket", iban: accModal.iban || "", note: accModal.note || "" };
+    const { error } = accModal.id ? await supabase.from('bank_accounts').update(payload).eq('id', accModal.id) : await supabase.from('bank_accounts').insert(payload);
+    if (error) { swalAlert("Hesap kaydedilemedi: " + error.message); return; }
+    setAccModal(null); load();
+  };
+  const deleteAccount = async (a) => {
+    const n = txs.filter(t => t.account_id === a.id).length;
+    if (!await swalConfirm(`"${a.name}" hesabı${n ? ` ve içindeki ${n} hareket` : ""} silinsin mi? Bu işlem geri alınamaz.`)) return;
+    const { error } = await supabase.from('bank_accounts').delete().eq('id', a.id);
+    if (error) { swalAlert("Hesap silinemedi: " + error.message); return; }
+    if (String(accountId) === String(a.id)) setAccountId("");
+    load();
+  };
+
+  // ── Ekstre dosyası oku ──
+  const readFile = async (file, account_id) => {
+    if (!file) return;
+    try {
+      const XLSX = await loadXLSX();
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      // En çok satırı olan sayfayı al
+      let aoa = [];
+      wb.SheetNames.forEach(n => { const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: "" }); if (rows.length > aoa.length) aoa = rows; });
+      if (aoa.length < 2) { swalAlert("Dosya okunamadı ya da boş görünüyor."); return; }
+      const det = bankDetectColumns(aoa);
+      const acc = accOf(Number(account_id));
+      setImp({ account_id, fileName: file.name, aoa, headerRow: det.headerRow, map: det.map, flip: acc?.kind === "kredi_karti" });
+    } catch (e) { swalAlert("Dosya okunamadı: " + e.message + "\n\nBankadan Excel (.xlsx / .xls) ya da CSV olarak indirdiğiniz ekstreyi seçin."); }
+  };
+  const impRows = imp ? bankBuildRows(imp.aoa, imp.headerRow, imp.map, imp.flip) : [];
+  const impHeads = imp ? (imp.aoa[imp.headerRow] || []).map((h, i) => ({ i, label: String(h || "").trim() || `Sütun ${i + 1}` })) : [];
+  const impUsesSplit = imp ? imp.map.amount < 0 && (imp.map.debit >= 0 || imp.map.credit >= 0) : false;
+
+  const doImport = async () => {
+    const acc = accOf(Number(imp.account_id));
+    if (!acc) { swalAlert("Lütfen hesap seçin"); return; }
+    if (!impRows.length) { swalAlert("Aktarılacak hareket bulunamadı. Sütun eşleştirmesini kontrol edin."); return; }
+    setBusy(true);
+    // Aynı hareket daha önce yüklendiyse tekrar ekleme (aynı gün, açıklama ve tutar)
+    const key = (t) => `${String(t.tx_date).slice(0, 10)}|${(t.description || "").trim()}|${Number(t.amount).toFixed(2)}`;
+    const mevcut = {};
+    txs.filter(t => t.account_id === acc.id).forEach(t => { mevcut[key(t)] = (mevcut[key(t)] || 0) + 1; });
+    const batch_id = `${Date.now()}`;
+    const yeni = [];
+    impRows.forEach(r => {
+      const k = key(r);
+      if (mevcut[k] > 0) { mevcut[k] -= 1; return; }
+      yeni.push({ account_id: acc.id, tx_date: r.tx_date, description: r.description, amount: r.amount, category: bankGuessCategory(r.description, r.amount, acc.kind), batch_id, source_file: imp.fileName });
+    });
+    let hata = null;
+    for (let i = 0; i < yeni.length && !hata; i += 500) {
+      const { error } = await supabase.from('bank_transactions').insert(yeni.slice(i, i + 500));
+      if (error) hata = error;
+    }
+    setBusy(false);
+    if (hata) { swalAlert("Hareketler kaydedilemedi: " + hata.message); load(); return; }
+    const atlanan = impRows.length - yeni.length;
+    setImp(null);
+    await load();
+    swalAlert(`✅ ${yeni.length} hareket eklendi${atlanan ? `, ${atlanan} hareket daha önce yüklendiği için atlandı` : ""}.\n\nKategoriler açıklamadan tahmin edildi; listeden tek tek düzeltebilirsiniz.`);
+  };
+
+  // ── Hareket işlemleri ──
+  const setCategory = async (t, category) => {
+    setTxs(prev => prev.map(x => x.id === t.id ? { ...x, category } : x));
+    const { error } = await supabase.from('bank_transactions').update({ category }).eq('id', t.id);
+    if (error) { swalAlert("Kategori güncellenemedi: " + error.message); load(); }
+  };
+  const deleteTx = async (t) => {
+    if (!await swalConfirm("Bu hareket silinsin mi?")) return;
+    const { error } = await supabase.from('bank_transactions').delete().eq('id', t.id);
+    if (error) { swalAlert("Hareket silinemedi: " + error.message); return; }
+    setTxs(prev => prev.filter(x => x.id !== t.id));
+  };
+  const saveTx = async () => {
+    const tutar = Math.abs(bankParseAmount(txModal.amount));
+    if (!txModal.account_id) { swalAlert("Lütfen hesap seçin"); return; }
+    if (!txModal.tx_date || !isFinite(tutar) || tutar === 0) { swalAlert("Lütfen tarih ve tutar girin"); return; }
+    const amount = txModal.yon === "gelir" ? tutar : -tutar;
+    const acc = accOf(Number(txModal.account_id));
+    const { error } = await supabase.from('bank_transactions').insert({ account_id: acc.id, tx_date: txModal.tx_date, description: txModal.description || "", amount, category: txModal.category || bankGuessCategory(txModal.description, amount, acc.kind), source_file: "elle" });
+    if (error) { swalAlert("Hareket kaydedilemedi: " + error.message); return; }
+    setTxModal(null); load();
+  };
+  // Son yüklemeyi geri al: aynı dosyadan gelen satırları siler
+  const batches = Object.values(txs.reduce((m, t) => { if (t.batch_id) { const b = (m[t.batch_id] = m[t.batch_id] || { id: t.batch_id, file: t.source_file, account_id: t.account_id, n: 0, at: t.created_at }); b.n += 1; } return m; }, {})).sort((a, b) => String(b.at).localeCompare(String(a.at))).slice(0, 5);
+  const undoBatch = async (b) => {
+    if (!await swalConfirm(`"${b.file}" dosyasından yüklenen ${b.n} hareket silinsin mi?`)) return;
+    const { error } = await supabase.from('bank_transactions').delete().eq('batch_id', b.id);
+    if (error) { swalAlert("Yükleme silinemedi: " + error.message); return; }
+    load();
+  };
+
+  const selStyle = { background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "8px 10px", color: T.textPrimary, fontSize: 12.5, outline: "none" };
+  if (loading) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+
+  return (
+    <div>
+      {err && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim, borderRadius: 9, padding: "10px 12px", marginBottom: 14 }}>Veriler okunamadı: {err}</div>}
+
+      {/* Hesaplar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>Hesaplar ve Kartlar</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Btn onClick={() => setAccModal({ name: "", bank: "", kind: "banka", owner: "sirket", iban: "", note: "" })}>+ Hesap / Kart Ekle</Btn>
+          <Btn variant="primary" onClick={() => { if (!accounts.length) { swalAlert("Önce bir hesap ya da kart ekleyin."); return; } setImp({ account_id: accountId || accounts[0].id, pick: true }); }}>⬆ Ekstre Yükle</Btn>
+        </div>
+      </div>
+      {accounts.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, padding: "28px 16px", border: `1px dashed ${T.borderLight}`, borderRadius: 14, marginBottom: 20, fontSize: 13, lineHeight: 1.6 }}>
+          Henüz hesap yok. Önce "+ Hesap / Kart Ekle" ile şirket hesabınızı, şahsi hesabınızı ve kredi kartlarınızı tanımlayın; sonra her biri için bankadan indirdiğiniz Excel ekstreyi yükleyin.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 10, marginBottom: 20 }}>
+          {accounts.map(a => {
+            const list = periodTxs.filter(t => t.account_id === a.id);
+            const o = bankOzet(list);
+            return (
+              <div key={a.id} style={{ background: T.bgCard, border: `1px solid ${String(accountId) === String(a.id) ? T.amber : T.border}`, borderRadius: 14, padding: "14px 16px", boxShadow: T.shadow }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
+                    <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{[a.bank, BANK_KINDS[a.kind]].filter(Boolean).join(" · ")}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: a.owner === "sirket" ? T.indigoDim : T.amberDim, color: a.owner === "sirket" ? T.indigoText : T.amberText, whiteSpace: "nowrap" }}>{BANK_OWNERS[a.owner]}</span>
+                </div>
+                <div style={{ display: "flex", gap: 14, marginTop: 12, fontSize: 12 }}>
+                  <div><div style={{ color: T.textMuted, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gelir</div><div style={{ color: T.greenText, fontWeight: 700 }}>{fmtMoney(o.gelir)}</div></div>
+                  <div><div style={{ color: T.textMuted, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Gider</div><div style={{ color: T.redText, fontWeight: 700 }}>{fmtMoney(o.gider)}</div></div>
+                  <div><div style={{ color: T.textMuted, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Kalem</div><div style={{ color: T.textPrimary, fontWeight: 700 }}>{list.length}</div></div>
+                </div>
+                <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+                  <Btn onClick={() => setImp({ account_id: a.id, pick: true })} style={{ fontSize: 11, padding: "5px 9px" }}>⬆ Ekstre</Btn>
+                  <Btn onClick={() => { setScope("all"); setAccountId(String(accountId) === String(a.id) ? "" : a.id); }} style={{ fontSize: 11, padding: "5px 9px" }}>{String(accountId) === String(a.id) ? "Süzgeci Kaldır" : "Hareketler"}</Btn>
+                  <Btn onClick={() => setAccModal({ ...a })} style={{ fontSize: 11, padding: "5px 9px" }}>Düzenle</Btn>
+                  <Btn onClick={() => deleteAccount(a)} style={{ fontSize: 11, padding: "5px 9px", background: T.redDim, color: T.redText }}>Sil</Btn>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Süzgeçler + rapor */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 4, background: T.bgInput, borderRadius: 10, padding: 4 }}>
+          {[{ v: "sirket", l: "Şirket" }, { v: "sahsi", l: "Şahsi" }, { v: "all", l: "Tümü" }].map(o => (
+            <button key={o.v} onClick={() => { setScope(o.v); setAccountId(""); }} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: scope === o.v ? T.bgCard : "transparent", color: scope === o.v ? T.textPrimary : T.textMuted, fontSize: 12.5, fontWeight: 600, cursor: "pointer", boxShadow: scope === o.v ? T.shadow : "none" }}>{o.l}</button>
+          ))}
+        </div>
+        <select value={accountId} onChange={e => setAccountId(e.target.value)} style={selStyle}>
+          <option value="">Tüm hesaplar</option>
+          {scopeAccounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+        <select value={year} onChange={e => setYear(e.target.value)} style={selStyle}>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
+          <option value="all">Tüm zamanlar</option>
+        </select>
+        <select value={month} onChange={e => setMonth(e.target.value)} style={selStyle} disabled={year === "all"}>
+          <option value="">Tüm aylar</option>
+          {TR_MONTHS.map((m, i) => <option key={i} value={String(i + 1).padStart(2, "0")}>{m}</option>)}
+        </select>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Açıklamada ara..." style={{ ...selStyle, flex: 1, minWidth: 140 }} />
+        <Btn onClick={() => { if (!accounts.length) { swalAlert("Önce bir hesap ekleyin."); return; } setTxModal({ account_id: accountId || scopeAccounts[0]?.id || accounts[0].id, tx_date: todayStr(), yon: "gider", amount: "", description: "", category: "" }); }}>+ Elle Hareket</Btn>
+        <Btn onClick={() => { if (!periodTxs.length) { swalAlert("Bu dönemde hareket yok."); return; } bankExcelRapor(accounts, periodTxs, donemEtiketi); }} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel Rapor</Btn>
+        <Btn onClick={() => { if (!periodTxs.length) { swalAlert("Bu dönemde hareket yok."); return; } bankPdfRapor(accounts, periodTxs, donemEtiketi); }} style={{ background: T.indigoDim, color: T.indigoText }}>📑 PDF Rapor</Btn>
+      </div>
+
+      {/* Özet */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label={`${scope === "all" ? "Toplam" : BANK_OWNERS[scope]} Gelir`} value={fmtMoney(ozet.gelir)} color={T.greenText} sub={donemEtiketi} />
+        <StatCard label={`${scope === "all" ? "Toplam" : BANK_OWNERS[scope]} Gider`} value={fmtMoney(ozet.gider)} color={T.redText} sub={donemEtiketi} />
+        <StatCard label="Net" value={fmtMoney(ozet.net)} color={ozet.net >= 0 ? T.greenText : T.redText} sub="Gelir − Gider" />
+        <StatCard label="Hesaba Katılmayan" value={fmtMoney(ozet.haric)} sub="Kart ödemesi / transfer" />
+      </div>
+
+      {/* Kategori dağılımı */}
+      {ozet.byCat.length > 0 && (
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: T.shadow }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 12 }}>Gider Kategorileri</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {ozet.byCat.map(c => (
+              <div key={c.id} style={{ display: "grid", gridTemplateColumns: "minmax(120px,220px) 1fr auto", gap: 12, alignItems: "center", fontSize: 12.5 }}>
+                <div style={{ color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bankCatLabel(c.id)} <span style={{ color: T.textMuted }}>· {c.adet}</span></div>
+                <div style={{ height: 8, background: T.bgInput, borderRadius: 6, overflow: "hidden" }}><div style={{ width: `${ozet.gider > 0 ? Math.max(2, c.tutar / ozet.byCat[0].tutar * 100) : 0}%`, height: "100%", background: T.amber, borderRadius: 6 }} /></div>
+                <div style={{ color: T.textPrimary, fontWeight: 700, whiteSpace: "nowrap" }}>{fmtMoney(c.tutar)} <span style={{ color: T.textMuted, fontWeight: 500 }}>%{ozet.gider > 0 ? Math.round(c.tutar / ozet.gider * 100) : 0}</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hareketler */}
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", boxShadow: T.shadow }}>
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${T.border}`, fontSize: 13, fontWeight: 700, color: T.textPrimary }}>Hareketler <span style={{ color: T.textMuted, fontWeight: 500 }}>· {shown.length} kalem</span></div>
+        {shown.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Bu süzgeçte hareket yok.</div>
+        ) : (
+          <div className="pm-scroll-x" style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", minWidth: 720 }}>
+              <thead><tr style={{ background: T.bgSurface }}>
+                {["Tarih", "Hesap", "Açıklama", "Kategori", "Tutar", ""].map((h, i) => <th key={i} style={{ fontSize: 10.5, color: T.textMuted, textTransform: "uppercase", textAlign: i === 4 ? "right" : "left", padding: "9px 12px", whiteSpace: "nowrap" }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {pageRows.map(t => {
+                  const a = accOf(t.account_id);
+                  const haric = bankCat(t.category).excluded;
+                  return (
+                    <tr key={t.id} style={{ borderTop: `1px solid ${T.border}`, opacity: haric ? 0.6 : 1 }}>
+                      <td style={{ padding: "8px 12px", fontSize: 12.5, color: T.textSecondary, whiteSpace: "nowrap" }}>{bankGun(t.tx_date)}</td>
+                      <td style={{ padding: "8px 12px", fontSize: 12, color: T.textMuted, whiteSpace: "nowrap" }}>{a?.name || "—"}</td>
+                      <td style={{ padding: "8px 12px", fontSize: 12.5, color: T.textPrimary }}>{t.description || "—"}</td>
+                      <td style={{ padding: "6px 12px" }}>
+                        <select value={t.category} onChange={e => setCategory(t, e.target.value)} style={{ ...selStyle, padding: "5px 8px", fontSize: 12, maxWidth: 190 }}>
+                          {BANK_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                      </td>
+                      <td style={{ padding: "8px 12px", fontSize: 13, fontWeight: 700, textAlign: "right", whiteSpace: "nowrap", color: t.amount > 0 ? T.greenText : T.redText }}>{t.amount > 0 ? "+" : "−"}{fmtMoney(Math.abs(t.amount))}</td>
+                      <td style={{ padding: "8px 12px", textAlign: "right" }}><button onClick={() => deleteTx(t)} className="pm-icon-btn" title="Sil" style={{ background: "transparent", border: "none", color: T.textMuted, cursor: "pointer", width: 28, height: 28, borderRadius: 7 }}>✕</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {pageCount > 1 && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "12px 18px", borderTop: `1px solid ${T.border}` }}>
+            <Btn onClick={() => setPageNo(curPage - 1)} disabled={curPage === 0} style={{ fontSize: 12 }}>← Geri</Btn>
+            <div style={{ fontSize: 12, color: T.textMuted }}>Sayfa {curPage + 1} / {pageCount}</div>
+            <Btn onClick={() => setPageNo(curPage + 1)} disabled={curPage >= pageCount - 1} style={{ fontSize: 12 }}>İleri →</Btn>
+          </div>
+        )}
+      </div>
+
+      {/* Son yüklemeler */}
+      {batches.length > 0 && (
+        <div style={{ marginTop: 14, fontSize: 12, color: T.textMuted }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Son yüklenen ekstreler</div>
+          {batches.map(b => (
+            <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 0" }}>
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.file} · {accOf(b.account_id)?.name || "—"} · {b.n} kalem</span>
+              <button onClick={() => undoBatch(b)} style={{ background: "transparent", border: "none", color: T.redText, cursor: "pointer", fontSize: 12 }}>Yüklemeyi sil</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Hesap formu */}
+      {accModal && (
+        <Modal title={accModal.id ? "Hesabı Düzenle" : "Hesap / Kart Ekle"} onClose={() => setAccModal(null)} width={480}>
+          <FormField label="Hesap Adı"><Input placeholder="Örn: Garanti Şirket TL, Şahsi Bonus Kart" value={accModal.name || ""} onChange={e => setAccModal(f => ({ ...f, name: e.target.value }))} /></FormField>
+          <FormField label="Banka"><Input placeholder="Örn: Garanti BBVA" value={accModal.bank || ""} onChange={e => setAccModal(f => ({ ...f, bank: e.target.value }))} /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FormField label="Kime Ait"><Select value={accModal.owner} onChange={e => setAccModal(f => ({ ...f, owner: e.target.value }))}><option value="sirket">Şirket</option><option value="sahsi">Şahsi</option></Select></FormField>
+            <FormField label="Tür"><Select value={accModal.kind} onChange={e => setAccModal(f => ({ ...f, kind: e.target.value }))}><option value="banka">Banka Hesabı</option><option value="kredi_karti">Kredi Kartı</option></Select></FormField>
+          </div>
+          <FormField label="IBAN / Kart Son 4 Hane (isteğe bağlı)"><Input placeholder="TR.. ya da 1234" value={accModal.iban || ""} onChange={e => setAccModal(f => ({ ...f, iban: e.target.value }))} /></FormField>
+          <FormField label="Not (isteğe bağlı)"><Input value={accModal.note || ""} onChange={e => setAccModal(f => ({ ...f, note: e.target.value }))} /></FormField>
+          <ModalActions onClose={() => setAccModal(null)} onSave={saveAccount} />
+        </Modal>
+      )}
+
+      {/* Ekstre yükleme */}
+      {imp && (
+        <Modal title="Ekstre Yükle" onClose={() => { if (!busy) setImp(null); }} width={760}>
+          <FormField label="Hangi Hesap / Kart"><Select value={imp.account_id} onChange={e => { const a = accOf(Number(e.target.value)); setImp(f => ({ ...f, account_id: e.target.value, flip: f.aoa ? f.flip : a?.kind === "kredi_karti" })); }}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name} — {BANK_OWNERS[a.owner]} · {BANK_KINDS[a.kind]}</option>)}
+          </Select></FormField>
+          <FormField label="Ekstre Dosyası (Excel ya da CSV)">
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={e => readFile(e.target.files?.[0], imp.account_id)} style={{ fontSize: 13, color: T.textSecondary }} />
+          </FormField>
+          {imp.aoa && (
+            <>
+              <div style={{ fontSize: 12, color: T.textMuted, margin: "4px 0 10px", lineHeight: 1.5 }}>Sütunları otomatik buldum. Aşağıdaki önizleme yanlış görünüyorsa eşleştirmeyi düzeltin.</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10 }}>
+                {[{ k: "date", l: "Tarih sütunu" }, { k: "desc", l: "Açıklama sütunu" }, { k: "amount", l: "Tutar sütunu" }, { k: "debit", l: "Borç / çıkan sütunu" }, { k: "credit", l: "Alacak / giren sütunu" }].map(f => (
+                  <FormField key={f.k} label={f.l}>
+                    <Select value={imp.map[f.k]} onChange={e => setImp(s => ({ ...s, map: { ...s.map, [f.k]: Number(e.target.value) } }))}>
+                      <option value={-1}>— yok —</option>
+                      {impHeads.map(h => <option key={h.i} value={h.i}>{h.label}</option>)}
+                    </Select>
+                  </FormField>
+                ))}
+              </div>
+              {!impUsesSplit && (
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: T.textSecondary, margin: "2px 0 12px", cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!imp.flip} onChange={e => setImp(s => ({ ...s, flip: e.target.checked }))} />
+                  Bu dosyada artı yazılan tutarlar harcamadır (kredi kartı ekstrelerinde genelde böyledir)
+                </label>
+              )}
+              <div style={{ fontSize: 12.5, color: T.textPrimary, fontWeight: 600, marginBottom: 8 }}>
+                {impRows.length} hareket bulundu · Gelir {fmtMoney(sumAmount(impRows.filter(r => r.amount > 0)))} · Gider {fmtMoney(-sumAmount(impRows.filter(r => r.amount < 0)))}
+              </div>
+              <div className="pm-scroll-x" style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 10, maxHeight: 230 }}>
+                <table style={{ width: "100%" }}>
+                  <tbody>
+                    {impRows.slice(0, 12).map((r, i) => (
+                      <tr key={i} style={{ borderTop: i ? `1px solid ${T.border}` : "none" }}>
+                        <td style={{ padding: "6px 10px", fontSize: 12, color: T.textSecondary, whiteSpace: "nowrap" }}>{bankGun(r.tx_date)}</td>
+                        <td style={{ padding: "6px 10px", fontSize: 12, color: T.textPrimary }}>{r.description || "—"}</td>
+                        <td style={{ padding: "6px 10px", fontSize: 12, fontWeight: 700, textAlign: "right", whiteSpace: "nowrap", color: r.amount > 0 ? T.greenText : T.redText }}>{r.amount > 0 ? "+" : "−"}{fmtMoney(Math.abs(r.amount))}</td>
+                      </tr>
+                    ))}
+                    {impRows.length === 0 && <tr><td style={{ padding: 14, fontSize: 12.5, color: T.textMuted, textAlign: "center" }}>Hareket bulunamadı. Tarih ve tutar sütunlarını yukarıdan seçin.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              {impRows.length > 12 && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>İlk 12 hareket gösteriliyor.</div>}
+            </>
+          )}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>
+            <Btn onClick={() => setImp(null)} disabled={busy}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={doImport} disabled={busy || !imp.aoa || impRows.length === 0}>{busy ? "Aktarılıyor..." : `${impRows.length || ""} Hareketi İçe Aktar`}</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* Elle hareket */}
+      {txModal && (
+        <Modal title="Elle Hareket Ekle" onClose={() => setTxModal(null)} width={480}>
+          <FormField label="Hesap / Kart"><Select value={txModal.account_id} onChange={e => setTxModal(f => ({ ...f, account_id: e.target.value }))}>{accounts.map(a => <option key={a.id} value={a.id}>{a.name} — {BANK_OWNERS[a.owner]}</option>)}</Select></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <FormField label="Tarih"><Input type="date" value={txModal.tx_date} onChange={e => setTxModal(f => ({ ...f, tx_date: e.target.value }))} /></FormField>
+            <FormField label="Tür"><Select value={txModal.yon} onChange={e => setTxModal(f => ({ ...f, yon: e.target.value }))}><option value="gider">Gider</option><option value="gelir">Gelir</option></Select></FormField>
+            <FormField label="Tutar (₺)"><Input placeholder="0,00" value={txModal.amount} onChange={e => setTxModal(f => ({ ...f, amount: e.target.value }))} /></FormField>
+          </div>
+          <FormField label="Açıklama"><Input value={txModal.description} onChange={e => setTxModal(f => ({ ...f, description: e.target.value }))} /></FormField>
+          <FormField label="Kategori"><Select value={txModal.category} onChange={e => setTxModal(f => ({ ...f, category: e.target.value }))}><option value="">Otomatik (açıklamadan tahmin et)</option>{BANK_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</Select></FormField>
+          <ModalActions onClose={() => setTxModal(null)} onSave={saveTx} />
+        </Modal>
+      )}
     </div>
   );
 }
