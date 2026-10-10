@@ -1,4 +1,5 @@
 // netlify/functions/isletme-ara.cjs — "Yeni Müşteri Bul" için Google işletme araması (telefon ve web sitesiyle).
+// Gereken Google hizmeti: Places API (New). Anahtar Netlify'da gizli değişken olarak durur.
 // Netlify ortam değişkeni GOOGLE_PLACES_KEY tanımlı değilse { yok: true } döner; panel o zaman ücretsiz harita verisine geçer.
 const { yetkili } = require("../lib/auth.cjs");
 
