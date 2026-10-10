@@ -3,6 +3,12 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Müşteriye gönderilen fatura bağlantısı (genel kuraldan önce gelmeli)
+[[redirects]]
+  from = "/f/*"
+  to = "/.netlify/functions/fatura/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

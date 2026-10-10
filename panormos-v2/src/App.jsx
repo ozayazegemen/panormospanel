@@ -7791,6 +7791,45 @@ async function openClientStatement(client) {
   printClientStatement(client, inv || [], pay || []);
 }
 
+// ── Borç hatırlatma (WhatsApp) ──
+const VADE_GUN = 10;   // fatura tarihinden itibaren ödeme süresi
+// Faturanın vadesi: fatura tarihi + 10 gün (fatura tarihi yoksa panele yüklendiği gün)
+function invoiceDueDate(inv) {
+  const bas = String(inv.invoice_date || inv.uploaded_at || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(bas)) return "";
+  const d = new Date(bas + "T00:00:00"); d.setDate(d.getDate() + VADE_GUN);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+// Müşterinin ödenmemiş faturaları için hatırlatma metni. Her faturanın bağlantısı ve son ödeme tarihi yazılır:
+// vadesi geçmişse fatura tarihi + 10 gün; geçmemişse müşteriye elle girilmiş son ödeme tarihi (yoksa yine + 10 gün).
+function debtReminderMessage(client, cInvoices, monthInfo, balance) {
+  const gun = (d) => { const p = String(d || "").slice(0, 10).split("-"); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : "—"; };
+  const bugun = todayStr();
+  const odenmemis = cInvoices
+    .filter(i => i.status !== "paid" && ((monthInfo[i.month_ref || ""]?.debt) || 0) > 0)
+    .sort((a, b) => String(a.invoice_date || a.uploaded_at || "").localeCompare(String(b.invoice_date || b.uploaded_at || "")));
+  if (odenmemis.length === 0) return null;
+  const satirlar = odenmemis.map(i => {
+    const vade = invoiceDueDate(i);
+    const gecikti = !!vade && vade < bugun;
+    const sonOdeme = gecikti ? vade : (client.paymentDueDate ? String(client.paymentDueDate).slice(0, 10) : vade);
+    const gecenGun = gecikti ? Math.round((new Date(bugun + "T00:00:00") - new Date(vade + "T00:00:00")) / 86400000) : 0;
+    const no = i.invoice_no || i.parasut_invoice_no;
+    let t = `📄 ${no ? "Fatura " + no : "Fatura"} · ${gun(i.invoice_date || i.uploaded_at)}\n`;
+    t += `Tutar: ${fmtMoney(i.total)}\n`;
+    if (sonOdeme) t += gecikti ? `⚠️ Son ödeme tarihi: ${gun(sonOdeme)} (vadesi ${gecenGun} gün geçti)\n` : `📆 Son ödeme tarihi: ${gun(sonOdeme)}\n`;
+    if (i.file_url && i.share_key) t += `Fatura: ${window.location.origin}/f/${i.share_key}\n`;
+    return t;
+  });
+  const gecikenVar = odenmemis.some(i => { const v = invoiceDueDate(i); return v && v < bugun; });
+  let msg = `Merhaba ${client.name},\n\n`;
+  msg += odenmemis.length === 1 ? `${gecikenVar ? "Ödemesi geciken" : "Ödemesi bekleyen"} faturanızın bilgileri aşağıdadır:\n\n` : `${gecikenVar ? "Ödemesi geciken / bekleyen" : "Ödemesi bekleyen"} ${odenmemis.length} faturanızın bilgileri aşağıdadır:\n\n`;
+  msg += satirlar.join("\n");
+  msg += `\n💰 Toplam kalan borç: ${fmtMoney(balance)}\n`;
+  msg += `\nÖdemenizi yaptıysanız bu mesajı dikkate almayınız. İyi çalışmalar dileriz.\n\nPanormos Medya`;
+  return msg;
+}
+
 // Bir müşterinin carisi, ay ay: o aya kesilen faturalar ve o aya yazılan ödemeler.
 // Borç yalnızca faturası kesilmiş aydan doğar; faturasız aya girilen ödeme tahsilat sayılır ama başka ayın borcunu kapatmaz.
 function cariHesapla(cPayments, cInvoices) {
@@ -9402,6 +9441,8 @@ function AccountingCari({ clients }) {
                       <Btn onClick={()=>{
                         const c = cs.client;
                         const bakiye = cs.balance;
+                        // Ödenmemiş fatura varsa: fatura bağlantısı ve son ödeme tarihiyle ayrıntılı hatırlatma
+                        const borcMesaji = debtReminderMessage(c, cs.cInvoices, cs.monthInfo, bakiye);
                         let msg = `Merhaba ${c.name},\n\n`;
                         msg += `📄 Bu aya ait faturanız oluşturulmuştur. 💰\n`;
                         msg += `Aylık Tutar: ${fmtMoney(c.monthlyFee||0)}\n`;
@@ -9409,6 +9450,7 @@ function AccountingCari({ clients }) {
                         if(bakiye>0) msg += `⚠️ Kalan Borç: ${fmtMoney(bakiye)}\n`;
                         if(c.paymentDueDate) msg += `📆 Son Ödeme Tarihi: ${new Date(c.paymentDueDate).toLocaleDateString("tr-TR")}\n`;
                         msg += `\nİyi çalışmalar dileriz.\n\nPanormos Medya Ekibi`;
+                        if (borcMesaji) msg = borcMesaji;
                         const phone = (c.phone||"").replace(/\D/g,"").replace(/^0/,"90");
                         if(phone.length<10){ swalAlert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
                         window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
