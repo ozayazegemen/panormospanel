@@ -7826,7 +7826,7 @@ function debtReminderMessage(client, cInvoices, monthInfo, balance) {
   msg += odenmemis.length === 1 ? `${gecikenVar ? "Ödemesi geciken" : "Ödemesi bekleyen"} faturanızın bilgileri aşağıdadır:\n\n` : `${gecikenVar ? "Ödemesi geciken / bekleyen" : "Ödemesi bekleyen"} ${odenmemis.length} faturanızın bilgileri aşağıdadır:\n\n`;
   msg += satirlar.join("\n");
   msg += `\nToplam kalan borç: ${fmtMoney(balance)}\n`;
-  msg += `\nÖdemenizi yaptıysanız bu mesajı dikkate almayınız. İyi çalışmalar dileriz.\n\nPanormos Medya`;
+  msg += `\nÖdemenizi yaptıysanız bu mesajı dikkate almayınız. İyi çalışmalar dileriz.\n\nPanormos Medya San. ve Tic. Ltd. Şti.`;
   return msg;
 }
 
@@ -9458,7 +9458,7 @@ function AccountingCari({ clients, autoAdd = false }) {
                         msg += `Güncel Bakiye: ${fmtMoney(cs.totalPaid)}\n`;
                         if(bakiye>0) msg += `Kalan Borç: ${fmtMoney(bakiye)}\n`;
                         if(c.paymentDueDate) msg += `Son Ödeme Tarihi: ${new Date(c.paymentDueDate).toLocaleDateString("tr-TR")}\n`;
-                        msg += `\nİyi çalışmalar dileriz.\n\nPanormos Medya Ekibi`;
+                        msg += `\nİyi çalışmalar dileriz.\n\nPanormos Medya San. ve Tic. Ltd. Şti.`;
                         if (borcMesaji) msg = borcMesaji;
                         const phone = (c.phone||"").replace(/\D/g,"").replace(/^0/,"90");
                         if(phone.length<10){ swalAlert("Bu müşterinin kayıtlı telefonu yok. Müşteriyi düzenleyip telefon ekleyin."); return; }
