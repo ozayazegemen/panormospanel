@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import { T, THEME } from "./theme";
 
 // Supabase hatalarını Türkçe'ye çevir
@@ -30,6 +30,8 @@ export default function Login({ onLogin }) {
     reset();
     if (!email || !password) { setError("E-posta ve şifre girin."); return; }
     setLoading(true);
+    // Giriş gününü girişten ÖNCE bugüne ayarla: önceki günden kalan kayıt yüzünden panel yeni girişi hemen kapatmasın
+    try { localStorage.setItem(LOGIN_DAY_STORE, loginDayKey()); } catch (e) {}
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     setLoading(false);
     if (error) { setError(translateError(error.message)); return; }
@@ -61,6 +63,7 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    try { localStorage.setItem(LOGIN_DAY_STORE, loginDayKey()); } catch (e) {}
     const { data, error } = await supabase.auth.signUp({ email: mail, password });
     setLoading(false);
     if (error) { setError(translateError(error.message)); return; }

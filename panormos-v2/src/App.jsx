@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
 import { T, THEME, toggleTheme } from "./theme";
 
@@ -11112,6 +11112,8 @@ export default function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      // Oturum yoksa önceki günden kalan giriş günü kaydını temizle (yoksa ertesi gün ilk giriş hemen kapanıyordu)
+      if (!session) { try { localStorage.removeItem(LOGIN_DAY_STORE); } catch (e) {} }
       setSession(session);
       setAuthLoading(false);
     });

@@ -13,3 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 })
+
+// Günlük oturum: panel, giriş yapılan "iş günü" boyunca açık kalır (gün 04:00'te değişir).
+export const LOGIN_DAY_STORE = "panormos_login_day";
+export const loginDayKey = (d = new Date()) => { const x = new Date(d.getTime() - 4 * 60 * 60 * 1000); return `${x.getFullYear()}-${x.getMonth() + 1}-${x.getDate()}`; };
