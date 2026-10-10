@@ -7282,7 +7282,7 @@ function LeadsPage({ refreshData, currentStaff }) {
     const l = waModal.lead;
     setWaModal(m => ({ ...m, busy: true }));
     try {
-      const text = await askClaude({ system: "Sen Panormos Medya adlı sosyal medya ajansı için yazan bir satış asistanısın. WhatsApp'tan ilk kez yazılacak, kısa (en çok 70 kelime), samimi ama kurumsal, baskı yapmayan Türkçe bir tanışma mesajı yaz. Emoji en fazla bir tane. Sadece mesaj metnini döndür.", prompt: `İşletme: ${l.business_name}. Sektör: ${l.sector || "bilinmiyor"}. Konum: ${[l.district, l.city].filter(Boolean).join(" / ") || "bilinmiyor"}. Yazan kişi: ${currentStaff?.name || "Panormos Medya"}. Notlar: ${l.notes || "yok"}.`, maxTokens: 400 });
+      const text = await askClaude({ system: "Sen Panormos Medya adlı sosyal medya ajansı için yazan bir satış asistanısın. WhatsApp'tan ilk kez yazılacak, kısa (en çok 70 kelime), samimi ama kurumsal, baskı yapmayan Türkçe bir tanışma mesajı yaz. Emoji ve simge kullanma. Sadece mesaj metnini döndür.", prompt: `İşletme: ${l.business_name}. Sektör: ${l.sector || "bilinmiyor"}. Konum: ${[l.district, l.city].filter(Boolean).join(" / ") || "bilinmiyor"}. Yazan kişi: ${currentStaff?.name || "Panormos Medya"}. Notlar: ${l.notes || "yok"}.`, maxTokens: 400 });
       setWaModal(m => m ? { ...m, text: (text || "").trim() || m.text, busy: false } : m);
     } catch (e) { setWaModal(m => m ? { ...m, busy: false } : m); swalAlert("Mesaj hazırlanamadı: " + e.message); }
   };
@@ -7815,9 +7815,9 @@ function debtReminderMessage(client, cInvoices, monthInfo, balance) {
     const sonOdeme = gecikti ? vade : (client.paymentDueDate ? String(client.paymentDueDate).slice(0, 10) : vade);
     const gecenGun = gecikti ? Math.round((new Date(bugun + "T00:00:00") - new Date(vade + "T00:00:00")) / 86400000) : 0;
     const no = i.invoice_no || i.parasut_invoice_no;
-    let t = `📄 ${no ? "Fatura " + no : "Fatura"} · ${gun(i.invoice_date || i.uploaded_at)}\n`;
+    let t = `${no ? "Fatura " + no : "Fatura"} · ${gun(i.invoice_date || i.uploaded_at)}\n`;
     t += `Tutar: ${fmtMoney(i.total)}\n`;
-    if (sonOdeme) t += gecikti ? `⚠️ Son ödeme tarihi: ${gun(sonOdeme)} (vadesi ${gecenGun} gün geçti)\n` : `📆 Son ödeme tarihi: ${gun(sonOdeme)}\n`;
+    if (sonOdeme) t += gecikti ? `Son ödeme tarihi: ${gun(sonOdeme)} (vadesi ${gecenGun} gün geçti)\n` : `Son ödeme tarihi: ${gun(sonOdeme)}\n`;
     if (i.file_url && i.share_key) t += `Fatura: ${window.location.origin}/f/${i.share_key}\n`;
     return t;
   });
@@ -7825,7 +7825,7 @@ function debtReminderMessage(client, cInvoices, monthInfo, balance) {
   let msg = `Merhaba ${client.name},\n\n`;
   msg += odenmemis.length === 1 ? `${gecikenVar ? "Ödemesi geciken" : "Ödemesi bekleyen"} faturanızın bilgileri aşağıdadır:\n\n` : `${gecikenVar ? "Ödemesi geciken / bekleyen" : "Ödemesi bekleyen"} ${odenmemis.length} faturanızın bilgileri aşağıdadır:\n\n`;
   msg += satirlar.join("\n");
-  msg += `\n💰 Toplam kalan borç: ${fmtMoney(balance)}\n`;
+  msg += `\nToplam kalan borç: ${fmtMoney(balance)}\n`;
   msg += `\nÖdemenizi yaptıysanız bu mesajı dikkate almayınız. İyi çalışmalar dileriz.\n\nPanormos Medya`;
   return msg;
 }
@@ -9444,11 +9444,11 @@ function AccountingCari({ clients }) {
                         // Ödenmemiş fatura varsa: fatura bağlantısı ve son ödeme tarihiyle ayrıntılı hatırlatma
                         const borcMesaji = debtReminderMessage(c, cs.cInvoices, cs.monthInfo, bakiye);
                         let msg = `Merhaba ${c.name},\n\n`;
-                        msg += `📄 Bu aya ait faturanız oluşturulmuştur. 💰\n`;
+                        msg += `Bu aya ait faturanız oluşturulmuştur.\n`;
                         msg += `Aylık Tutar: ${fmtMoney(c.monthlyFee||0)}\n`;
-                        msg += `📊 Güncel Bakiye: ${fmtMoney(cs.totalPaid)}\n`;
-                        if(bakiye>0) msg += `⚠️ Kalan Borç: ${fmtMoney(bakiye)}\n`;
-                        if(c.paymentDueDate) msg += `📆 Son Ödeme Tarihi: ${new Date(c.paymentDueDate).toLocaleDateString("tr-TR")}\n`;
+                        msg += `Güncel Bakiye: ${fmtMoney(cs.totalPaid)}\n`;
+                        if(bakiye>0) msg += `Kalan Borç: ${fmtMoney(bakiye)}\n`;
+                        if(c.paymentDueDate) msg += `Son Ödeme Tarihi: ${new Date(c.paymentDueDate).toLocaleDateString("tr-TR")}\n`;
                         msg += `\nİyi çalışmalar dileriz.\n\nPanormos Medya Ekibi`;
                         if (borcMesaji) msg = borcMesaji;
                         const phone = (c.phone||"").replace(/\D/g,"").replace(/^0/,"90");
