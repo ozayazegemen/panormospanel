@@ -1816,6 +1816,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       </FormField>
       <FormField label="📊 Aylık Paylaşım Anlaşması (nerede, ne kadar)"><QuotaEditor value={form.quotaDetail} onChange={q=>setForm(f=>({...f,quotaDetail:q}))} /></FormField>
       <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
+      <FormField label="🤝 Anlaşma Tarihi (her ay bu günden 5 gün önce fatura kesme uyarısı gelir)"><Input type="date" value={form.agreementDate||""} onChange={e=>setForm(f=>({...f,agreementDate:e.target.value}))} /></FormField>
       <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
@@ -1831,7 +1832,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          work_type: form.workType||"monthly", contract_start: "Temmuz 2026", contract_end: form.contractEnd||null,
+          work_type: form.workType||"monthly", contract_start: "Temmuz 2026", contract_end: form.contractEnd||null, agreement_date: form.agreementDate||null,
         }).select().single();
         if(data){
           // Aylık ücret ve sosyal medya şifresi müşteri kaydında değil, korumalı tablolarda durur
@@ -1848,7 +1849,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
             const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
             savedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
           }
-          setClients(prev=>[...prev,{id:data.id,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,email:data.email||"",address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[],setupChecklist:{}}]);
+          setClients(prev=>[...prev,{id:data.id,agreementDate:data.agreement_date||null,contractEnd:data.contract_end||null,name:data.name,category:data.category,initials:data.initials,accentColor:data.accent_color,phone:data.phone,email:data.email||"",address:data.address,city:data.city,district:data.district,taxNumber:data.tax_number,taxOffice:data.tax_office,socialMedia:data.social_media||"",socialPassword:data.social_password||"",description:data.description||"",monthlyPostQuota:data.monthly_post_quota||0,quotaDetail:data.quota_detail||{},platforms:data.platforms||[],publishDays:data.publish_days||[],shootDays:data.shoot_days||[],publishTimes:data.publish_times||[],monthlyFee:data.monthly_fee,workType:data.work_type||"monthly",pieceJobs:savedJobs,contractStart:data.contract_start,posts:[],publishesList:[],invoices:[],media:[],socialAccounts:[],calEvents:[],setupChecklist:{}}]);
         }
         setModal(null);
       }} />
@@ -1881,6 +1882,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       </FormField>
       <FormField label="📊 Aylık Paylaşım Anlaşması (nerede, ne kadar)"><QuotaEditor value={form.quotaDetail} onChange={q=>setForm(f=>({...f,quotaDetail:q}))} /></FormField>
       <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
+      <FormField label="🤝 Anlaşma Tarihi (her ay bu günden 5 gün önce fatura kesme uyarısı gelir)"><Input type="date" value={form.agreementDate||""} onChange={e=>setForm(f=>({...f,agreementDate:e.target.value}))} /></FormField>
       <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
@@ -1894,7 +1896,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
           platforms: form.platforms||[], publish_days: publishDays, shoot_days: shootDays, publish_times: publishTimes,
-          work_type: form.workType||"monthly", contract_end: form.contractEnd||null,
+          work_type: form.workType||"monthly", contract_end: form.contractEnd||null, agreement_date: form.agreementDate||null,
         }).eq('id', form.id);
         if(error){ swalAlert("HATA: Müşteri güncellenemedi!\n\n"+error.message+"\n\nYENI-OZELLIKLER-SQL kodunu çalıştırıp yeni sütunları eklediğinizden emin olun."); return; }
         {
@@ -1909,7 +1911,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
           addedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
         }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",email:form.email||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
+        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",email:form.email||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,agreementDate:form.agreementDate||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -2064,7 +2066,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
         {perms.accounting && <Btn onClick={()=>openClientStatement(client)} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📑 Hesap Raporu</Btn>}
         <Btn onClick={()=>setMessagingClient(client)} style={{fontSize:11,padding:"5px 10px"}}>💬 Mesaj</Btn>
         <Btn onClick={()=>setMailModal(true)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📧 E-posta</Btn>
-        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,email:client.email||"",address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",workType:client.workType||"monthly",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
+        {perms.manageClients && <Btn onClick={()=>{setModal("editClient");setForm({id:client.id,name:client.name,category:client.category,phone:client.phone,email:client.email||"",address:client.address,city:client.city,district:client.district,taxNumber:client.taxNumber,taxOffice:client.taxOffice,socialMedia:client.socialMedia||"",socialPassword:client.socialPassword||"",description:client.description||"",monthlyPostQuota:client.monthlyPostQuota||"",quotaDetail:client.quotaDetail||{},contractEnd:client.contractEnd||"",agreementDate:client.agreementDate||"",workType:client.workType||"monthly",monthlyFee:client.monthlyFee,publishDays:client.publishDays||[],shootDays:client.shootDays||[],publishTimes:client.publishTimes||[],platforms:client.platforms||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>}
         {perms.manageClients && <Btn onClick={onDelete} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Sil</Btn>}
       </div>
     </div>
@@ -2983,6 +2985,11 @@ function ClientOverview({client, perms}) {
         return <StatCard label="Sözleşme Bitiş" value={end.toLocaleDateString("tr-TR")} sub={sub} color={col} />;
       })()}
     </div>
+    {client.agreementDate && (
+      <div style={{fontSize:12.5,color:T.textSecondary,background:T.bgInput,borderRadius:10,padding:"9px 14px",marginBottom:16}}>
+        🤝 Anlaşma tarihi: <b style={{color:T.textPrimary}}>{new Date(client.agreementDate+"T00:00:00").toLocaleDateString("tr-TR")}</b> · Fatura günü: her ayın <b style={{color:T.textPrimary}}>{parseInt(String(client.agreementDate).slice(8,10))}</b>'i
+      </div>
+    )}
 
     {/* Parça başı işler (sadece parça başı / ikisi tipinde) */}
     {(client.workType==="piece"||client.workType==="both") && <PieceJobsSection client={client} perms={perms} />}
@@ -5806,6 +5813,13 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
   const todayExtraShoot = clients.filter(c => (c.extraShoots||[]).some(s => s.date === todayStr)).map(c => ({ ...c, _shootTitle: (c.extraShoots||[]).find(s=>s.date===todayStr)?.title }));
   const todayName = ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][wd];
   const [todayModal, setTodayModal] = useState(null); // "publish" | "shoot" | null
+  // Fatura kesilecek müşteriler (yalnızca yönetici): anlaşma gününe 5 gün kala başlar
+  const [billInvoices, setBillInvoices] = useState(null);
+  useEffect(() => {
+    if (!perms.accounting) return;
+    supabase.from('client_invoices').select('client_id,month_ref').then(({ data }) => setBillInvoices(data || []));
+  }, []);
+  const kesilecekler = perms.accounting && billInvoices ? invoiceDueAlerts(clients, billInvoices) : [];
 
   const NavCard = ({icon,label,value,sub,color,target}) => (
     <div onClick={()=>setPage(target)} style={{
@@ -6000,6 +6014,29 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       <NavCard icon="📋" label="Görevler" value={activeTasks} sub="Aktif görev" color={T.amberText} target="tasks" />
       <NavCard icon="📅" label="Bu Ay Paylaşım" value={totalPosts} sub="Yayınlanan" color={T.greenText} target="clients" />
     </div>
+
+    {/* FATURA KESİLECEKLER - sadece yönetici */}
+    {kesilecekler.length > 0 && (
+      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderLeft:`4px solid ${T.amber}`,borderRadius:14,padding:"16px 20px",marginBottom:16,boxShadow:T.shadow}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",marginBottom:10}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:T.textPrimary}}>Fatura Kesilecek Müşteriler</div>
+            <div style={{fontSize:12,color:T.textMuted,marginTop:2}}>Anlaşma gününe 5 gün kala burada görünür; o ayın faturasını cariye yükleyince kalkar.</div>
+          </div>
+          <Btn onClick={()=>setPage("accounting")} style={{fontSize:12}}>Muhasebeye Git</Btn>
+        </div>
+        {kesilecekler.map(x => (
+          <div key={x.client.id + x.monthRef} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 0",borderTop:`1px solid ${T.border}`}}>
+            <div style={{width:30,height:30,borderRadius:"50%",background:x.client.accentColor,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{x.client.initials}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:T.textPrimary,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{x.client.name}</div>
+              <div style={{fontSize:11.5,color:T.textMuted}}>Fatura günü: {new Date(x.date+"T00:00:00").toLocaleDateString("tr-TR")}{x.client.monthlyFee ? ` · ${fmtMoney(x.client.monthlyFee)}` : ""}</div>
+            </div>
+            <span style={{fontSize:11.5,fontWeight:700,padding:"4px 10px",borderRadius:8,whiteSpace:"nowrap",background:x.kalan<=0?T.redDim:T.amberDim,color:x.kalan<=0?T.redText:T.amberText}}>{invoiceDueLabel(x.kalan)}</span>
+          </div>
+        ))}
+      </div>
+    )}
 
     {/* GELİR-GİDER GRAFİĞİ - sadece yönetici */}
     {perms.companyFinance && <RevenueChart />}
@@ -7790,6 +7827,37 @@ async function openClientStatement(client) {
   if (e1 || e2) { swalAlert("Hesap raporu hazırlanamadı: " + (e1 || e2).message); return; }
   printClientStatement(client, inv || [], pay || []);
 }
+
+// ── Fatura kesme uyarısı: her ay anlaşma gününden 5 gün önce başlar, o ayın faturası yüklenince kalkar ──
+const FATURA_UYARI_GUN = 5;      // anlaşma gününden kaç gün önce uyarılır
+const FATURA_UYARI_SONRA = 7;    // gün geçtikten sonra kaç gün daha "geçti" diye gösterilir (eski aylar yığılmasın)
+function invoiceDueAlerts(clients, invoices) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const bugunStr = todayStr();
+  const bugun = new Date(bugunStr + "T00:00:00");
+  const faturali = new Set((invoices || []).map(i => `${i.client_id}|${i.month_ref}`));
+  const out = [];
+  (clients || []).forEach(c => {
+    const anlasma = String(c.agreementDate || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(anlasma)) return;
+    const gun = parseInt(anlasma.slice(8, 10));
+    // Geçen ay, bu ay ve gelecek ayın anlaşma günlerine bak (ay o kadar gün çekmiyorsa ayın son günü)
+    for (let k = -1; k <= 1; k++) {
+      const ay = new Date(bugun.getFullYear(), bugun.getMonth() + k, 1);
+      const sonGun = new Date(ay.getFullYear(), ay.getMonth() + 1, 0).getDate();
+      const fatGunu = `${ay.getFullYear()}-${pad(ay.getMonth() + 1)}-${pad(Math.min(gun, sonGun))}`;
+      if (fatGunu < anlasma) continue;                                              // anlaşmadan önceki aylar sayılmaz
+      if (c.contractEnd && fatGunu > String(c.contractEnd).slice(0, 10)) continue;  // sözleşme bittiyse uyarma
+      const kalan = Math.round((new Date(fatGunu + "T00:00:00") - bugun) / 86400000);
+      if (kalan > FATURA_UYARI_GUN || kalan < -FATURA_UYARI_SONRA) continue;
+      const monthRef = fatGunu.slice(0, 7);
+      if (faturali.has(`${c.id}|${monthRef}`)) continue;                            // o ayın faturası yüklenmiş
+      out.push({ client: c, date: fatGunu, monthRef, kalan });
+    }
+  });
+  return out.sort((a, b) => a.kalan - b.kalan);
+}
+const invoiceDueLabel = (kalan) => kalan > 0 ? `${kalan} gün kaldı` : kalan === 0 ? "bugün" : `${-kalan} gün geçti`;
 
 // ── Borç hatırlatma (WhatsApp) ──
 const VADE_GUN = 10;   // fatura tarihinden itibaren ödeme süresi
@@ -10379,7 +10447,7 @@ async function loadAllData() {
     socialMedia: c.social_media || "", socialPassword: sifreOf[c.id] || "", defaultAssignee: c.default_assignee || null, description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
-    monthlyFee: feeOf[c.id] || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
+    monthlyFee: feeOf[c.id] || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, agreementDate: c.agreement_date || null, paymentDueDate: c.payment_due_date || null,
     workType: c.work_type || "monthly",
     extraShoots: [
       ...(Array.isArray(c.extra_shoots) ? c.extra_shoots : []),
@@ -10724,6 +10792,7 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
   const [payments, setPayments] = useState([]);
   const [agreedLeads, setAgreedLeads] = useState([]);
   const [followLeads, setFollowLeads] = useState([]);
+  const [billInvoices, setBillInvoices] = useState(null);   // fatura kesme uyarısı için (yalnızca yönetici)
   const boxRef = useRef(null);
   // Kullanıcı bazlı okunmuş bildirimler (localStorage)
   const readStoreKey = `notifRead_${currentStaff?.id || "user"}`;
@@ -10738,6 +10807,8 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
         setEntries(e || []);
         const { data: p } = await supabase.from('client_payments').select('*');
         setPayments(p || []);
+        const { data: fi } = await supabase.from('client_invoices').select('client_id,month_ref');
+        setBillInvoices(fi || []);
       }
       const { data: l } = await supabase.from('leads').select('*').in('status', ['agreed', 'potential']);
       setAgreedLeads((l || []).filter(x => x.status === 'agreed'));
@@ -10799,6 +10870,10 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
     if (upcomingExp.length) notifs.push({ icon: "🏛️", title: `${upcomingExp.length} yaklaşan gider ödemesi (7 gün)`, sub: upcomingExp.map(e => `${e.title} · ${e.due_date}`).join(", "), page: "accounting", sev: "mid" });
   }
 
+  if (perms.accounting && billInvoices) {
+    const kesilecek = invoiceDueAlerts(clients, billInvoices);
+    if (kesilecek.length) notifs.push({ icon: "🧾", title: `${kesilecek.length} müşteriye fatura kesme zamanı`, sub: kesilecek.map(x => `${x.client.name} (${invoiceDueLabel(x.kalan)})`).join(", "), page: "accounting", sev: kesilecek.some(x => x.kalan <= 0) ? "high" : "mid" });
+  }
   if (followLeads.length) notifs.push({ icon: "📞", title: `${followLeads.length} potansiyel müşteri bugün aranacak`, sub: followLeads.map(l => l.business_name).join(", "), page: "leads", sev: "mid" });
   if (agreedLeads.length) notifs.push({ icon: "✅", title: `${agreedLeads.length} anlaşılan potansiyel taşınmayı bekliyor`, sub: agreedLeads.map(l => l.business_name).join(", "), page: "leads", sev: "mid" });
 
