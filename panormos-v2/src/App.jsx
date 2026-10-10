@@ -3353,6 +3353,27 @@ function IdeasPage({ currentStaff, clients }) {
 // ─────────────────────────────────────────────
 // TASKS PAGE
 // ─────────────────────────────────────────────
+// ── İş türüne göre otomatik atama ──
+const TASK_TYPES = ["Tasarım", "Video", "Metin", "Fotoğraf"];
+// O iş türünü yapan çalışanı seçer. Birden fazlaysa en az işi olana verir (yuk: çalışan → o an üzerindeki iş sayısı).
+function assigneeForType(type, staff, yuk = {}) {
+  const adaylar = (staff || []).filter(st => Array.isArray(st.taskTypes) && st.taskTypes.includes(type));
+  if (!adaylar.length) return null;
+  return adaylar.reduce((en, st) => (yuk[st.id] || 0) < (yuk[en.id] || 0) ? st : en, adaylar[0]).id;
+}
+// İş türü seçme kutucukları (çalışan formunda)
+function TaskTypePicker({ value, onChange }) {
+  const sec = Array.isArray(value) ? value : [];
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {TASK_TYPES.map(t => {
+        const on = sec.includes(t);
+        return <button key={t} type="button" onClick={() => onChange(on ? sec.filter(x => x !== t) : [...sec, t])} style={{ fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 9, cursor: "pointer", background: on ? T.amber : T.bgInput, color: on ? "#fff" : T.textSecondary, border: `1px solid ${on ? T.amber : T.border}` }}>{on ? "✓ " : ""}{t}</button>;
+      })}
+    </div>
+  );
+}
+
 // ── Aylık paket görevleri: müşterinin aylık paylaşım anlaşmasına göre ay başında görevleri kendiliğinden açar ──
 const QUOTA_TYPE_NAMES = { post: "Post", reels: "Reels", carousel: "Kaydırmalı Post", story: "Hikaye", video: "Video" };
 // Bir müşteri için o ayın görev planı. Her görevin benzersiz bir kimliği (auto_ref) vardır; aynı görev iki kez açılmaz.
@@ -3395,12 +3416,15 @@ function monthlyTaskPlan(client, month) {
 
 // O ayın paket görevlerini açar (zaten açılmış olanlar atlanır). Kaç yeni görev açıldığını döndürür.
 // yalnizcaKalan: son tarihi bugünden önce olanları açma (ay ortasında ilk kez kurarken geçmiş günler "gecikmiş" görünmesin)
-async function createMonthlyTasks(clients, month, yalnizcaKalan = false) {
+// Sorumlu: müşteriye özel biri seçildiyse o; seçilmediyse görevin iş türünü yapan çalışan (Video → videocu, Tasarım → tasarımcı).
+async function createMonthlyTasks(clients, month, yalnizcaKalan = false, staff = []) {
   const now = new Date().toISOString();
-  const rows = clients.flatMap(c => monthlyTaskPlan(c, month).filter(p => !yalnizcaKalan || p.due_date >= todayStr()).map(p => ({
-    ...p, priority: "mid", col: "todo", client_id: c.id,
-    assigned_to: c.defaultAssignee || null, assigned_at: c.defaultAssignee ? now : null,
-  })));
+  const yuk = {};
+  const rows = clients.flatMap(c => monthlyTaskPlan(c, month).filter(p => !yalnizcaKalan || p.due_date >= todayStr()).map(p => {
+    const kim = c.defaultAssignee || assigneeForType(p.type, staff, yuk);
+    if (kim) yuk[kim] = (yuk[kim] || 0) + 1;
+    return { ...p, priority: "mid", col: "todo", client_id: c.id, assigned_to: kim || null, assigned_at: kim ? now : null };
+  }));
   if (!rows.length) return { created: 0, planned: 0 };
   let created = 0;
   for (let i = 0; i < rows.length; i += 200) {
@@ -3412,12 +3436,12 @@ async function createMonthlyTasks(clients, month, yalnizcaKalan = false) {
 }
 
 // Otomatik açma açıksa ve bu ayın görevleri henüz açılmadıysa açar. Yönetici panele girdiğinde çağrılır.
-async function runAutoMonthlyTasks(clients) {
+async function runAutoMonthlyTasks(clients, staff) {
   const { data } = await supabase.from('panel_settings').select('*').in('key', ['auto_tasks', 'auto_tasks_last']);
   const ayar = {}; (data || []).forEach(r => { ayar[r.key] = r.value; });
   const month = currentMonthRef();
   if (ayar.auto_tasks !== 'on' || ayar.auto_tasks_last === month) return { created: 0 };
-  const r = await createMonthlyTasks(clients, month);
+  const r = await createMonthlyTasks(clients, month, false, staff);
   if (!r.error) await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: month }], { onConflict: 'key' });
   return { ...r, month };
 }
@@ -3448,7 +3472,7 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
       if (e2) throw e2;
       let mesaj = auto ? "Ayar kaydedildi: her ayın başında paket görevleri kendiliğinden açılacak." : "Ayar kaydedildi: otomatik açma kapalı.";
       if (simdiAc) {
-        const r = await createMonthlyTasks(clients.map(c => ({ ...c, defaultAssignee: assignee[c.id] || null })), month, kalan);
+        const r = await createMonthlyTasks(clients.map(c => ({ ...c, defaultAssignee: assignee[c.id] || null })), month, kalan, staff);
         if (r.error) throw new Error(r.error);
         await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: month }], { onConflict: 'key' });
         mesaj = r.created > 0 ? `✅ ${monthName(month)} için ${r.created} görev açıldı.` : `${monthName(month)} görevleri zaten açılmış; yeni görev eklenmedi.`;
@@ -3459,7 +3483,10 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
   };
   return (
     <Modal title="Aylık Paket Görevleri" onClose={() => { if (!busy) onClose(); }} width={720}>
-      <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Her müşterinin "Aylık Paylaşım Anlaşması"ndaki sayılara göre ayın görevleri açılır; son tarihleri müşterinin paylaşım günlerine dağıtılır. Her müşteri için görevlerin kime atanacağını seçin. Anlaşması girilmemiş müşteriler listede görünmez.</div>
+      <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Her müşterinin "Aylık Paylaşım Anlaşması"ndaki sayılara göre ayın görevleri açılır; son tarihleri müşterinin paylaşım günlerine dağıtılır. Görevler iş türüne göre kendiliğinden atanır (Video işleri videocuya, Tasarım işleri tasarımcıya); kimin hangi işi yaptığını Çalışanlar sayfasında "Yaptığı İşler"den belirlersiniz. Bir müşterinin bütün işlerini tek kişiye vermek isterseniz aşağıdan o kişiyi seçin. Anlaşması girilmemiş müşteriler listede görünmez.</div>
+      <div style={{ fontSize: 12, color: T.textSecondary, background: T.bgInput, borderRadius: 9, padding: "9px 12px", marginBottom: 12 }}>
+        {TASK_TYPES.map(t => { const kim = staff.filter(st => (st.taskTypes || []).includes(t)).map(st => st.name); return <span key={t} style={{ marginRight: 14, whiteSpace: "nowrap" }}><b style={{ color: T.textPrimary }}>{t}:</b> {kim.length ? kim.join(", ") : <span style={{ color: T.amberText }}>kimse tanımlı değil</span>}</span>; })}
+      </div>
       {varOlan.length === 0 ? (
         <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "24px 12px", background: T.bgInput, borderRadius: 10 }}>Hiçbir müşteride aylık paylaşım anlaşması girilmemiş. Müşteriler sayfasında müşteriyi düzenleyip "Aylık Paylaşım Anlaşması" tablosunu doldurun.</div>
       ) : (
@@ -3471,8 +3498,8 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
                 <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{plan.length} görev · {plan.map(p => p.title.split(" · ")[1]).slice(0, 3).join(", ")}{plan.length > 3 ? "…" : ""}</div>
               </div>
               <select value={assignee[c.id] || ""} onChange={e => setAssignee(a => ({ ...a, [c.id]: e.target.value }))} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "8px 10px", color: T.textPrimary, fontSize: 12.5, outline: "none", maxWidth: 200 }}>
-                <option value="">Atanmasın</option>
-                {staff.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+                <option value="">Otomatik (iş türüne göre)</option>
+                {staff.map(st => <option key={st.id} value={st.id}>Hepsi: {st.name}</option>)}
               </select>
             </div>
           ))}
@@ -3910,7 +3937,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     </div>
 
     <div style={{display:"flex",gap:8,marginBottom:16}}>
-      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:""});}}>+ Görev ekle</Btn>
+      <Btn variant="primary" onClick={()=>{setModal(true);setForm({title:"",client:clients[0]?.name||"",assignee:staff[0]?.initials||"",type:"Tasarım",priority:"mid",due:"",assignedTo:assigneeForType("Tasarım",staff)||""});}}>+ Görev ekle</Btn>
       <Btn onClick={()=>{
         const colLabels={todo:"Yapılacak",inprogress:"Başlandı",review:"İncelemede",done:"Tamamlandı",revision:"Revize",approval:"Onaya Gönderildi",published:"Paylaşım Yapıldı"};
         const rows = tasks.map(t => ({
@@ -4247,8 +4274,8 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         </div>
       </FormField>
       <FormField label="Müşteri"><Select value={form.client||""} onChange={e=>setForm(f=>({...f,client:e.target.value}))}>{clients.map(c=><option key={c.id}>{c.name}</option>)}</Select></FormField>
-      <FormField label="👤 Kime Atanacak"><Select value={form.assignedTo||""} onChange={e=>setForm(f=>({...f,assignedTo:e.target.value}))}><option value="">Atanmadı</option>{staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}</Select></FormField>
-      <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>{["Tasarım","Video","Metin","Fotoğraf"].map(t=><option key={t}>{t}</option>)}</Select></FormField>
+      <FormField label="👤 Kime Atanacak (türe göre kendiliğinden seçilir, değiştirebilirsiniz)"><Select value={form.assignedTo||""} onChange={e=>setForm(f=>({...f,assignedTo:e.target.value,_elleAtandi:true}))}><option value="">Atanmadı</option>{staff.map(s=><option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}</Select></FormField>
+      <FormField label="Tür"><Select value={form.type||"Tasarım"} onChange={e=>setForm(f=>({...f,type:e.target.value,assignedTo:f._elleAtandi?f.assignedTo:(assigneeForType(e.target.value,staff)||"")}))}>{TASK_TYPES.map(t=><option key={t}>{t}</option>)}</Select></FormField>
       <FormField label="Öncelik"><Select value={form.priority||"mid"} onChange={e=>setForm(f=>({...f,priority:e.target.value}))}><option value="high">Yüksek</option><option value="mid">Orta</option><option value="low">Düşük</option></Select></FormField>
       <FormField label="Son tarih"><Input type="date" value={form.due||""} onChange={e=>setForm(f=>({...f,due:e.target.value}))} /></FormField>
       <div style={{background:T.bgInput,borderRadius:10,padding:"12px 14px",marginBottom:4}}>
@@ -5403,6 +5430,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_manage_staff: form.perm_manage_staff || false,
       perm_accounting: form.perm_accounting || false,
       perm_reports: form.perm_reports || false,
+      task_types: form.taskTypes || [],
     }).select().single();
 
     if (error) {
@@ -5439,6 +5467,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
         perm_manage_clients: data.perm_manage_clients,
         perm_manage_staff: data.perm_manage_staff,
         perm_accounting: data.perm_accounting, perm_reports: data.perm_reports,
+        taskTypes: Array.isArray(data.task_types) ? data.task_types : [],
       }]);
     }
 
@@ -5467,6 +5496,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_manage_staff: editForm.perm_manage_staff || false,
       perm_accounting: editForm.perm_accounting || false,
       perm_reports: editForm.perm_reports || false,
+      task_types: editForm.taskTypes || [],
     }).eq('id', editModal.id);
 
     if (error) {
@@ -5488,6 +5518,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       perm_manage_clients: editForm.perm_manage_clients,
       perm_manage_staff: editForm.perm_manage_staff,
       perm_accounting: editForm.perm_accounting, perm_reports: editForm.perm_reports,
+      taskTypes: editForm.taskTypes || [],
     } : s));
 
     setEditModal(null);
@@ -5564,6 +5595,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>{s.name}</div>
               <div style={{fontSize:12,color:T.amberText,fontWeight:500,marginTop:2}}>{s.role}</div>
+              {(s.taskTypes||[]).length>0 && <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:5}}>{s.taskTypes.map(t=><span key={t} style={{fontSize:10,fontWeight:600,padding:"2px 7px",borderRadius:6,background:T.indigoDim,color:T.indigoText}}>{t}</span>)}</div>}
               <div style={{display:"inline-block",fontSize:10,color:T.textMuted,marginTop:6,padding:"3px 8px",background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:4}}>{s.type}</div>
             </div>
           </div>
@@ -5586,7 +5618,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
           {/* Butonlar */}
           <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting,perm_reports:s.perm_reports});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting,perm_reports:s.perm_reports,taskTypes:s.taskTypes||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
             <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
           </div>
         </Card>
@@ -5596,6 +5628,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
     {modal && <Modal title="Yeni Çalışan Ekle" onClose={()=>setModal(false)}>
       <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} /></FormField>
+      <FormField label="Yaptığı İşler (bu türdeki görevler kendiliğinden ona atanır)"><TaskTypePicker value={form.taskTypes} onChange={v=>setForm(f=>({...f,taskTypes:v}))} /></FormField>
       <FormField label="Çalışan Türü"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="🔑 Giriş Şifresi (çalışan bununla girecek)"><Input type="text" placeholder="En az 6 karakter" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
@@ -5622,6 +5655,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
     {editModal && <Modal title="Çalışan Bilgilerini Düzenle" onClose={()=>setEditModal(null)}>
       <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={editForm.name||""} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={editForm.role||""} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))} /></FormField>
+      <FormField label="Yaptığı İşler (bu türdeki görevler kendiliğinden ona atanır)"><TaskTypePicker value={editForm.taskTypes} onChange={v=>setEditForm(f=>({...f,taskTypes:v}))} /></FormField>
       <FormField label="Çalışan Türü"><Select value={editForm.type||"Tam zamanlı"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={editForm.email||""} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="🔑 Yeni Şifre Belirle (boş bırakırsan değişmez)">
@@ -10319,7 +10353,7 @@ async function loadAllData() {
 
   const staff = (staffRaw || []).filter(s => !s.deleted_at).map(s => ({
     id: s.id, name: s.name, role: s.role || "", initials: s.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase(),
-    color: ["#6366F1", "#EC4899", "#10B981"][s.id % 3], type: s.type || "Tam zamanlı",
+    color: ["#6366F1", "#EC4899", "#10B981"][s.id % 3], type: s.type || "Tam zamanlı", taskTypes: Array.isArray(s.task_types) ? s.task_types : [],
     email: s.email, phone: s.phone || "", start: s.start_date || "",
     is_admin: s.is_admin, perm_finance: s.perm_finance, perm_manage_clients: s.perm_manage_clients, perm_manage_staff: s.perm_manage_staff, perm_accounting: s.perm_accounting, perm_reports: s.perm_reports,
   }));
@@ -11394,7 +11428,7 @@ export default function App() {
     autoTasksRan.current = true;
     (async () => {
       try {
-        const r = await runAutoMonthlyTasks(clients);
+        const r = await runAutoMonthlyTasks(clients, staff);
         if (r.created > 0) { await refreshData(); swalAlert(`✅ ${monthName(r.month)} paket görevleri açıldı: ${r.created} görev.\n\nGörevler sayfasından görebilirsiniz.`); }
       } catch (e) { /* sessiz geç: bir sonraki girişte yeniden denenir */ }
     })();
