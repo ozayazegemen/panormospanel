@@ -11069,6 +11069,9 @@ function LandingPage({ onEnter }) {
   .lp .hero-cta{display:flex;gap:16px;flex-wrap:wrap}
   .lp .btn-primary{font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 32px;border-radius:100px;background:var(--grad2);color:#fff;transition:transform .2s,box-shadow .2s;box-shadow:0 6px 28px rgba(242,81,36,0.35);display:inline-flex;align-items:center;gap:10px;border:none}
   .lp .btn-primary:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(236,72,153,0.5)}
+  .lp .nav-links a.nav-ig{display:inline-flex;align-items:center;gap:7px}
+  .lp .btn-ghost.btn-ig{border-color:rgba(225,48,108,0.55)}
+  .lp .btn-ghost.btn-ig:hover{background:rgba(225,48,108,0.12);border-color:#E1306C}
   .lp .btn-ghost{font-family:'Space Grotesk';font-weight:600;font-size:15px;padding:15px 32px;border-radius:100px;border:1px solid var(--line2);color:var(--text);transition:all .2s;display:inline-flex;align-items:center;gap:10px;background:none}
   .lp .btn-ghost:hover{border-color:var(--pink);background:rgba(236,72,153,0.08)}
   .lp .marquee{position:relative;z-index:1;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:22px 0;overflow:hidden;background:rgba(255,255,255,0.015);margin-top:20px}
@@ -11164,6 +11167,7 @@ function LandingPage({ onEnter }) {
             <a href="#lp-surec" className="link">Nasıl Çalışırız</a>
             <a href="#lp-hakkimizda" className="link">Hakkımızda</a>
             <a href="#lp-iletisim" className="link">İletişim</a>
+            <a href="https://instagram.com/panormosmedya" className="link nav-ig" target="_blank" rel="noopener" aria-label="Instagram sayfamız"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor" /></svg> Instagram</a>
             <button className="btn-login" onClick={onEnter}>Giriş Yap</button>
           </div>
           <button className="menu-toggle" id="lp-menuToggle" aria-label="Menü">☰</button>
@@ -11179,6 +11183,7 @@ function LandingPage({ onEnter }) {
             <div className="hero-cta">
               <a href="#lp-iletisim" className="btn-primary">Teklif Al →</a>
               <a href="#lp-hizmetler" className="btn-ghost">Hizmetleri Keşfet</a>
+              <a href="https://instagram.com/panormosmedya" className="btn-ghost btn-ig" target="_blank" rel="noopener"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor" /></svg> Instagram'da Bizi İzleyin</a>
             </div>
           </div>
         </div>
