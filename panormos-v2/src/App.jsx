@@ -7913,10 +7913,10 @@ function AccountingOverview({ clients, goTab }) {
             {periodOptions.map(m => <option key={m} value={m}>{monthRefLabel(m)}{m === nowRef ? " (bu ay)" : ""}</option>)}
           </Select>
         </div>
-        <Btn variant="primary" onClick={() => goTab("cari")}>+ Müşteri Ödemesi</Btn>
-        <Btn onClick={() => goTab("harcamalar")}>+ Gider</Btn>
-        <Btn onClick={() => goTab("gelirler")}>+ Diğer Gelir</Btn>
-        <Btn onClick={() => goTab("giderler")}>+ SGK / Vergi / Maaş</Btn>
+        <Btn variant="primary" onClick={() => goTab("cari", true)}>+ Müşteri Ödemesi</Btn>
+        <Btn onClick={() => goTab("harcamalar", true)}>+ Gider</Btn>
+        <Btn onClick={() => goTab("gelirler", true)}>+ Diğer Gelir</Btn>
+        <Btn onClick={() => goTab("giderler", true)}>+ SGK / Vergi / Maaş</Btn>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
@@ -7976,6 +7976,9 @@ function AccountingOverview({ clients, goTab }) {
 // ═══════════════ MUHASEBE ANA SAYFA ═══════════════
 function AccountingPage({ clients, staff, perms }) {
   const [tab, setTab] = useState("ozet");
+  // Özet'teki "+ Gider" gibi düğmeler ilgili sekmeye gidip ekleme penceresini doğrudan açar
+  const [autoAdd, setAutoAdd] = useState(null);
+  const goTab = (t, ekle = false) => { setAutoAdd(ekle ? t : null); setTab(t); };
   // Güvenlik: muhasebe yetkisi yoksa erişimi engelle
   if (!perms.accounting) {
     return <div style={{textAlign:"center",color:T.textMuted,padding:60}}>
@@ -8000,19 +8003,19 @@ function AccountingPage({ clients, staff, perms }) {
       <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap", borderBottom: `1px solid ${T.border}`, paddingBottom: 2 }}>
         {tabs.map(t => {
           const active = tab === t.id;
-          return <button key={t.id} onClick={() => setTab(t.id)} style={{
+          return <button key={t.id} onClick={() => goTab(t.id)} style={{
             fontSize: 13, fontWeight: active ? 600 : 400, padding: "9px 16px", borderRadius: "8px 8px 0 0",
             color: active ? T.amberText : T.textMuted, background: active ? T.bgCard : "transparent",
             border: "none", borderBottom: `2px solid ${active ? T.amber : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap",
           }}>{t.lbl}</button>;
         })}
       </div>
-      {tab === "ozet" && <AccountingOverview clients={clients} goTab={setTab} />}
-      {tab === "cari" && <AccountingCari clients={clients} />}
+      {tab === "ozet" && <AccountingOverview clients={clients} goTab={goTab} />}
+      {tab === "cari" && <AccountingCari clients={clients} autoAdd={autoAdd === "cari"} />}
       {tab === "banka" && <AccountingBank />}
-      {tab === "harcamalar" && <AccountingSpending />}
-      {tab === "gelirler" && <AccountingIncome />}
-      {tab === "giderler" && <AccountingExpenses staff={staff} />}
+      {tab === "harcamalar" && <AccountingSpending autoAdd={autoAdd === "harcamalar"} />}
+      {tab === "gelirler" && <AccountingIncome autoAdd={autoAdd === "gelirler"} />}
+      {tab === "giderler" && <AccountingExpenses staff={staff} autoAdd={autoAdd === "giderler"} />}
       {tab === "izin" && <AccountingLeave staff={staff} />}
       {tab === "takvim" && <AccountingCalendar staff={staff} />}
       {tab === "belgeler" && <AccountingDocuments />}
@@ -8928,7 +8931,7 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
   );
 }
 
-function AccountingSpending() {
+function AccountingSpending({ autoAdd = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -8959,6 +8962,8 @@ function AccountingSpending() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // Özet'ten "+ Gider" ile gelindiyse ekleme penceresini aç
+  useEffect(() => { if (autoAdd) { setForm({ category: "yakit", expense_date: todayStr() }); setFile(null); setModal(true); } }, []);
 
   const save = async () => {
     if (uploading) return;
@@ -9077,7 +9082,7 @@ function AccountingSpending() {
 }
 
 // ═══════════════ GELİRLER ═══════════════
-function AccountingIncome() {
+function AccountingIncome({ autoAdd = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -9093,6 +9098,8 @@ function AccountingIncome() {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // Özet'ten "+ Diğer Gelir" ile gelindiyse ekleme penceresini aç
+  useEffect(() => { if (autoAdd) { setForm({ income_date: todayStr() }); setFile(null); setModal(true); } }, []);
 
   const save = async () => {
     if (uploading) return;
@@ -9215,7 +9222,7 @@ async function syncEmlakClients() {
   return { added, total: firmalar.length };
 }
 
-function AccountingCari({ clients }) {
+function AccountingCari({ clients, autoAdd = false }) {
   const [payments, setPayments] = useState([]);
   const [clientInvoices, setClientInvoices] = useState([]);
   const [allClientsRaw, setAllClientsRaw] = useState([]);
@@ -9251,6 +9258,8 @@ function AccountingCari({ clients }) {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // Özet'ten "+ Müşteri Ödemesi" ile gelindiyse ödeme penceresini aç
+  useEffect(() => { if (autoAdd) { setForm({ client_id: "", amount: "", month_ref: currentMonthRef(), payment_date: todayStr(), method: "havale" }); setModal(true); } }, []);
 
   // Aktif müşteriler + sözleşmesi bitmiş ama alacaklı olduğumuz müşteriler
   const mergedClients = useMemo(() => {
@@ -9565,7 +9574,7 @@ const EXPENSE_TYPES = {
   other: { label: "Diğer Gider", icon: "📌", color: "#8B8B8B" },
 };
 
-function AccountingExpenses({ staff }) {
+function AccountingExpenses({ staff, autoAdd = false }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -9579,6 +9588,8 @@ function AccountingExpenses({ staff }) {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // Özet'ten "+ SGK / Vergi / Maaş" ile gelindiyse ekleme penceresini aç
+  useEffect(() => { if (autoAdd) { setForm({ entry_type: "sgk", month_ref: currentMonthRef() }); setModal(true); } }, []);
 
   const saveEntry = async () => {
     if (!form.title && form.entry_type !== "salary") { swalAlert("Başlık zorunlu"); return; }
