@@ -7,3 +7,7 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Her gece 02:00'de (Türkiye saati) otomatik tam yedek
+[functions."nightly-backup"]
+  schedule = "0 23 * * *"

@@ -3353,6 +3353,144 @@ function IdeasPage({ currentStaff, clients }) {
 // ─────────────────────────────────────────────
 // TASKS PAGE
 // ─────────────────────────────────────────────
+// ── Aylık paket görevleri: müşterinin aylık paylaşım anlaşmasına göre ay başında görevleri kendiliğinden açar ──
+const QUOTA_TYPE_NAMES = { post: "Post", reels: "Reels", carousel: "Kaydırmalı Post", story: "Hikaye", video: "Video" };
+// Bir müşteri için o ayın görev planı. Her görevin benzersiz bir kimliği (auto_ref) vardır; aynı görev iki kez açılmaz.
+function monthlyTaskPlan(client, month) {
+  const [y, mo] = month.split("-").map(Number);
+  const gunSayisi = new Date(y, mo, 0).getDate();
+  const kalemler = [];
+  const quota = client.quotaDetail && typeof client.quotaDetail === "object" ? client.quotaDetail : {};
+  Object.keys(quota).forEach(plat => Object.keys(quota[plat] || {}).forEach(tur => {
+    const n = parseInt(quota[plat][tur]) || 0;
+    if (n <= 0) return;
+    const ad = `${platLabel(plat)} ${QUOTA_TYPE_NAMES[tur] || typeLabel(tur)}`;
+    const gorevTuru = (tur === "reels" || tur === "video") ? "Video" : "Tasarım";
+    // Hikayeler ve çok sayıda olan kalemler tek görevde toplanır (pano dolmasın)
+    if (tur === "story" || n > 12) kalemler.push({ ref: `${plat}|${tur}|toplu`, title: `${ad} × ${n}`, type: gorevTuru, toplu: true });
+    else for (let i = 1; i <= n; i++) kalemler.push({ ref: `${plat}|${tur}|${i}`, title: `${ad} ${i}/${n}`, type: gorevTuru });
+  }));
+  if (kalemler.length === 0) {
+    const n = Math.min(parseInt(client.monthlyPostQuota) || 0, 40);
+    for (let i = 1; i <= n; i++) kalemler.push({ ref: `genel|paylasim|${i}`, title: `Paylaşım ${i}/${n}`, type: "Tasarım" });
+  }
+  if (kalemler.length === 0) return [];
+  // Son tarihler: müşterinin paylaşım günlerine; yoksa aya eşit aralıkla dağıtılır
+  const gunIdx = (client.publishDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
+  const tarih = (d) => `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  let gunler = [];
+  for (let d = 1; d <= gunSayisi; d++) { const wd = (new Date(y, mo - 1, d).getDay() + 6) % 7; if (gunIdx.includes(wd)) gunler.push(d); }
+  // Her içerik türü kendi içinde aya yayılır (ör. 4 post haftada bir düşer); türler aynı güne yığılmasın diye birer gün kaydırılır
+  const gruplar = {};
+  kalemler.filter(k => !k.toplu).forEach(k => { const g = k.ref.split("|").slice(0, 2).join("|"); (gruplar[g] = gruplar[g] || []).push(k); });
+  Object.values(gruplar).forEach((liste, gi) => liste.forEach((k, i) => {
+    const d = gunler.length
+      ? gunler[Math.min(gunler.length - 1, (Math.floor(i * gunler.length / liste.length) + gi) % gunler.length)]
+      : Math.max(1, Math.min(gunSayisi, Math.round((i + 1) * gunSayisi / (liste.length + 1)) + gi));
+    k.due = tarih(d);
+  }));
+  kalemler.filter(k => k.toplu).forEach(k => { k.due = tarih(gunSayisi); });
+  return kalemler.map(k => ({ auto_ref: `${month}|${client.id}|${k.ref}`, title: `${TR_MONTHS[mo - 1]} · ${k.title}`, type: k.type, due_date: k.due }));
+}
+
+// O ayın paket görevlerini açar (zaten açılmış olanlar atlanır). Kaç yeni görev açıldığını döndürür.
+// yalnizcaKalan: son tarihi bugünden önce olanları açma (ay ortasında ilk kez kurarken geçmiş günler "gecikmiş" görünmesin)
+async function createMonthlyTasks(clients, month, yalnizcaKalan = false) {
+  const now = new Date().toISOString();
+  const rows = clients.flatMap(c => monthlyTaskPlan(c, month).filter(p => !yalnizcaKalan || p.due_date >= todayStr()).map(p => ({
+    ...p, priority: "mid", col: "todo", client_id: c.id,
+    assigned_to: c.defaultAssignee || null, assigned_at: c.defaultAssignee ? now : null,
+  })));
+  if (!rows.length) return { created: 0, planned: 0 };
+  let created = 0;
+  for (let i = 0; i < rows.length; i += 200) {
+    const { data, error } = await supabase.from('tasks').upsert(rows.slice(i, i + 200), { onConflict: 'auto_ref', ignoreDuplicates: true }).select('id');
+    if (error) return { created, planned: rows.length, error: error.message };
+    created += (data || []).length;
+  }
+  return { created, planned: rows.length };
+}
+
+// Otomatik açma açıksa ve bu ayın görevleri henüz açılmadıysa açar. Yönetici panele girdiğinde çağrılır.
+async function runAutoMonthlyTasks(clients) {
+  const { data } = await supabase.from('panel_settings').select('*').in('key', ['auto_tasks', 'auto_tasks_last']);
+  const ayar = {}; (data || []).forEach(r => { ayar[r.key] = r.value; });
+  const month = currentMonthRef();
+  if (ayar.auto_tasks !== 'on' || ayar.auto_tasks_last === month) return { created: 0 };
+  const r = await createMonthlyTasks(clients, month);
+  if (!r.error) await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: month }], { onConflict: 'key' });
+  return { ...r, month };
+}
+
+// Kurulum penceresi: müşteri başına sorumlu çalışan + otomatik açma anahtarı
+function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
+  const month = currentMonthRef();
+  const [assignee, setAssignee] = useState(() => Object.fromEntries(clients.map(c => [c.id, c.defaultAssignee || ""])));
+  const [auto, setAuto] = useState(true);
+  const [kalan, setKalan] = useState(() => new Date().getDate() > 5);  // ay ortasındaysak yalnızca kalan günlerin görevleri
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { (async () => { const { data } = await supabase.from('panel_settings').select('*').eq('key', 'auto_tasks'); if (data && data[0]) setAuto(data[0].value === 'on'); })(); }, []);
+  const planli = clients.map(c => ({ c, plan: monthlyTaskPlan(c, month) }));
+  const varOlan = planli.filter(x => x.plan.length > 0);
+  const toplam = varOlan.reduce((t, x) => t + x.plan.filter(p => !kalan || p.due_date >= todayStr()).length, 0);
+  const kaydet = async (simdiAc) => {
+    setBusy(true);
+    try {
+      // Değişen sorumluları kaydet
+      for (const c of clients) {
+        const yeni = assignee[c.id] || null;
+        if ((c.defaultAssignee || null) !== yeni) {
+          const { error } = await supabase.from('clients').update({ default_assignee: yeni }).eq('id', c.id);
+          if (error) throw error;
+        }
+      }
+      const { error: e2 } = await supabase.from('panel_settings').upsert([{ key: 'auto_tasks', value: auto ? 'on' : 'off' }], { onConflict: 'key' });
+      if (e2) throw e2;
+      let mesaj = auto ? "Ayar kaydedildi: her ayın başında paket görevleri kendiliğinden açılacak." : "Ayar kaydedildi: otomatik açma kapalı.";
+      if (simdiAc) {
+        const r = await createMonthlyTasks(clients.map(c => ({ ...c, defaultAssignee: assignee[c.id] || null })), month, kalan);
+        if (r.error) throw new Error(r.error);
+        await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: month }], { onConflict: 'key' });
+        mesaj = r.created > 0 ? `✅ ${monthName(month)} için ${r.created} görev açıldı.` : `${monthName(month)} görevleri zaten açılmış; yeni görev eklenmedi.`;
+      }
+      setBusy(false);
+      await onDone(mesaj);
+    } catch (e) { setBusy(false); swalAlert("Kaydedilemedi: " + e.message); }
+  };
+  return (
+    <Modal title="Aylık Paket Görevleri" onClose={() => { if (!busy) onClose(); }} width={720}>
+      <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Her müşterinin "Aylık Paylaşım Anlaşması"ndaki sayılara göre ayın görevleri açılır; son tarihleri müşterinin paylaşım günlerine dağıtılır. Her müşteri için görevlerin kime atanacağını seçin. Anlaşması girilmemiş müşteriler listede görünmez.</div>
+      {varOlan.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "24px 12px", background: T.bgInput, borderRadius: 10 }}>Hiçbir müşteride aylık paylaşım anlaşması girilmemiş. Müşteriler sayfasında müşteriyi düzenleyip "Aylık Paylaşım Anlaşması" tablosunu doldurun.</div>
+      ) : (
+        <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, maxHeight: 340, overflowY: "auto" }}>
+          {varOlan.map(({ c, plan }, i) => (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderTop: i ? `1px solid ${T.border}` : "none" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{plan.length} görev · {plan.map(p => p.title.split(" · ")[1]).slice(0, 3).join(", ")}{plan.length > 3 ? "…" : ""}</div>
+              </div>
+              <select value={assignee[c.id] || ""} onChange={e => setAssignee(a => ({ ...a, [c.id]: e.target.value }))} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "8px 10px", color: T.textPrimary, fontSize: 12.5, outline: "none", maxWidth: 200 }}>
+                <option value="">Atanmasın</option>
+                {staff.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+        <PermToggle label="Her ayın başında görevleri kendiliğinden aç" checked={auto} onChange={() => setAuto(a => !a)} />
+        <PermToggle label={`${monthName(month)} için yalnızca bugünden sonraki görevleri aç (geçmiş günler gecikmiş görünmesin)`} checked={kalan} onChange={() => setKalan(k => !k)} />
+      </div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
+        <Btn onClick={onClose} disabled={busy}>Vazgeç</Btn>
+        <Btn onClick={() => kaydet(false)} disabled={busy}>Yalnızca Ayarı Kaydet</Btn>
+        <Btn variant="primary" onClick={() => kaydet(true)} disabled={busy || toplam === 0}>{busy ? "Kaydediliyor..." : `Kaydet ve ${monthName(month)} Görevlerini Aç (${toplam})`}</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Aylık görev performansı ──
 // Görev hangi aya ait: son tarihi varsa o ay; yoksa atandığı, o da yoksa oluşturulduğu ay.
 const taskMonth = (t) => /^\d{4}-\d{2}/.test(t.due || "") ? t.due.slice(0, 7) : localDay(t.assignedAt || t.createdAt).slice(0, 7);
@@ -3442,6 +3580,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [filterStaff,setFilterStaff]=useState("all");    // kişiye göre filtre
   const [reportModal,setReportModal]=useState(null);     // görev raporu
   const [perfMonth,setPerfMonth]=useState(()=>currentMonthRef());  // performansı gösterilen ay (oran her ay sıfırlanır)
+  const [monthlySetup,setMonthlySetup]=useState(false);  // aylık paket görevleri kurulum penceresi
   const [columnModal,setColumnModal]=useState(null);     // kolon "tümünü gör" modalı
   const [approvalModal,setApprovalModal]=useState(null);  // onaya gönder (WhatsApp) modalı
   const [revisionModal,setRevisionModal]=useState(null);  // revize modalı
@@ -3786,7 +3925,9 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         printData("Görev Listesi", rows);
       }}>🖨️ Yazdır</Btn>
       {isAdminView && <Btn onClick={()=>setReportModal({period:"month"})}>📊 Rapor</Btn>}
+      {isAdminView && <Btn onClick={()=>setMonthlySetup(true)}>🗓️ Aylık Paket Görevleri</Btn>}
     </div>
+    {monthlySetup && <MonthlyTasksSetup clients={clients} staff={staff} onClose={()=>setMonthlySetup(false)} onDone={async(mesaj)=>{ setMonthlySetup(false); if(refreshData) await refreshData(); swalAlert(mesaj); }} />}
 
     {selectedTask && (
       <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setSelectedTask(null)}>
@@ -10148,7 +10289,7 @@ async function loadAllData() {
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
     accentColor: c.accent_color || "#6366F1", phone: c.phone || "", email: c.email || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
-    socialMedia: c.social_media || "", socialPassword: sifreOf[c.id] || "", description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
+    socialMedia: c.social_media || "", socialPassword: sifreOf[c.id] || "", defaultAssignee: c.default_assignee || null, description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
     publishTimes: c.publish_times || [],
     monthlyFee: feeOf[c.id] || 0, contractStart: c.contract_start || "", contractEnd: c.contract_end || null, paymentDueDate: c.payment_due_date || null,
@@ -10216,6 +10357,30 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [backing, setBacking] = useState(false);
+  // Sunucudaki otomatik gece yedekleri
+  const [autoBackups, setAutoBackups] = useState(null);   // null: yükleniyor
+  const [serverBacking, setServerBacking] = useState(false);
+  const loadAutoBackups = async () => {
+    const { data, error } = await supabase.storage.from('yedekler').list('', { limit: 100, sortBy: { column: 'name', order: 'desc' } });
+    setAutoBackups(error ? [] : (data || []).filter(f => /\.json\.gz$/.test(f.name)));
+  };
+  useEffect(() => { loadAutoBackups(); }, []);
+  const downloadAutoBackup = async (name) => {
+    const { data, error } = await supabase.storage.from('yedekler').createSignedUrl(name, 300, { download: name });
+    if (error || !data?.signedUrl) { swalAlert("Yedek indirilemedi: " + (error?.message || "bağlantı oluşturulamadı")); return; }
+    window.location.href = data.signedUrl;
+  };
+  const runServerBackup = async () => {
+    setServerBacking(true);
+    try {
+      const r = await panelFetch("/.netlify/functions/run-backup", { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || ("HTTP " + r.status));
+      await loadAutoBackups();
+      swalAlert(`✅ Sunucu yedeği alındı.\n\n${d.rows} kayıt · ${(d.bytes / 1024).toFixed(0)} KB${d.hatalar?.length ? "\n\nUyarılar: " + d.hatalar.join("; ") : ""}`);
+    } catch (e) { swalAlert("Sunucu yedeği alınamadı: " + e.message); }
+    setServerBacking(false);
+  };
 
   useEffect(() => {
     (async () => {
@@ -10305,6 +10470,34 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
           <Btn variant="primary" onClick={backupAll} disabled={backing} style={{ background: "#10B981", border: "none" }}>{backing ? "Yedekleniyor..." : "💾 Tam Yedek Al (JSON)"}</Btn>
           <Btn onClick={exportExcel}>📊 Excel Özet İndir</Btn>
         </div>
+      </div>
+
+      {/* Otomatik gece yedekleri */}
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginBottom: 20, boxShadow: T.shadow }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 6 }}>Otomatik Gece Yedekleri</div>
+            <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.5 }}>Her gece 02:00'de tüm veriler kendiliğinden yedeklenir ve son 30 günün yedeği saklanır. Pazar geceleri bir kopyası e-posta adresinize de gönderilir. Bu yedeklerde sosyal medya şifreleri şifreli durur.</div>
+          </div>
+          <Btn onClick={runServerBackup} disabled={serverBacking}>{serverBacking ? "Yedekleniyor..." : "Şimdi Yedek Al"}</Btn>
+        </div>
+        {autoBackups === null ? <div style={{ fontSize: 12.5, color: T.textMuted }}>Yükleniyor...</div>
+          : autoBackups.length === 0 ? <div style={{ fontSize: 12.5, color: T.textMuted, padding: "10px 12px", background: T.bgInput, borderRadius: 9 }}>Henüz otomatik yedek yok. İlk yedek bu gece 02:00'de alınır; beklemeden denemek için "Şimdi Yedek Al"a basabilirsiniz.</div>
+          : (
+            <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, maxHeight: 230, overflowY: "auto" }}>
+              {autoBackups.map((f, i) => {
+                const m = f.name.match(/(\d{4})-(\d{2})-(\d{2})/);
+                const boyut = f.metadata?.size ? `${(f.metadata.size / 1024).toFixed(0)} KB` : "";
+                return (
+                  <div key={f.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderTop: i ? `1px solid ${T.border}` : "none" }}>
+                    <div style={{ flex: 1, fontSize: 13, color: T.textPrimary, fontWeight: i === 0 ? 600 : 400 }}>{m ? `${m[3]}.${m[2]}.${m[1]}` : f.name}{i === 0 && <span style={{ marginLeft: 8, fontSize: 10.5, fontWeight: 600, color: T.greenText, background: T.greenDim, padding: "2px 7px", borderRadius: 6 }}>en yeni</span>}</div>
+                    <div style={{ fontSize: 11.5, color: T.textMuted }}>{boyut}</div>
+                    <Btn onClick={() => downloadAutoBackup(f.name)} style={{ fontSize: 11.5, padding: "5px 10px" }}>İndir</Btn>
+                  </div>
+                );
+              })}
+            </div>
+          )}
       </div>
 
       {/* Yıllık özet */}
@@ -11193,6 +11386,19 @@ export default function App() {
   useEffect(() => {
     if (session && currentStaff) refreshData();
   }, [session, currentStaff]);
+
+  // Yönetici panele girdiğinde: otomatik açma açıksa ve bu ayın paket görevleri açılmadıysa aç
+  const autoTasksRan = useRef(false);
+  useEffect(() => {
+    if (!currentStaff || currentStaff.is_admin !== true || dataLoading || autoTasksRan.current) return;
+    autoTasksRan.current = true;
+    (async () => {
+      try {
+        const r = await runAutoMonthlyTasks(clients);
+        if (r.created > 0) { await refreshData(); swalAlert(`✅ ${monthName(r.month)} paket görevleri açıldı: ${r.created} görev.\n\nGörevler sayfasından görebilirsiniz.`); }
+      } catch (e) { /* sessiz geç: bir sonraki girişte yeniden denenir */ }
+    })();
+  }, [currentStaff, dataLoading]);
 
   // Sayfa değişimini ref'te tut (dinleyici içinde okumak için)
   useEffect(() => { pageRef.current = page; }, [page]);
