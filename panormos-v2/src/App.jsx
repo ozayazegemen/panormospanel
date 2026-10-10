@@ -8146,7 +8146,17 @@ function AccountingBank() {
     if (!file) return;
     try {
       const XLSX = await loadXLSX();
-      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const buf = await file.arrayBuffer();
+      let wb;
+      if (/\.(csv|txt)$/i.test(file.name)) {
+        // CSV: bankalar çoğunlukla Türkçe Windows kodlamasıyla verir; önce UTF-8 dene, olmazsa Windows-1254.
+        // raw: tutarlar ve tarihler yazıldığı gibi kalsın ("1.850,40" yanlış sayıya çevrilmesin)
+        let text;
+        try { text = new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch (e) { text = new TextDecoder("windows-1254").decode(buf); }
+        wb = XLSX.read(text, { type: "string", raw: true });
+      } else {
+        wb = XLSX.read(buf, { type: "array" });
+      }
       // En çok satırı olan sayfayı al
       let aoa = [];
       wb.SheetNames.forEach(n => { const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: "" }); if (rows.length > aoa.length) aoa = rows; });
@@ -8156,9 +8166,10 @@ function AccountingBank() {
       setImp({ account_id, fileName: file.name, aoa, headerRow: det.headerRow, map: det.map, flip: acc?.kind === "kredi_karti" });
     } catch (e) { swalAlert("Dosya okunamadı: " + e.message + "\n\nBankadan Excel (.xlsx / .xls) ya da CSV olarak indirdiğiniz ekstreyi seçin."); }
   };
-  const impRows = imp ? bankBuildRows(imp.aoa, imp.headerRow, imp.map, imp.flip) : [];
-  const impHeads = imp ? (imp.aoa[imp.headerRow] || []).map((h, i) => ({ i, label: String(h || "").trim() || `Sütun ${i + 1}` })) : [];
-  const impUsesSplit = imp ? imp.map.amount < 0 && (imp.map.debit >= 0 || imp.map.credit >= 0) : false;
+  // Dosya seçilmeden önce (yalnızca hesap seçiliyken) okunacak satır yoktur
+  const impRows = imp?.aoa ? bankBuildRows(imp.aoa, imp.headerRow, imp.map, imp.flip) : [];
+  const impHeads = imp?.aoa ? (imp.aoa[imp.headerRow] || []).map((h, i) => ({ i, label: String(h || "").trim() || `Sütun ${i + 1}` })) : [];
+  const impUsesSplit = imp?.aoa ? imp.map.amount < 0 && (imp.map.debit >= 0 || imp.map.credit >= 0) : false;
 
   const doImport = async () => {
     const acc = accOf(Number(imp.account_id));
