@@ -7260,7 +7260,7 @@ async function findBusinessesGoogle({ il, ilce, sector }) {
     const gorulen = new Set();
     return d.results.map(b => ({ ...b, instagram: "", sector: sector.label, google: true }))
       .filter(b => { const k = (b.name || "").toLocaleLowerCase("tr-TR"); if (!k || gorulen.has(k)) return false; gorulen.add(k); return true; })
-      .sort((a, b) => (b.phone ? 1 : 0) - (a.phone ? 1 : 0) || a.name.localeCompare(b.name, "tr"));
+      .sort((a, b) => (b.reviews || 0) - (a.reviews || 0) || (b.rating || 0) - (a.rating || 0) || a.name.localeCompare(b.name, "tr")); // en bilinen (en çok yorum alan) üstte
   } catch (e) { return null; }
 }
 
@@ -7431,8 +7431,9 @@ function LeadsPage({ refreshData, currentStaff }) {
   const addFound = async (list) => {
     const rows = list.filter(b => !inLeads(b.name)).map(b => ({
       business_name: b.name, city: finder.city || "", district: finder.district || "", address: b.address || "",
-      phone: b.phone || "", email: "", social_media: b.instagram || "", website: b.website || "", sector: b.sector, source: "harita",
+      phone: b.phone || "", email: "", social_media: b.instagram || "", website: b.website || "", sector: b.sector, source: b.google ? "Google" : "harita",
       status: "potential", notes: "", added_by: currentStaff?.name || "",
+      google_rating: b.rating ?? null, google_reviews: b.reviews || null,
     }));
     if (!rows.length) return;
     const { error } = await supabase.from('leads').insert(rows);
@@ -7644,7 +7645,7 @@ function LeadsPage({ refreshData, currentStaff }) {
       )}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
-        <Btn variant="primary" onClick={() => setFinder({ city: "Balıkesir", district: "Bandırma", sectorId: "kafe", results: null, busy: false, error: "" })}>🔎 Yeni Müşteri Bul</Btn>
+        <Btn variant="primary" onClick={() => setFinder({ city: "Balıkesir", district: "Bandırma", sectorId: "kafe", results: null, busy: false, error: "", minRating: 0 })}>🔎 Yeni Müşteri Bul</Btn>
         <Btn onClick={() => impFileRef.current?.click()}>Excel'den Yükle</Btn>
         <input ref={impFileRef} type="file" accept=".xlsx,.xls,.csv,.txt" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; readLeadFile(f); }} />
         <Btn onClick={openAdd}>+ Elle Ekle</Btn>
@@ -7676,7 +7677,7 @@ function LeadsPage({ refreshData, currentStaff }) {
                     <div onClick={() => setExpanded(isOpen ? null : l.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", borderLeft: `3px solid ${st.dot}` }}>
                       <div style={{ width: 40, height: 40, borderRadius: "50%", background: st.dot, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", flexShrink: 0 }}>📞</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{l.business_name}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{l.business_name}{l.google_rating ? <span style={{ color: T.amberText, marginLeft: 8, fontSize: 12 }}>★ {Number(l.google_rating).toFixed(1).replace(".", ",")} <span style={{ color: T.textMuted, fontWeight: 400 }}>({l.google_reviews || 0} yorum)</span></span> : null}</div>
                         <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[l.contact_name, l.sector, [l.city, l.district].filter(Boolean).join(" / ")].filter(Boolean).join(" · ") || "—"}{l.phone ? " · " + l.phone : ""}</div>
                       </div>
                       {l.next_contact_at && (l.status === "potential" || l.status === "agreed") && <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: leadFollowDue(l) ? T.redDim : T.bgInput, color: leadFollowDue(l) ? T.redText : T.textMuted }}>🔔 {new Date(l.next_contact_at + "T00:00:00").toLocaleDateString("tr-TR")}</span>}
@@ -7821,23 +7822,35 @@ function LeadsPage({ refreshData, currentStaff }) {
             <div style={{ marginBottom: 14 }}><Btn variant="primary" onClick={runFinder} disabled={finder.busy} style={{ padding: "10px 18px" }}>{finder.busy ? "Aranıyor..." : "Ara"}</Btn></div>
           </div>
           {finder.error && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim, borderRadius: 9, padding: "10px 12px" }}>{finder.error}</div>}
-          {finder.results && (
+          {finder.results && (() => {
+            const googleVar = finder.results.some(b => b.google);
+            const liste = finder.results.filter(b => !finder.minRating || (b.rating || 0) >= finder.minRating);
+            return (
             <>
+              {googleVar && (
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: T.textMuted }}>Google puanı:</span>
+                  {[{ v: 0, l: "Hepsi" }, { v: 4, l: "4,0 ve üzeri" }, { v: 4.3, l: "4,3 ve üzeri" }, { v: 4.5, l: "4,5 ve üzeri" }].map(o => (
+                    <button key={o.v} onClick={() => setFinder(f => ({ ...f, minRating: o.v }))} style={{ fontSize: 11.5, padding: "5px 10px", borderRadius: 8, cursor: "pointer", background: (finder.minRating || 0) === o.v ? T.amber : T.bgInput, color: (finder.minRating || 0) === o.v ? T.white : T.textSecondary, border: `1px solid ${(finder.minRating || 0) === o.v ? T.amber : T.border}` }}>{o.l}</button>
+                  ))}
+                  <span style={{ fontSize: 11.5, color: T.textMuted }}>En çok yorum alan işletme en üstte.</span>
+                </div>
+              )}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "4px 0 10px", flexWrap: "wrap" }}>
-                <div style={{ fontSize: 12.5, fontWeight: 600, color: T.textPrimary }}>{finder.results.length} işletme bulundu · {finder.results.filter(b => b.phone).length} tanesinin telefonu var · {finder.results.filter(b => inLeads(b.name)).length} tanesi zaten listenizde</div>
-                {finder.results.some(b => b.phone && !inLeads(b.name)) && <Btn onClick={() => addFound(finder.results.filter(b => b.phone))} style={{ fontSize: 12, background: T.greenDim, color: T.greenText }}>Telefonu Olanların Hepsini Ekle</Btn>}
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: T.textPrimary }}>{liste.length} işletme bulundu · {liste.filter(b => b.phone).length} tanesinin telefonu var · {liste.filter(b => inLeads(b.name)).length} tanesi zaten listenizde</div>
+                {liste.some(b => b.phone && !inLeads(b.name)) && <Btn onClick={() => addFound(liste.filter(b => b.phone))} style={{ fontSize: 12, background: T.greenDim, color: T.greenText }}>Telefonu Olanların Hepsini Ekle</Btn>}
               </div>
-              {finder.results.length === 0 ? (
+              {liste.length === 0 ? (
                 <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: 24 }}>Bu bölge ve sektörde kayıt bulunamadı. İl / ilçe adını Türkçe karakterlerle, tam yazdığınızdan emin olun ya da başka bir sektör deneyin.</div>
               ) : (
                 <div style={{ maxHeight: 380, overflowY: "auto", border: `1px solid ${T.border}`, borderRadius: 10 }}>
-                  {finder.results.map((b, bi) => {
+                  {liste.map((b, bi) => {
                     const var_ = inLeads(b.name);
                     const ara = encodeURIComponent([b.name, finder.district, finder.city].filter(Boolean).join(" "));
                     return (
                       <div key={bi} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderTop: bi ? `1px solid ${T.border}` : "none" }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}{b.rating ? <span style={{ fontWeight: 600, color: T.amberText, marginLeft: 8, fontSize: 12 }}>★ {Number(b.rating).toFixed(1).replace(".", ",")} <span style={{ color: T.textMuted, fontWeight: 400 }}>({b.reviews || 0} yorum)</span></span> : null}</div>
                           <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[b.phone && "📞 " + b.phone, b.address, b.website && "🌐 site var", b.instagram && "📱 " + b.instagram].filter(Boolean).join(" · ") || "İletişim bilgisi yok"}</div>
                         </div>
                         <a href={`https://www.google.com/search?q=${ara}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11.5, color: T.indigoText, textDecoration: "none", whiteSpace: "nowrap" }}>Google'da Bak</a>
@@ -7850,7 +7863,8 @@ function LeadsPage({ refreshData, currentStaff }) {
                 </div>
               )}
             </>
-          )}
+            );
+          })()}
         </Modal>
       )}
 

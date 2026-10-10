@@ -5,7 +5,7 @@ const { yetkili } = require("../lib/auth.cjs");
 
 const ALANLAR = [
   "places.displayName", "places.formattedAddress", "places.nationalPhoneNumber",
-  "places.websiteUri", "places.location", "places.businessStatus", "nextPageToken",
+  "places.websiteUri", "places.location", "places.businessStatus", "places.rating", "places.userRatingCount", "nextPageToken",
 ].join(",");
 const EN_COK_SAYFA = 3; // Google bir aramada en çok 60 sonuç verir (3 sayfa × 20)
 
@@ -41,7 +41,7 @@ exports.handler = async (event) => {
         if (p.businessStatus === "CLOSED_PERMANENTLY") return;
         sonuc.push({
           name: p.displayName?.text || "", phone: p.nationalPhoneNumber || "", website: p.websiteUri || "",
-          address: p.formattedAddress || "", lat: p.location?.latitude ?? null, lon: p.location?.longitude ?? null,
+          address: p.formattedAddress || "", rating: p.rating ?? null, reviews: p.userRatingCount ?? 0, lat: p.location?.latitude ?? null, lon: p.location?.longitude ?? null,
         });
       });
       pageToken = d.nextPageToken || "";
