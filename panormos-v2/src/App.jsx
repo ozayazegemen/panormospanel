@@ -7824,7 +7824,10 @@ function LeadsPage({ refreshData, currentStaff }) {
           {finder.error && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim, borderRadius: 9, padding: "10px 12px" }}>{finder.error}</div>}
           {finder.results && (() => {
             const googleVar = finder.results.some(b => b.google);
-            const liste = finder.results.filter(b => !finder.minRating || (b.rating || 0) >= finder.minRating);
+            // Puan seçilince en yüksek puandan düşüğe; "Hepsi"nde en çok yorum alan üstte
+            const liste = finder.minRating
+              ? finder.results.filter(b => (b.rating || 0) >= finder.minRating).sort((a, b) => (b.rating || 0) - (a.rating || 0) || (b.reviews || 0) - (a.reviews || 0))
+              : finder.results;
             return (
             <>
               {googleVar && (
@@ -7833,7 +7836,7 @@ function LeadsPage({ refreshData, currentStaff }) {
                   {[{ v: 0, l: "Hepsi" }, { v: 4, l: "4,0 ve üzeri" }, { v: 4.3, l: "4,3 ve üzeri" }, { v: 4.5, l: "4,5 ve üzeri" }].map(o => (
                     <button key={o.v} onClick={() => setFinder(f => ({ ...f, minRating: o.v }))} style={{ fontSize: 11.5, padding: "5px 10px", borderRadius: 8, cursor: "pointer", background: (finder.minRating || 0) === o.v ? T.amber : T.bgInput, color: (finder.minRating || 0) === o.v ? T.white : T.textSecondary, border: `1px solid ${(finder.minRating || 0) === o.v ? T.amber : T.border}` }}>{o.l}</button>
                   ))}
-                  <span style={{ fontSize: 11.5, color: T.textMuted }}>En çok yorum alan işletme en üstte.</span>
+                  <span style={{ fontSize: 11.5, color: T.textMuted }}>{finder.minRating ? "En yüksek puanlı işletme en üstte." : "En çok yorum alan işletme en üstte."}</span>
                 </div>
               )}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "4px 0 10px", flexWrap: "wrap" }}>
