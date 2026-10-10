@@ -7251,11 +7251,26 @@ const OVERPASS_ATTEMPTS = [
   { url: "https://maps.mail.ru/osm/tools/overpass/api/interpreter", method: "POST" },
 ];
 
+// Google işletme araması (telefon ve web sitesi hazır gelir). Anahtar tanımlı değilse ya da hata olursa null döner.
+async function findBusinessesGoogle({ il, ilce, sector }) {
+  try {
+    const r = await panelFetch("/.netlify/functions/isletme-ara", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sorgu: [sector.label.replace(/\//g, " "), ilce, il].filter(Boolean).join(" ") }) });
+    const d = await r.json();
+    if (!r.ok || d.yok || !Array.isArray(d.results)) return null;
+    const gorulen = new Set();
+    return d.results.map(b => ({ ...b, instagram: "", sector: sector.label, google: true }))
+      .filter(b => { const k = (b.name || "").toLocaleLowerCase("tr-TR"); if (!k || gorulen.has(k)) return false; gorulen.add(k); return true; })
+      .sort((a, b) => (b.phone ? 1 : 0) - (a.phone ? 1 : 0) || a.name.localeCompare(b.name, "tr"));
+  } catch (e) { return null; }
+}
+
 async function findBusinesses({ city, district, sectorId }) {
   const sector = LEAD_SECTORS.find(x => x.id === sectorId) || LEAD_SECTORS[0];
   const temiz = (x) => String(x || "").trim().replace(/["\\]/g, "");
   const il = temiz(city), ilce = temiz(district);
   if (!il && !ilce) throw new Error("İl ya da ilçe yazın");
+  const google = await findBusinessesGoogle({ il, ilce, sector });
+  if (google && google.length) return google;
   const alan = il && ilce
     ? `area["name"="${il}"]["admin_level"="4"]->.il;rel(area.il)["name"="${ilce}"]["boundary"="administrative"];map_to_area->.a;`
     : `area["name"="${il || ilce}"]["boundary"="administrative"]->.a;`;
@@ -7289,7 +7304,76 @@ async function findBusinesses({ city, district, sectorId }) {
 }
 
 const LEAD_CONTACT_TYPES = { telefon: "📞 Telefon", whatsapp: "💬 WhatsApp", eposta: "📧 E-posta", yuzyuze: "🤝 Yüz yüze", diger: "📝 Diğer" };
-const leadWaPhone = (p) => { const d = String(p || "").replace(/\D/g, "").replace(/^0/, "90"); return d.length >= 11 ? d : ""; };
+// Cep numarasını WhatsApp biçimine çevirir (905XXXXXXXXX). Hücrede birden çok numara varsa ilk cep numarasını alır; sabit hatta boş döner.
+const leadWaPhone = (p) => {
+  for (const parca of String(p || "").split(/[,;\/\n]|\s-\s/)) {
+    let d = parca.replace(/\D/g, "").replace(/^00/, "");
+    if (d.length === 11 && d[0] === "0") d = "90" + d.slice(1);
+    else if (d.length === 10) d = "90" + d;
+    if (d.length === 12 && d.startsWith("905")) return d;
+  }
+  return "";
+};
+
+// ── Excel'den toplu potansiyel müşteri (ör. Ticaret Odası üye listesi) ──
+const LEAD_IMPORT_FIELDS = [
+  { id: "business_name", label: "Firma / İşletme Adı", zorunlu: true },
+  { id: "contact_name", label: "Yetkili / Sahibi" },
+  { id: "phone", label: "Telefon" },
+  { id: "phone2", label: "2. Telefon" },
+  { id: "email", label: "E-posta" },
+  { id: "address", label: "Adres" },
+  { id: "sector", label: "Faaliyet / Sektör" },
+  { id: "city", label: "İl" },
+  { id: "district", label: "İlçe" },
+  { id: "website", label: "Web Sitesi" },
+];
+function leadDetectColumns(aoa) {
+  let headerRow = 0, best = 0;
+  for (let r = 0; r < Math.min(aoa.length, 30); r++) {
+    const score = (aoa[r] || []).map(bankNorm).filter(c => /FIRMA|UNVAN|ISLETME|SIRKET|YETKILI|SAHIB|TELEFON|ADRES|GSM|CEP|E-?POSTA|MAIL|FAALIYET|MESLEK/.test(c)).length;
+    if (score > best) { best = score; headerRow = r; }
+  }
+  const heads = (aoa[headerRow] || []).map(bankNorm);
+  const kullanilan = new Set();
+  const find = (...tests) => { for (const t of tests) { const i = heads.findIndex((h, hi) => h && !kullanilan.has(hi) && t(h)); if (i >= 0) { kullanilan.add(i); return i; } } return -1; };
+  const map = {};
+  map.business_name = find(h => /UNVAN/.test(h), h => /FIRMA|ISLETME|SIRKET/.test(h) && !/SAHIB|YETKILI|TEL|ADRES/.test(h), h => /^AD[I]?$|^ISIM$/.test(h));
+  map.contact_name = find(h => /YETKILI|SAHIB|ORTAK|TEMSILCI|MUDUR/.test(h) && !/TEL|GSM|CEP/.test(h), h => /AD.*SOYAD/.test(h));
+  map.phone = find(h => /CEP|GSM|MOBIL/.test(h), h => /TEL/.test(h));
+  map.phone2 = find(h => /TEL|CEP|GSM/.test(h));
+  map.email = find(h => /E-?POSTA|MAIL/.test(h));
+  map.address = find(h => /ADRES/.test(h));
+  map.sector = find(h => /FAALIYET|SEKTOR|MESLEK|NACE|IS KONUSU|KONU/.test(h));
+  map.city = find(h => /^IL$|SEHIR/.test(h));
+  map.district = find(h => /ILCE/.test(h));
+  map.website = find(h => /WEB|INTERNET|SITE/.test(h));
+  return { headerRow, map };
+}
+function leadBuildRows(aoa, headerRow, map, { city, district, source }) {
+  const al = (row, k) => (map[k] >= 0 ? String(row[map[k]] ?? "").trim() : "");
+  // Excel telefonu sayı olarak tutunca baştaki 0 düşer: 5321234567 → 0532 123 45 67
+  const tel = (v) => { const d = v.replace(/\D/g, ""); return d.length === 10 && !/[a-zA-Z]/.test(v) ? "0" + d : v; };
+  const out = [], gorulen = new Set();
+  for (let r = headerRow + 1; r < aoa.length; r++) {
+    const row = aoa[r] || [];
+    const ad = al(row, "business_name");
+    if (!ad) continue;
+    const k = ad.toLocaleLowerCase("tr-TR");
+    if (gorulen.has(k)) continue;
+    gorulen.add(k);
+    const t1 = tel(al(row, "phone")), t2 = tel(al(row, "phone2"));
+    // WhatsApp için cep numarası öne alınır
+    const teller = [t1, t2].filter(Boolean).sort((a, b) => (leadWaPhone(b) ? 1 : 0) - (leadWaPhone(a) ? 1 : 0));
+    out.push({
+      business_name: ad.slice(0, 200), contact_name: al(row, "contact_name").slice(0, 120), phone: teller.join(" / "),
+      email: al(row, "email"), address: al(row, "address"), sector: al(row, "sector").slice(0, 120),
+      city: al(row, "city") || city || "", district: al(row, "district") || district || "", website: al(row, "website"),
+      social_media: "", source: source || "excel", status: "potential", notes: "",
+    });
+  }
+  return out;
+}
 const leadFollowDue = (l) => !!l.next_contact_at && String(l.next_contact_at).slice(0, 10) <= todayStr() && (l.status === "potential" || l.status === "agreed");
 
 function LeadsPage({ refreshData, currentStaff }) {
@@ -7304,6 +7388,10 @@ function LeadsPage({ refreshData, currentStaff }) {
   const [finder, setFinder] = useState(null);       // işletme bulucu: { city, district, sectorId, results, busy, added }
   const [contactModal, setContactModal] = useState(null); // görüşme kaydı: { lead, type, note, next }
   const [waModal, setWaModal] = useState(null);     // WhatsApp mesajı: { lead, text, busy }
+  const [imp, setImp] = useState(null);             // Excel'den yükleme: { fileName, aoa, headerRow, map, city, district, source, busy }
+  const [search, setSearch] = useState("");
+  const [shown, setShown] = useState(50);           // uzun listelerde ilk 50 kayıt, "Daha Fazla Göster" ile artar
+  const impFileRef = useRef(null);
 
   // Görüşmeyi kaydeder: geçmişe ekler, son görüşme ve sonraki takip tarihini yazar
   const logContact = async (lead, { type, note, next }) => {
@@ -7314,12 +7402,12 @@ function LeadsPage({ refreshData, currentStaff }) {
     await load();
     return true;
   };
-  const waDefault = (l) => `Merhaba, ben Panormos Medya'dan ${currentStaff?.name || ""}.\n\n${l.business_name} için sosyal medya yönetimi, çekim ve reklam hizmetlerimiz hakkında kısaca bilgi vermek isterim. Uygun olduğunuz bir zamanda 5 dakikanızı rica edebilir miyim?\n\nİyi çalışmalar.`;
+  const waDefault = (l) => `Merhaba${l.contact_name ? " Sayın " + l.contact_name : ""}, ben Panormos Medya'dan ${currentStaff?.name || ""}.\n\n${l.business_name} için sosyal medya yönetimi, çekim ve reklam hizmetlerimiz hakkında kısaca bilgi vermek isterim. Uygun olduğunuz bir zamanda 5 dakikanızı rica edebilir miyim?\n\nİyi çalışmalar.`;
   const waAi = async () => {
     const l = waModal.lead;
     setWaModal(m => ({ ...m, busy: true }));
     try {
-      const text = await askClaude({ system: "Sen Panormos Medya adlı sosyal medya ajansı için yazan bir satış asistanısın. WhatsApp'tan ilk kez yazılacak, kısa (en çok 70 kelime), samimi ama kurumsal, baskı yapmayan Türkçe bir tanışma mesajı yaz. Emoji ve simge kullanma. Sadece mesaj metnini döndür.", prompt: `İşletme: ${l.business_name}. Sektör: ${l.sector || "bilinmiyor"}. Konum: ${[l.district, l.city].filter(Boolean).join(" / ") || "bilinmiyor"}. Yazan kişi: ${currentStaff?.name || "Panormos Medya"}. Notlar: ${l.notes || "yok"}.`, maxTokens: 400 });
+      const text = await askClaude({ system: "Sen Panormos Medya adlı sosyal medya ajansı için yazan bir satış asistanısın. WhatsApp'tan ilk kez yazılacak, kısa (en çok 70 kelime), samimi ama kurumsal, baskı yapmayan Türkçe bir tanışma mesajı yaz. Emoji ve simge kullanma. Sadece mesaj metnini döndür.", prompt: `İşletme: ${l.business_name}. Yetkili: ${l.contact_name || "bilinmiyor"}. Sektör: ${l.sector || "bilinmiyor"}. Konum: ${[l.district, l.city].filter(Boolean).join(" / ") || "bilinmiyor"}. Yazan kişi: ${currentStaff?.name || "Panormos Medya"}. Notlar: ${l.notes || "yok"}.`, maxTokens: 400 });
       setWaModal(m => m ? { ...m, text: (text || "").trim() || m.text, busy: false } : m);
     } catch (e) { setWaModal(m => m ? { ...m, busy: false } : m); swalAlert("Mesaj hazırlanamadı: " + e.message); }
   };
@@ -7344,7 +7432,7 @@ function LeadsPage({ refreshData, currentStaff }) {
     const rows = list.filter(b => !inLeads(b.name)).map(b => ({
       business_name: b.name, city: finder.city || "", district: finder.district || "", address: b.address || "",
       phone: b.phone || "", email: "", social_media: b.instagram || "", website: b.website || "", sector: b.sector, source: "harita",
-      status: "potential", notes: "",
+      status: "potential", notes: "", added_by: currentStaff?.name || "",
     }));
     if (!rows.length) return;
     const { error } = await supabase.from('leads').insert(rows);
@@ -7352,8 +7440,45 @@ function LeadsPage({ refreshData, currentStaff }) {
     await load();
   };
 
+  // Excel'den yükleme
+  const readLeadFile = async (file) => {
+    if (!file) return;
+    try {
+      const XLSX = await loadXLSX();
+      const buf = await file.arrayBuffer();
+      let wb;
+      if (/\.(csv|txt)$/i.test(file.name)) {
+        let text;
+        try { text = new TextDecoder("utf-8", { fatal: true }).decode(buf); } catch (e) { text = new TextDecoder("windows-1254").decode(buf); }
+        wb = XLSX.read(text, { type: "string", raw: true });
+      } else {
+        wb = XLSX.read(buf, { type: "array" });
+      }
+      let aoa = [];
+      wb.SheetNames.forEach(n => { const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: "" }); if (rows.length > aoa.length) aoa = rows; });
+      if (aoa.length < 2) { swalAlert("Dosya okunamadı ya da boş görünüyor."); return; }
+      const det = leadDetectColumns(aoa);
+      setImp({ fileName: file.name, aoa, headerRow: det.headerRow, map: det.map, city: "Balıkesir", district: "Bandırma", source: "Ticaret Odası", busy: false });
+    } catch (e) { swalAlert("Dosya okunamadı: " + e.message + "\n\nExcel (.xlsx / .xls) ya da CSV dosyası seçin."); }
+  };
+  const impRows = imp ? leadBuildRows(imp.aoa, imp.headerRow, imp.map, imp) : [];
+  const impNew = impRows.filter(r => !leads.some(l => (l.business_name || "").toLocaleLowerCase("tr-TR") === r.business_name.toLocaleLowerCase("tr-TR"))).map(r => ({ ...r, added_by: currentStaff?.name || "" }));
+  const saveImport = async () => {
+    if (!impNew.length) return;
+    setImp(m => ({ ...m, busy: true }));
+    let eklenen = 0;
+    for (let i = 0; i < impNew.length; i += 300) {
+      const { error } = await supabase.from('leads').insert(impNew.slice(i, i + 300));
+      if (error) { setImp(m => m ? { ...m, busy: false } : m); await load(); swalAlert(`${eklenen} kayıt eklendi, sonra hata oluştu: ${error.message}`); return; }
+      eklenen += Math.min(300, impNew.length - i);
+    }
+    setImp(null);
+    await load();
+    swalAlert(`${eklenen} işletme potansiyel müşteri listesine eklendi.`);
+  };
+
   const load = async () => {
-    const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false }).range(0, 9999);
     const sorted = (data || []).sort((a,b)=>(a.business_name||"").localeCompare(b.business_name||"","tr",{sensitivity:"base"}));
     setLeads(sorted);
     setLoading(false);
@@ -7363,7 +7488,7 @@ function LeadsPage({ refreshData, currentStaff }) {
   const openAdd = () => { setEditId(null); setForm({ status: "potential" }); setModal(true); };
   const openEdit = (l) => {
     setEditId(l.id);
-    setForm({ business_name: l.business_name, city: l.city, district: l.district, address: l.address, phone: l.phone, email: l.email, social_media: l.social_media, offer1: l.offer1, offer2: l.offer2, offer3: l.offer3, agreed_price: l.agreed_price, status: l.status, notes: l.notes, sector: l.sector, website: l.website, next_contact_at: l.next_contact_at });
+    setForm({ business_name: l.business_name, city: l.city, district: l.district, address: l.address, phone: l.phone, contact_name: l.contact_name, email: l.email, social_media: l.social_media, offer1: l.offer1, offer2: l.offer2, offer3: l.offer3, agreed_price: l.agreed_price, status: l.status, notes: l.notes, sector: l.sector, website: l.website, next_contact_at: l.next_contact_at });
     setModal(true);
   };
 
@@ -7380,12 +7505,13 @@ function LeadsPage({ refreshData, currentStaff }) {
       status: form.status || "potential",
       notes: form.notes || "",
       sector: form.sector || "", website: form.website || "", next_contact_at: form.next_contact_at || null,
+      contact_name: form.contact_name || "",
     };
     let error;
     if (editId) {
       ({ error } = await supabase.from('leads').update(payload).eq('id', editId));
     } else {
-      ({ error } = await supabase.from('leads').insert(payload));
+      ({ error } = await supabase.from('leads').insert({ ...payload, added_by: currentStaff?.name || "" }));
     }
     if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nSQL kodunu çalıştırdığınızdan emin olun."); return; }
     setModal(false); setForm({}); setEditId(null);
@@ -7424,7 +7550,9 @@ function LeadsPage({ refreshData, currentStaff }) {
     swalAlert(`"${lead.business_name}" artık aktif müşteri! 🎉\nMüşteriler sekmesinden bilgilerini tamamlayabilirsiniz.`);
   };
 
+  const aranan = bankNorm(search);
   const filtered = leads.filter(l => {
+    if (aranan && !bankNorm([l.business_name, l.contact_name, l.phone, l.sector, l.address, l.district, l.source].filter(Boolean).join(" ")).includes(aranan)) return false;
     if (filter === "takip") return leadFollowDue(l);
     if (filter === "active") return l.status === "potential" || l.status === "agreed";
     if (filter === "all") return true;
@@ -7466,6 +7594,18 @@ function LeadsPage({ refreshData, currentStaff }) {
   };
 
   const takipSayisi = leads.filter(leadFollowDue).length;
+  // Yönetici için ekip özeti: kim, ne zaman, hangi işletmeyle görüştü
+  const isAdmin = getPerms(currentStaff).isAdmin;
+  const tumGorusmeler = !isAdmin ? [] : leads.flatMap(l => (Array.isArray(l.contacts) ? l.contacts : []).map(k => ({ ...k, lead: l }))).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const bugun = todayStr();
+  const haftaOnce = (() => { const d = new Date(); d.setDate(d.getDate() - 6); return localDay(d.toISOString()); })();
+  const ekipOzet = Object.values(tumGorusmeler.reduce((acc, k) => {
+    const gun = localDay(k.at); if (gun < haftaOnce) return acc;
+    const ad = k.by || "Bilinmiyor";
+    acc[ad] = acc[ad] || { ad, bugun: 0, hafta: 0 };
+    acc[ad].hafta++; if (gun === bugun) acc[ad].bugun++;
+    return acc;
+  }, {})).sort((a, b) => b.hafta - a.hafta);
   const FILTER_TABS = [
     { id: "takip", l: `🔔 Bugün Aranacak (${takipSayisi})` },
     { id: "active", l: "Aktif Takip" },
@@ -7486,8 +7626,27 @@ function LeadsPage({ refreshData, currentStaff }) {
         <StatCard label="Müşteri Oldu" value={stats.converted} color={T.amberText} sub="Aktife taşındı" />
       </div>
 
+      {isAdmin && tumGorusmeler.length > 0 && (
+        <Card style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 10 }}>Ekip Görüşmeleri</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+            {ekipOzet.length === 0 ? <span style={{ fontSize: 12, color: T.textMuted }}>Son 7 günde görüşme kaydı yok.</span>
+              : ekipOzet.map(e => <span key={e.ad} style={{ fontSize: 12, padding: "6px 11px", borderRadius: 8, background: T.bgInput, border: `1px solid ${T.border}`, color: T.textSecondary }}><b style={{ color: T.textPrimary }}>{e.ad}</b> · bugün {e.bugun} · son 7 gün {e.hafta}</span>)}
+          </div>
+          <div style={{ maxHeight: 190, overflowY: "auto" }}>
+            {tumGorusmeler.slice(0, 30).map((k, ki) => (
+              <div key={ki} onClick={() => { setFilter("all"); setSearch(k.lead.business_name || ""); setExpanded(k.lead.id); }} style={{ fontSize: 12, color: T.textSecondary, padding: "5px 0", borderTop: ki ? `1px solid ${T.border}` : "none", cursor: "pointer" }}>
+                <span style={{ color: T.textMuted }}>{new Date(k.at).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span> · <b style={{ color: T.textPrimary }}>{k.by || "Bilinmiyor"}</b> · {LEAD_CONTACT_TYPES[k.type] || k.type} · {k.lead.business_name}{k.note ? ` — ${k.note}` : ""}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <Btn variant="primary" onClick={() => setFinder({ city: "Balıkesir", district: "Bandırma", sectorId: "kafe", results: null, busy: false, error: "" })}>🔎 Yeni Müşteri Bul</Btn>
+        <Btn onClick={() => impFileRef.current?.click()}>Excel'den Yükle</Btn>
+        <input ref={impFileRef} type="file" accept=".xlsx,.xls,.csv,.txt" style={{ display: "none" }} onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; readLeadFile(f); }} />
         <Btn onClick={openAdd}>+ Elle Ekle</Btn>
         <Btn onClick={exportLeads} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel</Btn>
         <Btn onClick={printLeads}>🖨️ Yazdır</Btn>
@@ -7496,15 +7655,20 @@ function LeadsPage({ refreshData, currentStaff }) {
       {/* Durum filtreleri */}
       <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
         {FILTER_TABS.map(f => (
-          <button key={f.id} onClick={() => setFilter(f.id)} style={{ fontSize: 12, fontWeight: filter === f.id ? 600 : 400, padding: "6px 12px", borderRadius: 8, background: filter === f.id ? T.amber : T.bgInput, color: filter === f.id ? T.white : T.textSecondary, border: `1px solid ${filter === f.id ? T.amber : T.border}`, cursor: "pointer" }}>{f.l}</button>
+          <button key={f.id} onClick={() => { setFilter(f.id); setShown(50); }} style={{ fontSize: 12, fontWeight: filter === f.id ? 600 : 400, padding: "6px 12px", borderRadius: 8, background: filter === f.id ? T.amber : T.bgInput, color: filter === f.id ? T.white : T.textSecondary, border: `1px solid ${filter === f.id ? T.amber : T.border}`, cursor: "pointer" }}>{f.l}</button>
         ))}
       </div>
 
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
+        <div style={{ flex: 1, maxWidth: 420 }}><Input placeholder="Ara: işletme, yetkili, telefon, sektör, adres" value={search} onChange={e => { setSearch(e.target.value); setShown(50); }} /></div>
+        <div style={{ fontSize: 12, color: T.textMuted }}>{filtered.length} kayıt</div>
+      </div>
+
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
-        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Bu durumda kayıt yok. "+ Potansiyel Müşteri Ekle" ile başla!</div>
+        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>{search ? "Aramanıza uyan kayıt yok." : "Bu durumda kayıt yok. \"Yeni Müşteri Bul\" ya da \"Excel'den Yükle\" ile başlayın."}</div>
           : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filtered.map(l => {
+              {filtered.slice(0, shown).map(l => {
                 const st = LEAD_STATUS[l.status] || LEAD_STATUS.potential;
                 const isOpen = expanded === l.id;
                 return (
@@ -7513,7 +7677,7 @@ function LeadsPage({ refreshData, currentStaff }) {
                       <div style={{ width: 40, height: 40, borderRadius: "50%", background: st.dot, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", flexShrink: 0 }}>📞</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{l.business_name}</div>
-                        <div style={{ fontSize: 11, color: T.textMuted }}>{[l.sector, [l.city, l.district].filter(Boolean).join(" / ")].filter(Boolean).join(" · ") || "—"}{l.phone ? " · " + l.phone : ""}</div>
+                        <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[l.contact_name, l.sector, [l.city, l.district].filter(Boolean).join(" / ")].filter(Boolean).join(" · ") || "—"}{l.phone ? " · " + l.phone : ""}</div>
                       </div>
                       {l.next_contact_at && (l.status === "potential" || l.status === "agreed") && <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: leadFollowDue(l) ? T.redDim : T.bgInput, color: leadFollowDue(l) ? T.redText : T.textMuted }}>🔔 {new Date(l.next_contact_at + "T00:00:00").toLocaleDateString("tr-TR")}</span>}
                       {l.agreed_price ? <div style={{ textAlign: "right" }}><div style={{ fontSize: 14, fontWeight: 700, color: T.greenText }}>{fmtMoney(l.agreed_price)}</div><div style={{ fontSize: 10, color: T.textMuted }}>anlaşılan</div></div> : null}
@@ -7526,6 +7690,8 @@ function LeadsPage({ refreshData, currentStaff }) {
                           <div>
                             <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>İletişim</div>
                             <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.7 }}>
+                              {l.contact_name && <div>👤 {l.contact_name}</div>}
+                              {(l.added_by || l.source) && <div style={{ color: T.textMuted }}>Ekleyen: {[l.added_by, l.source].filter(Boolean).join(" · ")}</div>}
                               <div>📍 {l.address || "Adres yok"}</div>
                               <div>📞 {l.phone || "—"}</div>
                               <div>✉️ {l.email || "—"}</div>
@@ -7546,7 +7712,7 @@ function LeadsPage({ refreshData, currentStaff }) {
                         {l.notes && <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, padding: "8px 12px", background: T.bgInput, borderRadius: 8 }}>📝 {l.notes}</div>}
                         {/* İletişim: ara / yaz / görüşmeyi kaydet */}
                         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                          {l.phone && <a href={`tel:${String(l.phone).replace(/[^0-9+]/g, "")}`} style={{ textDecoration: "none" }}><Btn style={{ fontSize: 12, padding: "7px 14px", background: T.greenDim, color: T.greenText }}>📞 Ara</Btn></a>}
+                          {l.phone && <a href={`tel:${String(l.phone).split(" / ")[0].replace(/[^0-9+]/g, "")}`} style={{ textDecoration: "none" }}><Btn style={{ fontSize: 12, padding: "7px 14px", background: T.greenDim, color: T.greenText }}>📞 Ara</Btn></a>}
                           <Btn onClick={() => setWaModal({ lead: l, text: waDefault(l), busy: false })} style={{ fontSize: 12, padding: "7px 14px", background: "#25D366", color: "#fff", border: "1px solid transparent" }}>💬 WhatsApp</Btn>
                           <Btn onClick={() => setContactModal({ lead: l, type: "telefon", note: "", next: "" })} style={{ fontSize: 12, padding: "7px 14px", background: T.amberDim, color: T.amberText }}>📝 Görüşme Kaydet</Btn>
                           <a href={`https://www.google.com/search?q=${encodeURIComponent([l.business_name, l.district, l.city].filter(Boolean).join(" "))}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}><Btn style={{ fontSize: 12, padding: "7px 14px" }}>🔍 Google'da Bak</Btn></a>
@@ -7572,6 +7738,7 @@ function LeadsPage({ refreshData, currentStaff }) {
                   </div>
                 );
               })}
+              {filtered.length > shown && <div style={{ textAlign: "center", padding: "6px 0" }}><Btn onClick={() => setShown(n => n + 50)}>Daha Fazla Göster ({filtered.length - shown} kayıt daha)</Btn></div>}
             </div>
           )}
 
@@ -7606,10 +7773,47 @@ function LeadsPage({ refreshData, currentStaff }) {
         </Modal>
       )}
 
+      {/* Excel'den yükleme */}
+      {imp && (
+        <Modal title="Excel'den Potansiyel Müşteri Yükle" onClose={() => setImp(null)} width={820}>
+          <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 12 }}>{imp.fileName} · Sütunları sizin için eşleştirdim; yanlış olan varsa aşağıdan düzeltin. Listenizde zaten bulunan işletmeler tekrar eklenmez.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+            {LEAD_IMPORT_FIELDS.map(f => (
+              <FormField key={f.id} label={f.label + (f.zorunlu ? " *" : "")}>
+                <Select value={imp.map[f.id] ?? -1} onChange={e => setImp(m => ({ ...m, map: { ...m.map, [f.id]: Number(e.target.value) } }))}>
+                  <option value={-1}>— yok —</option>
+                  {(imp.aoa[imp.headerRow] || []).map((h, hi) => <option key={hi} value={hi}>{String(h || "").trim() || `Sütun ${hi + 1}`}</option>)}
+                </Select>
+              </FormField>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
+            <FormField label="Liste Adı (kaynak)"><Input value={imp.source} onChange={e => setImp(m => ({ ...m, source: e.target.value }))} /></FormField>
+            <FormField label="İl (dosyada yoksa)"><Input value={imp.city} onChange={e => setImp(m => ({ ...m, city: e.target.value }))} /></FormField>
+            <FormField label="İlçe (dosyada yoksa)"><Input value={imp.district} onChange={e => setImp(m => ({ ...m, district: e.target.value }))} /></FormField>
+          </div>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: T.textPrimary, margin: "4px 0 8px" }}>{impRows.length} işletme okundu · {impRows.filter(r => leadWaPhone(r.phone)).length} tanesinde cep telefonu var · {impRows.length - impNew.length} tanesi zaten listenizde</div>
+          <div style={{ maxHeight: 250, overflowY: "auto", border: `1px solid ${T.border}`, borderRadius: 10 }}>
+            {impRows.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: 20 }}>Okunacak satır bulunamadı. "Firma / İşletme Adı" sütununu seçin.</div>
+              : impRows.slice(0, 40).map((r, ri) => (
+                <div key={ri} style={{ padding: "8px 12px", borderTop: ri ? `1px solid ${T.border}` : "none" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{r.business_name}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted }}>{[r.contact_name, r.phone, r.email, r.sector, r.address].filter(Boolean).join(" · ") || "Başka bilgi yok"}</div>
+                </div>
+              ))}
+          </div>
+          {impRows.length > 40 && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 6 }}>İlk 40 satır gösteriliyor.</div>}
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+            <Btn onClick={() => setImp(null)}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={saveImport} disabled={imp.busy || !impNew.length}>{imp.busy ? "Ekleniyor..." : `${impNew.length} İşletmeyi Listeye Ekle`}</Btn>
+          </div>
+        </Modal>
+      )}
+
       {/* Yeni müşteri bul */}
       {finder && (
         <Modal title="Yeni Müşteri Bul" onClose={() => setFinder(null)} width={780}>
-          <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 12 }}>Bölge ve sektör seçin; o bölgedeki işletmeleri listeleyeyim. Uygun gördüklerinizi takip listesine ekleyin. Liste açık harita verisinden gelir: işletme adları güvenilirdir, telefon çoğunda yoktur; "Google'da Bak" ile telefonu ve Instagram'ı hızlıca bulabilirsiniz.</div>
+          <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 12 }}>Bölge ve sektör seçin; o bölgedeki işletmeleri listeleyeyim. Uygun gördüklerinizi takip listesine ekleyin. {finder.results?.some(b => b.google) ? "Liste Google işletme kayıtlarından geliyor; telefon ve web sitesi hazır gelir." : "Liste açık harita verisinden gelir: işletme adları güvenilirdir, telefon çoğunda yoktur; \"Google'da Bak\" ile telefonu ve Instagram'ı hızlıca bulabilirsiniz."}</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.3fr auto", gap: 10, alignItems: "end" }}>
             <FormField label="İl"><Input placeholder="Balıkesir" value={finder.city} onChange={e => setFinder(f => ({ ...f, city: e.target.value }))} /></FormField>
             <FormField label="İlçe"><Input placeholder="Bandırma" value={finder.district} onChange={e => setFinder(f => ({ ...f, district: e.target.value }))} /></FormField>
@@ -7659,6 +7863,7 @@ function LeadsPage({ refreshData, currentStaff }) {
             <FormField label="İlçe"><Input placeholder="Nilüfer" value={form.district || ""} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} /></FormField>
           </div>
           <FormField label="Açık Adres"><Textarea placeholder="Açık adres" value={form.address || ""} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} /></FormField>
+          <FormField label="Yetkili / Sahibi"><Input placeholder="Ad Soyad" value={form.contact_name || ""} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))} /></FormField>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone || ""} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} /></FormField>
             <FormField label="Mail (varsa)"><Input placeholder="mail@ornek.com" value={form.email || ""} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></FormField>
