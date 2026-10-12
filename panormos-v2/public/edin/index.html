@@ -205,6 +205,12 @@
   .tum-urunler { text-align: center; margin-top: 36px; }
   nav a.etkin { color: var(--kirmizi); }
 
+  /* Paket ürünler: fotoğraf kutuyu doldurur */
+  .urun.paket .gorsel, .urun-detay.paket .gorsel { padding: 0; align-items: stretch; }
+  .urun.paket .gorsel img, .urun-detay.paket .gorsel img { width: 100%; height: 100%; object-fit: cover; filter: none; }
+  .alt-baslik { font-family: "Fraunces", Georgia, serif; font-size: 26px; font-weight: 600; color: var(--yesil-koyu); margin: 48px 0 20px; }
+  .urunler.iki { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+
   /* Dağıtım */
   .dagitim { background: #fff; border-top: 1px solid var(--cizgi); }
   .dagitim-ust { text-align: center; margin-bottom: 48px; }
@@ -278,6 +284,7 @@
     .rakam { padding-left: 0; border-left: 0; }
     .rakamlar .kap { gap: 20px; }
     .noktalar { grid-template-columns: 1fr; }
+    .urunler.iki { grid-template-columns: 1fr; }
     .pencere-kutu { padding: 40px 22px 28px; }
     .urun-detay { grid-template-columns: 1fr; }
     .urun-detay .gorsel { min-height: 0; }
@@ -494,6 +501,27 @@
           <h3>Edinbey Gurme Beyaz Peynir</h3>
           <p>Tam yağlı olgunlaştırılmış beyaz peynirimizin özel serisi. Restoranlar, oteller ve seçici şarküteriler için.</p>
           <div class="ozellikler"><span>18 kg teneke</span><span>Tam yağlı</span><span>Gurme seri</span></div>
+        </div>
+      </article>
+    </div>
+    <h3 class="alt-baslik">Paket ürünlerimiz</h3>
+    <div class="urunler iki">
+      <article class="urun paket yesil">
+        <div class="gorsel"><img src="img/paket-yesil.jpg" alt="Edin Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket" loading="lazy"></div>
+        <div class="ic">
+          <div class="kod">PAKET</div>
+          <h3>Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h3>
+          <p>Yumuşak kıvamlı, kolay dilimlenen ve kolay ezilen beyaz peynir. Börek, gözleme ve poğaça içi için uygundur; kahvaltıda da sevilir.</p>
+          <div class="ozellikler"><span>Paket ürün</span><span>Tam yağlı</span><span>Yumuşak kıvamlı</span></div>
+        </div>
+      </article>
+      <article class="urun paket mavi">
+        <div class="gorsel"><img src="img/paket-mavi.jpg" alt="Edin Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket" loading="lazy"></div>
+        <div class="ic">
+          <div class="kod">PAKET</div>
+          <h3>Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h3>
+          <p>Teneke peynirimizin ev ve küçük işletmeler için paketlenmiş hâli. Olgunlaştırılmış, dolgun lezzetli klasik Edin beyaz peyniri.</p>
+          <div class="ozellikler"><span>Paket ürün</span><span>Tam yağlı</span><span>Olgunlaştırılmış</span></div>
         </div>
       </article>
     </div>
