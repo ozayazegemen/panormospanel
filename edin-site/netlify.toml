@@ -1,0 +1,4 @@
+# Edinler Gıda sitesi: ayrı Netlify sitesi olarak yayınlanır (temel klasör: edin-site). Derleme yok, dosyalar olduğu gibi sunulur.
+[build]
+  publish = "."
+  command = ""

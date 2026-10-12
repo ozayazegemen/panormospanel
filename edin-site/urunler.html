@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="tr">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Ürünlerimiz · Edin Peynir</title>
+<meta name="description" content="Edinler Gıda: Bandırma'da üretilen tam yağlı olgunlaştırılmış teneke beyaz peynir. Türkiye geneline toptan dağıtım, İstanbul depo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Renkler teneke görsellerinden ve Edin logosundan ölçülerek alındı */
+    --kirmizi: #D8222A;        /* Edin logosu */
+    --kirmizi-koyu: #B21A21;
+    --yesil: #37862E;          /* Natürel tenekedeki çimen */
+    --yesil-koyu: #1D5A24;     /* "Beyaz Peynir" yazısı */
+    --yesil-parlak: #84B63C;   /* Yeşil teneke gövdesi */
+    --yesil-acik: #D8E7BE;     /* Yeşil teneke açık tonu */
+    --mavi: #2E91C5;           /* Mavi teneke gövdesi */
+    --mavi-koyu: #0D70AB;      /* Mavi teneke koyu tonu */
+    --mavi-acik: #BCDAEC;      /* Mavi teneke açık tonu */
+    /* Yalnızca Edinbey Gurme bölümünde (Edinbey tenekesi ve logosu) */
+    --lacivert: #132236;
+    --altin: #9A7628;
+    --zeytin: #3A3F24;
+    --krem-koyu: #EFDBBF;
+    --krem: #F6FAEE;           /* Sayfa zemini: yeşil tenekenin en açık tonu */
+    --beyaz: #FFFFFF;
+    --yazi: #1F2A1C;
+    --yazi-soluk: #56634F;
+    --cizgi: #DCE8CB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: "Inter", system-ui, sans-serif; color: var(--yazi); background: var(--krem); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; text-decoration: none; }
+  h1, h2, h3 { font-family: "Fraunces", Georgia, serif; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; }
+  .kap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .ust-etiket { display: flex; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--kirmizi); }
+  .dagitim-ust .ust-etiket { justify-content: center; }
+  .dugme { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 15px; padding: 13px 26px; border-radius: 6px; letter-spacing: .01em; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s, background .15s; font-family: inherit; }
+  .dugme:hover { transform: translateY(-1px); }
+  .dugme-ana { background: var(--kirmizi); color: #fff; }
+  .dugme-ana:hover { background: var(--kirmizi-koyu); }
+  .dugme-cizgi { border-color: var(--yesil); color: var(--yesil); background: transparent; }
+
+  /* Üst menü */
+  header { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.97); backdrop-filter: blur(8px); border-bottom: 1px solid var(--cizgi); box-shadow: 0 6px 24px rgba(29,90,36,.07); }
+  .menu { display: flex; align-items: center; justify-content: space-between; height: 96px; }
+  .menu img { height: 74px; width: auto; }
+  nav { display: flex; gap: 30px; align-items: center; font-size: 13.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--yesil-koyu); }
+  nav a:not(.dugme):hover { color: var(--kirmizi); }
+  nav .dugme { padding: 11px 20px; font-size: 13px; }
+  nav a:not(.dugme) { position: relative; padding: 6px 0; }
+  nav a:not(.dugme)::after { content: ""; position: absolute; left: 0; right: 100%; bottom: 0; height: 2px; background: var(--kirmizi); transition: right .2s; }
+  nav a:not(.dugme):hover::after { right: 0; }
+
+  /* Giriş — tam genişlikte çiftlik fotoğrafı (img/ciftlik.jpg), ortada slogan ve tenekeler */
+  .giris { position: relative; overflow: hidden; background: #7FB24A; }
+  .ciftlik { position: absolute; inset: 0; background: url(img/ciftlik.jpg) center 60% / cover no-repeat; }
+  .ciftlik::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(16,60,22,.50) 0%, rgba(16,60,22,.18) 34%, rgba(16,60,22,0) 52%); }
+  .giris-ic { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; min-height: 760px; padding: 50px 16px 0; }
+  .giris h1 { font-family: "Baloo 2", "Fraunces", sans-serif; font-weight: 800; line-height: 1.02; letter-spacing: 0; color: #fff; font-size: clamp(26px, 3.5vw, 50px); max-width: 1320px;
+    text-shadow: 0 3px 0 var(--yesil-koyu), 3px 0 0 var(--yesil-koyu), -3px 0 0 var(--yesil-koyu), 0 -3px 0 var(--yesil-koyu), 2px 2px 0 var(--yesil-koyu), -2px 2px 0 var(--yesil-koyu), 2px -2px 0 var(--yesil-koyu), -2px -2px 0 var(--yesil-koyu), 0 10px 24px rgba(0,0,0,.35); }
+  .giris .dugmeler { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+  .dugme-beyaz { background: #fff; color: var(--yesil-koyu); }
+  .giris .dugme { border-radius: 999px; box-shadow: 0 8px 20px rgba(0,0,0,.22); }
+  .tenekeler { display: flex; align-items: flex-end; justify-content: center; position: relative; margin-top: auto; padding-bottom: 64px; }
+  .tenekeler img { position: relative; height: 420px; width: auto; filter: drop-shadow(0 20px 22px rgba(10,40,5,.5)); }
+  .tenekeler img:nth-child(1) { height: 350px; margin-right: -50px; z-index: 1; }
+  .tenekeler img:nth-child(2) { z-index: 3; margin-right: -26px; }
+  .tenekeler img:nth-child(3) { z-index: 4; }
+  .tenekeler img:nth-child(4) { height: 350px; margin-left: -50px; z-index: 2; }
+  .dalga { position: absolute; left: 0; right: 0; bottom: -1px; width: 100%; height: 70px; z-index: 3; display: block; }
+  .dalga path { fill: var(--yesil); }
+
+  /* Rakamlar */
+  .rakamlar { background: var(--yesil); color: #fff; }
+  .rakamlar .kap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding-top: 38px; padding-bottom: 38px; }
+  .rakam { padding-left: 28px; border-left: 1px solid rgba(255,255,255,.22); }
+  .rakam:first-child { padding-left: 0; border-left: 0; }
+  .rakam b { display: block; font-family: "Fraunces", serif; font-size: 34px; font-weight: 600; line-height: 1.1; }
+  .rakam span { font-size: 14px; opacity: .86; }
+
+  section { padding: 96px 0; scroll-margin-top: 96px; }
+  .urun:hover { box-shadow: 0 22px 44px rgba(29,90,36,.14); transform: translateY(-3px); }
+  .baslik { margin-bottom: 44px; }
+  .baslik p { max-width: 640px; }
+  .baslik h2 { font-size: clamp(28px, 3.2vw, 40px); margin: 10px 0 14px; }
+  .baslik p { color: var(--yazi-soluk); font-size: 17px; }
+
+  /* Ürünler */
+  .urunler { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .urun { background: #fff; border: 1px solid var(--cizgi); border-radius: 8px; transition: box-shadow .2s, transform .2s; overflow: hidden; display: flex; flex-direction: column; }
+  .urun .gorsel { height: 280px; display: flex; align-items: flex-end; justify-content: center; padding-top: 28px; }
+  .urun .gorsel img { height: 244px; width: auto; filter: drop-shadow(0 12px 14px rgba(0,0,0,.18)); }
+  .urun.yesil .gorsel { background: linear-gradient(180deg, #EEF5DF, #D8E7BE); }
+  .urun.mavi .gorsel { background: linear-gradient(180deg, #E4F1F8, #BCDAEC); }
+  .urun.naturel .gorsel { background: linear-gradient(180deg, #E7F3E3, #BFE0BB); }
+  .urun .ic { padding: 20px 20px 24px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .urun .kod { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--yazi-soluk); }
+  .urun h3 { font-size: 20px; }
+  .urun.gurme-kart .gorsel { background: linear-gradient(180deg, #F7EBD8, #EFDBBF); }
+  .urun p { font-size: 14.5px; color: var(--yazi-soluk); }
+  .ozellikler { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 8px; }
+  .ozellikler span { font-size: 12.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; background: var(--krem); border: 1px solid var(--cizgi); }
+
+  /* Edinbey Gurme */
+  .gurme { background: var(--zeytin); color: #F4EBDD; }
+  .gurme .kap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: center; }
+  .gurme .kutu { background: var(--krem-koyu); border: 2px solid var(--altin); border-radius: 8px; padding: 34px 24px 0; display: flex; justify-content: center; align-items: flex-end; height: 470px; }
+  .gurme .kutu img { height: 410px; width: auto; filter: drop-shadow(0 16px 20px rgba(0,0,0,.3)); }
+  .gurme .ust-etiket { color: #D9B45A; }
+  .gurme h2 { font-size: clamp(26px, 2.6vw, 36px); margin: 12px 0 18px; color: #fff; }
+  .gurme p { font-size: 17px; opacity: .88; max-width: 500px; }
+  .gurme ul { list-style: none; margin: 24px 0 30px; display: grid; gap: 10px; }
+  .gurme li { padding-left: 26px; position: relative; font-size: 15.5px; }
+  .gurme li::before { content: ""; position: absolute; left: 0; top: 9px; width: 12px; height: 2px; background: #D9B45A; }
+  .gurme .dugme { background: #D9B45A; color: var(--lacivert); }
+
+  /* Hakkımızda */
+  .hakkimizda { background: #fff; }
+  .hakkimizda .kap { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 72px; align-items: center; }
+  .hk-gorsel { position: relative; padding: 0 28px 28px 0; }
+  .hk-gorsel::before { content: ""; position: absolute; right: 0; bottom: 0; width: 72%; height: 72%; border: 2px solid var(--yesil-parlak); border-radius: 6px; }
+  .hk-gorsel img { position: relative; width: 100%; aspect-ratio: 4 / 4.6; object-fit: cover; object-position: 70% center; border-radius: 6px; }
+  .hk-kart { position: absolute; left: -22px; bottom: 60px; background: var(--kirmizi); color: #fff; padding: 20px 24px; border-radius: 6px; box-shadow: 0 18px 34px rgba(178,26,33,.3); }
+  .hk-kart b { display: block; font-family: "Fraunces", serif; font-size: 34px; font-weight: 600; line-height: 1; }
+  .hk-kart span { font-size: 13px; opacity: .92; line-height: 1.35; display: block; margin-top: 6px; }
+  .hk-metin h2 { font-size: clamp(24px, 2.4vw, 33px); margin: 12px 0 22px; color: var(--yesil-koyu); }
+  .hk-metin p { color: var(--yazi-soluk); font-size: 16.5px; margin-bottom: 16px; }
+  .hk-metin .giris-yazi { font-size: 19px; color: var(--yazi); font-weight: 500; }
+  .hk-liste { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; margin-top: 26px; border-top: 1px solid var(--cizgi); }
+  .hk-liste li { padding: 16px 0; border-bottom: 1px solid var(--cizgi); display: grid; gap: 2px; }
+  .hk-liste b { font-size: 15.5px; color: var(--yesil-koyu); }
+  .hk-liste span { font-size: 13.5px; color: var(--yazi-soluk); }
+
+  /* Biz Kimiz — mavi tenekenin renkleri */
+  .biz { background: linear-gradient(160deg, var(--mavi) 0%, var(--mavi-koyu) 70%); color: #E6F2FA; }
+  .biz-ust { text-align: center; max-width: 560px; margin: 0 auto 52px; }
+  .biz-ust .ust-etiket { color: #fff; justify-content: center; }
+  .biz-ust h2 { font-size: clamp(30px, 3.4vw, 42px); color: #fff; margin: 12px 0 12px; }
+  .biz-ust p { opacity: .88; }
+  .ilkeler { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+  .ilke { background: #fff; color: var(--yazi-soluk); padding: 38px 32px 40px; border-radius: 8px; border-top: 4px solid var(--kirmizi); box-shadow: 0 18px 40px rgba(6,60,95,.22); }
+  .ilke svg { width: 38px; height: 38px; fill: none; stroke: var(--mavi-koyu); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 22px; }
+  .ilke .tur { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--kirmizi); }
+  .ilke h3 { font-size: 25px; color: var(--mavi-koyu); margin: 8px 0 12px; }
+  .ilke p { font-size: 15px; line-height: 1.65; }
+  .ilke details { margin-top: 16px; border-top: 1px solid var(--cizgi); padding-top: 14px; }
+  .ilke summary { cursor: pointer; list-style: none; font-size: 14px; font-weight: 600; color: var(--kirmizi); display: inline-flex; align-items: center; gap: 8px; }
+  .ilke summary::-webkit-details-marker { display: none; }
+  .ilke summary::after { content: "+"; font-size: 18px; line-height: 1; }
+  .ilke details[open] summary::after { content: "−"; }
+  .ilke summary .kapat, .ilke details[open] summary .ac { display: none; }
+  .ilke details[open] summary .kapat { display: inline; }
+  .ilke details p { margin-top: 12px; }
+  .ilke summary:focus-visible { outline: 2px solid var(--mavi-koyu); outline-offset: 3px; }
+
+  /* Belgeler */
+  .belgeler { background: #fff; }
+  .belge-liste { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .belge { display: grid; gap: 16px; align-content: start; }
+  .belge a { display: block; border: 1px solid var(--cizgi); border-radius: 8px; overflow: hidden; background: var(--krem); transition: box-shadow .2s, transform .2s; }
+  .belge a:hover { box-shadow: 0 22px 44px rgba(29,90,36,.14); transform: translateY(-3px); }
+  .belge img { width: 100%; height: auto; }
+  .belge figcaption { display: grid; gap: 3px; }
+  .belge b { font-family: "Fraunces", serif; font-size: 22px; font-weight: 600; color: var(--yesil-koyu); }
+  .belge span { font-size: 15px; color: var(--yazi); }
+  .belge small { font-size: 13px; color: var(--yazi-soluk); }
+
+  /* Ürünler sayfası */
+  .sayfa-ust { background: var(--yesil-koyu); color: #fff; padding: 56px 0 52px; }
+  .sayfa-ust .ust-etiket { color: #B5D287; }
+  .sayfa-ust h1 { font-size: clamp(30px, 3.6vw, 46px); margin: 10px 0 10px; }
+  .sayfa-ust p { max-width: 680px; color: #DDEBD3; font-size: 17px; }
+  .urun-detaylar { padding: 72px 0; display: grid; gap: 28px; }
+  .urun-detay { display: grid; grid-template-columns: 340px 1fr; background: #fff; border: 1px solid var(--cizgi); border-radius: 8px; overflow: hidden; scroll-margin-top: 100px; }
+  .urun-detay .gorsel { display: flex; align-items: flex-end; justify-content: center; padding: 34px 20px 0; min-height: 360px; }
+  .urun-detay .gorsel img { height: 310px; width: auto; filter: drop-shadow(0 14px 16px rgba(0,0,0,.2)); }
+  .urun-detay.yesil .gorsel { background: linear-gradient(180deg, #EEF5DF, #D8E7BE); }
+  .urun-detay.mavi .gorsel { background: linear-gradient(180deg, #E4F1F8, #BCDAEC); }
+  .urun-detay.naturel .gorsel { background: linear-gradient(180deg, #E7F3E3, #BFE0BB); }
+  .urun-detay.gurme-kart .gorsel { background: linear-gradient(180deg, #F7EBD8, #EFDBBF); }
+  .urun-detay .ic { padding: 34px 38px 36px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+  .urun-detay .kod { font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--kirmizi); }
+  .urun-detay h2 { font-size: clamp(24px, 2.4vw, 32px); color: var(--yesil-koyu); }
+  .urun-detay p { color: var(--yazi-soluk); font-size: 16px; max-width: 640px; }
+  .ozellik-tablo { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; border-top: 1px solid var(--cizgi); margin-top: 6px; }
+  .ozellik-tablo div { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--cizgi); font-size: 14.5px; }
+  .ozellik-tablo dt { color: var(--yazi-soluk); }
+  .ozellik-tablo dd { font-weight: 600; text-align: right; }
+  .urun-detay .dugme { justify-self: start; margin-top: 6px; }
+  .tum-urunler { text-align: center; margin-top: 36px; }
+  nav a.etkin { color: var(--kirmizi); }
+
+  /* Paket ürünler: gönderilen tanıtım görselleri dikey (3:4) olarak, kırpılmadan */
+  .urun.paket .gorsel { padding: 0; height: auto; aspect-ratio: 3 / 4; }
+  .urun.paket .gorsel img { width: 100%; height: 100%; object-fit: cover; filter: none; }
+  .urun-detay.paket .gorsel { padding: 0; min-height: 0; align-items: stretch; }
+  .urun-detay.paket .gorsel img { width: 100%; height: auto; object-fit: contain; filter: none; display: block; }
+  .alt-baslik { font-family: "Fraunces", Georgia, serif; font-size: 26px; font-weight: 600; color: var(--yesil-koyu); margin: 48px 0 20px; }
+  .urunler.iki { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+
+  /* Dağıtım */
+  .dagitim { background: #fff; border-top: 1px solid var(--cizgi); }
+  .dagitim-ust { text-align: center; margin-bottom: 48px; }
+  .dagitim-ust h2 { font-size: clamp(30px, 3.6vw, 42px); margin-top: 10px; }
+  .noktalar { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--yesil); border-bottom: 1px solid var(--cizgi); }
+  .nokta { padding: 34px 32px 38px; border-left: 1px solid var(--cizgi); }
+  .nokta:first-child { border-left: 0; padding-left: 0; }
+  .nokta .sira { font-family: "Fraunces", serif; font-size: 15px; font-weight: 600; color: var(--kirmizi); margin-bottom: 18px; }
+  .nokta .tur { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--yazi-soluk); }
+  .nokta h3 { font-size: 30px; margin: 6px 0 12px; color: var(--yesil-koyu); }
+  .nokta p { font-size: 15px; color: var(--yazi-soluk); }
+  .nokta .nokta-tel { margin-top: 8px; font-weight: 600; color: var(--yesil-koyu); font-size: 16px; }
+  .nokta ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 15.5px; font-weight: 500; }
+  .nokta li { padding-bottom: 8px; border-bottom: 1px solid var(--cizgi); }
+
+  /* Bayi formu */
+  .bayi { background: var(--krem); }
+  .bayi .kap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: start; }
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; background: #fff; border: 1px solid var(--cizgi); border-radius: 8px; box-shadow: 0 20px 44px rgba(29,90,36,.09); padding: 28px; }
+  form label { display: grid; gap: 6px; font-size: 13.5px; font-weight: 600; }
+  form .tam { grid-column: 1 / -1; }
+  input, select, textarea { font: inherit; font-weight: 400; padding: 12px 14px; border-radius: 10px; border: 1px solid #D8CDB8; background: #fff; color: var(--yazi); width: 100%; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--yesil); outline-offset: 1px; }
+  textarea { min-height: 96px; resize: vertical; }
+  .iletisim-satir { display: grid; gap: 4px; margin-top: 22px; font-size: 15.5px; }
+  .iletisim-satir b { font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--yazi-soluk); }
+
+  /* Instagram */
+  .instagram { background: #fff; border-top: 1px solid var(--cizgi); padding: 64px 0; }
+  .instagram .kap { display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+  .instagram h2 { font-size: clamp(26px, 3vw, 36px); margin: 10px 0 8px; color: var(--yesil-koyu); }
+  .instagram p { color: var(--yazi-soluk); }
+  .ig-dugme { background: var(--kirmizi); color: #fff; padding: 16px 28px; font-size: 16px; }
+  .ig-dugme:hover { background: var(--kirmizi-koyu); }
+  .ig-dugme svg, .ig-ust svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .ig-dugme svg .dolu, .ig-ust svg .dolu { fill: currentColor; stroke: none; }
+  .ig-ust { display: inline-flex; align-items: center; gap: 6px; }
+  .ig-ust svg { width: 15px; height: 15px; }
+
+  /* Alt bilgi */
+  footer { background: var(--yesil-koyu); color: #CFE3C4; font-size: 14.5px; }
+  .alt-ust { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.1fr; gap: 40px; padding-top: 64px; padding-bottom: 48px; }
+  .alt-marka b { font-family: "Fraunces", serif; font-size: 26px; font-weight: 600; color: #fff; display: block; margin-bottom: 12px; }
+  .alt-marka p { max-width: 320px; line-height: 1.65; }
+  footer h4 { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #B5D287; margin-bottom: 16px; font-weight: 700; }
+  footer .alt-ust a, footer .alt-ust span { display: block; padding: 5px 0; }
+  footer a:hover { color: #fff; }
+  .alt-son { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding-top: 22px; padding-bottom: 26px; border-top: 1px solid rgba(255,255,255,.18); font-size: 13px; }
+
+  /* Üst bilgi çubuğu */
+  .ust-cubuk { background: var(--yesil-koyu); color: #DDEBD3; font-size: 13px; }
+  .ust-cubuk .kap { display: flex; justify-content: space-between; align-items: center; height: 38px; }
+  .ust-cubuk .sag { display: flex; align-items: center; gap: 14px; }
+  .ust-cubuk i { width: 1px; height: 12px; background: rgba(255,255,255,.3); }
+  .ust-cubuk a { color: #fff; font-weight: 600; }
+
+  .taslak { background: #FFF3C4; color: #5B4A00; font-size: 13px; text-align: center; padding: 8px 16px; }
+
+  @media (max-width: 1100px) { .urunler { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 900px) {
+    nav a:not(.dugme) { display: none; }
+    .gurme .kap, .bayi .kap, .hakkimizda .kap { grid-template-columns: 1fr; gap: 36px; }
+    .ilkeler, .alt-ust { grid-template-columns: 1fr; }
+    .alt-ust { gap: 26px; padding-top: 44px; }
+    .hk-liste { grid-template-columns: 1fr; }
+    .hk-kart { left: 0; }
+    .menu { height: 80px; }
+    .menu img { height: 60px; }
+    .ust-cubuk span:first-child { display: none; }
+    .ust-cubuk .kap { justify-content: center; }
+    .rakam { padding-left: 0; border-left: 0; }
+    .rakamlar .kap { gap: 20px; }
+    .noktalar { grid-template-columns: 1fr; }
+    .urun-detay { grid-template-columns: 1fr; }
+    .urun-detay .gorsel { min-height: 0; }
+    .urun-detay .gorsel img { height: 240px; }
+    .urun-detay .ic { padding: 24px 20px 28px; }
+    .ozellik-tablo { grid-template-columns: 1fr; }
+    .urun-detaylar { padding: 44px 0; }
+
+    .belge-liste { grid-template-columns: 1fr; max-width: 420px; }
+    .nokta, .nokta:first-child { border-left: 0; border-top: 1px solid var(--cizgi); padding: 26px 0; }
+    .nokta:first-child { border-top: 0; }
+    .giris-ic { min-height: 560px; padding-top: 34px; }
+    .tenekeler { padding-bottom: 46px; }
+    .tenekeler img { height: 215px; }
+    .tenekeler img:nth-child(1), .tenekeler img:nth-child(4) { height: 180px; }
+    .tenekeler img:nth-child(1) { margin-right: -30px; }
+    .tenekeler img:nth-child(2) { margin-right: -16px; }
+    .tenekeler img:nth-child(4) { margin-left: -30px; }
+    .dalga { height: 40px; }
+    .rakamlar .kap { grid-template-columns: 1fr 1fr; }
+    .urunler { grid-template-columns: 1fr; }
+    section { padding: 60px 0; }
+    .gurme .kutu { height: 380px; }
+    .gurme .kutu img { height: 330px; }
+    form { grid-template-columns: 1fr; padding: 20px; }
+    .kap { padding: 0 16px; }
+  }
+</style>
+
+</head>
+<body>
+
+
+<div class="taslak">Taslak tasarım: Metinler ve bilgiler örnek olarak yazıldı, onayınızla kesinleşecek.</div>
+
+<div class="ust-cubuk">
+  <div class="kap">
+    <span>Edinler Gıda San. ve Tic. Ltd. Şti.</span>
+    <span class="sag"><a href="tel:+902667181077">0266 718 10 77</a><i></i>Bandırma / Balıkesir<i></i><a class="ig-ust" href="https://www.instagram.com/edinpeynir/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1" class="dolu"/></svg> Instagram</a></span>
+  </div>
+</div>
+<header>
+  <div class="kap menu">
+    <a href="index.html" class="logo"><img src="img/edin-logo.jpg" alt="Edin"></a>
+    <nav>
+      <a href="index.html">Ana Sayfa</a>
+      <a href="index.html#hakkimizda">Hakkımızda</a>
+      <a href="index.html#biz-kimiz">Biz Kimiz</a>
+      <a href="urunler.html" class="etkin">Ürünlerimiz</a>
+      <a href="index.html#iletisim">İletişim</a>
+      <a href="index.html#bayi" class="dugme dugme-ana">Toptan Teklif</a>
+    </nav>
+  </div>
+</header>
+
+<div class="sayfa-ust">
+  <div class="kap">
+    <div class="ust-etiket">Ürünlerimiz</div>
+    <h1>Teneke beyaz peynirlerimiz</h1>
+    <p>Edin ve Edinbey markalarıyla ürettiğimiz teneke ve paket beyaz peynirler. Hepsi pastörize inek sütü, peynir mayası ve tuzla, Türk Gıda Kodeksi'ne uygun olarak üretilir.</p>
+  </div>
+</div>
+
+<div class="kap urun-detaylar">
+  <article class="urun-detay yesil" id="ed09">
+    <div class="gorsel"><img src="img/edin-yesil.png" alt="Tam Yağlı Olgunlaştırılmış Beyaz Peynir"></div>
+    <div class="ic">
+      <div class="kod">ED09</div>
+      <h2>Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h2>
+      <p>Sezon sütünden üretilen, en az 90 gün olgunlaştırıldıktan sonra satışa sunulan klasik Edin lezzeti. Dengeli tuzu ve dolgun yapısıyla kahvaltı sofralarının temel peyniridir.</p>
+      <dl class="ozellik-tablo">
+        <div><dt>Net ağırlık</dt><dd>18 kg</dd></div>
+        <div><dt>Ambalaj</dt><dd>Teneke</dd></div>
+        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
+        <div><dt>Yağ</dt><dd>Tam yağlı (kuru maddede en az %45 süt yağı)</dd></div>
+        <div><dt>Olgunlaştırma</dt><dd>En az 90 gün</dd></div>
+        <div><dt>Standart</dt><dd>TS 591, 1. sınıf</dd></div>
+      </dl>
+      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
+    </div>
+  </article>
+  <article class="urun-detay mavi" id="ed13">
+    <div class="gorsel"><img src="img/edin-mavi.png" alt="Ekstra Olgun Beyaz Peynir"></div>
+    <div class="ic">
+      <div class="kod">ED13</div>
+      <h2>Ekstra Olgun Beyaz Peynir</h2>
+      <p>Daha uzun süre olgunlaştırılan, aroması belirgin mavi teneke. Kahvaltı salonları, şarküteriler ve olgun peynir arayan müşteriler için.</p>
+      <dl class="ozellik-tablo">
+        <div><dt>Net ağırlık</dt><dd>18 kg</dd></div>
+        <div><dt>Ambalaj</dt><dd>Teneke</dd></div>
+        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
+        <div><dt>Yağ</dt><dd>Tam yağlı (kuru maddede en az %45 süt yağı)</dd></div>
+        <div><dt>Olgunlaştırma</dt><dd>Ekstra olgun</dd></div>
+        <div><dt>Standart</dt><dd>TS 591, 1. sınıf</dd></div>
+      </dl>
+      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
+    </div>
+  </article>
+  <article class="urun-detay naturel" id="ed02">
+    <div class="gorsel"><img src="img/edin-naturel.png" alt="Natürel Olgun Beyaz Peynir"></div>
+    <div class="ic">
+      <div class="kod">ED02</div>
+      <h2>Natürel Olgun Beyaz Peynir</h2>
+      <p>Yıllardır değişmeyen Edin tenekesi. Tam yağlı, olgunlaştırılmış, 1. sınıf beyaz peynir.</p>
+      <dl class="ozellik-tablo">
+        <div><dt>Net ağırlık</dt><dd>18 kg</dd></div>
+        <div><dt>Ambalaj</dt><dd>Teneke</dd></div>
+        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
+        <div><dt>Yağ</dt><dd>Tam yağlı (kuru maddede en az %45 süt yağı)</dd></div>
+        <div><dt>Olgunlaştırma</dt><dd>En az 90 gün</dd></div>
+        <div><dt>Standart</dt><dd>TS 591, 1. sınıf</dd></div>
+      </dl>
+      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
+    </div>
+  </article>
+  <article class="urun-detay gurme-kart" id="edinbey">
+    <div class="gorsel"><img src="img/edinbey-gurme.png" alt="Edinbey Gurme Beyaz Peynir"></div>
+    <div class="ic">
+      <div class="kod">EDİNBEY</div>
+      <h2>Edinbey Gurme Beyaz Peynir</h2>
+      <p>Tam yağlı olgunlaştırılmış beyaz peynirimizin özel serisi. Restoranlar, oteller ve seçici şarküteriler için hazırlanır.</p>
+      <dl class="ozellik-tablo">
+        <div><dt>Net ağırlık</dt><dd>18 kg</dd></div>
+        <div><dt>Ambalaj</dt><dd>Teneke</dd></div>
+        <div><dt>Yağ</dt><dd>Tam yağlı</dd></div>
+        <div><dt>Tür</dt><dd>Olgunlaştırılmış beyaz peynir</dd></div>
+      </dl>
+      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
+    </div>
+  </article>
+  <h2 class="alt-baslik" style="margin:20px 0 0">Paket ürünlerimiz</h2>
+  <article class="urun-detay paket yesil" id="paket-yesil">
+    <div class="gorsel"><img src="img/paket-yesil.jpg" alt="Edin Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket"></div>
+    <div class="ic">
+      <div class="kod">PAKET</div>
+      <h2>Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h2>
+      <p>Yumuşak kıvamlı, kolay dilimlenen ve kolay ezilen beyaz peynir. Börek, gözleme ve poğaça içi için uygundur; kahvaltıda da sevilir.</p>
+      <dl class="ozellik-tablo">
+        <div><dt>Ambalaj</dt><dd>Kapaklı plastik kap</dd></div>
+        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
+        <div><dt>Yağ</dt><dd>Tam yağlı</dd></div>
+        <div><dt>Kıvam</dt><dd>Yumuşak</dd></div>
+        <div><dt>Kullanım</dt><dd>Börek, gözleme, kahvaltı</dd></div>
+      </dl>
+      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
+    </div>
+  </article>
+  <article class="urun-detay paket mavi" id="paket-mavi">
+    <div class="gorsel"><img src="img/paket-mavi.jpg" alt="Edin Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket"></div>
+    <div class="ic">
+      <div class="kod">PAKET</div>
+      <h2>Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h2>
+      <p>Teneke peynirimizin ev ve küçük işletmeler için paketlenmiş hâli. Olgunlaştırılmış, dolgun lezzetli klasik Edin beyaz peyniri.</p>
+      <dl class="ozellik-tablo">
+        <div><dt>Ambalaj</dt><dd>Kapaklı plastik kap</dd></div>
+        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
+        <div><dt>Yağ</dt><dd>Tam yağlı</dd></div>
+        <div><dt>Tür</dt><dd>Olgunlaştırılmış beyaz peynir</dd></div>
+        <div><dt>Kullanım</dt><dd>Kahvaltı, salata, börek</dd></div>
+      </dl>
+      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
+    </div>
+  </article>
+</div>
+
+<section class="instagram" id="instagram">
+  <div class="kap">
+    <div>
+      <div class="ust-etiket">Instagram</div>
+      <h2>Bizi Instagram'da takip edin</h2>
+      <p>Üretimden kareler, yeni ürünler ve duyurular Instagram sayfamızda.</p>
+    </div>
+    <a class="dugme ig-dugme" href="https://www.instagram.com/edinpeynir/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1" class="dolu"/></svg> Instagram sayfamıza gidin</a>
+  </div>
+</section>
+
+<footer>
+  <div class="kap alt-ust">
+    <div class="alt-marka">
+      <b>Edinler Gıda</b>
+      <p>Bandırma'da üretilen tam yağlı, olgunlaştırılmış teneke beyaz peynir. Edin ve Edinbey markalarıyla.</p>
+    </div>
+    <div>
+      <h4>Kurumsal</h4>
+      <a href="index.html#hakkimizda">Hakkımızda</a><a href="index.html#biz-kimiz">Biz Kimiz</a><a href="index.html#belgeler">Belgelerimiz</a><a href="index.html#dagitim">Dağıtım Ağı</a>
+    </div>
+    <div>
+      <h4>Ürünler</h4>
+      <a href="urunler.html">Edin Beyaz Peynir</a><a href="urunler.html#edinbey">Edinbey Gurme</a><a href="index.html#bayi">Toptan Teklif</a>
+    </div>
+    <div>
+      <h4>İletişim</h4>
+      <a href="tel:+902667181077">0266 718 10 77</a><a href="tel:+902667130460">0266 713 04 60</a><span>Ordu Cad. No: 11/2, Bandırma</span><span>İstanbul Deposu: 0212 616 15 10</span><a href="https://www.instagram.com/edinpeynir/" target="_blank" rel="noopener">Instagram</a>
+    </div>
+  </div>
+  <div class="kap alt-son">
+    <span>© 2026 Edinler Gıda San. ve Tic. Ltd. Şti. · TR 10-0140</span>
+    <span>Edin ve Edinbey, Edinler Gıda'nın tescilli markalarıdır.</span>
+    <span>Web tasarım: <a href="https://panormosmedya.com" target="_blank" rel="noopener" style="color:#fff;font-weight:600">Panormos Medya</a></span>
+  </div>
+</footer>
+
+
+</body>
+</html>
