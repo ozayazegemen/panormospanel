@@ -1816,7 +1816,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       </FormField>
       <FormField label="📊 Aylık Paylaşım Anlaşması (nerede, ne kadar)"><QuotaEditor value={form.quotaDetail} onChange={q=>setForm(f=>({...f,quotaDetail:q}))} /></FormField>
       <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
-      <FormField label="🤝 Anlaşma Tarihi (her ay bu günden 5 gün önce fatura kesme uyarısı gelir)"><Input type="date" value={form.agreementDate||""} onChange={e=>setForm(f=>({...f,agreementDate:e.target.value}))} /></FormField>
+      <FormField label="🤝 Anlaşma Tarihi (her ay bu günde görevler yenilenir; 5 gün önce fatura kesme uyarısı gelir)"><Input type="date" value={form.agreementDate||""} onChange={e=>setForm(f=>({...f,agreementDate:e.target.value}))} /></FormField>
       <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
@@ -1882,7 +1882,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       </FormField>
       <FormField label="📊 Aylık Paylaşım Anlaşması (nerede, ne kadar)"><QuotaEditor value={form.quotaDetail} onChange={q=>setForm(f=>({...f,quotaDetail:q}))} /></FormField>
       <FormField label="📝 Açıklama / Notlar"><Textarea placeholder="Müşteri hakkında notlar, özel istekler..." value={form.description||""} onChange={e=>setForm(f=>({...f,description:e.target.value}))} minHeight={80} /></FormField>
-      <FormField label="🤝 Anlaşma Tarihi (her ay bu günden 5 gün önce fatura kesme uyarısı gelir)"><Input type="date" value={form.agreementDate||""} onChange={e=>setForm(f=>({...f,agreementDate:e.target.value}))} /></FormField>
+      <FormField label="🤝 Anlaşma Tarihi (her ay bu günde görevler yenilenir; 5 gün önce fatura kesme uyarısı gelir)"><Input type="date" value={form.agreementDate||""} onChange={e=>setForm(f=>({...f,agreementDate:e.target.value}))} /></FormField>
       <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
@@ -2987,7 +2987,7 @@ function ClientOverview({client, perms}) {
     </div>
     {client.agreementDate && (
       <div style={{fontSize:12.5,color:T.textSecondary,background:T.bgInput,borderRadius:10,padding:"9px 14px",marginBottom:16}}>
-        🤝 Anlaşma tarihi: <b style={{color:T.textPrimary}}>{new Date(client.agreementDate+"T00:00:00").toLocaleDateString("tr-TR")}</b> · Fatura günü: her ayın <b style={{color:T.textPrimary}}>{parseInt(String(client.agreementDate).slice(8,10))}</b>'i
+        🤝 Anlaşma tarihi: <b style={{color:T.textPrimary}}>{new Date(client.agreementDate+"T00:00:00").toLocaleDateString("tr-TR")}</b> · Fatura günü: her ayın <b style={{color:T.textPrimary}}>{parseInt(String(client.agreementDate).slice(8,10))}</b>'i · Paket görevleri de her ay bu günde yenilenir
       </div>
     )}
 
@@ -3381,12 +3381,33 @@ function TaskTypePicker({ value, onChange }) {
   );
 }
 
-// ── Aylık paket görevleri: müşterinin aylık paylaşım anlaşmasına göre ay başında görevleri kendiliğinden açar ──
+// ── Aylık paket görevleri: müşterinin aylık paylaşım anlaşmasına göre her dönemin görevlerini kendiliğinden açar ──
 const QUOTA_TYPE_NAMES = { post: "Post", reels: "Reels", carousel: "Kaydırmalı Post", story: "Hikaye", video: "Video" };
-// Bir müşteri için o ayın görev planı. Her görevin benzersiz bir kimliği (auto_ref) vardır; aynı görev iki kez açılmaz.
-function monthlyTaskPlan(client, month) {
-  const [y, mo] = month.split("-").map(Number);
-  const gunSayisi = new Date(y, mo, 0).getDate();
+const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+// Müşterinin içinde bulunduğumuz görev dönemi. Anlaşma tarihi varsa dönem her ay anlaşma gününde başlar
+// (13 Ekim'de anlaşıldıysa 13 Kasım'da yenilenir); yoksa dönem takvim ayıdır. Ay o kadar gün çekmiyorsa (ör. 31) ayın son günü sayılır.
+// Anlaşma tarihi henüz gelmediyse null döner.
+function clientCycle(client, bugun = todayStr()) {
+  const [y, m] = bugun.split("-").map(Number);
+  const anlasma = String(client.agreementDate || "").slice(0, 10);
+  const gun = /^\d{4}-\d{2}-\d{2}$/.test(anlasma) ? parseInt(anlasma.slice(8, 10)) : 1;
+  const basla = (k) => new Date(y, m - 1 + k, Math.min(gun, new Date(y, m + k, 0).getDate()));
+  const k = ymdOf(basla(0)) <= bugun ? 0 : -1;
+  const bas = basla(k), sonraki = basla(k + 1);
+  const son = new Date(sonraki.getFullYear(), sonraki.getMonth(), sonraki.getDate() - 1);
+  const start = ymdOf(bas), end = ymdOf(son);
+  if (gun > 1 && start < anlasma) return null;
+  const takvim = gun === 1;
+  const kisa = (d) => `${d.getDate()} ${TR_MONTHS[d.getMonth()].slice(0, 3)}`;
+  // Takvim ayı dönemlerinde anahtar eskisi gibi YYYY-AA kalır (önceden açılmış görevlerle çakışmasın)
+  return { key: takvim ? start.slice(0, 7) : start, start, end, takvim, label: takvim ? TR_MONTHS[bas.getMonth()] : `${kisa(bas)} – ${kisa(son)}` };
+}
+// Bir müşteri için o dönemin görev planı. Her görevin benzersiz bir kimliği (auto_ref) vardır; aynı görev iki kez açılmaz.
+function monthlyTaskPlan(client, cycle) {
+  if (!cycle) return [];
+  const tumGunler = [];
+  for (let t = new Date(cycle.start + "T00:00:00"); ymdOf(t) <= cycle.end; t.setDate(t.getDate() + 1)) tumGunler.push(ymdOf(t));
+  const gunSayisi = tumGunler.length;
   const kalemler = [];
   const quota = client.quotaDetail && typeof client.quotaDetail === "object" ? client.quotaDetail : {};
   Object.keys(quota).forEach(plat => Object.keys(quota[plat] || {}).forEach(tur => {
@@ -3403,35 +3424,52 @@ function monthlyTaskPlan(client, month) {
     for (let i = 1; i <= n; i++) kalemler.push({ ref: `genel|paylasim|${i}`, title: `Paylaşım ${i}/${n}`, type: "Tasarım" });
   }
   if (kalemler.length === 0) return [];
-  // Son tarihler: müşterinin paylaşım günlerine; yoksa aya eşit aralıkla dağıtılır
+  // Son tarihler: müşterinin paylaşım günlerine; yoksa döneme eşit aralıkla dağıtılır
   const gunIdx = (client.publishDays || []).map(weekdayIndexOf).filter(i => i !== undefined);
-  const tarih = (d) => `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  let gunler = [];
-  for (let d = 1; d <= gunSayisi; d++) { const wd = (new Date(y, mo - 1, d).getDay() + 6) % 7; if (gunIdx.includes(wd)) gunler.push(d); }
-  // Her içerik türü kendi içinde aya yayılır (ör. 4 post haftada bir düşer); türler aynı güne yığılmasın diye birer gün kaydırılır
+  const gunler = tumGunler.filter(g => gunIdx.includes((new Date(g + "T00:00:00").getDay() + 6) % 7));
+  // Her içerik türü kendi içinde döneme yayılır (ör. 4 post haftada bir düşer); türler aynı güne yığılmasın diye birer gün kaydırılır
   const gruplar = {};
   kalemler.filter(k => !k.toplu).forEach(k => { const g = k.ref.split("|").slice(0, 2).join("|"); (gruplar[g] = gruplar[g] || []).push(k); });
   Object.values(gruplar).forEach((liste, gi) => liste.forEach((k, i) => {
-    const d = gunler.length
+    k.due = gunler.length
       ? gunler[Math.min(gunler.length - 1, (Math.floor(i * gunler.length / liste.length) + gi) % gunler.length)]
-      : Math.max(1, Math.min(gunSayisi, Math.round((i + 1) * gunSayisi / (liste.length + 1)) + gi));
-    k.due = tarih(d);
+      : tumGunler[Math.max(1, Math.min(gunSayisi, Math.round((i + 1) * gunSayisi / (liste.length + 1)) + gi)) - 1];
   }));
-  kalemler.filter(k => k.toplu).forEach(k => { k.due = tarih(gunSayisi); });
-  return kalemler.map(k => ({ auto_ref: `${month}|${client.id}|${k.ref}`, title: `${TR_MONTHS[mo - 1]} · ${k.title}`, type: k.type, due_date: k.due }));
+  kalemler.filter(k => k.toplu).forEach(k => { k.due = cycle.end; });
+  return kalemler.map(k => ({ auto_ref: `${cycle.key}|${client.id}|${k.ref}`, title: `${cycle.label} · ${k.title}`, type: k.type, due_date: k.due }));
 }
 
-// O ayın paket görevlerini açar (zaten açılmış olanlar atlanır). Kaç yeni görev açıldığını döndürür.
-// yalnizcaKalan: son tarihi bugünden önce olanları açma (ay ortasında ilk kez kurarken geçmiş günler "gecikmiş" görünmesin)
+// Her müşterinin içinde bulunduğu dönemin paket görevlerini açar (zaten açılmış olanlar atlanır). Kaç yeni görev açıldığını döndürür.
+// yalnizcaKalan: son tarihi bugünden önce olanları açma (dönem ortasında ilk kez kurarken geçmiş günler "gecikmiş" görünmesin)
+// yalnizcaYeniDonem: dönemi daha önce açılmış müşteriye dokunma (otomatik açmada; elle silinen görev ertesi gün geri gelmesin)
 // Sorumlu: müşteriye özel biri seçildiyse o; seçilmediyse görevin iş türünü yapan çalışan (Video → videocu, Tasarım → tasarımcı).
-async function createMonthlyTasks(clients, month, yalnizcaKalan = false, staff = []) {
+async function createMonthlyTasks(clients, yalnizcaKalan = false, staff = [], yalnizcaYeniDonem = false) {
   const now = new Date().toISOString();
+  const planlar = clients.map(c => { const cycle = clientCycle(c); return { c, cycle, plan: monthlyTaskPlan(c, cycle) }; }).filter(x => x.plan.length > 0);
+  if (!planlar.length) return { created: 0, planned: 0 };
+  // Bu dönemlere denk gelen aylarda daha önce açılmış paket görevleri
+  const aylar = [...new Set(planlar.flatMap(x => [x.cycle.start.slice(0, 7), x.cycle.end.slice(0, 7)]))];
+  const acik = new Set(), eskiAy = new Set();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('tasks').select('auto_ref').or(aylar.map(a => `auto_ref.like.${a}*`).join(',')).range(from, from + 999);
+    if (error) return { created: 0, planned: 0, error: error.message };
+    (data || []).forEach(t => { const p = String(t.auto_ref).split("|"); acik.add(`${p[0]}|${p[1]}`); if (p[0].length === 7) eskiAy.add(`${p[0]}|${p[1]}`); });
+    if (!data || data.length < 1000) break;
+  }
   const yuk = {};
-  const rows = clients.flatMap(c => monthlyTaskPlan(c, month).filter(p => !yalnizcaKalan || p.due_date >= todayStr()).map(p => {
-    const kim = c.defaultAssignee || assigneeForType(p.type, staff, yuk);
-    if (kim) yuk[kim] = (yuk[kim] || 0) + 1;
-    return { ...p, priority: "mid", col: "todo", client_id: c.id, assigned_to: kim || null, assigned_at: kim ? now : null };
-  }));
+  const acilan = [];
+  const rows = planlar.flatMap(({ c, cycle, plan }) => {
+    if (yalnizcaYeniDonem && acik.has(`${cycle.key}|${c.id}`)) return [];
+    const liste = plan.filter(p => !yalnizcaKalan || p.due_date >= todayStr())
+      // Takvim ayına göre açılmış eski görevleri olan ayın günleri yeniden açılmaz (anlaşma gününe geçişte çift görev olmasın)
+      .filter(p => cycle.takvim || !eskiAy.has(`${p.due_date.slice(0, 7)}|${c.id}`));
+    if (liste.length) acilan.push(c.name);
+    return liste.map(p => {
+      const kim = c.defaultAssignee || assigneeForType(p.type, staff, yuk);
+      if (kim) yuk[kim] = (yuk[kim] || 0) + 1;
+      return { ...p, priority: "mid", col: "todo", client_id: c.id, assigned_to: kim || null, assigned_at: kim ? now : null };
+    });
+  });
   if (!rows.length) return { created: 0, planned: 0 };
   let created = 0;
   for (let i = 0; i < rows.length; i += 200) {
@@ -3439,29 +3477,28 @@ async function createMonthlyTasks(clients, month, yalnizcaKalan = false, staff =
     if (error) return { created, planned: rows.length, error: error.message };
     created += (data || []).length;
   }
-  return { created, planned: rows.length };
+  return { created, planned: rows.length, musteriler: acilan };
 }
 
-// Otomatik açma açıksa ve bu ayın görevleri henüz açılmadıysa açar. Yönetici panele girdiğinde çağrılır.
+// Otomatik açma açıksa, dönemi yenilenen müşterilerin görevlerini açar. Yönetici panele girdiğinde, günde bir kez çalışır.
 async function runAutoMonthlyTasks(clients, staff) {
   const { data } = await supabase.from('panel_settings').select('*').in('key', ['auto_tasks', 'auto_tasks_last']);
   const ayar = {}; (data || []).forEach(r => { ayar[r.key] = r.value; });
-  const month = currentMonthRef();
-  if (ayar.auto_tasks !== 'on' || ayar.auto_tasks_last === month) return { created: 0 };
-  const r = await createMonthlyTasks(clients, month, false, staff);
-  if (!r.error) await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: month }], { onConflict: 'key' });
-  return { ...r, month };
+  const bugun = todayStr();
+  if (ayar.auto_tasks !== 'on' || ayar.auto_tasks_last === bugun) return { created: 0 };
+  const r = await createMonthlyTasks(clients, false, staff, true);
+  if (!r.error) await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: bugun }], { onConflict: 'key' });
+  return r;
 }
 
 // Kurulum penceresi: müşteri başına sorumlu çalışan + otomatik açma anahtarı
 function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
-  const month = currentMonthRef();
   const [assignee, setAssignee] = useState(() => Object.fromEntries(clients.map(c => [c.id, c.defaultAssignee || ""])));
   const [auto, setAuto] = useState(true);
-  const [kalan, setKalan] = useState(() => new Date().getDate() > 5);  // ay ortasındaysak yalnızca kalan günlerin görevleri
+  const [kalan, setKalan] = useState(true);  // yalnızca kalan günlerin görevleri
   const [busy, setBusy] = useState(false);
   useEffect(() => { (async () => { const { data } = await supabase.from('panel_settings').select('*').eq('key', 'auto_tasks'); if (data && data[0]) setAuto(data[0].value === 'on'); })(); }, []);
-  const planli = clients.map(c => ({ c, plan: monthlyTaskPlan(c, month) }));
+  const planli = clients.map(c => { const cycle = clientCycle(c); return { c, cycle, plan: monthlyTaskPlan(c, cycle) }; });
   const varOlan = planli.filter(x => x.plan.length > 0);
   const toplam = varOlan.reduce((t, x) => t + x.plan.filter(p => !kalan || p.due_date >= todayStr()).length, 0);
   const kaydet = async (simdiAc) => {
@@ -3477,12 +3514,12 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
       }
       const { error: e2 } = await supabase.from('panel_settings').upsert([{ key: 'auto_tasks', value: auto ? 'on' : 'off' }], { onConflict: 'key' });
       if (e2) throw e2;
-      let mesaj = auto ? "Ayar kaydedildi: her ayın başında paket görevleri kendiliğinden açılacak." : "Ayar kaydedildi: otomatik açma kapalı.";
+      let mesaj = auto ? "Ayar kaydedildi: her müşterinin dönemi yenilendiğinde paket görevleri kendiliğinden açılacak." : "Ayar kaydedildi: otomatik açma kapalı.";
       if (simdiAc) {
-        const r = await createMonthlyTasks(clients.map(c => ({ ...c, defaultAssignee: assignee[c.id] || null })), month, kalan, staff);
+        const r = await createMonthlyTasks(clients.map(c => ({ ...c, defaultAssignee: assignee[c.id] || null })), kalan, staff);
         if (r.error) throw new Error(r.error);
-        await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: month }], { onConflict: 'key' });
-        mesaj = r.created > 0 ? `✅ ${monthName(month)} için ${r.created} görev açıldı.` : `${monthName(month)} görevleri zaten açılmış; yeni görev eklenmedi.`;
+        await supabase.from('panel_settings').upsert([{ key: 'auto_tasks_last', value: todayStr() }], { onConflict: 'key' });
+        mesaj = r.created > 0 ? `✅ Bu dönem için ${r.created} görev açıldı.` : "Bu dönemin görevleri zaten açılmış; yeni görev eklenmedi.";
       }
       setBusy(false);
       await onDone(mesaj);
@@ -3490,7 +3527,7 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
   };
   return (
     <Modal title="Aylık Paket Görevleri" onClose={() => { if (!busy) onClose(); }} width={720}>
-      <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Her müşterinin "Aylık Paylaşım Anlaşması"ndaki sayılara göre ayın görevleri açılır; son tarihleri müşterinin paylaşım günlerine dağıtılır. Görevler iş türüne göre kendiliğinden atanır (Video işleri videocuya, Tasarım işleri tasarımcıya); kimin hangi işi yaptığını Çalışanlar sayfasında "Yaptığı İşler"den belirlersiniz. Bir müşterinin bütün işlerini tek kişiye vermek isterseniz aşağıdan o kişiyi seçin. Anlaşması girilmemiş müşteriler listede görünmez.</div>
+      <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Her müşterinin "Aylık Paylaşım Anlaşması"ndaki sayılara göre dönemin görevleri açılır; son tarihleri müşterinin paylaşım günlerine dağıtılır. Dönem, müşterinin anlaşma gününde yenilenir: 13 Ekim'de anlaşılan müşterinin yeni görevleri 13 Kasım'da açılır. Anlaşma tarihi girilmemiş müşteride dönem ayın 1'inde başlar. Görevler iş türüne göre kendiliğinden atanır (Video işleri videocuya, Tasarım işleri tasarımcıya); kimin hangi işi yaptığını Çalışanlar sayfasında "Yaptığı İşler"den belirlersiniz. Bir müşterinin bütün işlerini tek kişiye vermek isterseniz aşağıdan o kişiyi seçin. Anlaşması girilmemiş müşteriler listede görünmez.</div>
       <div style={{ fontSize: 12, color: T.textSecondary, background: T.bgInput, borderRadius: 9, padding: "9px 12px", marginBottom: 12 }}>
         {TASK_TYPES.map(t => { const kim = staff.filter(st => (st.taskTypes || []).includes(t)).map(st => st.name); return <span key={t} style={{ marginRight: 14, whiteSpace: "nowrap" }}><b style={{ color: T.textPrimary }}>{t}:</b> {kim.length ? kim.join(", ") : <span style={{ color: T.amberText }}>kimse tanımlı değil</span>}</span>; })}
       </div>
@@ -3498,11 +3535,11 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
         <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "24px 12px", background: T.bgInput, borderRadius: 10 }}>Hiçbir müşteride aylık paylaşım anlaşması girilmemiş. Müşteriler sayfasında müşteriyi düzenleyip "Aylık Paylaşım Anlaşması" tablosunu doldurun.</div>
       ) : (
         <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, maxHeight: 340, overflowY: "auto" }}>
-          {varOlan.map(({ c, plan }, i) => (
+          {varOlan.map(({ c, cycle, plan }, i) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderTop: i ? `1px solid ${T.border}` : "none" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{plan.length} görev · {plan.map(p => p.title.split(" · ")[1]).slice(0, 3).join(", ")}{plan.length > 3 ? "…" : ""}</div>
+                <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cycle.label} · {plan.length} görev · {plan.map(p => p.title.split(" · ")[1]).slice(0, 3).join(", ")}{plan.length > 3 ? "…" : ""}</div>
               </div>
               <select value={assignee[c.id] || ""} onChange={e => setAssignee(a => ({ ...a, [c.id]: e.target.value }))} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "8px 10px", color: T.textPrimary, fontSize: 12.5, outline: "none", maxWidth: 200 }}>
                 <option value="">Otomatik (iş türüne göre)</option>
@@ -3513,13 +3550,13 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
         </div>
       )}
       <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-        <PermToggle label="Her ayın başında görevleri kendiliğinden aç" checked={auto} onChange={() => setAuto(a => !a)} />
-        <PermToggle label={`${monthName(month)} için yalnızca bugünden sonraki görevleri aç (geçmiş günler gecikmiş görünmesin)`} checked={kalan} onChange={() => setKalan(k => !k)} />
+        <PermToggle label="Müşterinin dönemi yenilenince görevleri kendiliğinden aç" checked={auto} onChange={() => setAuto(a => !a)} />
+        <PermToggle label="Yalnızca bugünden sonraki görevleri aç (geçmiş günler gecikmiş görünmesin)" checked={kalan} onChange={() => setKalan(k => !k)} />
       </div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18, flexWrap: "wrap" }}>
         <Btn onClick={onClose} disabled={busy}>Vazgeç</Btn>
         <Btn onClick={() => kaydet(false)} disabled={busy}>Yalnızca Ayarı Kaydet</Btn>
-        <Btn variant="primary" onClick={() => kaydet(true)} disabled={busy || toplam === 0}>{busy ? "Kaydediliyor..." : `Kaydet ve ${monthName(month)} Görevlerini Aç (${toplam})`}</Btn>
+        <Btn variant="primary" onClick={() => kaydet(true)} disabled={busy || toplam === 0}>{busy ? "Kaydediliyor..." : "Kaydet ve Bu Dönemin Görevlerini Aç"}</Btn>
       </div>
     </Modal>
   );
@@ -11776,7 +11813,7 @@ export default function App() {
     if (session && currentStaff) refreshData();
   }, [session, currentStaff]);
 
-  // Yönetici panele girdiğinde: otomatik açma açıksa ve bu ayın paket görevleri açılmadıysa aç
+  // Yönetici panele girdiğinde: otomatik açma açıksa, dönemi yenilenen müşterilerin paket görevlerini aç
   const autoTasksRan = useRef(false);
   useEffect(() => {
     if (!currentStaff || currentStaff.is_admin !== true || dataLoading || autoTasksRan.current) return;
@@ -11784,7 +11821,7 @@ export default function App() {
     (async () => {
       try {
         const r = await runAutoMonthlyTasks(clients, staff);
-        if (r.created > 0) { await refreshData(); swalAlert(`✅ ${monthName(r.month)} paket görevleri açıldı: ${r.created} görev.\n\nGörevler sayfasından görebilirsiniz.`); }
+        if (r.created > 0) { await refreshData(); swalAlert(`✅ Yeni dönemin paket görevleri açıldı: ${r.created} görev.\n\n${(r.musteriler || []).join(", ")}\n\nGörevler sayfasından görebilirsiniz.`); }
       } catch (e) { /* sessiz geç: bir sonraki girişte yeniden denenir */ }
     })();
   }, [currentStaff, dataLoading]);
