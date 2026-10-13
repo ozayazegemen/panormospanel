@@ -2,3 +2,4 @@
 [build]
   publish = "."
   command = ""
+# Formlar: Netlify Forms (teklif, gorus) — form algılama 13.10.2026'da açıldı
