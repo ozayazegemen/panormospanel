@@ -9970,6 +9970,9 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ entry_type: "sgk" });
   const [filter, setFilter] = useState("all");
+  // Maaş ödeme günü: ayın kaçı ve maaş hangi ay ödeniyor ("sonraki": Eylül maaşı Ekim'de; "ayni": ay içinde)
+  const [payDay, setPayDay] = useState({ gun: "", ay: "sonraki" });
+  const [tasima, setTasima] = useState(null);   // ayı değiştirilen avans: { e, ay }
 
   const load = async () => {
     const { data, error } = await supabase.from('accounting_entries').select('*').order('due_date', { ascending: false });
@@ -9978,6 +9981,24 @@ function AccountingExpenses({ staff, autoAdd = false }) {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => { (async () => {
+    const { data } = await supabase.from('panel_settings').select('*').eq('key', 'salary_pay_day');
+    const [gun, ay] = String((data && data[0] && data[0].value) || "").split("|");
+    if (gun) setPayDay({ gun, ay: ay === "ayni" ? "ayni" : "sonraki" });
+  })(); }, []);
+  const savePayDay = async (yeni) => {
+    setPayDay(yeni);
+    const { error } = await supabase.from('panel_settings').upsert([{ key: 'salary_pay_day', value: yeni.gun ? `${yeni.gun}|${yeni.ay}` : "" }], { onConflict: 'key' });
+    if (error) swalAlert("Maaş ödeme günü kaydedilemedi: " + error.message);
+  };
+  // Bir ayın maaşının ödeneceği gün (ödeme günü ayarlı değilse boş). Ay o kadar gün çekmiyorsa ayın son günü.
+  const salaryDue = (month) => {
+    const gun = parseInt(payDay.gun);
+    if (!gun || !/^\d{4}-\d{2}$/.test(month || "")) return "";
+    const [y, m] = shiftMonth(month, payDay.ay === "ayni" ? 0 : 1).split("-").map(Number);
+    return `${y}-${String(m).padStart(2, "0")}-${String(Math.min(gun, new Date(y, m, 0).getDate())).padStart(2, "0")}`;
+  };
+  const trDate = (ymd) => new Date(ymd + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
   // Özet'ten "+ SGK / Vergi / Maaş" ile gelindiyse ekleme penceresini aç
   useEffect(() => { if (autoAdd) { setForm({ entry_type: "sgk", month_ref: currentMonthRef() }); setModal(true); } }, []);
 
@@ -9985,6 +10006,15 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   const advancesOf = (staffId, month) => entries.filter(e => isAdvanceEntry(e) && String(e.staff_id) === String(staffId) && e.month_ref === month);
   const unpaidSalaryOf = (staffId, month) => entries.find(e => e.entry_type === "salary" && !isAdvanceEntry(e) && !e.is_paid && String(e.staff_id) === String(staffId) && e.month_ref === month);
   const sumAmt = (list) => list.reduce((t, e) => t + Number(e.amount || 0), 0);
+  // Avans hangi ayın maaşından düşülsün: çalışanın en eski bekleyen maaşı; kayıt yoksa, maaşlar ertesi ay ödeniyorsa
+  // ve geçen ayın maaşı henüz girilmemişse geçen ay (o maaş daha ödenmemiştir); değilse bu ay.
+  const advanceMonthFor = (staffId) => {
+    const maaslar = entries.filter(e => e.entry_type === "salary" && !isAdvanceEntry(e) && String(e.staff_id) === String(staffId));
+    const bekleyen = maaslar.filter(e => !e.is_paid && e.month_ref).map(e => e.month_ref).sort();
+    if (bekleyen.length) return bekleyen[0];
+    const gecenAy = shiftMonth(currentMonthRef(), -1);
+    return payDay.ay !== "ayni" && !maaslar.some(e => e.month_ref === gecenAy) ? gecenAy : currentMonthRef();
+  };
 
   const saveEntry = async () => {
     const kisiGerekli = form.entry_type === "salary" || form.entry_type === "advance";
@@ -10003,7 +10033,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
       // Maaş: o aya ait verilmiş avanslar düşülür, kalan tutar kaydedilir
       const avans = sumAmt(advancesOf(form.staff_id, month));
       const not = avans > 0 ? `Maaş ${fmtMoney(tutar)}, avans ${fmtMoney(avans)} düşüldü` : "";
-      kayit = { entry_type: "salary", title: `Maaş — ${staffName || ""}`, amount: Math.max(0, tutar - avans), due_date: form.due_date || null, month_ref: month, staff_id: parseInt(form.staff_id), is_paid: false, notes: [not, form.notes || ""].filter(Boolean).join(" · ") };
+      kayit = { entry_type: "salary", title: `Maaş — ${staffName || ""}`, amount: Math.max(0, tutar - avans), due_date: form.due_date || salaryDue(month) || null, month_ref: month, staff_id: parseInt(form.staff_id), is_paid: false, notes: [not, form.notes || ""].filter(Boolean).join(" · ") };
     } else {
       kayit = { entry_type: form.entry_type, title: form.title, amount: tutar, due_date: form.due_date || null, month_ref: month, staff_id: null, is_paid: false, notes: form.notes || "" };
     }
@@ -10039,11 +10069,36 @@ function AccountingExpenses({ staff, autoAdd = false }) {
     load();
   };
 
+  // Avansı başka bir ayın maaşına taşır: eski ayın bekleyen maaşına geri eklenir, yeni ayınkinden düşülür
+  const moveAdvance = async () => {
+    const e = tasima.e, yeni = tasima.ay;
+    if (!yeni || yeni === e.month_ref) { setTasima(null); return; }
+    setTasima(null);
+    const tutar = Number(e.amount || 0);
+    const eski = unpaidSalaryOf(e.staff_id, e.month_ref), hedef = unpaidSalaryOf(e.staff_id, yeni);
+    const { error } = await supabase.from('accounting_entries').update({ month_ref: yeni }).eq('id', e.id);
+    if (error) { swalAlert("Değiştirilemedi: " + error.message); return; }
+    if (eski) await supabase.from('accounting_entries').update({ amount: Number(eski.amount || 0) + tutar, notes: [eski.notes || "", `avans ${fmtMoney(tutar)} başka aya taşındı`].filter(Boolean).join(" · ") }).eq('id', eski.id);
+    if (hedef) await supabase.from('accounting_entries').update({ amount: Math.max(0, Number(hedef.amount || 0) - tutar), notes: [hedef.notes || "", `avans ${fmtMoney(tutar)} düşüldü`].filter(Boolean).join(" · ") }).eq('id', hedef.id);
+    await load();
+    swalAlert(`Avans artık ${monthRefLabel(yeni)} maaşından düşülecek.${hedef ? `\n\nKalan ödenecek: ${fmtMoney(Math.max(0, Number(hedef.amount || 0) - tutar))}` : ""}`);
+  };
+
   const filtered = filter === "all" ? entries : entries.filter(e => expenseKind(e) === filter);
   // Maaş formunda gösterilecek: seçili çalışanın o aya ait avans toplamı
   const formAvans = form.entry_type === "salary" && form.staff_id ? sumAmt(advancesOf(form.staff_id, form.month_ref || currentMonthRef())) : 0;
   const totalUnpaid = entries.filter(e => !e.is_paid).reduce((s, e) => s + Number(e.amount || 0), 0);
   const totalPaid = entries.filter(e => e.is_paid).reduce((s, e) => s + Number(e.amount || 0), 0);
+  // Sıradaki maaş ödeme günü ve bekleyen maaşlar
+  const bekleyenMaas = entries.filter(e => e.entry_type === "salary" && !isAdvanceEntry(e) && !e.is_paid);
+  const sonrakiMaasGunu = (() => {
+    const gun = parseInt(payDay.gun);
+    if (!gun) return null;
+    const b = new Date(todayStr() + "T00:00:00");
+    const ayGunu = (k) => { const son = new Date(b.getFullYear(), b.getMonth() + k + 1, 0).getDate(); return ymdOf(new Date(b.getFullYear(), b.getMonth() + k, Math.min(gun, son))); };
+    const t = ayGunu(0) >= todayStr() ? ayGunu(0) : ayGunu(1);
+    return { t, kalan: Math.round((new Date(t + "T00:00:00") - b) / 86400000) };
+  })();
 
   const exportExpenses = async () => {
     const rows = entries.map(e => ({
@@ -10060,9 +10115,25 @@ function AccountingExpenses({ staff, autoAdd = false }) {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginBottom: 12 }}>
         <StatCard label="Ödenmemiş Giderler" value={fmtMoney(totalUnpaid)} color={T.amberText} />
         <StatCard label="Ödenmiş Giderler" value={fmtMoney(totalPaid)} color={T.greenText} />
+        <StatCard label="Sıradaki Maaş Günü" value={sonrakiMaasGunu ? trDate(sonrakiMaasGunu.t) : "Ayarlanmadı"} color={sonrakiMaasGunu && sonrakiMaasGunu.kalan <= 3 ? T.amberText : undefined}
+          sub={sonrakiMaasGunu ? `${sonrakiMaasGunu.kalan === 0 ? "Bugün" : sonrakiMaasGunu.kalan + " gün kaldı"} · Bekleyen maaş: ${fmtMoney(sumAmt(bekleyenMaas))}` : "Aşağıdan maaş ödeme gününü seçin"} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12.5, color: T.textSecondary, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 14px", marginBottom: 18 }}>
+        <span style={{ fontWeight: 600, color: T.textPrimary }}>Maaş ödeme günü:</span>
+        <span>her ayın</span>
+        <select value={payDay.gun} onChange={e => savePayDay({ ...payDay, gun: e.target.value })} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 8px", color: T.textPrimary, fontSize: 12.5, outline: "none" }}>
+          <option value="">Seçilmedi</option>
+          {Array.from({ length: 31 }, (_, i) => i + 1).map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+        <span>. günü;</span>
+        <select value={payDay.ay} onChange={e => savePayDay({ ...payDay, ay: e.target.value })} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 8px", color: T.textPrimary, fontSize: 12.5, outline: "none" }}>
+          <option value="sonraki">maaş ertesi ay ödenir (Eylül maaşı Ekim'de)</option>
+          <option value="ayni">maaş aynı ay içinde ödenir</option>
+        </select>
+        <span style={{ color: T.textMuted }}>Maaş eklerken son ödeme tarihi buna göre kendiliğinden gelir.</span>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -10091,12 +10162,25 @@ function AccountingExpenses({ staff, autoAdd = false }) {
                     </div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{fmtMoney(Number(e.amount))}</div>
                     <button onClick={() => togglePaid(e)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: e.is_paid ? T.greenDim : T.bgInput, color: e.is_paid ? T.greenText : T.textSecondary, border: `1px solid ${e.is_paid ? T.green + "44" : T.border}`, cursor: "pointer", whiteSpace: "nowrap" }}>{e.is_paid ? "✓ Ödendi" : "Öde"}</button>
+                    {isAdvanceEntry(e) && <button onClick={() => setTasima({ e, ay: e.month_ref })} title="Avansın düşüleceği ayı değiştir" style={{ fontSize: 11, fontWeight: 600, padding: "6px 10px", borderRadius: 8, background: T.bgInput, color: T.textSecondary, border: `1px solid ${T.border}`, cursor: "pointer", whiteSpace: "nowrap" }}>Ayı Değiştir</button>}
                     <button onClick={() => deleteEntry(e.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
                   </div>
                 );
               })}
             </div>
           )}
+
+      {tasima && (
+        <Modal title="Avansın Ayını Değiştir" onClose={() => setTasima(null)}>
+          <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>{tasima.e.title} · {fmtMoney(Number(tasima.e.amount || 0))}. Şu an {monthRefLabel(tasima.e.month_ref)} maaşından düşülüyor.</div>
+          <FormField label="Hangi Ayın Maaşından Düşülsün">
+            <Select value={tasima.ay} onChange={ev => setTasima(t => ({ ...t, ay: ev.target.value }))}>
+              {monthRefOptions().map(m => <option key={m} value={m}>{monthRefLabel(m)}</option>)}
+            </Select>
+          </FormField>
+          <ModalActions onClose={() => setTasima(null)} onSave={moveAdvance} />
+        </Modal>
+      )}
 
       {modal && (
         <Modal title={form.entry_type === "advance" ? "Maaş Avansı Ver" : "Gider Ödemesi Ekle"} onClose={() => setModal(false)}>
@@ -10108,7 +10192,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
           {form.entry_type === "advance" && <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Avans ödenmiş olarak kaydedilir ve çalışanın seçtiğiniz aydaki maaşından düşülür.</div>}
           {form.entry_type === "salary" || form.entry_type === "advance" ? (
             <FormField label="Çalışan">
-              <Select value={form.staff_id || ""} onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))}>
+              <Select value={form.staff_id || ""} onChange={e => { const sid = e.target.value; setForm(f => ({ ...f, staff_id: sid, ...(f.entry_type === "advance" && sid ? { month_ref: advanceMonthFor(sid) } : {}) })); }}>
                 <option value="">Seç...</option>
                 {staff.map(s => <option key={s.id} value={s.id}>{s.name} ({s.role})</option>)}
               </Select>
@@ -10124,6 +10208,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
             </Select>
           </FormField>
           <FormField label={form.entry_type === "advance" ? "Avansın Ödendiği Tarih" : "Son Ödeme Tarihi"}><Input type="date" value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} /></FormField>
+          {form.entry_type === "salary" && !form.due_date && salaryDue(form.month_ref || currentMonthRef()) && <div style={{ fontSize: 12, color: T.textMuted, marginTop: -8, marginBottom: 14 }}>Boş bırakırsanız maaş ödeme gününe göre {trDate(salaryDue(form.month_ref || currentMonthRef()))} yazılır.</div>}
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => setModal(false)} onSave={saveEntry} />
         </Modal>
