@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
 import { T, THEME, toggleTheme } from "./theme";
@@ -6662,7 +6662,7 @@ function canAccessPage(id, perms) {
   if (id === 'reports') return perms.reports;
   if (id === 'accounting') return perms.accounting;
   if (id === 'mail') return perms.mail;
-  if (id === 'yearly' || id === 'emlakpanelim') return perms.isAdmin;
+  if (id === 'yearly' || id === 'emlakpanelim' || id === 'blog') return perms.isAdmin;
   return true;
 }
 
@@ -6679,6 +6679,7 @@ const NAV=[
   {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"mail",label:"E-posta",icon:"📧"},
+  {id:"blog",label:"Blog",icon:"✍️"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"inventory",label:"Envanter",icon:"🎒"},
   {id:"yearly",label:"Yıllık Özet",icon:"📊"},
@@ -6690,7 +6691,7 @@ const NAV=[
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "ideas"] },
-  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail"] },
+  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
   { label: "Yönetim", ids: ["inventory", "staff", "emlakpanelim"] },
 ];
@@ -6710,6 +6711,7 @@ const NAV_ICON_PATHS = {
   files: <path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />,
   messages: <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+  blog: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4M12 20h8" />,
   accounting: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></>,
   inventory: <><path d="M3 8l9-5 9 5v8l-9 5-9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></>,
   yearly: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
@@ -10836,7 +10838,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
   const backupAll = async () => {
     setBacking(true);
     try {
-      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails'];
+      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'blog_yazilari', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails'];
       const backup = { exportedAt: new Date().toISOString(), tables: {} };
       for (const t of tables) {
         // Tek istekte en çok 1000 satır gelir; tablonun tamamını sayfa sayfa al
@@ -11240,57 +11242,7 @@ function playNotificationSound() {
 // ═══════════════════════════════════════════════════════════
 // LANDING PAGE — Kurumsal tanıtım sitesi (giriş yapılmadan görünür)
 // ═══════════════════════════════════════════════════════════
-function LandingPage({ onEnter }) {
-  useEffect(() => {
-    // Panel body/html/#root'a taşma kilidi koymuş olabilir — site için kaydırmayı serbest bırak
-    const html = document.documentElement;
-    const body = document.body;
-    const root = document.getElementById('root');
-    const prev = {
-      htmlH: html.style.height, htmlO: html.style.overflow,
-      bodyH: body.style.height, bodyO: body.style.overflow, bodyP: body.style.position,
-      rootH: root ? root.style.height : "", rootO: root ? root.style.overflow : "",
-    };
-    html.style.height = "auto"; html.style.overflow = "auto";
-    body.style.height = "auto"; body.style.overflow = "auto"; body.style.position = "static";
-    if (root) { root.style.height = "auto"; root.style.overflow = "visible"; }
-    window.scrollTo(0, 0);
-
-    const nav = document.getElementById('lp-nav');
-    const onScroll = () => { if (nav) nav.classList.toggle('scrolled', window.scrollY > 20); };
-    window.addEventListener('scroll', onScroll);
-
-    const toggle = document.getElementById('lp-menuToggle');
-    const links = document.getElementById('lp-navLinks');
-    const onToggle = () => links && links.classList.toggle('open');
-    if (toggle) toggle.addEventListener('click', onToggle);
-    if (links) links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
-
-    const words = ['büyütürüz', 'parlatırız', 'öne taşırız', 'fark ettiririz', 'konuştururuz'];
-    let wi = 0;
-    const rot = document.getElementById('lp-rotator');
-    const iv = setInterval(() => {
-      wi = (wi + 1) % words.length;
-      if (!rot) return;
-      rot.style.opacity = '0'; rot.style.transition = 'opacity .3s';
-      setTimeout(() => { rot.textContent = words[wi]; rot.style.opacity = '1'; }, 300);
-    }, 2600);
-
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
-    }, { threshold: 0.12 });
-    document.querySelectorAll('.lp .reveal').forEach((el, i) => { el.style.transitionDelay = ((i % 4) * 0.08) + 's'; io.observe(el); });
-
-    return () => {
-      window.removeEventListener('scroll', onScroll); if (toggle) toggle.removeEventListener('click', onToggle); clearInterval(iv); io.disconnect();
-      // Panel stilini geri yükle
-      html.style.height = prev.htmlH; html.style.overflow = prev.htmlO;
-      body.style.height = prev.bodyH; body.style.overflow = prev.bodyO; body.style.position = prev.bodyP;
-      if (root) { root.style.height = prev.rootH; root.style.overflow = prev.rootO; }
-    };
-  }, []);
-
-  const css = `
+const LP_CSS = `
   .lp{--bg:#0A0E16;--surface:#141B28;--line:#212C3E;--line2:#2C3A52;--text:#EEF3F9;--muted:#8B97A8;--muted2:#5F6C7E;--orange:#F25124;--pink:#EC4899;--violet:#8B5CF6;--cyan:#06B6D4;--grad:linear-gradient(100deg,#F25124 0%,#EC4899 38%,#8B5CF6 70%,#06B6D4 100%);--grad2:linear-gradient(135deg,#F25124,#EC4899);--grad3:linear-gradient(135deg,#8B5CF6,#06B6D4);font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased;min-height:100vh;position:relative;overflow-x:hidden}
   .lp *{margin:0;padding:0;box-sizing:border-box}
   .lp ::selection{background:var(--pink);color:#fff}
@@ -11423,16 +11375,434 @@ function LandingPage({ onEnter }) {
   .lp .foot-bottom{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted2)}
   .lp .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
   .lp .reveal.in{opacity:1;transform:none}
-  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:460px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr 1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}.lp .work{grid-template-columns:1fr;gap:26px;padding:22px}.lp .work.rev .work-shot{order:0}}
+  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:520px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr 1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}.lp .work{grid-template-columns:1fr;gap:26px;padding:22px}.lp .work.rev .work-shot{order:0}}
+  @media(min-width:901px) and (max-width:1180px){.lp .nav-links{gap:22px}.lp .nav-ig .ig-t{display:none}}
   @media(max-width:640px){.lp .services-grid{grid-template-columns:1fr}}
   @media(max-width:520px){.lp .process{grid-template-columns:1fr}.lp .stats{grid-template-columns:1fr 1fr;gap:32px 16px}.lp .contact-methods{flex-direction:column}.lp .cm{justify-content:center}}
   @media(prefers-reduced-motion:reduce){.lp *{animation:none!important;transition:none!important}.lp .reveal{opacity:1;transform:none}}
   .lp :focus-visible{outline:2px solid var(--pink);outline-offset:3px;border-radius:4px}
   `;
 
+// ═══════════════════════════════════════════════════════════
+// BLOG — panelden yazılır (yalnızca yönetici), panormosmedya.com/blog adresinde yayınlanır
+// Yazılar blog_yazilari tablosunda, görseller herkese açık "blog" deposunda durur.
+// ═══════════════════════════════════════════════════════════
+const BLOG_KATEGORILER = ["Sosyal Medya", "Reklam", "Web & Yazılım", "Tasarım", "Çekim", "Rehber", "Haber", "Genel"];
+const BOS_BLOG_YAZISI = { id: null, baslik: "", kategori: "Sosyal Medya", ozet: "", icerik: "", kapak: "", yayinda: false };
+const blogTarih = (t) => (t ? new Date(t).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }) : "");
+// Başlıktan adres parçası üretir: "Reels Nasıl Çekilir?" → "reels-nasil-cekilir"
+function blogSlug(metin) {
+  const harf = { ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u", â: "a", î: "i", û: "u" };
+  return String(metin ?? "").toLocaleLowerCase("tr").replace(/[çğıöşüâîû]/g, h => harf[h] ?? h).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+}
+// Seçilen fotoğrafı en çok 1600 piksele küçültüp "blog" deposuna yükler, görselin adresini döner
+async function blogGorseliYukle(dosya) {
+  if (!/^image\//.test(dosya.type)) throw new Error("Yalnızca görsel dosyası seçin (JPG, PNG).");
+  const adres = URL.createObjectURL(dosya);
+  let blob;
+  try {
+    const r = await new Promise((coz, reddet) => { const g = new Image(); g.onload = () => coz(g); g.onerror = () => reddet(new Error("Görsel açılamadı.")); g.src = adres; });
+    const oran = Math.min(1, 1600 / Math.max(r.width, r.height));
+    const tuval = document.createElement("canvas");
+    tuval.width = Math.round(r.width * oran); tuval.height = Math.round(r.height * oran);
+    const c = tuval.getContext("2d");
+    c.fillStyle = "#fff"; c.fillRect(0, 0, tuval.width, tuval.height);  // saydam PNG siyah çıkmasın
+    c.drawImage(r, 0, 0, tuval.width, tuval.height);
+    blob = await new Promise(coz => tuval.toBlob(coz, "image/jpeg", 0.85));
+  } finally { URL.revokeObjectURL(adres); }
+  if (!blob) throw new Error("Görsel hazırlanamadı.");
+  const yol = `yazi/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await supabase.storage.from("blog").upload(yol, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
+  if (error) throw new Error(/bucket not found/i.test(error.message) ? "Görsel deposu henüz kurulmamış (Supabase SQL adımı yapılmalı)." : error.message);
+  return supabase.storage.from("blog").getPublicUrl(yol).data.publicUrl;
+}
+// Yazı gövdesi düz metindir: boş satır paragrafı ayırır, "## " ara başlık, "- " madde listesi,
+// tek başına "![açıklama](adres)" satırı görsel olur.
+function BlogIcerik({ metin }) {
+  const bloklar = String(metin ?? "").replace(/\r/g, "").split(/\n{2,}/).map(b => b.trim()).filter(Boolean);
+  return bloklar.map((b, i) => {
+    if (b.startsWith("## ")) return <h2 key={i}>{b.slice(3)}</h2>;
+    const gorsel = b.match(/^!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)$/);
+    if (gorsel) return <figure key={i}><img src={gorsel[2]} alt={gorsel[1]} loading="lazy" />{gorsel[1] && <figcaption>{gorsel[1]}</figcaption>}</figure>;
+    const satirlar = b.split("\n");
+    if (satirlar.every(s => /^[-•]\s+/.test(s))) return <ul key={i}>{satirlar.map((s, k) => <li key={k}>{s.replace(/^[-•]\s+/, "")}</li>)}</ul>;
+    return <p key={i}>{satirlar.map((s, k) => <Fragment key={k}>{k > 0 && <br />}{s}</Fragment>)}</p>;
+  });
+}
+
+// Panel → Blog (yalnızca yönetici)
+function BlogPage() {
+  const [yazilar, setYazilar] = useState(null);
+  const [kurulumYok, setKurulumYok] = useState(false);
+  const [taslak, setTaslak] = useState(null);   // düzenlenen yazı (null: pencere kapalı)
+  const [bekle, setBekle] = useState(false);
+  const [gorselBekle, setGorselBekle] = useState("");  // "kapak" | "icerik" | ""
+  const icerikKutusu = useRef(null);
+
+  const yukle = async () => {
+    const { data, error } = await supabase.from("blog_yazilari").select("*").order("yayin_tarihi", { ascending: false });
+    setKurulumYok(!!error);
+    setYazilar(data || []);
+  };
+  useEffect(() => { yukle(); }, []);
+
+  const kaydet = async (yayinla) => {
+    if (!taslak.baslik.trim()) { swalAlert("Başlık girin"); return; }
+    setBekle(true);
+    const kayit = { baslik: taslak.baslik.trim(), kategori: taslak.kategori, ozet: taslak.ozet.trim(), icerik: taslak.icerik, kapak: taslak.kapak || null, yayinda: yayinla, guncellenme: new Date().toISOString() };
+    let sonuc;
+    if (taslak.id) {
+      // İlk kez yayına alınıyorsa yayın tarihi bugüne çekilir
+      if (yayinla && !taslak.yayinda) kayit.yayin_tarihi = new Date().toISOString();
+      sonuc = await supabase.from("blog_yazilari").update(kayit).eq("id", taslak.id);
+    } else {
+      const temel = blogSlug(taslak.baslik) || "yazi";
+      const cakisan = (yazilar || []).some(y => y.slug === temel);
+      sonuc = await supabase.from("blog_yazilari").insert({ ...kayit, slug: cakisan ? `${temel}-${Date.now().toString(36)}` : temel });
+    }
+    setBekle(false);
+    if (sonuc.error) { swalAlert("Kaydedilemedi: " + sonuc.error.message); return; }
+    setTaslak(null);
+    yukle();
+  };
+  const sil = async (y) => {
+    if (!(await swalConfirm(`"${y.baslik}" yazısı kalıcı olarak silinecek. Emin misiniz?`))) return;
+    const { error } = await supabase.from("blog_yazilari").delete().eq("id", y.id);
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
+    yukle();
+  };
+  const yayinDegistir = async (y) => {
+    const { error } = await supabase.from("blog_yazilari").update({ yayinda: !y.yayinda, guncellenme: new Date().toISOString(), ...(!y.yayinda ? { yayin_tarihi: new Date().toISOString() } : {}) }).eq("id", y.id);
+    if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
+    yukle();
+  };
+  const kapakSec = async (e) => {
+    const dosya = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!dosya) return;
+    setGorselBekle("kapak");
+    try { const adres = await blogGorseliYukle(dosya); setTaslak(t => ({ ...t, kapak: adres })); }
+    catch (h) { swalAlert("Görsel yüklenemedi: " + h.message); }
+    setGorselBekle("");
+  };
+  // Yazının içine görsel: imlecin olduğu yere ayrı bir satır olarak eklenir
+  const icerigeGorselEkle = async (e) => {
+    const dosya = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!dosya) return;
+    const yer = icerikKutusu.current ? icerikKutusu.current.selectionStart : null;
+    setGorselBekle("icerik");
+    try {
+      const adres = await blogGorseliYukle(dosya);
+      const aciklama = (window.prompt("Görselin altında görünecek kısa açıklama (boş bırakabilirsiniz):", "") || "").replace(/[\[\]\n]/g, " ").trim();
+      setTaslak(t => {
+        const metin = t.icerik || "";
+        const k = yer == null ? metin.length : Math.min(yer, metin.length);
+        const once = metin.slice(0, k).replace(/\s+$/, ""), sonra = metin.slice(k).replace(/^\s+/, "");
+        return { ...t, icerik: `${once}${once ? "\n\n" : ""}![${aciklama}](${adres})${sonra ? "\n\n" : "\n"}${sonra}` };
+      });
+    } catch (h) { swalAlert("Görsel yüklenemedi: " + h.message); }
+    setGorselBekle("");
+  };
+
+  const dosyaDugmesi = { fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 9, cursor: "pointer", color: T.textSecondary, border: `1px solid ${T.border}`, display: "inline-flex", alignItems: "center", gap: 6 };
+  const kucuk = { fontSize: 11.5, padding: "5px 10px" };
+
+  if (!yazilar) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, maxWidth: 620 }}>Buradan yazdığınız yazılar panormosmedya.com/blog adresinde yayınlanır. "Taslak" yazıları yalnızca siz görürsünüz.</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="/blog" target="_blank" rel="noreferrer" style={{ ...dosyaDugmesi, textDecoration: "none" }}>Sitede Gör ↗</a>
+          <Btn variant="primary" onClick={() => setTaslak({ ...BOS_BLOG_YAZISI })} disabled={kurulumYok}>+ Yeni Yazı</Btn>
+        </div>
+      </div>
+
+      {kurulumYok ? (
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 24, color: T.textSecondary, fontSize: 13.5, lineHeight: 1.6 }}>Blog henüz kurulmamış: veritabanında blog tablosu yok. Kurulum için gereken SQL adımı çalıştırılınca bu sayfa açılır.</div>
+      ) : yazilar.length === 0 ? (
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: "36px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>Henüz yazı yok. "+ Yeni Yazı" ile ilk yazınızı ekleyin.</div>
+      ) : (
+        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", boxShadow: T.shadow }}>
+          {yazilar.map((y, i) => (
+            <div key={y.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderTop: i ? `1px solid ${T.border}` : "none", flexWrap: "wrap" }}>
+              {y.kapak ? <img src={y.kapak} alt="" style={{ width: 84, height: 52, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <div style={{ width: 84, height: 52, borderRadius: 8, background: T.bgInput, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, color: T.textMuted }}>Görsel yok</div>}
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{y.baslik}</div>
+                <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 3 }}>{y.kategori} · {blogTarih(y.yayin_tarihi)}</div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: y.yayinda ? T.greenDim : T.bgInput, color: y.yayinda ? T.greenText : T.textMuted }}>{y.yayinda ? "Yayında" : "Taslak"}</span>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {y.yayinda && <a href={`/blog/${y.slug}`} target="_blank" rel="noreferrer" style={{ ...dosyaDugmesi, ...kucuk, textDecoration: "none" }}>Gör ↗</a>}
+                <Btn style={kucuk} onClick={() => setTaslak({ id: y.id, baslik: y.baslik, kategori: y.kategori, ozet: y.ozet || "", icerik: y.icerik || "", kapak: y.kapak || "", yayinda: y.yayinda })}>Düzenle</Btn>
+                <Btn style={kucuk} onClick={() => yayinDegistir(y)}>{y.yayinda ? "Yayından Kaldır" : "Yayınla"}</Btn>
+                <Btn style={{ ...kucuk, color: T.redText }} onClick={() => sil(y)}>Sil</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {taslak && (
+        <Modal title={taslak.id ? "Yazıyı Düzenle" : "Yeni Yazı"} onClose={() => { if (!bekle && !gorselBekle) setTaslak(null); }} width={760}>
+          <FormField label="Başlık"><Input value={taslak.baslik} onChange={e => setTaslak(t => ({ ...t, baslik: e.target.value }))} /></FormField>
+          <FormField label="Kategori">
+            <Select value={taslak.kategori} onChange={e => setTaslak(t => ({ ...t, kategori: e.target.value }))}>
+              {[...new Set([...BLOG_KATEGORILER, taslak.kategori])].map(k => <option key={k} value={k}>{k}</option>)}
+            </Select>
+          </FormField>
+          <FormField label="Kısa özet (listede görünür)"><Input value={taslak.ozet} onChange={e => setTaslak(t => ({ ...t, ozet: e.target.value.slice(0, 220) }))} /></FormField>
+          <FormField label="Kapak görseli (listede ve yazının başında görünür)">
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              {taslak.kapak && <img src={taslak.kapak} alt="" style={{ width: 160, aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}` }} />}
+              <label style={dosyaDugmesi}>{gorselBekle === "kapak" ? "Yükleniyor..." : taslak.kapak ? "Görseli Değiştir" : "Görsel Seç"}<input type="file" accept="image/*" hidden disabled={!!gorselBekle} onChange={kapakSec} /></label>
+              {taslak.kapak && <Btn onClick={() => setTaslak(t => ({ ...t, kapak: "" }))}>Görseli Kaldır</Btn>}
+            </div>
+          </FormField>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+              <label style={{ fontSize: 11, color: T.textSecondary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Yazı</label>
+              <label style={{ ...dosyaDugmesi, ...kucuk }}>{gorselBekle === "icerik" ? "Yükleniyor..." : "+ Yazıya Görsel Ekle"}<input type="file" accept="image/*" hidden disabled={!!gorselBekle} onChange={icerigeGorselEkle} /></label>
+            </div>
+            <textarea ref={icerikKutusu} value={taslak.icerik} onChange={e => setTaslak(t => ({ ...t, icerik: e.target.value }))} placeholder={"Paragrafları boş bir satırla ayırın.\n\n## Ara başlık böyle yazılır\n\n- Madde işareti için satır başına tire koyun"} style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "10px 12px", fontSize: 13.5, color: T.textPrimary, outline: "none", boxSizing: "border-box", minHeight: 280, fontFamily: "inherit", resize: "vertical", lineHeight: 1.55 }} />
+            <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6, lineHeight: 1.5 }}>Görsel eklemek için imleci yazıda görselin geleceği yere koyup "+ Yazıya Görsel Ekle"ye basın. Eklenen satırı silerseniz görsel yazıdan kalkar.</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20, flexWrap: "wrap" }}>
+            <Btn onClick={() => setTaslak(null)} disabled={bekle || !!gorselBekle}>Vazgeç</Btn>
+            <Btn onClick={() => kaydet(false)} disabled={bekle || !!gorselBekle}>Taslak Olarak Kaydet</Btn>
+            <Btn variant="primary" onClick={() => kaydet(true)} disabled={bekle || !!gorselBekle}>{bekle ? "Kaydediliyor..." : "Kaydet ve Yayınla"}</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ── Sitedeki blog (panormosmedya.com/blog ve /blog/<adres>) ──
+const BLOG_CSS = `
+  .lp .blog-top{position:relative;z-index:1;padding:150px 0 44px}
+  .lp .blog-top h1{font-size:clamp(38px,6vw,64px);margin-bottom:16px}
+  .lp .blog-top p{font-size:18px;color:var(--muted);max-width:640px}
+  .lp .blog-main{position:relative;z-index:1;padding:0 0 110px}
+  .lp .blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .lp .bcard{display:flex;flex-direction:column;border-radius:22px;background:var(--surface);border:1px solid var(--line);overflow:hidden;transition:transform .3s,border-color .3s}
+  .lp .bcard:hover{transform:translateY(-6px);border-color:var(--line2)}
+  .lp .bcard-img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#0D121C}
+  .lp .bcard-noimg{aspect-ratio:16/9;background:linear-gradient(135deg,rgba(242,81,36,0.28),rgba(139,92,246,0.28))}
+  .lp .bcard-body{padding:22px;display:flex;flex-direction:column;gap:10px;flex:1}
+  .lp .bcard-cat{font-family:'Space Grotesk';font-size:11.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#F9A8D4}
+  .lp .bcard h3{font-family:'Space Grotesk';font-weight:600;font-size:20px;line-height:1.25;letter-spacing:-0.01em}
+  .lp .bcard p{font-size:14.5px;color:var(--muted);line-height:1.6}
+  .lp .bcard-date{margin-top:auto;padding-top:6px;font-size:13px;color:var(--muted2)}
+  .lp .blog-empty{padding:48px 24px;text-align:center;color:var(--muted);border:1px dashed var(--line2);border-radius:22px}
+  .lp .blog-more{margin-top:36px;display:flex;justify-content:center}
+  .lp .post{max-width:760px;margin:0 auto}
+  .lp .post-back{display:inline-block;font-size:14px;font-weight:600;color:var(--muted);margin-bottom:22px}
+  .lp .post-back:hover{color:var(--text)}
+  .lp .post h1{font-size:clamp(32px,5vw,50px);line-height:1.1;margin-bottom:16px}
+  .lp .post-meta{font-size:14px;color:var(--muted2);margin-bottom:30px}
+  .lp .post-cover{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:20px;border:1px solid var(--line);margin-bottom:32px}
+  .lp .post-lead{font-size:19.5px;color:var(--text);line-height:1.6;padding-left:18px;border-left:3px solid var(--orange);margin-bottom:30px}
+  .lp .post-body p{font-size:17.5px;color:#C5CEDB;line-height:1.8;margin-bottom:22px}
+  .lp .post-body h2{font-family:'Space Grotesk';font-weight:700;font-size:27px;letter-spacing:-0.01em;line-height:1.2;margin:40px 0 14px}
+  .lp .post-body ul{margin:0 0 22px;padding-left:22px}
+  .lp .post-body li{font-size:17.5px;color:#C5CEDB;line-height:1.7;margin-bottom:8px}
+  .lp .post-body figure{margin:32px 0}
+  .lp .post-body figure img{display:block;width:100%;height:auto;border-radius:16px;border:1px solid var(--line)}
+  .lp .post-body figcaption{margin-top:10px;font-size:14px;color:var(--muted2);text-align:center}
+  .lp .post-cta{margin-top:54px;padding:36px;border-radius:24px;background:linear-gradient(135deg,rgba(242,81,36,0.1),rgba(139,92,246,0.1));border:1px solid var(--line2);text-align:center}
+  .lp .post-cta h3{font-family:'Space Grotesk';font-weight:700;font-size:26px;letter-spacing:-0.01em;margin-bottom:10px}
+  .lp .post-cta p{font-size:16px;color:var(--muted);margin-bottom:22px}
+  .lp .post-cta .contact-methods{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  @media(max-width:900px){.lp .blog-grid{grid-template-columns:1fr 1fr}.lp .blog-top{padding:120px 0 34px}}
+  @media(max-width:640px){.lp .blog-grid{grid-template-columns:1fr}.lp .post-cta{padding:28px 20px}}
+`;
+function BlogKarti({ y }) {
+  return (
+    <a href={`/blog/${y.slug}`} className="bcard">
+      {y.kapak ? <img className="bcard-img" src={y.kapak} alt="" loading="lazy" /> : <div className="bcard-noimg" aria-hidden="true"></div>}
+      <div className="bcard-body">
+        <span className="bcard-cat">{y.kategori}</span>
+        <h3>{y.baslik}</h3>
+        {y.ozet && <p>{y.ozet}</p>}
+        <span className="bcard-date">{blogTarih(y.yayin_tarihi)} · Devamını oku →</span>
+      </div>
+    </a>
+  );
+}
+// Yayındaki yazılar (sinir: en çok kaç yazı; 0 → hepsi). Yüklenirken null döner.
+function useBlogYazilari(sinir) {
+  const [yazilar, setYazilar] = useState(null);
+  useEffect(() => {
+    let sorgu = supabase.from("blog_yazilari").select("id, slug, baslik, ozet, kategori, kapak, yayin_tarihi").eq("yayinda", true).order("yayin_tarihi", { ascending: false });
+    if (sinir) sorgu = sorgu.limit(sinir);
+    sorgu.then(({ data }) => setYazilar(data || []), () => setYazilar([]));
+  }, [sinir]);
+  return yazilar;
+}
+// Ana sayfadaki "Blog" bölümü: yayında yazı yoksa hiç görünmez
+function LandingBlog() {
+  const yazilar = useBlogYazilari(3);
+  if (!yazilar || yazilar.length === 0) return null;
+  return (
+    <section id="lp-blog">
+      <div className="wrap">
+        <div className="sec-head"><span className="sec-label">Blog</span><h2>Dijitalde işine yarayacak yazılar</h2><p>Sosyal medya, reklam, web sitesi ve yazılım üzerine ekibimizin kaleminden notlar.</p></div>
+        <div className="blog-grid">{yazilar.map(y => <BlogKarti key={y.id} y={y} />)}</div>
+        <div className="blog-more"><a href="/blog" className="btn-ghost">Tüm yazılar →</a></div>
+      </div>
+    </section>
+  );
+}
+function BlogSite() {
+  const yol = window.location.pathname.replace(/\/+$/, "");
+  const slug = yol.startsWith("/blog/") ? decodeURIComponent(yol.slice(6)) : "";
+  const liste = useBlogYazilari(slug ? 3 : 0);
+  const [yazi, setYazi] = useState(undefined);   // undefined: yükleniyor, null: bulunamadı
+  const [menuAcik, setMenuAcik] = useState(false);
+
+  useEffect(() => {
+    // Panel body/html/#root'a taşma kilidi koymuş olabilir — site için kaydırmayı serbest bırak
+    const html = document.documentElement, body = document.body, root = document.getElementById("root");
+    html.style.height = "auto"; html.style.overflow = "auto";
+    body.style.height = "auto"; body.style.overflow = "auto"; body.style.position = "static";
+    if (root) { root.style.height = "auto"; root.style.overflow = "visible"; }
+    window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    if (!slug) { document.title = "Blog — Panormos Medya"; return; }
+    supabase.from("blog_yazilari").select("*").eq("slug", slug).eq("yayinda", true).maybeSingle().then(({ data }) => {
+      setYazi(data || null);
+      if (data && data.baslik) document.title = `${data.baslik} — Panormos Medya`;
+    }, () => setYazi(null));
+  }, [slug]);
+
+  const digerleri = (liste || []).filter(y => y.slug !== slug).slice(0, 2);
   return (
     <div className="lp">
-      <style>{css}</style>
+      <style>{LP_CSS + BLOG_CSS}</style>
+      <div className="mesh" aria-hidden="true"><div className="orb a"></div><div className="orb b"></div><div className="orb c"></div></div>
+      <nav className="scrolled">
+        <div className="wrap nav-inner">
+          <a href="/" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a>
+          <div className={`nav-links${menuAcik ? " open" : ""}`}>
+            <a href="/" className="link">Ana Sayfa</a>
+            <a href="/#lp-hizmetler" className="link">Hizmetler</a>
+            <a href="/#lp-yazilim" className="link">Web & Yazılım</a>
+            <a href="/blog" className="link">Blog</a>
+            <a href="/#lp-iletisim" className="link">İletişim</a>
+            <a href="/#lp-iletisim" className="btn-login">Teklif Al</a>
+          </div>
+          <button className="menu-toggle" aria-label="Menü" onClick={() => setMenuAcik(a => !a)}>☰</button>
+        </div>
+      </nav>
+
+      {!slug ? (
+        <>
+          <div className="blog-top"><div className="wrap"><span className="sec-label">Blog</span><h1>Dijitalde işine yarayacak yazılar</h1><p>Sosyal medya, reklam, web sitesi ve yazılım üzerine ekibimizin kaleminden notlar.</p></div></div>
+          <div className="blog-main"><div className="wrap">
+            {!liste ? <div className="blog-empty">Yükleniyor…</div>
+              : liste.length === 0 ? <div className="blog-empty">Henüz yayınlanmış yazı yok. Yakında burada olacak.</div>
+              : <div className="blog-grid">{liste.map(y => <BlogKarti key={y.id} y={y} />)}</div>}
+          </div></div>
+        </>
+      ) : (
+        <>
+          <div className="blog-top" style={{ paddingBottom: 0 }}><div className="wrap"><div className="post">
+            <a href="/blog" className="post-back">← Tüm yazılar</a>
+            {yazi === undefined ? <p>Yükleniyor…</p> : !yazi ? (<><h1>Yazı bulunamadı</h1><p>Aradığın yazı kaldırılmış ya da adresi değişmiş olabilir.</p></>) : (<><h1>{yazi.baslik}</h1><div className="post-meta">{yazi.kategori} · {blogTarih(yazi.yayin_tarihi)}</div></>)}
+          </div></div></div>
+          <div className="blog-main"><div className="wrap">
+            {yazi && (
+              <article className="post">
+                {yazi.kapak && <img className="post-cover" src={yazi.kapak} alt="" />}
+                {yazi.ozet && <p className="post-lead">{yazi.ozet}</p>}
+                <div className="post-body"><BlogIcerik metin={yazi.icerik} /></div>
+                <div className="post-cta">
+                  <h3>Markanı birlikte büyütelim</h3>
+                  <p>Ücretsiz keşif görüşmesi için bize ulaş, sana özel teklifini hazırlayalım.</p>
+                  <div className="contact-methods">
+                    <a href="https://wa.me/905364716012" className="cm wa" target="_blank" rel="noopener">💬 WhatsApp</a>
+                    <a href="/#lp-iletisim" className="cm line">İletişim bilgileri →</a>
+                  </div>
+                </div>
+              </article>
+            )}
+            {yazi !== undefined && digerleri.length > 0 && (
+              <div style={{ marginTop: 70 }}>
+                <div className="sec-head" style={{ marginBottom: 28 }}><span className="sec-label">Diğer yazılar</span></div>
+                <div className="blog-grid">{digerleri.map(y => <BlogKarti key={y.id} y={y} />)}</div>
+              </div>
+            )}
+          </div></div>
+        </>
+      )}
+
+      <footer>
+        <div className="wrap">
+          <div className="foot-bottom" style={{ marginTop: 0, paddingTop: 0, borderTop: "none" }}><span>© 2026 Panormos Medya. Tüm hakları saklıdır.</span><span><a href="/">panormosmedya.com</a></span></div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function LandingPage({ onEnter }) {
+  useEffect(() => {
+    // Panel body/html/#root'a taşma kilidi koymuş olabilir — site için kaydırmayı serbest bırak
+    const html = document.documentElement;
+    const body = document.body;
+    const root = document.getElementById('root');
+    const prev = {
+      htmlH: html.style.height, htmlO: html.style.overflow,
+      bodyH: body.style.height, bodyO: body.style.overflow, bodyP: body.style.position,
+      rootH: root ? root.style.height : "", rootO: root ? root.style.overflow : "",
+    };
+    html.style.height = "auto"; html.style.overflow = "auto";
+    body.style.height = "auto"; body.style.overflow = "auto"; body.style.position = "static";
+    if (root) { root.style.height = "auto"; root.style.overflow = "visible"; }
+    window.scrollTo(0, 0);
+    // Blog sayfasından "/#lp-iletisim" gibi bir bağlantıyla gelindiyse o bölüme in
+    const hedef = /^#lp-[a-z]+$/.test(window.location.hash) ? window.location.hash.slice(1) : "";
+    const hedefZ = hedef ? setTimeout(() => { const el = document.getElementById(hedef); if (el) el.scrollIntoView(); }, 120) : null;
+
+    const nav = document.getElementById('lp-nav');
+    const onScroll = () => { if (nav) nav.classList.toggle('scrolled', window.scrollY > 20); };
+    window.addEventListener('scroll', onScroll);
+
+    const toggle = document.getElementById('lp-menuToggle');
+    const links = document.getElementById('lp-navLinks');
+    const onToggle = () => links && links.classList.toggle('open');
+    if (toggle) toggle.addEventListener('click', onToggle);
+    if (links) links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
+
+    const words = ['büyütürüz', 'parlatırız', 'öne taşırız', 'fark ettiririz', 'konuştururuz'];
+    let wi = 0;
+    const rot = document.getElementById('lp-rotator');
+    const iv = setInterval(() => {
+      wi = (wi + 1) % words.length;
+      if (!rot) return;
+      rot.style.opacity = '0'; rot.style.transition = 'opacity .3s';
+      setTimeout(() => { rot.textContent = words[wi]; rot.style.opacity = '1'; }, 300);
+    }, 2600);
+
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.lp .reveal').forEach((el, i) => { el.style.transitionDelay = ((i % 4) * 0.08) + 's'; io.observe(el); });
+
+    return () => {
+      window.removeEventListener('scroll', onScroll); if (toggle) toggle.removeEventListener('click', onToggle); clearInterval(iv); io.disconnect(); if (hedefZ) clearTimeout(hedefZ);
+      // Panel stilini geri yükle
+      html.style.height = prev.htmlH; html.style.overflow = prev.htmlO;
+      body.style.height = prev.bodyH; body.style.overflow = prev.bodyO; body.style.position = prev.bodyP;
+      if (root) { root.style.height = prev.rootH; root.style.overflow = prev.rootO; }
+    };
+  }, []);
+
+
+  return (
+    <div className="lp">
+      <style>{LP_CSS + BLOG_CSS}</style>
       <div className="mesh" aria-hidden="true"><div className="orb a"></div><div className="orb b"></div><div className="orb c"></div></div>
 
       <nav id="lp-nav">
@@ -11443,8 +11813,9 @@ function LandingPage({ onEnter }) {
             <a href="#lp-yazilim" className="link">Web & Yazılım</a>
             <a href="#lp-surec" className="link">Nasıl Çalışırız</a>
             <a href="#lp-hakkimizda" className="link">Hakkımızda</a>
+            <a href="/blog" className="link">Blog</a>
             <a href="#lp-iletisim" className="link">İletişim</a>
-            <a href="https://instagram.com/panormosmedya" className="link nav-ig" target="_blank" rel="noopener" aria-label="Instagram sayfamız"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor" /></svg> Instagram</a>
+            <a href="https://instagram.com/panormosmedya" className="link nav-ig" target="_blank" rel="noopener" aria-label="Instagram sayfamız"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor" /></svg><span className="ig-t"> Instagram</span></a>
             <button className="btn-login" onClick={onEnter}>Giriş Yap</button>
           </div>
           <button className="menu-toggle" id="lp-menuToggle" aria-label="Menü">☰</button>
@@ -11559,6 +11930,8 @@ function LandingPage({ onEnter }) {
         </div>
       </section>
 
+      <LandingBlog />
+
       <section id="lp-iletisim">
         <div className="wrap">
           <div className="contact-card reveal">
@@ -11583,7 +11956,7 @@ function LandingPage({ onEnter }) {
           <div className="foot-inner">
             <div className="foot-brand"><a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a><p>Panormos Medya Sanayi ve Ticaret Limited Şirketi — markanı dijitalde büyüten sosyal medya, reklam ve yazılım ajansı.</p></div>
             <div className="foot-col"><h5>Hizmetler</h5><a href="#lp-hizmetler">Instagram Yönetimi</a><a href="#lp-hizmetler">İçerik Üretimi</a><a href="#lp-hizmetler">Reklam Yönetimi</a><a href="#lp-hizmetler">Grafik Tasarım</a><a href="#lp-yazilim">Web Sitesi & Yazılım</a></div>
-            <div className="foot-col"><h5>Kurumsal</h5><a href="#lp-hakkimizda">Hakkımızda</a><a href="#lp-surec">Nasıl Çalışırız</a><a href="#lp-iletisim">İletişim</a><a onClick={onEnter}>Çalışan Girişi</a></div>
+            <div className="foot-col"><h5>Kurumsal</h5><a href="#lp-hakkimizda">Hakkımızda</a><a href="#lp-surec">Nasıl Çalışırız</a><a href="/blog">Blog</a><a href="#lp-iletisim">İletişim</a><a onClick={onEnter}>Çalışan Girişi</a></div>
             <div className="foot-col"><h5>İletişim</h5><a href="tel:+905364716012">0 (536) 471 60 12</a><a href="mailto:info@panormosmedya.com">info@panormosmedya.com</a><a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener">@panormosmedya</a><a href="#lp-iletisim">Paşakent Mah. Bandırma / Balıkesir</a></div>
           </div>
           <div className="foot-bottom"><span>© 2026 Panormos Medya. Tüm hakları saklıdır.</span><span>Markanı büyütmek için buradayız ✦</span></div>
@@ -11931,6 +12304,8 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentStaff]);
 
+  // Sitedeki blog: giriş durumundan bağımsız, herkese açık
+  if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSite />;
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
   if (!session) {
     if (showLogin) return <Login onLogin={() => {}} />;
@@ -12065,6 +12440,7 @@ export default function App() {
         {page==="inventory"&&<InventoryPage perms={perms}/>}
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
         {page==="emlakpanelim"&&<EmlakPanelimPage/>}
+        {page==="blog"&&<BlogPage/>}
       </div>
     </div>
   </div>;

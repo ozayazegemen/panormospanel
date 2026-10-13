@@ -7,7 +7,7 @@ const { createClient } = require("@supabase/supabase-js");
 const TABLES = [
   "clients", "client_finance", "client_secrets", "staff", "tasks", "posts", "media", "publishes", "shoots", "shoot_plans",
   "leads", "ideas", "inventory", "social_reports", "social_accounts", "drive_files",
-  "pricing_packages", "pricing_addons", "pricing_quotes", "panel_settings",
+  "pricing_packages", "pricing_addons", "pricing_quotes", "panel_settings", "blog_yazilari",
   "client_payments", "client_invoices", "invoices", "piece_jobs", "company_incomes", "company_expenses",
   "accounting_entries", "accounting_documents", "staff_leave", "bank_accounts", "bank_transactions",
   "conversations", "conversation_members", "staff_messages", "messages", "sent_mails", "received_mails", "mail_folders",
