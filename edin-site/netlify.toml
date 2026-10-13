@@ -1,5 +1,7 @@
 # Edinler Gıda sitesi: ayrı Netlify sitesi olarak yayınlanır (temel klasör: edin-site). Derleme yok, dosyalar olduğu gibi sunulur.
 [build]
+  # Yalnızca bu klasörde (edin-site) değişiklik varsa derle; öbür projelerin değişikliği yayın kredisi harcamasın
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
   publish = "."
   command = ""
 # Formlar: Netlify Forms (teklif, gorus) — form algılama 13.10.2026'da açıldı
