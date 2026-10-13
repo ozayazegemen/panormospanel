@@ -8303,8 +8303,62 @@ function AccountingOverview({ clients, goTab }) {
 }
 
 // ═══════════════ MUHASEBE ANA SAYFA ═══════════════
+// Müşterilerin anlaşma tarihleri: anlaşma günü, bir sonraki yenileme (fatura ve görev yenileme günü) ve kalan gün
+function AgreementDatesModal({ clients, onClose }) {
+  const bugunStr = todayStr();
+  const bugun = new Date(bugunStr + "T00:00:00");
+  const tr = (ymd) => new Date(ymd + "T00:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const satirlar = (clients || []).map(c => {
+    const anlasma = String(c.agreementDate || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(anlasma)) return { c, anlasma: "" };
+    const gun = parseInt(anlasma.slice(8, 10));
+    // Bir sonraki yenileme: bu ayın anlaşma günü geçtiyse gelecek ayınki (ay o kadar gün çekmiyorsa ayın son günü)
+    const ayGunu = (k) => { const son = new Date(bugun.getFullYear(), bugun.getMonth() + k + 1, 0).getDate(); return ymdOf(new Date(bugun.getFullYear(), bugun.getMonth() + k, Math.min(gun, son))); };
+    let sonraki = ayGunu(0) >= bugunStr ? ayGunu(0) : ayGunu(1);
+    if (sonraki < anlasma) sonraki = anlasma;
+    const kalan = Math.round((new Date(sonraki + "T00:00:00") - bugun) / 86400000);
+    return { c, anlasma, gun, sonraki, kalan };
+  });
+  const tarihli = satirlar.filter(x => x.anlasma).sort((a, b) => a.kalan - b.kalan || a.c.name.localeCompare(b.c.name, "tr"));
+  const tarihsiz = satirlar.filter(x => !x.anlasma).sort((a, b) => a.c.name.localeCompare(b.c.name, "tr"));
+  const th = { textAlign: "left", fontSize: 10.5, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: T.textMuted, padding: "9px 12px", borderBottom: `1px solid ${T.border}`, whiteSpace: "nowrap" };
+  const td = { fontSize: 13, color: T.textPrimary, padding: "10px 12px", borderTop: `1px solid ${T.border}` };
+  return (
+    <Modal title="Müşteri Anlaşma Tarihleri" onClose={onClose} width={760}>
+      <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>Her müşterinin faturası ve paket görevleri, ayın anlaşma gününde yenilenir. Liste en yakın yenileme tarihine göre sıralıdır. Tarihi değiştirmek için Müşteriler sayfasında müşteriyi düzenleyin.</div>
+      {tarihli.length === 0 ? (
+        <div style={{ textAlign: "center", color: T.textMuted, fontSize: 13, padding: "24px 12px", background: T.bgInput, borderRadius: 10 }}>Hiçbir müşteride anlaşma tarihi girilmemiş.</div>
+      ) : (
+        <div style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr><th style={th}>Müşteri</th><th style={th}>Anlaşma Tarihi</th><th style={th}>Her Ay</th><th style={th}>Sonraki Yenileme</th><th style={{ ...th, textAlign: "right" }}>Kalan</th></tr></thead>
+            <tbody>
+              {tarihli.map(({ c, anlasma, gun, sonraki, kalan }) => (
+                <tr key={c.id}>
+                  <td style={{ ...td, fontWeight: 600 }}>{c.name}</td>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>{tr(anlasma)}</td>
+                  <td style={{ ...td, color: T.textSecondary, whiteSpace: "nowrap" }}>Ayın {gun}. günü</td>
+                  <td style={{ ...td, whiteSpace: "nowrap" }}>{tr(sonraki)}</td>
+                  <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap", fontWeight: 600, color: kalan <= 5 ? T.amberText : T.textSecondary }}>{kalan === 0 ? "Bugün" : `${kalan} gün`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {tarihsiz.length > 0 && (
+        <div style={{ marginTop: 14, fontSize: 12.5, color: T.textSecondary, background: T.bgInput, borderRadius: 10, padding: "10px 14px", lineHeight: 1.6 }}>
+          <b style={{ color: T.textPrimary }}>Anlaşma tarihi girilmemiş ({tarihsiz.length}):</b> {tarihsiz.map(x => x.c.name).join(", ")}
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}><Btn onClick={onClose}>Kapat</Btn></div>
+    </Modal>
+  );
+}
+
 function AccountingPage({ clients, staff, perms }) {
   const [tab, setTab] = useState("ozet");
+  const [anlasmaAcik, setAnlasmaAcik] = useState(false);
   // Özet'teki "+ Gider" gibi düğmeler ilgili sekmeye gidip ekleme penceresini doğrudan açar
   const [autoAdd, setAutoAdd] = useState(null);
   const goTab = (t, ekle = false) => { setAutoAdd(ekle ? t : null); setTab(t); };
@@ -8338,7 +8392,9 @@ function AccountingPage({ clients, staff, perms }) {
             border: "none", borderBottom: `2px solid ${active ? T.amber : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap",
           }}>{t.lbl}</button>;
         })}
+        <div style={{ marginLeft: "auto", paddingBottom: 6 }}><Btn onClick={() => setAnlasmaAcik(true)}>🤝 Anlaşma Tarihleri</Btn></div>
       </div>
+      {anlasmaAcik && <AgreementDatesModal clients={clients} onClose={() => setAnlasmaAcik(false)} />}
       {tab === "ozet" && <AccountingOverview clients={clients} goTab={goTab} />}
       {tab === "cari" && <AccountingCari clients={clients} autoAdd={autoAdd === "cari"} />}
       {tab === "banka" && <AccountingBank />}
