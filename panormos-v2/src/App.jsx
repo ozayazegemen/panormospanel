@@ -5442,7 +5442,27 @@ const DEPARTURE_REASONS = [
   { id: "other", label: "Diğer" },
 ];
 
+// Çalışanların maaş ödeme günleri (ayın kaçı). panel_settings'te "staff_pay_days" anahtarında { çalışanId: gün } olarak durur;
+// Çalışanlar sayfasından girilir, Muhasebe > SGK / Vergi / Maaş bölümü kullanır.
+async function loadStaffPayDays() {
+  const { data } = await supabase.from('panel_settings').select('*').eq('key', 'staff_pay_days');
+  const v = data && data[0] ? data[0].value : null;
+  try { const m = typeof v === "string" ? JSON.parse(v || "{}") : v; return m && typeof m === "object" ? m : {}; } catch (e) { return {}; }
+}
+async function saveStaffPayDay(staffId, gun) {
+  const m = await loadStaffPayDays();
+  const g = parseInt(gun);
+  if (g >= 1 && g <= 31) m[staffId] = g; else delete m[staffId];
+  const { error } = await supabase.from('panel_settings').upsert([{ key: 'staff_pay_days', value: JSON.stringify(m) }], { onConflict: 'key' });
+  return { map: m, error };
+}
+function PayDaySelect({ value, onChange }) {
+  return <Select value={value || ""} onChange={onChange}><option value="">Girilmedi</option>{Array.from({ length: 31 }, (_, i) => i + 1).map(g => <option key={g} value={g}>Her ayın {g}. günü</option>)}</Select>;
+}
+
 function StaffPage({staff,setStaff,allStaff,perms}) {
+  const [payDays, setPayDays] = useState({});
+  useEffect(() => { loadStaffPayDays().then(setPayDays); }, []);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [departureModal, setDepartureModal] = useState(null);
@@ -5496,6 +5516,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
           }
         }
       }
+      if (form.payDay) { const r = await saveStaffPayDay(data.id, form.payDay); if (r.error) swalAlert("Maaş ödeme günü kaydedilemedi: " + r.error.message); else setPayDays(r.map); }
       setStaff(prev => [...prev, {
         id: data.id,
         name: data.name,
@@ -5548,6 +5569,10 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       return;
     }
 
+    if (String(editForm.payDay || "") !== String(payDays[editModal.id] || "")) {
+      const r = await saveStaffPayDay(editModal.id, editForm.payDay);
+      if (r.error) swalAlert("Maaş ödeme günü kaydedilemedi: " + r.error.message); else setPayDays(r.map);
+    }
     setStaff(staff.map(s => s.id === editModal.id ? {
       ...s,
       name: editForm.name,
@@ -5662,7 +5687,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
 
           {/* Butonlar */}
           <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${T.border}`,display:"flex",gap:8,justifyContent:"flex-end"}}>
-            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting,perm_reports:s.perm_reports,taskTypes:s.taskTypes||[]});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
+            <Btn onClick={()=>{setEditModal(s);setEditForm({name:s.name,role:s.role,type:s.type,email:s.email,phone:s.phone,startDate:s.start,is_admin:s.is_admin,perm_finance:s.perm_finance,perm_manage_clients:s.perm_manage_clients,perm_manage_staff:s.perm_manage_staff,perm_accounting:s.perm_accounting,perm_reports:s.perm_reports,taskTypes:s.taskTypes||[],payDay:payDays[s.id]||""});}} style={{fontSize:11,padding:"5px 10px"}}>✏️ Düzenle</Btn>
             <Btn onClick={()=>setDepartureModal({staffId:s.id,reason:"",date:""})} style={{fontSize:11,padding:"5px 10px",background:T.redDim,color:T.redText}}>🗑 Ayrılış</Btn>
           </div>
         </Card>
@@ -5678,6 +5703,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       <FormField label="🔑 Giriş Şifresi (çalışan bununla girecek)"><Input type="text" placeholder="En az 6 karakter" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={form.startDate||""} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+      <FormField label="Maaş Ödeme Günü (Muhasebe'de kullanılır)"><PayDaySelect value={form.payDay} onChange={e=>setForm(f=>({...f,payDay:e.target.value}))} /></FormField>
 
       <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
         <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
@@ -5717,6 +5743,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       </FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={editForm.phone||""} onChange={e=>setEditForm(f=>({...f,phone:e.target.value}))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={editForm.startDate||""} onChange={e=>setEditForm(f=>({...f,startDate:e.target.value}))} /></FormField>
+      <FormField label="Maaş Ödeme Günü (Muhasebe'de kullanılır)"><PayDaySelect value={editForm.payDay} onChange={e=>setEditForm(f=>({...f,payDay:e.target.value}))} /></FormField>
 
       <div style={{marginTop:16,marginBottom:12,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
         <div style={{fontSize:11,color:T.amberText,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:4}}>🔐 Yetkiler</div>
@@ -9972,6 +9999,10 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   const [filter, setFilter] = useState("all");
   // Maaş ödeme günü: ayın kaçı ve maaş hangi ay ödeniyor ("sonraki": Eylül maaşı Ekim'de; "ayni": ay içinde)
   const [payDay, setPayDay] = useState({ gun: "", ay: "sonraki" });
+  const [staffDays, setStaffDays] = useState({});   // çalışan → maaş ödeme günü (Çalışanlar sayfasından girilir)
+  useEffect(() => { loadStaffPayDays().then(setStaffDays); }, []);
+  // Çalışanın ödeme günü; kendi günü girilmemişse (varsa) eski ortak gün
+  const payDayOf = (staffId) => parseInt(staffDays[staffId]) || parseInt(payDay.gun) || 0;
   const [tasima, setTasima] = useState(null);   // ayı değiştirilen avans: { e, ay }
 
   const load = async () => {
@@ -9984,16 +10015,16 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   useEffect(() => { (async () => {
     const { data } = await supabase.from('panel_settings').select('*').eq('key', 'salary_pay_day');
     const [gun, ay] = String((data && data[0] && data[0].value) || "").split("|");
-    if (gun) setPayDay({ gun, ay: ay === "ayni" ? "ayni" : "sonraki" });
+    if (gun || ay) setPayDay({ gun: gun || "", ay: ay === "ayni" ? "ayni" : "sonraki" });
   })(); }, []);
   const savePayDay = async (yeni) => {
     setPayDay(yeni);
-    const { error } = await supabase.from('panel_settings').upsert([{ key: 'salary_pay_day', value: yeni.gun ? `${yeni.gun}|${yeni.ay}` : "" }], { onConflict: 'key' });
-    if (error) swalAlert("Maaş ödeme günü kaydedilemedi: " + error.message);
+    const { error } = await supabase.from('panel_settings').upsert([{ key: 'salary_pay_day', value: `${yeni.gun || ""}|${yeni.ay}` }], { onConflict: 'key' });
+    if (error) swalAlert("Ayar kaydedilemedi: " + error.message);
   };
   // Bir ayın maaşının ödeneceği gün (ödeme günü ayarlı değilse boş). Ay o kadar gün çekmiyorsa ayın son günü.
-  const salaryDue = (month) => {
-    const gun = parseInt(payDay.gun);
+  const salaryDue = (month, staffId) => {
+    const gun = payDayOf(staffId);
     if (!gun || !/^\d{4}-\d{2}$/.test(month || "")) return "";
     const [y, m] = shiftMonth(month, payDay.ay === "ayni" ? 0 : 1).split("-").map(Number);
     return `${y}-${String(m).padStart(2, "0")}-${String(Math.min(gun, new Date(y, m, 0).getDate())).padStart(2, "0")}`;
@@ -10033,7 +10064,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
       // Maaş: o aya ait verilmiş avanslar düşülür, kalan tutar kaydedilir
       const avans = sumAmt(advancesOf(form.staff_id, month));
       const not = avans > 0 ? `Maaş ${fmtMoney(tutar)}, avans ${fmtMoney(avans)} düşüldü` : "";
-      kayit = { entry_type: "salary", title: `Maaş — ${staffName || ""}`, amount: Math.max(0, tutar - avans), due_date: form.due_date || salaryDue(month) || null, month_ref: month, staff_id: parseInt(form.staff_id), is_paid: false, notes: [not, form.notes || ""].filter(Boolean).join(" · ") };
+      kayit = { entry_type: "salary", title: `Maaş — ${staffName || ""}`, amount: Math.max(0, tutar - avans), due_date: form.due_date || salaryDue(month, form.staff_id) || null, month_ref: month, staff_id: parseInt(form.staff_id), is_paid: false, notes: [not, form.notes || ""].filter(Boolean).join(" · ") };
     } else {
       kayit = { entry_type: form.entry_type, title: form.title, amount: tutar, due_date: form.due_date || null, month_ref: month, staff_id: null, is_paid: false, notes: form.notes || "" };
     }
@@ -10091,14 +10122,18 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   const totalPaid = entries.filter(e => e.is_paid).reduce((s, e) => s + Number(e.amount || 0), 0);
   // Sıradaki maaş ödeme günü ve bekleyen maaşlar
   const bekleyenMaas = entries.filter(e => e.entry_type === "salary" && !isAdvanceEntry(e) && !e.is_paid);
-  const sonrakiMaasGunu = (() => {
-    const gun = parseInt(payDay.gun);
-    if (!gun) return null;
+  // Her çalışanın sıradaki maaş günü, kalan gün ve bekleyen maaşı
+  const maasTakvimi = (staff || []).map(st => {
+    const gun = payDayOf(st.id);
+    const bekleyen = sumAmt(bekleyenMaas.filter(e => String(e.staff_id) === String(st.id)));
+    if (!gun) return { st, gun: 0, bekleyen };
     const b = new Date(todayStr() + "T00:00:00");
     const ayGunu = (k) => { const son = new Date(b.getFullYear(), b.getMonth() + k + 1, 0).getDate(); return ymdOf(new Date(b.getFullYear(), b.getMonth() + k, Math.min(gun, son))); };
     const t = ayGunu(0) >= todayStr() ? ayGunu(0) : ayGunu(1);
-    return { t, kalan: Math.round((new Date(t + "T00:00:00") - b) / 86400000) };
-  })();
+    return { st, gun, bekleyen, t, kalan: Math.round((new Date(t + "T00:00:00") - b) / 86400000) };
+  });
+  const gunluler = maasTakvimi.filter(x => x.gun).sort((a, b) => a.kalan - b.kalan);
+  const sonrakiMaasGunu = gunluler.length ? { t: gunluler[0].t, kalan: gunluler[0].kalan, kim: gunluler.filter(x => x.t === gunluler[0].t).map(x => x.st.name).join(", ") } : null;
 
   const exportExpenses = async () => {
     const rows = entries.map(e => ({
@@ -10119,21 +10154,26 @@ function AccountingExpenses({ staff, autoAdd = false }) {
         <StatCard label="Ödenmemiş Giderler" value={fmtMoney(totalUnpaid)} color={T.amberText} />
         <StatCard label="Ödenmiş Giderler" value={fmtMoney(totalPaid)} color={T.greenText} />
         <StatCard label="Sıradaki Maaş Günü" value={sonrakiMaasGunu ? trDate(sonrakiMaasGunu.t) : "Ayarlanmadı"} color={sonrakiMaasGunu && sonrakiMaasGunu.kalan <= 3 ? T.amberText : undefined}
-          sub={sonrakiMaasGunu ? `${sonrakiMaasGunu.kalan === 0 ? "Bugün" : sonrakiMaasGunu.kalan + " gün kaldı"} · Bekleyen maaş: ${fmtMoney(sumAmt(bekleyenMaas))}` : "Aşağıdan maaş ödeme gününü seçin"} />
+          sub={sonrakiMaasGunu ? `${sonrakiMaasGunu.kim} · ${sonrakiMaasGunu.kalan === 0 ? "bugün" : sonrakiMaasGunu.kalan + " gün kaldı"}` : "Çalışanlar sayfasından maaş ödeme günlerini girin"} />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12.5, color: T.textSecondary, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 14px", marginBottom: 18 }}>
-        <span style={{ fontWeight: 600, color: T.textPrimary }}>Maaş ödeme günü:</span>
-        <span>her ayın</span>
-        <select value={payDay.gun} onChange={e => savePayDay({ ...payDay, gun: e.target.value })} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 8px", color: T.textPrimary, fontSize: 12.5, outline: "none" }}>
-          <option value="">Seçilmedi</option>
-          {Array.from({ length: 31 }, (_, i) => i + 1).map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <span>. günü;</span>
-        <select value={payDay.ay} onChange={e => savePayDay({ ...payDay, ay: e.target.value })} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 8px", color: T.textPrimary, fontSize: 12.5, outline: "none" }}>
-          <option value="sonraki">maaş ertesi ay ödenir (Eylül maaşı Ekim'de)</option>
-          <option value="ayni">maaş aynı ay içinde ödenir</option>
-        </select>
-        <span style={{ color: T.textMuted }}>Maaş eklerken son ödeme tarihi buna göre kendiliğinden gelir.</span>
+      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12.5, color: T.textSecondary, marginBottom: 10 }}>
+          <span style={{ fontWeight: 600, color: T.textPrimary }}>Maaş ödeme günleri</span>
+          <select value={payDay.ay} onChange={e => savePayDay({ ...payDay, ay: e.target.value })} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "6px 8px", color: T.textPrimary, fontSize: 12.5, outline: "none" }}>
+            <option value="sonraki">Maaş ertesi ay ödenir (Eylül maaşı Ekim'de)</option>
+            <option value="ayni">Maaş aynı ay içinde ödenir</option>
+          </select>
+          <span style={{ color: T.textMuted }}>Günleri Çalışanlar sayfasında çalışanı düzenleyerek girersiniz.</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: 8 }}>
+          {maasTakvimi.map(({ st, gun, bekleyen, t, kalan }) => (
+            <div key={st.id} style={{ background: T.bgInput, borderRadius: 9, padding: "9px 12px" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{st.name}</div>
+              <div style={{ fontSize: 11.5, color: gun && kalan <= 3 ? T.amberText : T.textMuted, marginTop: 3 }}>{gun ? `Ayın ${gun}. günü · sıradaki ${trDate(t)} (${kalan === 0 ? "bugün" : kalan + " gün"})` : "Ödeme günü girilmedi"}</div>
+              <div style={{ fontSize: 11.5, color: T.textSecondary, marginTop: 2 }}>Bekleyen maaş: <b style={{ color: T.textPrimary }}>{fmtMoney(bekleyen)}</b></div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
@@ -10208,7 +10248,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
             </Select>
           </FormField>
           <FormField label={form.entry_type === "advance" ? "Avansın Ödendiği Tarih" : "Son Ödeme Tarihi"}><Input type="date" value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} /></FormField>
-          {form.entry_type === "salary" && !form.due_date && salaryDue(form.month_ref || currentMonthRef()) && <div style={{ fontSize: 12, color: T.textMuted, marginTop: -8, marginBottom: 14 }}>Boş bırakırsanız maaş ödeme gününe göre {trDate(salaryDue(form.month_ref || currentMonthRef()))} yazılır.</div>}
+          {form.entry_type === "salary" && !form.due_date && salaryDue(form.month_ref || currentMonthRef(), form.staff_id) && <div style={{ fontSize: 12, color: T.textMuted, marginTop: -8, marginBottom: 14 }}>Boş bırakırsanız çalışanın maaş ödeme gününe göre {trDate(salaryDue(form.month_ref || currentMonthRef(), form.staff_id))} yazılır.</div>}
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => setModal(false)} onSave={saveEntry} />
         </Modal>
