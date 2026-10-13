@@ -281,6 +281,9 @@
   .form-sonuc.hata { color: var(--kirmizi); }
   .menu img { background: transparent; }
 
+  .iletisim { background: var(--krem); }
+  .iletisim .nokta h3 { font-size: 26px; }
+
   /* Alt bilgi */
   footer { background: var(--yesil-koyu); color: #CFE3C4; font-size: 14.5px; }
   .alt-ust { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.1fr; gap: 40px; padding-top: 64px; padding-bottom: 48px; }
@@ -369,7 +372,7 @@
       <a href="#biz-kimiz">Biz Kimiz</a>
       <a href="urunler.html">Ürünlerimiz</a>
       <a href="#iletisim">İletişim</a>
-      <a href="#bayi" class="dugme dugme-ana">Toptan Teklif</a>
+      <a href="toptan-teklif.html" class="dugme dugme-ana">Toptan Teklif</a>
     </nav>
   </div>
 </header>
@@ -379,7 +382,7 @@
   <div class="giris-ic">
     <h1>Bölgenin en iyi sütlerinden olgunlaşmış beyaz peynir</h1>
     <div class="dugmeler">
-      <a href="#bayi" class="dugme dugme-ana">Toptan Teklif</a>
+      <a href="toptan-teklif.html" class="dugme dugme-ana">Toptan Teklif</a>
       <a href="urunler.html" class="dugme dugme-beyaz">Ürünleri İncele</a>
     </div>
     <div class="tenekeler">
@@ -552,7 +555,7 @@
           <ul>
             <li>Tam yağlı</li><li>Pastörize inek sütü</li><li>Kapaklı kap</li>
           </ul>
-          <a href="#bayi" class="paket-link">Teklif isteyin</a>
+          <a href="toptan-teklif.html" class="paket-link">Teklif isteyin</a>
         </div>
       </article>
       <article class="paket-kart mavi">
@@ -566,7 +569,7 @@
           <ul>
             <li>Tam yağlı</li><li>Pastörize inek sütü</li><li>Kapaklı kap</li>
           </ul>
-          <a href="#bayi" class="paket-link">Teklif isteyin</a>
+          <a href="toptan-teklif.html" class="paket-link">Teklif isteyin</a>
         </div>
       </article>
     </div>
@@ -605,33 +608,31 @@
   </div>
 </section>
 
-<section class="bayi" id="bayi">
+<section class="iletisim" id="iletisim">
   <div class="kap">
-    <div>
-      <div class="baslik" style="margin-bottom:0">
-        <div class="ust-etiket">Toptan Satış</div>
-        <h2>Toptancımız olun</h2>
-        <p>Bilgilerinizi bırakın; fiyat listesi ve sevkiyat koşullarıyla size dönelim.</p>
+    <div class="dagitim-ust">
+      <div class="ust-etiket">İletişim</div>
+      <h2>Bize ulaşın</h2>
+    </div>
+    <div class="noktalar">
+      <div class="nokta">
+        <div class="tur">Telefon</div>
+        <h3>0266 718 10 77</h3>
+        <p>Hafta içi mesai saatlerinde arayabilirsiniz.</p>
       </div>
-      <div id="iletisim">
-        <div class="iletisim-satir"><b>Telefon</b><span>0266 718 10 77</span></div>
-        <div class="iletisim-satir"><b>Üretim Tesisi</b><span>Edincik Mah. Üyecek Sok. No: 10, Bandırma / Balıkesir</span></div>
-        <div class="iletisim-satir"><b>İstanbul Deposu</b><span>Kocatepe Mah. Mega Center A Blok No: 1197, Bayrampaşa / İstanbul</span><span>0212 616 15 10</span></div>
+      <div class="nokta">
+        <div class="tur">Üretim Tesisi</div>
+        <h3>Bandırma</h3>
+        <p>Edincik Mah. Üyecek Sok. No: 10, Bandırma / Balıkesir</p>
+      </div>
+      <div class="nokta">
+        <div class="tur">İstanbul Deposu</div>
+        <h3>Bayrampaşa</h3>
+        <p>Kocatepe Mah. Mega Center A Blok No: 1197, Bayrampaşa / İstanbul</p>
+        <p class="nokta-tel">0212 616 15 10</p>
       </div>
     </div>
-    <form id="teklif-formu" name="teklif" method="POST" data-netlify="true" netlify-honeypot="bot-alani" data-tesekkur="Talebiniz bize ulaştı. Fiyat listesi ve sevkiyat koşullarıyla size döneceğiz. Teşekkür ederiz.">
-      <input type="hidden" name="form-name" value="teklif">
-      <p hidden><label>Bu alanı boş bırakın<input name="bot-alani"></label></p>
-      <label>Ad Soyad<input name="ad-soyad" required placeholder="Adınız"></label>
-      <label>Firma<input name="firma" placeholder="Firma adı"></label>
-      <label>Telefon<input name="telefon" required type="tel" placeholder="05XX XXX XX XX"></label>
-      <label>Şehir<input name="sehir" placeholder="Örn.: İzmir"></label>
-      <label class="tam">İlgilendiğiniz ürün
-        <select name="urun"><option>Tüm ürünler</option><option>Paket ürünler</option><option>Edin Sezon Beyaz Peynir (ED09)</option><option>Edin Extra Beyaz Peynir (ED13)</option><option>Edin Naturel Beyaz Peynir (ED02)</option><option>Edinbey Gurme</option></select>
-      </label>
-      <label class="tam">Mesajınız<textarea name="mesaj" placeholder="Aylık ihtiyacınız, teslimat adresi..."></textarea></label>
-      <div class="tam"><button class="dugme dugme-ana" type="submit">Teklif İste</button><p class="form-sonuc" hidden></p></div>
-    </form>
+    <div class="tum-urunler"><a class="dugme dugme-ana" href="toptan-teklif.html">Toptan teklif isteyin</a></div>
   </div>
 </section>
 
@@ -681,7 +682,7 @@
     </div>
     <div>
       <h4>Ürünler</h4>
-      <a href="urunler.html">Edin Beyaz Peynir</a><a href="urunler.html#edinbey">Edinbey Gurme</a><a href="#bayi">Toptan Teklif</a>
+      <a href="urunler.html">Edin Beyaz Peynir</a><a href="urunler.html#edinbey">Edinbey Gurme</a><a href="toptan-teklif.html">Toptan Teklif</a>
     </div>
     <div>
       <h4>İletişim</h4>
