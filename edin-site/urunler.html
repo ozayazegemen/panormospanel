@@ -198,13 +198,30 @@
   .tum-urunler { text-align: center; margin-top: 36px; }
   nav a.etkin { color: var(--kirmizi); }
 
-  /* Paket ürünler: gönderilen tanıtım görselleri dikey (3:4) olarak, kırpılmadan */
-  .urun.paket .gorsel { padding: 0; height: auto; aspect-ratio: 3 / 4; }
-  .urun.paket .gorsel img { width: 100%; height: 100%; object-fit: cover; filter: none; }
-  .urun-detay.paket .gorsel { padding: 0; min-height: 0; align-items: stretch; }
-  .urun-detay.paket .gorsel img { width: 100%; height: auto; object-fit: contain; filter: none; display: block; }
-  .alt-baslik { font-family: "Fraunces", Georgia, serif; font-size: 26px; font-weight: 600; color: var(--yesil-koyu); margin: 48px 0 20px; }
-  .urunler.iki { grid-template-columns: repeat(2, 1fr); max-width: 760px; }
+  /* Paket ürünler bölümü */
+  .paket-bolum { background: #fff; border-top: 1px solid var(--cizgi); }
+  .paket-ust { text-align: center; max-width: 620px; margin: 0 auto 48px; }
+  .paket-ust .ust-etiket { justify-content: center; }
+  .paket-ust h2 { font-size: clamp(28px, 3.2vw, 40px); margin: 10px 0 12px; color: var(--yesil-koyu); }
+  .paket-ust p { color: var(--yazi-soluk); font-size: 17px; }
+  .paketler { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 980px; margin: 0 auto; }
+  .paket-kart { display: grid; grid-template-columns: 46% 1fr; background: var(--krem); border-radius: 14px; overflow: hidden; border: 1px solid var(--cizgi); transition: box-shadow .2s, transform .2s; }
+  .paket-kart:hover { box-shadow: 0 24px 48px rgba(29,90,36,.14); transform: translateY(-4px); }
+  .paket-gorsel { position: relative; aspect-ratio: 5 / 6; overflow: hidden; }
+  .paket-gorsel img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+  .rozet { position: absolute; left: 12px; top: 12px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff; padding: 6px 11px; border-radius: 999px; }
+  .paket-kart.yesil .rozet { background: var(--yesil); }
+  .paket-kart.mavi .rozet { background: var(--mavi-koyu); }
+  .paket-ic { padding: 26px 24px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .paket-ic h3 { font-size: 20px; line-height: 1.25; color: var(--yesil-koyu); }
+  .paket-kart.mavi .paket-ic h3 { color: var(--mavi-koyu); }
+  .paket-ic p { font-size: 14.5px; color: var(--yazi-soluk); }
+  .paket-ic ul { list-style: none; display: grid; gap: 7px; font-size: 14px; }
+  .paket-ic li { padding-left: 20px; position: relative; }
+  .paket-ic li::before { content: ""; position: absolute; left: 0; top: 8px; width: 9px; height: 5px; border-left: 2px solid var(--yesil); border-bottom: 2px solid var(--yesil); transform: rotate(-45deg); }
+  .paket-kart.mavi .paket-ic li::before { border-color: var(--mavi-koyu); }
+  .paket-link { margin-top: auto; font-weight: 700; font-size: 14.5px; color: var(--kirmizi); }
+  .paket-link::after { content: " →"; }
 
   /* Dağıtım */
   .dagitim { background: #fff; border-top: 1px solid var(--cizgi); }
@@ -279,6 +296,11 @@
     .rakam { padding-left: 0; border-left: 0; }
     .rakamlar .kap { gap: 20px; }
     .noktalar { grid-template-columns: 1fr; }
+    .paketler { grid-template-columns: 1fr; gap: 20px; }
+    .paket-kart { grid-template-columns: 42% 1fr; }
+    .paket-ic { padding: 18px 16px; }
+    .paket-ic h3 { font-size: 17px; }
+
     .urun-detay { grid-template-columns: 1fr; }
     .urun-detay .gorsel { min-height: 0; }
     .urun-detay .gorsel img { height: 240px; }
@@ -408,40 +430,47 @@
       <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
     </div>
   </article>
-  <h2 class="alt-baslik" style="margin:20px 0 0">Paket ürünlerimiz</h2>
-  <article class="urun-detay paket yesil" id="paket-yesil">
-    <div class="gorsel"><img src="img/paket-yesil.jpg" alt="Edin Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket"></div>
-    <div class="ic">
-      <div class="kod">PAKET</div>
-      <h2>Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h2>
-      <p>Yumuşak kıvamlı, kolay dilimlenen ve kolay ezilen beyaz peynir. Börek, gözleme ve poğaça içi için uygundur; kahvaltıda da sevilir.</p>
-      <dl class="ozellik-tablo">
-        <div><dt>Ambalaj</dt><dd>Kapaklı plastik kap</dd></div>
-        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
-        <div><dt>Yağ</dt><dd>Tam yağlı</dd></div>
-        <div><dt>Kıvam</dt><dd>Yumuşak</dd></div>
-        <div><dt>Kullanım</dt><dd>Börek, gözleme, kahvaltı</dd></div>
-      </dl>
-      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
-    </div>
-  </article>
-  <article class="urun-detay paket mavi" id="paket-mavi">
-    <div class="gorsel"><img src="img/paket-mavi.jpg" alt="Edin Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket"></div>
-    <div class="ic">
-      <div class="kod">PAKET</div>
-      <h2>Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h2>
-      <p>Teneke peynirimizin ev ve küçük işletmeler için paketlenmiş hâli. Olgunlaştırılmış, dolgun lezzetli klasik Edin beyaz peyniri.</p>
-      <dl class="ozellik-tablo">
-        <div><dt>Ambalaj</dt><dd>Kapaklı plastik kap</dd></div>
-        <div><dt>Süt</dt><dd>Pastörize inek sütü</dd></div>
-        <div><dt>Yağ</dt><dd>Tam yağlı</dd></div>
-        <div><dt>Tür</dt><dd>Olgunlaştırılmış beyaz peynir</dd></div>
-        <div><dt>Kullanım</dt><dd>Kahvaltı, salata, börek</dd></div>
-      </dl>
-      <a class="dugme dugme-ana" href="index.html#bayi">Bu ürün için teklif isteyin</a>
-    </div>
-  </article>
 </div>
+
+<section class="paket-bolum" id="paket">
+  <div class="kap">
+    <div class="paket-ust">
+      <div class="ust-etiket">Paket Ürünler</div>
+      <h2>Sofranız için paket peynirlerimiz</h2>
+      <p>Teneke peynirimizin lezzeti, ev ve küçük işletmeler için kapaklı kaplarda.</p>
+    </div>
+    <div class="paketler">
+      <article class="paket-kart yesil">
+        <div class="paket-gorsel">
+          <img src="img/paket-yesil.jpg" alt="Edin Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket" loading="lazy">
+          <span class="rozet">Yumuşak kıvamlı</span>
+        </div>
+        <div class="paket-ic">
+          <h3>Yumuşak Kıvamlı Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h3>
+          <p>Kolay dilimlenen, kolay ezilen beyaz peynir. Börek, gözleme ve poğaça içi için uygundur; kahvaltıda da sevilir.</p>
+          <ul>
+            <li>Tam yağlı</li><li>Pastörize inek sütü</li><li>Kapaklı kap</li>
+          </ul>
+          <a href="index.html#bayi" class="paket-link">Teklif isteyin</a>
+        </div>
+      </article>
+      <article class="paket-kart mavi">
+        <div class="paket-gorsel">
+          <img src="img/paket-mavi.jpg" alt="Edin Tam Yağlı Olgunlaştırılmış Beyaz Peynir, paket" loading="lazy">
+          <span class="rozet">Olgunlaştırılmış</span>
+        </div>
+        <div class="paket-ic">
+          <h3>Tam Yağlı Olgunlaştırılmış Beyaz Peynir</h3>
+          <p>Olgunlaştırılmış, dolgun lezzetli klasik Edin beyaz peyniri. Kahvaltı, salata ve hamur işleri için.</p>
+          <ul>
+            <li>Tam yağlı</li><li>Pastörize inek sütü</li><li>Kapaklı kap</li>
+          </ul>
+          <a href="index.html#bayi" class="paket-link">Teklif isteyin</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
 
 <section class="instagram" id="instagram">
   <div class="kap">
