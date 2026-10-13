@@ -11308,7 +11308,7 @@ function LandingPage({ onEnter }) {
   .lp .logo{font-family:'Space Grotesk';font-weight:700;font-size:24px;letter-spacing:-0.02em;display:flex;align-items:center;gap:2px}
   .lp .logo .m{background:var(--grad2);-webkit-background-clip:text;background-clip:text;color:transparent}
   .lp .logo .dot{color:var(--orange)}
-  .lp .nav-links{display:flex;align-items:center;gap:34px}
+  .lp .nav-links{display:flex;align-items:center;gap:28px}
   .lp .nav-links a.link{font-size:14px;color:var(--muted);font-weight:500;transition:color .2s;position:relative}
   .lp .nav-links a.link:hover{color:var(--text)}
   .lp .nav-links a.link::after{content:"";position:absolute;left:0;bottom:-6px;width:0;height:2px;background:var(--grad2);transition:width .25s}
@@ -11365,6 +11365,23 @@ function LandingPage({ onEnter }) {
   .lp .s10{--accent:linear-gradient(135deg,#F25124,#EC4899);--accent-soft:rgba(242,81,36,0.1);--accent-line:rgba(242,81,36,0.25)}
   .lp .s11{--accent:linear-gradient(135deg,#06B6D4,#8B5CF6);--accent-soft:rgba(6,182,212,0.1);--accent-line:rgba(6,182,212,0.25)}
   .lp .s12{--accent:linear-gradient(135deg,#F59E0B,#EC4899);--accent-soft:rgba(245,158,11,0.1);--accent-line:rgba(245,158,11,0.25)}
+  .lp .works{display:flex;flex-direction:column;gap:28px;margin-bottom:28px}
+  .lp .work{display:grid;grid-template-columns:1.15fr 1fr;gap:44px;align-items:center;padding:32px;border-radius:26px;background:var(--surface);border:1px solid var(--line);transition:border-color .3s}
+  .lp .work:hover{border-color:var(--line2)}
+  .lp .work.rev .work-shot{order:2}
+  .lp .work-shot{display:block;border-radius:14px;overflow:hidden;border:1px solid var(--line2);background:#0D121C;box-shadow:0 24px 60px rgba(0,0,0,0.45)}
+  .lp .work-bar{display:flex;align-items:center;gap:6px;padding:10px 14px;background:#1A2231;border-bottom:1px solid var(--line)}
+  .lp .work-bar i{width:9px;height:9px;border-radius:50%;background:#3A465A;display:block}
+  .lp .work-bar span{margin-left:10px;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lp .work-shot img{display:block;width:100%;height:auto}
+  .lp .work-tag{display:inline-block;font-family:'Space Grotesk';font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:6px 14px;border-radius:100px;border:1px solid rgba(236,72,153,0.35);background:rgba(236,72,153,0.08);color:#F9A8D4;margin-bottom:16px}
+  .lp .work h3{font-family:'Space Grotesk';font-weight:700;font-size:clamp(26px,3.4vw,36px);letter-spacing:-0.02em;line-height:1.1;margin-bottom:14px}
+  .lp .work p{font-size:15.5px;color:var(--muted);line-height:1.7;margin-bottom:18px}
+  .lp .work ul{list-style:none;display:flex;flex-direction:column;gap:9px;margin-bottom:24px}
+  .lp .work li{font-size:14.5px;color:var(--text);display:flex;gap:10px;align-items:flex-start}
+  .lp .work li::before{content:"✓";color:var(--orange);font-weight:700;flex-shrink:0}
+  .lp .work-soon{font-size:13.5px;color:var(--muted2)}
+  .lp .works-cta{margin-top:40px;display:flex;justify-content:center}
   .lp .process{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
   .lp .step{padding:32px 28px 32px 0;position:relative;border-top:1px solid var(--line2)}
   .lp .step .snum{font-family:'Space Grotesk';font-weight:700;font-size:15px;color:transparent;background:var(--grad2);-webkit-background-clip:text;background-clip:text;margin-bottom:16px;display:block}
@@ -11406,7 +11423,7 @@ function LandingPage({ onEnter }) {
   .lp .foot-bottom{margin-top:48px;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted2)}
   .lp .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s ease,transform .7s ease}
   .lp .reveal.in{opacity:1;transform:none}
-  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:400px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr 1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}}
+  @media(max-width:900px){.lp .nav-links{position:fixed;top:74px;left:0;right:0;background:rgba(10,14,22,0.97);backdrop-filter:blur(16px);flex-direction:column;gap:0;padding:0;max-height:0;overflow:hidden;transition:max-height .3s;border-bottom:1px solid var(--line)}.lp .nav-links.open{max-height:460px;padding:16px 24px 24px}.lp .nav-links a.link{padding:14px 0;width:100%;border-bottom:1px solid var(--line)}.lp .nav-links .btn-login{width:100%;text-align:center;margin-top:12px}.lp .menu-toggle{display:block}.lp .services-grid{grid-template-columns:1fr 1fr}.lp .process{grid-template-columns:1fr 1fr}.lp .stats{grid-template-columns:1fr 1fr;padding:40px 28px}.lp .contact-card{padding:44px 24px}.lp section{padding:80px 0}.lp .work{grid-template-columns:1fr;gap:26px;padding:22px}.lp .work.rev .work-shot{order:0}}
   @media(max-width:640px){.lp .services-grid{grid-template-columns:1fr}}
   @media(max-width:520px){.lp .process{grid-template-columns:1fr}.lp .stats{grid-template-columns:1fr 1fr;gap:32px 16px}.lp .contact-methods{flex-direction:column}.lp .cm{justify-content:center}}
   @media(prefers-reduced-motion:reduce){.lp *{animation:none!important;transition:none!important}.lp .reveal{opacity:1;transform:none}}
@@ -11423,6 +11440,7 @@ function LandingPage({ onEnter }) {
           <a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a>
           <div className="nav-links" id="lp-navLinks">
             <a href="#lp-hizmetler" className="link">Hizmetler</a>
+            <a href="#lp-yazilim" className="link">Web & Yazılım</a>
             <a href="#lp-surec" className="link">Nasıl Çalışırız</a>
             <a href="#lp-hakkimizda" className="link">Hakkımızda</a>
             <a href="#lp-iletisim" className="link">İletişim</a>
@@ -11450,8 +11468,8 @@ function LandingPage({ onEnter }) {
 
       <div className="marquee" aria-hidden="true">
         <div className="marquee-track">
-          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Logo Tasarım<span className="star">✦</span>Kurumsal Kimlik<span className="star">✦</span>Dijital Baskı<span className="star">✦</span>Promosyon<span className="star">✦</span></span>
-          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Logo Tasarım<span className="star">✦</span>Kurumsal Kimlik<span className="star">✦</span>Dijital Baskı<span className="star">✦</span>Promosyon<span className="star">✦</span></span>
+          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Web Sitesi<span className="star">✦</span>Özel Yazılım<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Logo Tasarım<span className="star">✦</span>Kurumsal Kimlik<span className="star">✦</span>Dijital Baskı<span className="star">✦</span>Promosyon<span className="star">✦</span></span>
+          <span className="marquee-item">Sosyal Medya Yönetimi<span className="star">✦</span>Meta Reklam<span className="star">✦</span>SEO<span className="star">✦</span>Web Sitesi<span className="star">✦</span>Özel Yazılım<span className="star">✦</span>Tanıtım Filmleri<span className="star">✦</span>Ürün Çekimi<span className="star">✦</span>Logo Tasarım<span className="star">✦</span>Kurumsal Kimlik<span className="star">✦</span>Dijital Baskı<span className="star">✦</span>Promosyon<span className="star">✦</span></span>
         </div>
       </div>
 
@@ -11472,6 +11490,46 @@ function LandingPage({ onEnter }) {
             <div className="service s11 reveal"><div className="icon">🎁</div><h3>Promosyon Ürünler</h3><p>Kalem, tişört, kupa, çanta ve daha fazlası — markanı taşıyan özel tasarımlı promosyon ürünlerini hazırlıyoruz.</p></div>
             <div className="service s12 reveal"><div className="icon">🖨️</div><h3>Dijital Baskı</h3><p>Kartvizit, broşür, afiş, tabela ve tüm baskı işlerini yüksek kalitede tasarlayıp basıma hazır hale getiriyoruz.</p></div>
           </div>
+        </div>
+      </section>
+
+      <section id="lp-yazilim">
+        <div className="wrap">
+          <div className="sec-head reveal"><span className="sec-label">Web Sitesi & Yazılım</span><h2>Web siteni ve yazılımını da biz yapıyoruz</h2><p>Sosyal medyanın yanında işletmene özel web siteleri, yönetim panelleri ve yazılımlar geliştiriyoruz. İşte ürettiklerimizden örnekler.</p></div>
+          <div className="works">
+            <div className="work reveal">
+              <a className="work-shot" href="https://emlakpanelim.com" target="_blank" rel="noopener" aria-label="EmlakPanelim sitesini aç">
+                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>emlakpanelim.com</span></div>
+                <img src="/isler/emlakpanelim.jpg" alt="EmlakPanelim ana sayfasının ekran görüntüsü" width="1200" height="675" loading="lazy" />
+              </a>
+              <div>
+                <span className="work-tag">Kendi yazılımımız</span>
+                <h3>EmlakPanelim</h3>
+                <p>Emlak ofisleri için sıfırdan geliştirdiğimiz yönetim paneli. İlanlar, mal sahipleri, müşteri talepleri ve sözleşmeler tek ekranda toplanır; müşterinin aradığı mülk ilanlarda varsa sistem kendiliğinden eşleştirir.</p>
+                <ul><li>İlan, müşteri ve sözleşme takibi</li><li>Talep ile ilanı kendiliğinden eşleştirme</li><li>Bilgisayarda ve telefonda çalışır</li></ul>
+                <a href="https://emlakpanelim.com" className="btn-ghost" target="_blank" rel="noopener">emlakpanelim.com →</a>
+              </div>
+            </div>
+            <div className="work rev reveal">
+              <div className="work-shot">
+                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>Edin Peynir</span></div>
+                <img src="/isler/edin-peynir.jpg" alt="Edin Peynir web sitesinin ekran görüntüsü" width="1200" height="675" loading="lazy" />
+              </div>
+              <div>
+                <span className="work-tag">Kurumsal web sitesi</span>
+                <h3>Edin Peynir</h3>
+                <p>Bandırmalı peynir üreticisi Edinler Gıda için tasarladığımız kurumsal web sitesi. Ürünler, kalite belgeleri ve toptan teklif formu tek bir sitede; telefonda da bilgisayarda da aynı özenle görünür.</p>
+                <ul><li>Markaya özel tasarım</li><li>Ürün sayfaları ve toptan teklif formu</li><li>Telefona uyumlu, hızlı açılan sayfalar</li></ul>
+                <span className="work-soon">Yakında yayında</span>
+              </div>
+            </div>
+          </div>
+          <div className="services-grid">
+            <div className="service s4 reveal"><div className="icon">🌐</div><h3>Kurumsal Web Sitesi</h3><p>Markanı doğru anlatan, telefonda da düzgün görünen, hızlı açılan ve Google'da bulunabilen web siteleri tasarlıyoruz.</p></div>
+            <div className="service s2 reveal"><div className="icon">🗂️</div><h3>Yönetim Paneli</h3><p>Müşteri, görev, fatura ve randevu takibini tek ekranda toplayan, işleyişine göre hazırlanmış paneller kuruyoruz.</p></div>
+            <div className="service s6 reveal"><div className="icon">⚙️</div><h3>Özel Yazılım</h3><p>Hazır programların yetmediği yerde, sektörüne ve ihtiyacına özel web ve mobil uygulamalar geliştiriyoruz.</p></div>
+          </div>
+          <div className="works-cta reveal"><a href="#lp-iletisim" className="btn-primary">Web sitesi ya da yazılım için teklif al →</a></div>
         </div>
       </section>
 
@@ -11523,8 +11581,8 @@ function LandingPage({ onEnter }) {
       <footer>
         <div className="wrap">
           <div className="foot-inner">
-            <div className="foot-brand"><a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a><p>Panormos Medya Sanayi ve Ticaret Limited Şirketi — markanı dijitalde büyüten sosyal medya ve reklam ajansı.</p></div>
-            <div className="foot-col"><h5>Hizmetler</h5><a href="#lp-hizmetler">Instagram Yönetimi</a><a href="#lp-hizmetler">İçerik Üretimi</a><a href="#lp-hizmetler">Reklam Yönetimi</a><a href="#lp-hizmetler">Grafik Tasarım</a></div>
+            <div className="foot-brand"><a href="#lp-top" className="logo"><span className="p">panormos</span> <span className="m">medya</span><span className="dot">.</span></a><p>Panormos Medya Sanayi ve Ticaret Limited Şirketi — markanı dijitalde büyüten sosyal medya, reklam ve yazılım ajansı.</p></div>
+            <div className="foot-col"><h5>Hizmetler</h5><a href="#lp-hizmetler">Instagram Yönetimi</a><a href="#lp-hizmetler">İçerik Üretimi</a><a href="#lp-hizmetler">Reklam Yönetimi</a><a href="#lp-hizmetler">Grafik Tasarım</a><a href="#lp-yazilim">Web Sitesi & Yazılım</a></div>
             <div className="foot-col"><h5>Kurumsal</h5><a href="#lp-hakkimizda">Hakkımızda</a><a href="#lp-surec">Nasıl Çalışırız</a><a href="#lp-iletisim">İletişim</a><a onClick={onEnter}>Çalışan Girişi</a></div>
             <div className="foot-col"><h5>İletişim</h5><a href="tel:+905364716012">0 (536) 471 60 12</a><a href="mailto:info@panormosmedya.com">info@panormosmedya.com</a><a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener">@panormosmedya</a><a href="#lp-iletisim">Paşakent Mah. Bandırma / Balıkesir</a></div>
           </div>
