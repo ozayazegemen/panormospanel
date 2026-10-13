@@ -270,6 +270,17 @@
   .ig-ust { display: inline-flex; align-items: center; gap: 6px; }
   .ig-ust svg { width: 15px; height: 15px; }
 
+  /* Şikâyet, dilek ve öneri */
+  .gorus { background: #fff; border-top: 1px solid var(--cizgi); }
+  .gorus .kap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: start; }
+  .gorus h2 { font-size: clamp(26px, 3vw, 38px); margin: 10px 0 14px; color: var(--yesil-koyu); }
+  .gorus p { color: var(--yazi-soluk); font-size: 16.5px; }
+  .gorus form { background: var(--krem); }
+  .form-sonuc { margin-top: 12px; font-size: 14.5px; font-weight: 600; }
+  .form-sonuc.tamam { color: var(--yesil-koyu); }
+  .form-sonuc.hata { color: var(--kirmizi); }
+  .menu img { background: transparent; }
+
   /* Alt bilgi */
   footer { background: var(--yesil-koyu); color: #CFE3C4; font-size: 14.5px; }
   .alt-ust { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.1fr; gap: 40px; padding-top: 64px; padding-bottom: 48px; }
@@ -292,7 +303,7 @@
   @media (max-width: 1100px) { .urunler { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 900px) {
     nav a:not(.dugme) { display: none; }
-    .gurme .kap, .bayi .kap, .hakkimizda .kap { grid-template-columns: 1fr; gap: 36px; }
+    .gurme .kap, .bayi .kap, .hakkimizda .kap, .gorus .kap { grid-template-columns: 1fr; gap: 36px; }
     .ilkeler, .alt-ust { grid-template-columns: 1fr; }
     .alt-ust { gap: 26px; padding-top: 44px; }
     .hk-liste { grid-template-columns: 1fr; }
@@ -351,7 +362,7 @@
 </div>
 <header>
   <div class="kap menu">
-    <a href="#" class="logo"><img src="img/edin-logo.jpg" alt="Edin"></a>
+    <a href="#" class="logo"><img src="img/edin-logo.png" alt="Edin"></a>
     <nav>
       <a href="#">Ana Sayfa</a>
       <a href="#hakkimizda">Hakkımızda</a>
@@ -608,16 +619,41 @@
         <div class="iletisim-satir"><b>İstanbul Deposu</b><span>Kocatepe Mah. Mega Center A Blok No: 1197, Bayrampaşa / İstanbul</span><span>0212 616 15 10</span></div>
       </div>
     </div>
-    <form id="teklif-formu" onsubmit="event.preventDefault(); document.getElementById('form-notu').hidden = false;">
-      <label>Ad Soyad<input required placeholder="Adınız"></label>
-      <label>Firma<input placeholder="Firma adı"></label>
-      <label>Telefon<input required type="tel" placeholder="05XX XXX XX XX"></label>
-      <label>Şehir<input placeholder="Örn.: İzmir"></label>
+    <form id="teklif-formu" name="teklif" method="POST" data-netlify="true" netlify-honeypot="bot-alani" data-tesekkur="Talebiniz bize ulaştı. Fiyat listesi ve sevkiyat koşullarıyla size döneceğiz. Teşekkür ederiz.">
+      <input type="hidden" name="form-name" value="teklif">
+      <p hidden><label>Bu alanı boş bırakın<input name="bot-alani"></label></p>
+      <label>Ad Soyad<input name="ad-soyad" required placeholder="Adınız"></label>
+      <label>Firma<input name="firma" placeholder="Firma adı"></label>
+      <label>Telefon<input name="telefon" required type="tel" placeholder="05XX XXX XX XX"></label>
+      <label>Şehir<input name="sehir" placeholder="Örn.: İzmir"></label>
       <label class="tam">İlgilendiğiniz ürün
-        <select><option>Tüm ürünler</option><option>Edin Sezon Beyaz Peynir (ED09)</option><option>Edin Extra Beyaz Peynir (ED13)</option><option>Edin Naturel Beyaz Peynir (ED02)</option><option>Edinbey Gurme</option></select>
+        <select name="urun"><option>Tüm ürünler</option><option>Paket ürünler</option><option>Edin Sezon Beyaz Peynir (ED09)</option><option>Edin Extra Beyaz Peynir (ED13)</option><option>Edin Naturel Beyaz Peynir (ED02)</option><option>Edinbey Gurme</option></select>
       </label>
-      <label class="tam">Mesajınız<textarea placeholder="Aylık ihtiyacınız, teslimat adresi..."></textarea></label>
-      <div class="tam"><button class="dugme dugme-ana" type="submit">Teklif İste</button><p id="form-notu" hidden style="margin-top:12px;font-size:14px;color:var(--yazi-soluk)">Taslak: form henüz bağlı değil; yayında başvurular yönetim paneline düşecek.</p></div>
+      <label class="tam">Mesajınız<textarea name="mesaj" placeholder="Aylık ihtiyacınız, teslimat adresi..."></textarea></label>
+      <div class="tam"><button class="dugme dugme-ana" type="submit">Teklif İste</button><p class="form-sonuc" hidden></p></div>
+    </form>
+  </div>
+</section>
+
+<section class="gorus" id="gorus">
+  <div class="kap">
+    <div>
+      <div class="ust-etiket">Görüşleriniz</div>
+      <h2>Şikâyet, dilek ve önerileriniz</h2>
+      <p>Ürünlerimiz ve hizmetimizle ilgili her görüşünüz bizim için değerlidir. Bildirimleriniz ISO 10002 Müşteri Memnuniyeti Yönetim Sistemimiz kapsamında kayıt altına alınır ve size dönüş yapılır.</p>
+    </div>
+    <form name="gorus" method="POST" data-netlify="true" netlify-honeypot="bot-alani" data-tesekkur="Bildiriminiz bize ulaştı. En kısa sürede dönüş yapacağız. Teşekkür ederiz.">
+      <input type="hidden" name="form-name" value="gorus">
+      <p hidden><label>Bu alanı boş bırakın<input name="bot-alani"></label></p>
+      <label class="tam">Bildirim türü
+        <select name="tur" required><option value="">Seçiniz</option><option>Şikâyet</option><option>Dilek</option><option>Öneri</option><option>Teşekkür</option></select>
+      </label>
+      <label>Ad Soyad<input name="ad-soyad" required placeholder="Adınız"></label>
+      <label>Telefon<input name="telefon" type="tel" required placeholder="05XX XXX XX XX"></label>
+      <label class="tam">E-posta (isteğe bağlı)<input name="eposta" type="email" placeholder="ornek@eposta.com"></label>
+      <label class="tam">Ürün ve parti bilgisi (varsa)<input name="urun" placeholder="Ürün adı, tenekenin üzerindeki üretim tarihi ya da seri no"></label>
+      <label class="tam">Mesajınız<textarea name="mesaj" required placeholder="Yaşadığınız durumu ya da önerinizi yazın"></textarea></label>
+      <div class="tam"><button class="dugme dugme-ana" type="submit">Gönder</button><p class="form-sonuc" hidden></p></div>
     </form>
   </div>
 </section>
@@ -641,7 +677,7 @@
     </div>
     <div>
       <h4>Kurumsal</h4>
-      <a href="#hakkimizda">Hakkımızda</a><a href="#biz-kimiz">Biz Kimiz</a><a href="#belgeler">Belgelerimiz</a><a href="#dagitim">Dağıtım Ağı</a>
+      <a href="#hakkimizda">Hakkımızda</a><a href="#biz-kimiz">Biz Kimiz</a><a href="#belgeler">Belgelerimiz</a><a href="#dagitim">Dağıtım Ağı</a><a href="#gorus">Şikâyet, Dilek ve Öneri</a>
     </div>
     <div>
       <h4>Ürünler</h4>
@@ -678,6 +714,20 @@
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !p.hidden) kapat(); });
 })();
+</script>
+<script>
+// Formlar Netlify Forms ile gönderilir; sayfa yenilenmeden sonuç bildirilir
+document.querySelectorAll('form[data-netlify]').forEach(function (f) {
+  f.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var not = f.querySelector('.form-sonuc'), dugme = f.querySelector('button[type=submit]');
+    dugme.disabled = true;
+    fetch('/', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(new FormData(f)).toString() })
+      .then(function (r) { if (!r.ok) throw new Error(); f.reset(); not.textContent = f.getAttribute('data-tesekkur'); not.className = 'form-sonuc tamam'; })
+      .catch(function () { not.textContent = 'Gönderilemedi. Lütfen tekrar deneyin ya da 0266 718 10 77 numaralı telefondan bize ulaşın.'; not.className = 'form-sonuc hata'; })
+      .finally(function () { not.hidden = false; dugme.disabled = false; });
+  });
+});
 </script>
 </body>
 </html>
