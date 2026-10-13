@@ -5452,12 +5452,13 @@ async function loadStaffPayDays() {
 async function saveStaffPayDay(staffId, gun) {
   const m = await loadStaffPayDays();
   const g = parseInt(gun);
-  if (g >= 1 && g <= 31) m[staffId] = g; else delete m[staffId];
+  if (gun === "yok") m[staffId] = "yok";   // maaş almıyor (ör. şirket sahibi)
+  else if (g >= 1 && g <= 31) m[staffId] = g; else delete m[staffId];
   const { error } = await supabase.from('panel_settings').upsert([{ key: 'staff_pay_days', value: JSON.stringify(m) }], { onConflict: 'key' });
   return { map: m, error };
 }
 function PayDaySelect({ value, onChange }) {
-  return <Select value={value || ""} onChange={onChange}><option value="">Girilmedi</option>{Array.from({ length: 31 }, (_, i) => i + 1).map(g => <option key={g} value={g}>Her ayın {g}. günü</option>)}</Select>;
+  return <Select value={value || ""} onChange={onChange}><option value="">Girilmedi</option><option value="yok">Maaş almıyor</option>{Array.from({ length: 31 }, (_, i) => i + 1).map(g => <option key={g} value={g}>Her ayın {g}. günü</option>)}</Select>;
 }
 
 function StaffPage({staff,setStaff,allStaff,perms}) {
@@ -10002,7 +10003,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   const [staffDays, setStaffDays] = useState({});   // çalışan → maaş ödeme günü (Çalışanlar sayfasından girilir)
   useEffect(() => { loadStaffPayDays().then(setStaffDays); }, []);
   // Çalışanın ödeme günü; kendi günü girilmemişse (varsa) eski ortak gün
-  const payDayOf = (staffId) => parseInt(staffDays[staffId]) || parseInt(payDay.gun) || 0;
+  const payDayOf = (staffId) => staffDays[staffId] === "yok" ? 0 : (parseInt(staffDays[staffId]) || parseInt(payDay.gun) || 0);
   const [tasima, setTasima] = useState(null);   // ayı değiştirilen avans: { e, ay }
 
   const load = async () => {
@@ -10123,7 +10124,9 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   // Sıradaki maaş ödeme günü ve bekleyen maaşlar
   const bekleyenMaas = entries.filter(e => e.entry_type === "salary" && !isAdvanceEntry(e) && !e.is_paid);
   // Her çalışanın sıradaki maaş günü, kalan gün ve bekleyen maaşı
-  const maasTakvimi = (staff || []).map(st => {
+  // Maaş almayanlar listede görünmez: "Maaş almıyor" seçilenler ve günü girilmemiş, hiç maaş kaydı olmayan yöneticiler (şirket sahibi)
+  const maasAlmiyor = (st) => staffDays[st.id] === "yok" || (st.is_admin && !staffDays[st.id] && !entries.some(e => e.entry_type === "salary" && String(e.staff_id) === String(st.id)));
+  const maasTakvimi = (staff || []).filter(st => !maasAlmiyor(st)).map(st => {
     const gun = payDayOf(st.id);
     const bekleyen = sumAmt(bekleyenMaas.filter(e => String(e.staff_id) === String(st.id)));
     if (!gun) return { st, gun: 0, bekleyen };
