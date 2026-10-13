@@ -176,6 +176,22 @@
   .form-sonuc { margin-top: 12px; font-size: 14.5px; font-weight: 600; }
   .form-sonuc.tamam { color: var(--yesil-koyu); }
   .form-sonuc.hata { color: var(--kirmizi); }
+  /* Teklif sayfası: form ve iletişim kuralları */
+  .bayi .kap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: start; }
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; background: #fff; border: 1px solid var(--cizgi); border-radius: 8px; box-shadow: 0 20px 44px rgba(29,90,36,.09); padding: 28px; }
+  form label { display: grid; gap: 6px; font-size: 13.5px; font-weight: 600; }
+  form .tam { grid-column: 1 / -1; }
+  input, select, textarea { font: inherit; font-weight: 400; padding: 12px 14px; border-radius: 10px; border: 1px solid #D8CDB8; background: #fff; color: var(--yazi); width: 100%; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--yesil); outline-offset: 1px; }
+  textarea { min-height: 96px; resize: vertical; }
+  .iletisim-satir { display: grid; gap: 4px; margin-top: 22px; font-size: 15.5px; }
+  .iletisim-satir b { font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--yazi-soluk); }
+  .form-sonuc { margin-top: 12px; font-size: 14.5px; font-weight: 600; }
+  .form-sonuc.tamam { color: var(--yesil-koyu); }
+  .form-sonuc.hata { color: var(--kirmizi); }
+  .baslik { margin-bottom: 44px; }
+  .baslik p { max-width: 640px; }
+  .baslik h2 { font-size: clamp(28px, 3.2vw, 40px); margin: 10px 0 14px; }
   .bayi { padding: 72px 0; }
 
   /* Ürünler sayfası */
