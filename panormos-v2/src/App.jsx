@@ -12333,16 +12333,29 @@ function LandingPage({ onEnter }) {
               </div>
             </div>
             <div className="work rev reveal">
-              <div className="work-shot">
-                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>Edin Peynir</span></div>
+              <a className="work-shot" href="https://edinlergida.com.tr" target="_blank" rel="noopener" aria-label="Edin Peynir sitesini aç">
+                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>edinlergida.com.tr</span></div>
                 <img src="/isler/edin-peynir.jpg" alt="Edin Peynir web sitesinin ekran görüntüsü" width="1200" height="675" loading="lazy" />
-              </div>
+              </a>
               <div>
                 <span className="work-tag">Kurumsal web sitesi</span>
                 <h3>Edin Peynir</h3>
                 <p>Bandırmalı peynir üreticisi Edinler Gıda için tasarladığımız kurumsal web sitesi. Ürünler, kalite belgeleri ve toptan teklif formu tek bir sitede; telefonda da bilgisayarda da aynı özenle görünür.</p>
                 <ul><li>Markaya özel tasarım</li><li>Ürün sayfaları ve toptan teklif formu</li><li>Telefona uyumlu, hızlı açılan sayfalar</li></ul>
-                <span className="work-soon">Yakında yayında</span>
+                <a href="https://edinlergida.com.tr" className="btn-ghost" target="_blank" rel="noopener">edinlergida.com.tr →</a>
+              </div>
+            </div>
+            <div className="work reveal">
+              <a className="work-shot" href="https://xn--ayazgayrmenkul-dgc.com" target="_blank" rel="noopener" aria-label="Ayaz Gayrimenkul sitesini aç">
+                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>ayazgayrımenkul.com</span></div>
+                <img src="/isler/ayaz-gayrimenkul.jpg" alt="Ayaz Gayrimenkul web sitesinin ekran görüntüsü" width="1200" height="675" loading="lazy" />
+              </a>
+              <div>
+                <span className="work-tag">Kurumsal web sitesi</span>
+                <h3>Ayaz Gayrimenkul</h3>
+                <p>Bandırmalı emlak ofisi Ayaz Gayrimenkul Danışmanlığı için hazırladığımız kurumsal site. İlan vitrini yerine ev fikirleri, blog, güncel altın ve döviz fiyatları ile kira artışı hesaplayıcı sunuyor; ziyaretçinin bıraktığı talep doğrudan ofisin paneline düşüyor.</p>
+                <ul><li>Ev arayan ve mülkünü satmak isteyen için talep formu</li><li>Canlı altın, döviz ve kira artışı hesaplayıcı</li><li>Panelden yönetilen blog</li></ul>
+                <a href="https://xn--ayazgayrmenkul-dgc.com" className="btn-ghost" target="_blank" rel="noopener">ayazgayrımenkul.com →</a>
               </div>
             </div>
           </div>
