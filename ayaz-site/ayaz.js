@@ -283,4 +283,25 @@ if (davet && talepForm) {
   }
 }
 
+// ---- Üst şerit: giriş görselinin üstünde saydam, aşağı inince dolu ----
+const ust = $('#ust')
+if (ust && ust.classList.contains('saydam')) {
+  const ayarla = () => ust.classList.toggle('dolu', scrollY > 40 || $('.menu').classList.contains('acik'))
+  ayarla()
+  addEventListener('scroll', ayarla, { passive: true })
+  menuDugme?.addEventListener('click', ayarla)
+}
+
+// ---- Girişteki hızlı talep: seçimi forma taşır ----
+const hizli = $('#hizli')
+if (hizli && talepForm) {
+  hizli.addEventListener('submit', (e) => {
+    e.preventDefault()
+    talepSec($('#h-tip').value)
+    if ($('#h-bolge').value.trim()) $('#t-bolge').value = $('#h-bolge').value.trim()
+    $('#talep').scrollIntoView({ behavior: 'smooth' })
+    setTimeout(() => $('#t-ad').focus({ preventScroll: true }), 700)
+  })
+}
+
 const yil = $('#yil'); if (yil) yil.textContent = new Date().getFullYear()

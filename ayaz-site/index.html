@@ -21,18 +21,20 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ayaz Gayrimenkul","alternateName":"Ayaz Gayrimenkul Danışmanlığı","url":"https://ayazgayrimenkul.netlify.app/","inLanguage":"tr"},{"@type":"RealEstateAgent","name":"Ayaz Gayrimenkul Danışmanlığı","url":"https://ayazgayrimenkul.netlify.app/","image":"https://ayazgayrimenkul.netlify.app/img/dis-cephe-aksam.jpg","logo":"https://ayazgayrimenkul.netlify.app/apple-touch-icon.png","telephone":"+90 536 471 60 12","address":{"@type":"PostalAddress","streetAddress":"Paşakent Mah. Şehit Şener Köksal Cad. No: 6A, Pervin Sitesi","addressLocality":"Bandırma","addressRegion":"Balıkesir","postalCode":"10200","addressCountry":"TR"},"areaServed":"Bandırma"}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,500;1,9..144,600&family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/ayaz.css">
 </head>
 <body>
 
-<header class="ust">
+<header class="ust saydam" id="ust">
   <div class="kap">
     <a class="logo" href="/" aria-label="Ayaz Gayrimenkul ana sayfa">
-      <img src="/img/logo-yatay.png" alt="Ayaz Gayrimenkul Danışmanlığı" width="655" height="184">
+      <img class="logo-koyu" src="/img/logo-yatay.png" alt="Ayaz Gayrimenkul Danışmanlığı" width="655" height="184">
+      <img class="logo-acik" src="/img/logo-yatay-acik.png" alt="" width="655" height="184" aria-hidden="true">
     </a>
     <button class="menu-dugme" aria-label="Menüyü aç" aria-expanded="false"><span></span><span></span><span></span></button>
     <nav class="menu">
+      <a href="#hizmetler">Hizmetler</a>
       <a href="#ilham">Ev fikirleri</a>
       <a href="/blog">Blog</a>
       <a href="#hakkimizda">Hakkımızda</a>
@@ -46,12 +48,74 @@
 <section class="giris">
   <img src="/img/dis-cephe-aksam.jpg" alt="Akşam ışığında ahşap ve siyah doğramalı modern bir ev">
   <div class="kap">
-    <h1>Evinize dair fikirler, piyasaya dair güncel bilgiler</h1>
-    <p>Salon, mutfak ve banyo için ilham veren tasarımlar; kira artış oranı, altın ve döviz fiyatları; ev alırken ve kiralarken bilmeniz gerekenler tek yerde.</p>
-    <div class="dugmeler">
-      <a class="btn btn-sari" href="#talep" data-talep="alici">Ev arıyorum</a>
-      <a class="btn btn-cizgi" href="#talep" data-talep="satici">Evimi satmak ya da kiralamak istiyorum</a>
+    <div class="giris-ic">
+      <h1>Doğru ev, doğru zamanda, <em>doğru fiyatla.</em></h1>
+      <p>Bandırma ve çevresinde ev, arsa ve iş yeri alırken, satarken ya da kiralarken ilk görüşmeden tapuya kadar yanınızdayız.</p>
+      <form class="hizli" id="hizli" aria-label="Hızlı talep">
+        <div class="hizli-alan">
+          <label for="h-tip">Ne yapmak istiyorsunuz?</label>
+          <select id="h-tip">
+            <option value="alici">Satılık ev arıyorum</option>
+            <option value="kiraci">Kiralık ev arıyorum</option>
+            <option value="satici">Evimi satmak istiyorum</option>
+            <option value="kiraya_veren">Evimi kiraya vermek istiyorum</option>
+          </select>
+        </div>
+        <div class="hizli-alan">
+          <label for="h-bolge">Bölge ya da mahalle</label>
+          <input id="h-bolge" placeholder="Örneğin Paşakent">
+        </div>
+        <button class="btn btn-sari" type="submit">Devam et <span aria-hidden="true">→</span></button>
+      </form>
     </div>
+  </div>
+  <a class="asagi" href="#hizmetler" aria-label="Aşağı kaydır"><span></span></a>
+</section>
+
+<section class="bolum beyaz" id="hizmetler">
+  <div class="kap">
+    <div class="baslik ortali" data-belir>
+      <span class="ust-yazi">Hizmetlerimiz</span>
+      <h2>Gayrimenkulde ihtiyacınız olan <em>her adım</em></h2>
+      <p>Alım, satım ve kiralamanın her aşamasında işinizi kolaylaştıran, şeffaf ve güvenilir bir danışmanlık.</p>
+    </div>
+    <div class="hizmetler">
+      <article class="hizmet" data-belir>
+        <span class="hizmet-simge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></span>
+        <h3>Satılık ev arayanlara</h3>
+        <p>Bütçenize ve ihtiyacınıza uygun evleri sizin yerinize ayıklıyor, yalnızca gerçekten uygun olanları gösteriyoruz.</p>
+      </article>
+      <article class="hizmet" data-belir style="--gecikme:80ms">
+        <span class="hizmet-simge"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.2-8.2"/><path d="m16 7 2 2"/><path d="m14 9 2 2"/></svg></span>
+        <h3>Kiralamada</h3>
+        <p>Kiracı için doğru evi, ev sahibi için güvenilir kiracıyı buluyor; sözleşme ve teslim sürecini birlikte yürütüyoruz.</p>
+      </article>
+      <article class="hizmet" data-belir style="--gecikme:160ms">
+        <span class="hizmet-simge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-6"/></svg></span>
+        <h3>Değer ve fiyat görüşü</h3>
+        <p>Mülkünüzü satmadan ya da kiraya vermeden önce bölgedeki benzer evlere bakarak gerçekçi bir fiyat önerisi sunuyoruz.</p>
+      </article>
+      <article class="hizmet" data-belir style="--gecikme:240ms">
+        <span class="hizmet-simge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="m10 14 2 2 4-4"/></svg></span>
+        <h3>Tapu ve belgeler</h3>
+        <p>Tapu kaydı, iskân, borç sorgusu ve tapu randevusu gibi işlemlerde yol gösteriyor, süreci baştan sona takip ediyoruz.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="bolum koyu" id="surec">
+  <div class="kap">
+    <div class="baslik" data-belir>
+      <span class="ust-yazi">Nasıl çalışıyoruz</span>
+      <h2>Dört adımda <em>yeni evinize</em></h2>
+    </div>
+    <ol class="adimlar">
+      <li data-belir><b>01</b><h3>Sizi dinliyoruz</h3><p>Ne aradığınızı, bütçenizi ve önceliklerinizi birlikte netleştiriyoruz.</p></li>
+      <li data-belir style="--gecikme:80ms"><b>02</b><h3>Seçenekleri hazırlıyoruz</h3><p>Portföyümüzden ve bölgeden size uygun evleri ayıklayıp sunuyoruz.</p></li>
+      <li data-belir style="--gecikme:160ms"><b>03</b><h3>Birlikte geziyoruz</h3><p>Evleri sizinle geziyor, artısını eksisini açıkça konuşuyoruz.</p></li>
+      <li data-belir style="--gecikme:240ms"><b>04</b><h3>Tapuya kadar yanınızdayız</h3><p>Pazarlıktan belgelere, tapu gününe kadar her adımı takip ediyoruz.</p></li>
+    </ol>
   </div>
 </section>
 
@@ -59,7 +123,7 @@
   <div class="kap">
     <div class="baslik" data-belir>
       <span class="ust-yazi">Ev fikirleri</span>
-      <h2>Yaşam alanınız için ilham</h2>
+      <h2>Yaşam alanınız için <em>ilham</em></h2>
       <p>Salondan banyoya, mutfaktan dış cepheye; evinizi yenilerken ya da yeni bir ev ararken aklınızda olsun.</p>
     </div>
     <div class="sekmeler" role="tablist" aria-label="Oda seçin"></div>
@@ -68,12 +132,21 @@
   </div>
 </section>
 
+<section class="bant">
+  <img src="/img/salon-acik-plan.jpg" alt="" loading="lazy">
+  <div class="kap" data-belir>
+    <h2>Mülkünüzün bugünkü değerini <em>merak ediyor musunuz?</em></h2>
+    <p>Satmayı ya da kiraya vermeyi düşünüyorsanız bölgedeki benzer evlere göre size ücretsiz bir fiyat görüşü hazırlayalım.</p>
+    <a class="btn btn-sari" href="#talep" data-talep="satici">Ücretsiz fiyat görüşü alın</a>
+  </div>
+</section>
+
 
 <section class="bolum beyaz" id="blog">
   <div class="kap">
     <div class="baslik" data-belir>
       <span class="ust-yazi">Blog</span>
-      <h2>Ev, dekorasyon ve kira üzerine yazılar</h2>
+      <h2>Ev, dekorasyon ve kira üzerine <em>yazılar</em></h2>
       <p>Ev alırken, kiralarken ya da yenilerken işinize yarayacak bilgiler.</p>
     </div>
     <div class="kartlar" id="yazilar" data-sinir="3"><p class="bos">Yükleniyor…</p></div>
@@ -86,7 +159,7 @@
     <div data-belir>
       <div class="baslik" style="margin-bottom:0">
         <span class="ust-yazi">Hakkımızda</span>
-        <h2>Bandırma'da güvenilir gayrimenkul danışmanlığı</h2>
+        <h2>Bandırma'da güvenilir <em>gayrimenkul danışmanlığı</em></h2>
         <p>Ayaz Gayrimenkul Danışmanlığı olarak Bandırma ve çevresinde ev, arsa ve iş yeri alım, satım ve kiralama süreçlerinde yanınızdayız. Bu sitede ilan yayınlamıyoruz; doğru evi bulmanız için sizi dinleyip size uygun seçenekleri birebir sunuyoruz.</p>
       </div>
       <ul class="maddeler">
@@ -104,7 +177,7 @@
   <div class="kap talep-izgara">
     <div class="baslik" data-belir>
       <span class="ust-yazi">Talep bırakın</span>
-      <h2>Aradığınız evi biz bulalım</h2>
+      <h2>Aradığınız evi <em>biz bulalım</em></h2>
       <p>Ne aradığınızı ya da satmak, kiralamak istediğiniz mülkü kısaca yazın. Size uygun seçeneklerle en kısa sürede dönüş yapalım.</p>
       <ul class="maddeler">
         <li>Talebiniz doğrudan danışmanlarımıza ulaşır</li>
@@ -144,7 +217,7 @@
   <div class="kap">
     <div class="baslik" data-belir>
       <span class="ust-yazi">İletişim</span>
-      <h2>Aradığınız evi birlikte bulalım</h2>
+      <h2>Bize <em>ulaşın</em></h2>
       <p>Satmak, kiralamak ya da almak istediğiniz bir mülk için bize ulaşın.</p>
     </div>
     <div class="iletisim">
@@ -188,12 +261,23 @@
 
 <footer class="alt">
   <div class="kap">
-    <div>
-      <img class="alt-logo" src="/img/logo-yatay-acik.png" alt="Ayaz Gayrimenkul Danışmanlığı" width="655" height="184" loading="lazy">
-      <p style="margin-top:12px;max-width:360px">Paşakent Mah. Şehit Şener Köksal Cad. No: 6A, Pervin Sitesi, Bandırma / Balıkesir</p>
-    </div>
-    <div style="display:grid;gap:6px">
-      <a href="#ilham">Ev fikirleri</a><a href="#piyasa">Piyasa</a><a href="/blog">Blog</a><a href="tel:+905364716012">0536 471 60 12</a><a href="https://www.instagram.com/ayazgayrimenkul/" target="_blank" rel="noopener">Instagram: @ayazgayrimenkul</a>
+    <div class="alt-izgara">
+      <div class="alt-marka">
+        <img class="alt-logo" src="/img/logo-yatay-acik.png" alt="Ayaz Gayrimenkul Danışmanlığı" width="655" height="184" loading="lazy">
+        <p>Bandırma ve çevresinde konut, arsa ve iş yeri alım, satım ve kiralamada güvenilir danışmanlık.</p>
+        <a class="btn btn-sari" href="#talep">Talep bırakın</a>
+      </div>
+      <div>
+        <h4>Keşfedin</h4>
+        <a href="#hizmetler">Hizmetlerimiz</a><a href="#ilham">Ev fikirleri</a><a href="/blog">Blog</a><a href="#piyasa">Altın, döviz ve kira</a><a href="#hakkimizda">Hakkımızda</a>
+      </div>
+      <div>
+        <h4>İletişim</h4>
+        <a href="tel:+905364716012">0536 471 60 12</a>
+        <a href="https://wa.me/905364716012" target="_blank" rel="noopener">WhatsApp ile yazın</a>
+        <a href="https://www.instagram.com/ayazgayrimenkul/" target="_blank" rel="noopener">Instagram: @ayazgayrimenkul</a>
+        <span>Paşakent Mah. Şehit Şener Köksal Cad. No: 6A, Pervin Sitesi, Bandırma / Balıkesir</span>
+      </div>
     </div>
     <div class="alt-satir">
       <span>© <span id="yil">2026</span> Ayaz Gayrimenkul Danışmanlığı</span>
@@ -201,6 +285,8 @@
     </div>
   </div>
 </footer>
+
+<a class="wa-yuzen" href="https://wa.me/905364716012" target="_blank" rel="noopener" aria-label="WhatsApp ile yazın"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3Z"/></svg></a>
 
 <aside class="davet" id="davet" hidden aria-label="Talep daveti">
   <button class="davet-kapat" type="button" aria-label="Kapat">×</button>
