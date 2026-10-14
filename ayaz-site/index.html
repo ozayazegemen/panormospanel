@@ -35,9 +35,9 @@
     <button class="menu-dugme" aria-label="Menüyü aç" aria-expanded="false"><span></span><span></span><span></span></button>
     <nav class="menu">
       <a href="#ilham">Ev fikirleri</a>
-      <a href="#piyasa">Piyasa</a>
       <a href="/blog">Blog</a>
       <a href="#hakkimizda">Hakkımızda</a>
+      <a href="#piyasa">Piyasa</a>
       <a class="ara" href="#iletisim">İletişim</a>
     </nav>
   </div>
@@ -51,7 +51,7 @@
     <p>Salon, mutfak ve banyo için ilham veren tasarımlar; kira artış oranı, altın ve döviz fiyatları; ev alırken ve kiralarken bilmeniz gerekenler tek yerde.</p>
     <div class="dugmeler">
       <a class="btn btn-sari" href="#ilham">Ev fikirlerine göz atın</a>
-      <a class="btn btn-cizgi" href="#piyasa">Güncel piyasa</a>
+      <a class="btn btn-cizgi" href="#iletisim">Bize ulaşın</a>
     </div>
   </div>
 </section>
@@ -71,35 +71,6 @@
   </div>
 </section>
 
-<section class="bolum koyu" id="piyasa">
-  <div class="kap">
-    <div class="baslik" data-belir>
-      <span class="ust-yazi">Piyasa</span>
-      <h2>Altın, döviz ve kira artış oranı</h2>
-      <p>Fiyatlar gün içinde kendiliğinden güncellenir. Kira artışınızı aşağıdaki hesaplayıcıyla birkaç saniyede bulabilirsiniz.</p>
-    </div>
-    <div class="piyasa">
-      <div class="kutu" data-belir>
-        <h3>Döviz, altın ve gümüş <span id="guncelleme"></span></h3>
-        <div class="fiyatlar" id="fiyatlar"><p class="not">Yükleniyor…</p></div>
-        <p class="not">Satış fiyatlarıdır, bilgi amaçlıdır; yatırım tavsiyesi değildir.<span id="kaynak"></span></p>
-      </div>
-      <div class="kutu" id="kira-kutu" data-belir>
-        <div id="kira-oran-alan" hidden>
-          <h3>Kira artış oranı <span id="kira-donem"></span></h3>
-          <div class="buyuk-oran" id="kira-oran"></div>
-          <p class="not" id="kira-not" style="margin-top:0">Konut kiralarında yenileme döneminde uygulanabilecek en yüksek artış oranı (TÜFE on iki aylık ortalama).</p>
-        </div>
-        <h3 style="margin-top:14px">Kira artışı hesaplayıcı</h3>
-        <div class="hesap">
-          <div><label for="kira-gir">Mevcut aylık kira (₺)</label><input id="kira-gir" inputmode="decimal" placeholder="Örneğin 15.000"></div>
-          <div><label for="oran-gir">Artış oranı (%)</label><input id="oran-gir" inputmode="decimal" placeholder="Örneğin 35,5"></div>
-          <div class="sonuc" id="kira-sonuc" aria-live="polite">Mevcut kirayı ve oranı yazın, yeni kira burada görünsün.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
 
 <section class="bolum beyaz" id="blog">
   <div class="kap">
@@ -143,6 +114,36 @@
       <a href="tel:+905364716012" data-belir><small>Telefon</small><b>0536 471 60 12</b><span>Dokunun, hemen arayın</span></a>
       <a href="https://wa.me/905364716012" target="_blank" rel="noopener" data-belir><small>WhatsApp</small><b>Mesaj gönderin</b><span>Size kısa sürede dönüş yapalım</span></a>
       <a href="https://www.google.com/maps/search/?api=1&query=Pa%C5%9Fakent+Mah.+%C5%9Eehit+%C5%9Eener+K%C3%B6ksal+Cad.+No%3A+6A+Band%C4%B1rma" target="_blank" rel="noopener" data-belir><small>Ofisimiz</small><b>Paşakent, Bandırma</b><span>Şehit Şener Köksal Cad. No: 6A, Pervin Sitesi, Bandırma / Balıkesir</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="bolum koyu" id="piyasa">
+  <div class="kap">
+    <div class="baslik" data-belir>
+      <span class="ust-yazi">Piyasa</span>
+      <h2>Altın, döviz ve kira artış oranı</h2>
+      <p>Fiyatlar gün içinde kendiliğinden güncellenir. Kira artışınızı aşağıdaki hesaplayıcıyla birkaç saniyede bulabilirsiniz.</p>
+    </div>
+    <div class="piyasa">
+      <div class="kutu" data-belir>
+        <h3>Döviz, altın ve gümüş <span id="guncelleme"></span></h3>
+        <div class="fiyatlar" id="fiyatlar"><p class="not">Yükleniyor…</p></div>
+        <p class="not">Satış fiyatlarıdır, bilgi amaçlıdır; yatırım tavsiyesi değildir.<span id="kaynak"></span></p>
+      </div>
+      <div class="kutu" id="kira-kutu" data-belir>
+        <div id="kira-oran-alan" hidden>
+          <h3>Kira artış oranı <span id="kira-donem"></span></h3>
+          <div class="buyuk-oran" id="kira-oran"></div>
+          <p class="not" id="kira-not" style="margin-top:0">Konut kiralarında yenileme döneminde uygulanabilecek en yüksek artış oranı (TÜFE on iki aylık ortalama).</p>
+        </div>
+        <h3 style="margin-top:14px">Kira artışı hesaplayıcı</h3>
+        <div class="hesap">
+          <div><label for="kira-gir">Mevcut aylık kira (₺)</label><input id="kira-gir" inputmode="decimal" placeholder="Örneğin 15.000"></div>
+          <div><label for="oran-gir">Artış oranı (%)</label><input id="oran-gir" inputmode="decimal" placeholder="Örneğin 35,5"></div>
+          <div class="sonuc" id="kira-sonuc" aria-live="polite">Mevcut kirayı ve oranı yazın, yeni kira burada görünsün.</div>
+        </div>
+      </div>
     </div>
   </div>
 </section>

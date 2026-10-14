@@ -188,3 +188,4 @@ h1, h2, h3 { font-family: "Plus Jakarta Sans", "Manrope", sans-serif; line-heigh
 [data-belir] { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
 [data-belir].gorundu { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { [data-belir] { opacity: 1; transform: none; transition: none; } }
+.koyu + .alt { border-top: 1px solid rgba(255,255,255,.1); }
