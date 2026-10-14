@@ -34,23 +34,18 @@ function degisimYaz(d) {
   return `<i class="${d > 0 ? 'arti' : 'eksi'}">${d > 0 ? '▲' : '▼'} %${para(Math.abs(d))}</i>`
 }
 async function piyasaYukle() {
-  const serit = $('#serit'), fiyatlar = $('#fiyatlar'), guncelleme = $('#guncelleme'), kaynak = $('#kaynak')
-  if (!serit && !fiyatlar) return
+  const fiyatlar = $('#fiyatlar'), guncelleme = $('#guncelleme'), kaynak = $('#kaynak')
+  if (!fiyatlar) return
   try {
     const r = await fetch('/.netlify/functions/piyasa')
     if (!r.ok) throw new Error('alınamadı')
     const v = await r.json()
     const kalemler = [...(v.doviz ?? []), ...(v.altin ?? [])]
-    if (serit) {
-      const tek = kalemler.map((k) => `<span>${kacis(k.ad)}<b>${para(k.satis)} ₺</b></span>`).join('')
-      serit.innerHTML = tek + tek // kesintisiz kayması için iki kez
-    }
-    if (fiyatlar) fiyatlar.innerHTML = kalemler.map((k) => `<div class="fiyat"><small>${kacis(k.ad)}</small><b>${para(k.satis)} ₺</b>${degisimYaz(k.degisim)}</div>`).join('')
+    fiyatlar.innerHTML = kalemler.map((k) => `<div class="fiyat"><small>${kacis(k.ad)}</small><b>${para(k.satis)} ₺</b>${degisimYaz(k.degisim)}</div>`).join('')
     if (guncelleme && v.guncelleme) guncelleme.textContent = 'Son güncelleme: ' + v.guncelleme
     if (kaynak && v.kaynak) kaynak.textContent = ' Kaynak: ' + v.kaynak + '.'
   } catch (e) {
-    if (fiyatlar) fiyatlar.innerHTML = '<p class="not">Fiyatlar şu anda alınamıyor. Birkaç dakika sonra tekrar deneyin.</p>'
-    if (serit) serit.closest('.serit').hidden = true
+    fiyatlar.innerHTML = '<p class="not">Fiyatlar şu anda alınamıyor. Birkaç dakika sonra tekrar deneyin.</p>'
   }
 }
 piyasaYukle()

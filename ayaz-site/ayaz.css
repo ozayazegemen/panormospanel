@@ -63,15 +63,6 @@ h1, h2, h3 { font-family: "Plus Jakarta Sans", "Manrope", sans-serif; line-heigh
 .giris p { font-size: clamp(16px, 1.6vw, 19px); max-width: 620px; margin-top: 16px; color: rgba(255,255,255,.9); }
 .giris .dugmeler { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 
-/* ---- Piyasa şeridi ---- */
-.serit { background: var(--antrasit); color: var(--beyaz); overflow: hidden; border-top: 3px solid var(--sari); }
-.serit-ic { display: flex; gap: 34px; padding: 13px 0; white-space: nowrap; width: max-content; animation: kay 45s linear infinite; }
-.serit:hover .serit-ic { animation-play-state: paused; }
-.serit-ic span { font-size: 14px; color: rgba(255,255,255,.75); }
-.serit-ic b { color: var(--beyaz); margin-left: 6px; font-weight: 700; }
-@keyframes kay { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .serit-ic { animation: none; } }
-
 /* ---- Bölümler ---- */
 .bolum { padding: 84px 0; }
 .bolum.beyaz { background: var(--beyaz); }
