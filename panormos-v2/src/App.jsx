@@ -8425,7 +8425,7 @@ function AccountingPage({ clients, staff, perms }) {
       {anlasmaAcik && <AgreementDatesModal clients={clients} onClose={() => setAnlasmaAcik(false)} />}
       {tab === "ozet" && <AccountingOverview clients={clients} goTab={goTab} />}
       {tab === "cari" && <AccountingCari clients={clients} autoAdd={autoAdd === "cari"} />}
-      {tab === "banka" && <AccountingBank />}
+      {tab === "banka" && <AccountingBank staff={staff} />}
       {tab === "harcamalar" && <AccountingSpending autoAdd={autoAdd === "harcamalar"} />}
       {tab === "gelirler" && <AccountingIncome autoAdd={autoAdd === "gelirler"} />}
       {tab === "giderler" && <AccountingExpenses staff={staff} autoAdd={autoAdd === "giderler"} />}
@@ -8484,7 +8484,8 @@ const BANK_RULES = [
   [/TEKNOSA|MEDIA ?MARKT|VATAN BILG|HEPSIBURADA|TRENDYOL|AMAZON|\bN11\b|LC WAIKIKI|ZARA|KOTON|DEFACTO|\bMAVI\b|IKEA|KOCTAS/, "alisveris"],
 ];
 const bankNorm = (s) => String(s || "").toLocaleUpperCase("tr-TR").replace(/İ/g, "I").replace(/Ş/g, "S").replace(/Ğ/g, "G").replace(/Ü/g, "U").replace(/Ö/g, "O").replace(/Ç/g, "C");
-function bankGuessCategory(description, amount, kind) {
+// maasAlanlar: maaş alan çalışanların bankNorm'lu tam adları; çıkan parada açıklamada adı geçiyorsa "maas"
+function bankGuessCategory(description, amount, kind, maasAlanlar = []) {
   const d = bankNorm(description);
   if (amount > 0) {
     // Giren para: yalnızca "hesaba katılmaz" kuralları (kart ödemesi, transfer) denenir; gider kategorisi verilmez
@@ -8493,7 +8494,21 @@ function bankGuessCategory(description, amount, kind) {
     return kind === "kredi_karti" ? "kart_odeme" : "gelir"; // karta giren para borç ödemesidir
   }
   for (const [re, id] of BANK_RULES) if (re.test(d)) return id;
+  if (maasAlanlar.some(ad => ad && d.includes(ad))) return "maas";
   return "diger";
+}
+// Bir tarihin haftasının pazartesisi (YYYY-AA-GG)
+function bankHaftaBasi(ymd) {
+  const [y, m, g] = String(ymd).slice(0, 10).split("-").map(Number);
+  const d = new Date(y, m - 1, g);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return ymdOf(d);
+}
+function bankHaftaEtiketi(bas) {
+  const [y, m, g] = bas.split("-").map(Number);
+  const a = new Date(y, m - 1, g), b = new Date(y, m - 1, g + 6);
+  const ay = (d) => TR_MONTHS[d.getMonth()];
+  return a.getMonth() === b.getMonth() ? `${a.getDate()} – ${b.getDate()} ${ay(b)} ${b.getFullYear()}` : `${a.getDate()} ${ay(a)}${a.getFullYear() !== b.getFullYear() ? " " + a.getFullYear() : ""} – ${b.getDate()} ${ay(b)} ${b.getFullYear()}`;
 }
 
 // "1.234,56 TL", "-1,234.56", "(250,00)", "1.234,56-" gibi yazımları sayıya çevirir
@@ -8702,7 +8717,12 @@ function bankPdfRapor(accounts, txs, donemEtiketi) {
   downloadPdfFromHTML(html, `Gelir-Gider-Raporu-${todayStr()}.pdf`);
 }
 
-function AccountingBank() {
+function AccountingBank({ staff = [] }) {
+  const [haftaSayisi, setHaftaSayisi] = useState(4);   // haftalık harcamada gösterilen hafta sayısı
+  // Maaş alan çalışanlar (Çalışanlar'da "Maaş almıyor" seçilenler ve maaş günü girilmemiş yöneticiler hariç)
+  const [payDays, setPayDays] = useState({});
+  useEffect(() => { loadStaffPayDays().then(setPayDays); }, []);
+  const maasAlanlar = (staff || []).filter(st => payDays[st.id] !== "yok" && !(st.is_admin && !payDays[st.id])).map(st => bankNorm(st.name).trim()).filter(ad => ad.includes(" "));
   const [accounts, setAccounts] = useState([]);
   const [txs, setTxs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -8815,7 +8835,7 @@ function AccountingBank() {
     impRows.forEach(r => {
       const k = key(r);
       if (mevcut[k] > 0) { mevcut[k] -= 1; return; }
-      yeni.push({ account_id: acc.id, tx_date: r.tx_date, description: r.description, amount: r.amount, category: bankGuessCategory(r.description, r.amount, acc.kind), batch_id, source_file: imp.fileName });
+      yeni.push({ account_id: acc.id, tx_date: r.tx_date, description: r.description, amount: r.amount, category: bankGuessCategory(r.description, r.amount, acc.kind, maasAlanlar), batch_id, source_file: imp.fileName });
     });
     let hata = null;
     for (let i = 0; i < yeni.length && !hata; i += 500) {
@@ -8959,6 +8979,78 @@ function AccountingBank() {
           </div>
         </div>
       )}
+
+      {/* Haftalık harcama: şirket ve şahsi yan yana, kategoriye göre */}
+      {(() => {
+        const taban = periodTxs.filter(t => !accountId || String(t.account_id) === String(accountId));
+        const haftalar = {};
+        taban.forEach(t => {
+          const a = Number(t.amount || 0);
+          if (a >= 0 || bankCat(t.category).excluded) return;
+          const owner = accOf(t.account_id)?.owner === "sahsi" ? "sahsi" : "sirket";
+          const h = (haftalar[bankHaftaBasi(t.tx_date)] = haftalar[bankHaftaBasi(t.tx_date)] || { sirket: {}, sahsi: {}, top: { sirket: 0, sahsi: 0 } });
+          h[owner][t.category] = (h[owner][t.category] || 0) - a;
+          h.top[owner] -= a;
+        });
+        const liste = Object.keys(haftalar).sort().reverse();
+        // Açıklamasında maaş alan bir çalışanın adı geçen ama "Diğer"de kalmış çıkışlar
+        const maasAdayi = taban.filter(t => Number(t.amount) < 0 && t.category === "diger" && maasAlanlar.some(ad => bankNorm(t.description).includes(ad)));
+        const maasIsaretle = async () => {
+          if (!await swalConfirm(`${maasAdayi.length} hareketin açıklamasında çalışan adı geçiyor. Bunlar "Maaş / Personel" olarak işaretlensin mi?`)) return;
+          const ids = maasAdayi.map(t => t.id);
+          const { error } = await supabase.from('bank_transactions').update({ category: "maas" }).in('id', ids);
+          if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
+          setTxs(prev => prev.map(x => ids.includes(x.id) ? { ...x, category: "maas" } : x));
+        };
+        const sutun = (owner, h) => {
+          const kalemler = Object.entries(h[owner]).sort((a, b) => b[1] - a[1]);
+          return (
+            <div style={{ background: T.bgInput, borderRadius: 10, padding: "10px 12px", minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: owner === "sirket" ? T.indigoText : T.amberText, marginBottom: 6 }}>
+                <span>{BANK_OWNERS[owner]}</span><span>{fmtMoney(h.top[owner])}</span>
+              </div>
+              {kalemler.length === 0 ? <div style={{ fontSize: 12, color: T.textMuted }}>Harcama yok</div> : kalemler.map(([cat, tutar]) => (
+                <div key={cat} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, padding: "3px 0" }}>
+                  <span style={{ color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bankCatLabel(cat)}</span>
+                  <span style={{ color: T.textPrimary, fontWeight: 600, whiteSpace: "nowrap" }}>{fmtMoney(tutar)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        };
+        return (
+          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: T.shadow }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>Haftalık Harcama</div>
+              <div style={{ fontSize: 11.5, color: T.textMuted }}>{donemEtiketi}{accountId ? ` · ${accOf(Number(accountId))?.name || accOf(accountId)?.name || ""}` : " · tüm hesaplar"}</div>
+            </div>
+            <div style={{ fontSize: 11.5, color: T.textMuted, marginBottom: 12, lineHeight: 1.5 }}>Pazartesiden pazara, kategoriye göre. Ekstre yükledikçe kendiliğinden güncellenir. Kart borcu ödemesi ve hesaplar arası transfer sayılmaz. Bir harcamanın kategorisi yanlışsa aşağıdaki hareketler listesinden değiştirin.</div>
+            {maasAdayi.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontSize: 12.5, color: T.textSecondary, background: T.amberDim, borderRadius: 10, padding: "9px 12px", marginBottom: 12 }}>
+                <span>{maasAdayi.length} hareketin açıklamasında çalışan adı geçiyor ama "Diğer" kategorisinde ({fmtMoney(maasAdayi.reduce((t, x) => t - Number(x.amount), 0))}).</span>
+                <Btn onClick={maasIsaretle} style={{ fontSize: 11.5, padding: "5px 10px" }}>Maaş Olarak İşaretle</Btn>
+              </div>
+            )}
+            {liste.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 20, fontSize: 13 }}>Bu dönemde harcama yok.</div> : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {liste.slice(0, haftaSayisi).map(bas => {
+                  const h = haftalar[bas];
+                  return (
+                    <div key={bas} style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{bankHaftaEtiketi(bas)}</div>
+                        <div style={{ fontSize: 12.5, color: T.textSecondary }}>Toplam harcama: <b style={{ color: T.redText }}>{fmtMoney(h.top.sirket + h.top.sahsi)}</b></div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 10 }}>{sutun("sirket", h)}{sutun("sahsi", h)}</div>
+                    </div>
+                  );
+                })}
+                {liste.length > haftaSayisi && <div style={{ display: "flex", justifyContent: "center" }}><Btn onClick={() => setHaftaSayisi(n => n + 4)}>Daha eski haftalar ({liste.length - haftaSayisi})</Btn></div>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Hareketler */}
       <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", boxShadow: T.shadow }}>
