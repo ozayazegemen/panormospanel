@@ -9485,13 +9485,25 @@ function OwnerSwitch({ value, onChange }) {
     </div>
   );
 }
+// Liste altı sayfa düğmeleri: ← Geri · Sayfa 2 / 7 · İleri →
+function ListPager({ page, count, total, onPage }) {
+  if (count <= 1) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 10, flexWrap: "wrap" }}>
+      <Btn onClick={() => onPage(page - 1)} disabled={page <= 0} style={{ fontSize: 12 }}>← Geri</Btn>
+      <div style={{ fontSize: 12, color: T.textMuted }}>Sayfa {page + 1} / {count} · {total} kayıt</div>
+      <Btn onClick={() => onPage(page + 1)} disabled={page >= count - 1} style={{ fontSize: 12 }}>İleri →</Btn>
+    </div>
+  );
+}
+const LIST_PER_PAGE = 10;
 const OwnerPill = ({ owner }) => <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: owner === "sahsi" ? T.amberDim : T.indigoDim, color: owner === "sahsi" ? T.amberText : T.indigoText, whiteSpace: "nowrap" }}>{BANK_OWNERS[owner]}</span>;
 
 function AccountingSpending({ autoAdd = false }) {
   const [items, setItems] = useState([]);
   const banka = useBankMovements();
   const [owner, setOwner] = useState("all");
-  const [goster, setGoster] = useState(150);
+  const [sayfa, setSayfa] = useState(0);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
@@ -9571,6 +9583,10 @@ function AccountingSpending({ autoAdd = false }) {
   const byCat = {};
   inPeriod.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + Number(i.amount || 0); });
   const katSirasi = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+  // Süzgeç değişince ilk sayfaya dön; silme sonrası son sayfa boşalırsa geri çek
+  useEffect(() => { setSayfa(0); }, [owner, period, filterCat]);
+  const sayfaSayisi = Math.max(1, Math.ceil(filtered.length / LIST_PER_PAGE));
+  const curSayfa = Math.min(sayfa, sayfaSayisi - 1);
   const sahipToplam = (o) => sumAmount(inPeriod.filter(i => i.owner === o));
 
   return (
@@ -9614,7 +9630,7 @@ function AccountingSpending({ autoAdd = false }) {
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
         filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gider kaydı yok</div> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {filtered.slice(0, goster).map(i => i.bank ? (
+            {filtered.slice(curSayfa * LIST_PER_PAGE, (curSayfa + 1) * LIST_PER_PAGE).map(i => i.bank ? (
               <div key={i.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${expCatColor(i.category)}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.title || catLabel(i.category)}</div>
@@ -9637,7 +9653,7 @@ function AccountingSpending({ autoAdd = false }) {
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
-            {filtered.length > goster && <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}><Btn onClick={() => setGoster(n => n + 150)}>Daha fazla göster ({filtered.length - goster})</Btn></div>}
+            <ListPager page={curSayfa} count={sayfaSayisi} total={filtered.length} onPage={setSayfa} />
           </div>
         )}
 
@@ -9673,7 +9689,7 @@ function AccountingIncome({ autoAdd = false }) {
   const banka = useBankMovements();
   const [owner, setOwner] = useState("all");
   const [period, setPeriod] = useState("all");
-  const [goster, setGoster] = useState(150);
+  const [sayfa, setSayfa] = useState(0);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
@@ -9730,6 +9746,9 @@ function AccountingIncome({ autoAdd = false }) {
   const total = sumAmount(sahibe);
   const thisMonth = sumAmount(sahibe.filter(i => ayi(i) === currentMonthRef()));
   const sahipToplam = (o) => sumAmount(gorunen.filter(i => i.owner === o));
+  useEffect(() => { setSayfa(0); }, [owner, period]);
+  const sayfaSayisi = Math.max(1, Math.ceil(gorunen.length / LIST_PER_PAGE));
+  const curSayfa = Math.min(sayfa, sayfaSayisi - 1);
 
   return (
     <div>
@@ -9759,7 +9778,7 @@ function AccountingIncome({ autoAdd = false }) {
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
         gorunen.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gelir kaydı yok</div> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {gorunen.slice(0, goster).map(i => i.bank ? (
+            {gorunen.slice(curSayfa * LIST_PER_PAGE, (curSayfa + 1) * LIST_PER_PAGE).map(i => i.bank ? (
               <div key={i.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${T.green}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.title || bankCatLabel(i.category)}</div>
@@ -9782,7 +9801,7 @@ function AccountingIncome({ autoAdd = false }) {
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
-            {gorunen.length > goster && <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}><Btn onClick={() => setGoster(n => n + 150)}>Daha fazla göster ({gorunen.length - goster})</Btn></div>}
+            <ListPager page={curSayfa} count={sayfaSayisi} total={gorunen.length} onPage={setSayfa} />
           </div>
         )}
 
