@@ -204,4 +204,79 @@ async function yaziYukle() {
 }
 yaziYukle()
 
+// ---- Talep formu: ev arayan ya da mülkünü satmak / kiralamak isteyen ziyaretçi ----
+// Talep Emlak Panelim'de Ayaz Gayrimenkul'ün Talepler sayfasına "yeni" olarak düşer.
+const TALEP_ADRESI = 'https://emlakpanelim.com/.netlify/functions/site-talep'
+const talepForm = $('#talep-form')
+const formAcilis = Date.now()
+function talepTuruAyarla() {
+  if (!talepForm) return
+  const tip = talepForm.querySelector('input[name="tip"]:checked')?.value
+  const arayan = tip === 'alici' || tip === 'kiraci'
+  $('#t-bolge-etiket').textContent = arayan ? 'Aradığınız bölge ya da mahalle' : 'Mülkünüzün yeri (mahalle)'
+  $('#t-butce-etiket').textContent = arayan ? 'Bütçeniz' : 'Düşündüğünüz fiyat'
+  $('#t-butce').placeholder = tip === 'kiraci' || tip === 'kiraya_veren' ? 'Örneğin 20.000 TL / ay' : 'Örneğin 3.500.000 TL'
+}
+function talepSec(tip) {
+  const kutu = talepForm?.querySelector(`input[name="tip"][value="${tip}"]`)
+  if (kutu) { kutu.checked = true; talepTuruAyarla() }
+}
+if (talepForm) {
+  talepForm.addEventListener('change', (e) => { if (e.target.name === 'tip') talepTuruAyarla() })
+  talepTuruAyarla()
+  // Telefon: 0 (5XX) XXX XX XX biçiminde yazılır
+  $('#t-tel').addEventListener('input', (e) => {
+    let r = e.target.value.replace(/\D/g, '').slice(0, 11)
+    if (r && r[0] !== '0') r = ('0' + r).slice(0, 11)
+    const p = [r.slice(0, 4), r.slice(4, 7), r.slice(7, 9), r.slice(9, 11)].filter(Boolean)
+    e.target.value = p.join(' ')
+  })
+  talepForm.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const sonuc = $('#talep-sonuc'), dugme = talepForm.querySelector('button[type="submit"]')
+    const v = Object.fromEntries(new FormData(talepForm))
+    sonuc.className = 'form-sonuc'
+    if (String(v.ad_soyad || '').trim().length < 3) { sonuc.className += ' hata'; sonuc.textContent = 'Adınızı ve soyadınızı yazın.'; $('#t-ad').focus(); return }
+    if (String(v.telefon || '').replace(/\D/g, '').length < 10) { sonuc.className += ' hata'; sonuc.textContent = 'Telefon numaranızı eksiksiz yazın.'; $('#t-tel').focus(); return }
+    if (!v.onay) { sonuc.className += ' hata'; sonuc.textContent = 'Göndermek için onay kutusunu işaretleyin.'; return }
+    dugme.disabled = true; dugme.textContent = 'Gönderiliyor…'
+    try {
+      const r = await fetch(TALEP_ADRESI, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...v, sure_ms: Date.now() - formAcilis }) })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(d.error || 'Talebiniz gönderilemedi.')
+      talepForm.reset(); talepTuruAyarla()
+      sonuc.className += ' tamam'; sonuc.textContent = 'Teşekkürler, talebiniz bize ulaştı. En kısa sürede sizi arayacağız.'
+      try { localStorage.setItem('ayaz_talep_birakti', '1') } catch (h) { /* önemli değil */ }
+    } catch (h) {
+      sonuc.className += ' hata'; sonuc.textContent = h.message + ' İsterseniz 0536 471 60 12 numarasından bize ulaşabilirsiniz.'
+    } finally { dugme.disabled = false; dugme.textContent = 'Talebimi gönder' }
+  })
+}
+// "Ev arıyorum" / "Mülküm var" düğmeleri formu ilgili seçenekle açar
+document.querySelectorAll('[data-talep]').forEach((a) => a.addEventListener('click', () => { talepSec(a.dataset.talep); $('#davet')?.setAttribute('hidden', '') }))
+
+// ---- Davet kartı: sayfada bir süre gezinen ziyaretçiye bir kez gösterilir ----
+const davet = $('#davet')
+if (davet && talepForm) {
+  let gosterilmez = false
+  try {
+    const kapandi = Number(localStorage.getItem('ayaz_davet_kapandi') || 0)
+    gosterilmez = localStorage.getItem('ayaz_talep_birakti') === '1' || Date.now() - kapandi < 3 * 86400000
+  } catch (h) { /* tarayıcı izin vermiyorsa yine gösterilebilir */ }
+  const kapat = () => { davet.hidden = true; try { localStorage.setItem('ayaz_davet_kapandi', String(Date.now())) } catch (h) { /* önemli değil */ } }
+  davet.querySelector('.davet-kapat').addEventListener('click', kapat)
+  davet.querySelectorAll('a').forEach((a) => a.addEventListener('click', kapat))
+  if (!gosterilmez) {
+    let goster = () => {
+      goster = () => {}
+      // Ziyaretçi zaten formun başındaysa kartı gösterme
+      const f = talepForm.getBoundingClientRect()
+      if (f.top < innerHeight && f.bottom > 0) return
+      davet.hidden = false
+    }
+    setTimeout(() => goster(), 20000)
+    addEventListener('scroll', () => { if (scrollY > document.documentElement.scrollHeight * 0.35) goster() }, { passive: true })
+  }
+}
+
 const yil = $('#yil'); if (yil) yil.textContent = new Date().getFullYear()

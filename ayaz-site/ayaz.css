@@ -27,10 +27,10 @@ h1, h2, h3 { font-family: "Plus Jakarta Sans", "Manrope", sans-serif; line-heigh
 .ust { position: sticky; top: 0; z-index: 50; background: rgba(250, 248, 243, 0.94); backdrop-filter: blur(10px); border-bottom: 1px solid var(--cizgi); }
 .ust .kap { display: flex; align-items: center; justify-content: space-between; height: 72px; gap: 16px; }
 .logo { display: flex; align-items: center; gap: 10px; }
-.logo svg { width: 40px; height: 40px; flex-shrink: 0; }
-.logo-yazi { display: flex; flex-direction: column; line-height: 1; }
-.logo-yazi b { font-family: "Comfortaa", sans-serif; font-weight: 700; font-size: 27px; color: var(--gri); letter-spacing: 0.01em; }
-.logo-yazi small { font-family: "Manrope", sans-serif; font-size: 10.5px; font-weight: 700; color: var(--gri); letter-spacing: 0.04em; margin-top: 3px; }
+.logo img { height: 50px; width: auto; }
+.alt-logo { height: 46px; width: auto; }
+.menu-ig { display: inline-flex; align-items: center; gap: 6px; }
+@media (min-width: 861px) and (max-width: 1060px) { .menu-ig span { display: none; } }
 .menu { display: flex; align-items: center; gap: 4px; }
 .menu a { padding: 8px 12px; border-radius: 999px; font-size: 14.5px; font-weight: 600; color: var(--gri-koyu); }
 .menu a:hover, .menu a.aktif { background: var(--sari-acik); color: var(--antrasit); }
@@ -140,7 +140,8 @@ h1, h2, h3 { font-family: "Plus Jakarta Sans", "Manrope", sans-serif; line-heigh
 .maddeler { list-style: none; display: grid; gap: 12px; margin-top: 20px; }
 .maddeler li { display: flex; gap: 12px; align-items: flex-start; color: var(--gri-koyu); }
 .maddeler li::before { content: ""; flex-shrink: 0; width: 22px; height: 22px; margin-top: 2px; border-radius: 50% 50% 4px 50%; background: var(--sari); box-shadow: inset 0 0 0 6px var(--sari), inset 0 0 0 11px var(--antrasit); }
-.iletisim { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.iletisim { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 1100px) { .iletisim { grid-template-columns: 1fr 1fr; } }
 .iletisim a, .iletisim div { background: var(--beyaz); border: 1px solid var(--cizgi); border-radius: 16px; padding: 20px; display: block; }
 .iletisim small { display: block; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gri-acik); }
 .iletisim b { display: block; font-size: 18px; margin-top: 6px; }
@@ -151,7 +152,6 @@ h1, h2, h3 { font-family: "Plus Jakarta Sans", "Manrope", sans-serif; line-heigh
 /* ---- Alt bilgi ---- */
 .alt { background: var(--antrasit); color: rgba(255,255,255,.7); padding: 44px 0 30px; font-size: 14px; }
 .alt .kap { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-.alt .logo-yazi b, .alt .logo-yazi small { color: #CFCFCF; }
 .alt a { color: rgba(255,255,255,.85); }
 .alt a:hover { color: var(--sari); }
 .alt-satir { width: 100%; border-top: 1px solid rgba(255,255,255,.12); margin-top: 22px; padding-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; }
@@ -180,3 +180,39 @@ h1, h2, h3 { font-family: "Plus Jakarta Sans", "Manrope", sans-serif; line-heigh
 [data-belir].gorundu { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { [data-belir] { opacity: 1; transform: none; transition: none; } }
 .koyu + .alt { border-top: 1px solid rgba(255,255,255,.1); }
+
+/* ---- Talep formu ---- */
+.bolum.sari-zemin { background: var(--sari-acik); }
+.talep-izgara { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 40px; align-items: start; }
+.talep-form { background: var(--beyaz); border-radius: 22px; padding: 26px; box-shadow: var(--golge); display: grid; gap: 14px; }
+.talep-form label { display: block; font-size: 13.5px; font-weight: 700; color: var(--gri-koyu); margin-bottom: 6px; }
+.talep-form input:not([type=radio]):not([type=checkbox]), .talep-form select, .talep-form textarea { width: 100%; padding: 12px 14px; border: 1.5px solid var(--cizgi); border-radius: 12px; font: 500 15.5px "Manrope", sans-serif; color: var(--antrasit); background: var(--zemin); }
+.talep-form input:focus, .talep-form select:focus, .talep-form textarea:focus { outline: none; border-color: var(--antrasit); background: var(--beyaz); }
+.talep-form textarea { resize: vertical; }
+.talep-form .satir { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.secenekler { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.secenekler label { margin: 0; cursor: pointer; }
+.secenekler input { position: absolute; opacity: 0; pointer-events: none; }
+.secenekler span { display: block; text-align: center; padding: 12px 10px; border-radius: 12px; border: 1.5px solid var(--cizgi); font-weight: 700; font-size: 14.5px; color: var(--gri-koyu); transition: all .15s; }
+.secenekler input:checked + span { background: var(--antrasit); border-color: var(--antrasit); color: var(--sari); }
+.secenekler input:focus-visible + span { outline: 2px solid var(--sari-koyu); outline-offset: 2px; }
+.talep-form .onay { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; font-size: 13.5px; color: var(--gri); margin: 0; cursor: pointer; }
+.talep-form .onay input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--antrasit); flex-shrink: 0; }
+.talep-form button { justify-self: start; }
+.tuzak { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+.form-sonuc { font-weight: 700; font-size: 14.5px; min-height: 1px; }
+.form-sonuc.tamam { color: var(--yesil); }
+.form-sonuc.hata { color: var(--kirmizi); }
+@media (max-width: 900px) { .talep-izgara { grid-template-columns: 1fr; gap: 10px; } }
+@media (max-width: 560px) { .talep-form { padding: 20px 16px; } .talep-form .satir, .secenekler { grid-template-columns: 1fr; } }
+
+/* ---- Davet kartı ---- */
+.davet { position: fixed; right: 20px; bottom: 20px; z-index: 60; width: min(360px, calc(100vw - 32px)); background: var(--antrasit); color: var(--beyaz); border-radius: 18px; padding: 20px 20px 18px; box-shadow: 0 18px 50px rgba(0,0,0,.3); border-top: 4px solid var(--sari); animation: davet-gel .35s ease; }
+.davet[hidden] { display: none; }
+.davet b { font-size: 18px; font-family: "Plus Jakarta Sans", sans-serif; }
+.davet p { color: rgba(255,255,255,.78); font-size: 14px; margin: 6px 0 14px; }
+.davet div { display: flex; gap: 8px; flex-wrap: wrap; }
+.davet .btn { padding: 10px 16px; font-size: 14px; }
+.davet-kapat { position: absolute; top: 8px; right: 10px; background: none; border: 0; color: rgba(255,255,255,.7); font-size: 24px; line-height: 1; cursor: pointer; padding: 4px 8px; }
+@keyframes davet-gel { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@media (max-width: 560px) { .davet { right: 16px; bottom: 16px; } }
