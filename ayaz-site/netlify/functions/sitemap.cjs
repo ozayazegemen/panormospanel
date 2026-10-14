@@ -1,6 +1,6 @@
 // Ayaz Gayrimenkul — /sitemap.xml: Google'a ana sayfayı, blogu ve yayındaki yazıları bildirir.
 // Yazılar Emlak Panelim veritabanında (site = 'ayaz'); herkese açık okuma anahtarıyla okunur.
-const SITE = 'https://ayazgayrimenkul.netlify.app'
+const SITE = 'https://xn--ayazgayrmenkul-dgc.com'
 const VERI = 'https://pjkjeetcodqvwnwgmktt.supabase.co/rest/v1/'
 const ANAHTAR = 'sb_publishable_E7p4PBeVosh5dny_7Yi7SA_zBLdS-Is'
 

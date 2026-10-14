@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ayazgayrimenkul.netlify.app/sitemap.xml
+Sitemap: https://xn--ayazgayrmenkul-dgc.com/sitemap.xml
