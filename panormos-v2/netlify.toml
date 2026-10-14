@@ -13,15 +13,20 @@
 
 # Edin Peynir taslağı artık kendi adresinde; eski bağlantıyı açan oraya gider
 [[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+
+[[redirects]]
   from = "/edin/*"
-  to = "https://edin-peynir.netlify.app/:splat"
-  status = 302
+  to = "https://edinlergida.com.tr/:splat"
+  status = 301
   force = true
 
 [[redirects]]
   from = "/edin"
-  to = "https://edin-peynir.netlify.app/"
-  status = 302
+  to = "https://edinlergida.com.tr/"
+  status = 301
   force = true
 
 [[redirects]]

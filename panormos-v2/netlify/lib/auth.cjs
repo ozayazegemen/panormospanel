@@ -37,4 +37,4 @@ async function yetkili(event, { yonetici = false, calisanYonetir = false } = {})
   return null;
 }
 
-module.exports = { yetkili, panelKullanicisi };
+module.exports = { yetkili, panelKullanicisi, SUPABASE_URL, SUPABASE_ANON_KEY };

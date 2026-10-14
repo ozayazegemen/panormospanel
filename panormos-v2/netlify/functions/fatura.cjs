@@ -5,7 +5,7 @@ const { createClient } = require("@supabase/supabase-js");
 
 const sayfa = (statusCode, mesaj) => ({
   statusCode,
-  headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+  headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
   body: `<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Panormos Medya</title></head><body style="font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#F3F5F9;color:#0F1B2D;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;"><div style="max-width:420px;text-align:center;background:#fff;border:1px solid #DFE5EE;border-radius:16px;padding:32px 26px;"><div style="font-size:20px;font-weight:800;margin-bottom:14px;">panormos <span style="color:#F25124;">medya.</span></div><div style="font-size:14px;line-height:1.6;color:#44556B;">${mesaj}</div></div></body></html>`,
 });
 
