@@ -5,3 +5,16 @@
   publish = "."
   command = ""
 # Formlar: Netlify Forms (teklif, gorus) — form algılama 13.10.2026'da açıldı
+
+# Tarayıcılar ve Google sekme ikonunu önce /favicon.ico adresinde arar
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon-48.png"
+  status = 200
+
+# Eski Netlify adresi ve www, tek asıl adrese (Google aynı sayfayı iki kez saymasın)
+[[redirects]]
+  from = "https://edin-peynir.netlify.app/*"
+  to = "https://edinlergida.com.tr/:splat"
+  status = 301
+  force = true
