@@ -1,0 +1,33 @@
+# Ayaz Gayrimenkul sitesi: ayrı Netlify sitesi olarak yayınlanır (temel klasör: ayaz-site). Derleme yok.
+[build]
+  # Yalnızca bu klasörde değişiklik varsa yayınla; öbür projelerin değişikliği yayın kredisi harcamasın
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
+  publish = "."
+  command = ""
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon-48.png"
+  status = 200
+
+[[redirects]]
+  from = "/blog"
+  to = "/blog.html"
+  status = 200
+
+# Her yazının kendi adresi: /blog/<yazi-adi> → yazı sayfası, içerik tarayıcıda yüklenir
+[[redirects]]
+  from = "/blog/*"
+  to = "/yazi.html"
+  status = 200
+
+[[headers]]
+  for = "/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"

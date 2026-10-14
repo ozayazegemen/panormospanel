@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ayazgayrimenkul.netlify.app/sitemap.xml
