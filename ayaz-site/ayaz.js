@@ -216,6 +216,10 @@ function talepTuruAyarla() {
   $('#t-bolge-etiket').textContent = arayan ? 'Aradığınız bölge ya da mahalle' : 'Mülkünüzün yeri (mahalle)'
   $('#t-butce-etiket').textContent = arayan ? 'Bütçeniz' : 'Düşündüğünüz fiyat'
   $('#t-butce').placeholder = tip === 'kiraci' || tip === 'kiraya_veren' ? 'Örneğin 20.000 TL / ay' : 'Örneğin 3.500.000 TL'
+  // "Fark etmez" yalnızca ev arayanlar için; satan ya da kiraya veren mülkünün oda sayısını bilir
+  const farketmez = talepForm.querySelector('#t-oda option.arayana')
+  farketmez.hidden = !arayan; farketmez.disabled = !arayan
+  if (!arayan && $('#t-oda').value === farketmez.value) $('#t-oda').value = ''
 }
 function talepSec(tip) {
   const kutu = talepForm?.querySelector(`input[name="tip"][value="${tip}"]`)
