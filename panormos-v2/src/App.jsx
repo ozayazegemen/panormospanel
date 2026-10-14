@@ -9457,8 +9457,41 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
   );
 }
 
+// Banka ve kart ekstrelerinden gelen hareketler; Giderler ve Gelirler sekmelerinde de gösterilir (yalnızca yönetici okuyabilir).
+// Kart borcu ödemesi ve hesaplar arası transfer sayılmaz. owner: hesabın sahibi (şirket / şahsi).
+function useBankMovements() {
+  const [veri, setVeri] = useState({ accounts: [], txs: [] });
+  useEffect(() => { (async () => {
+    const { data: accounts } = await supabase.from('bank_accounts').select('*');
+    const txs = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('bank_transactions').select('id,account_id,tx_date,description,amount,category').order('tx_date', { ascending: false }).order('id', { ascending: false }).range(from, from + 999);
+      if (error || !data) break;
+      txs.push(...data);
+      if (data.length < 1000) break;
+    }
+    const acc = Object.fromEntries((accounts || []).map(a => [a.id, a]));
+    setVeri({ accounts: accounts || [], txs: txs.filter(t => !bankCat(t.category).excluded).map(t => ({ ...t, hesap: acc[t.account_id]?.name || "Hesap", owner: acc[t.account_id]?.owner === "sahsi" ? "sahsi" : "sirket" })) });
+  })(); }, []);
+  return veri;
+}
+// Şirket / Şahsi / Tümü seçici
+function OwnerSwitch({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 4, background: T.bgInput, borderRadius: 10, padding: 4 }}>
+      {[{ v: "all", l: "Tümü" }, { v: "sirket", l: "Şirket" }, { v: "sahsi", l: "Şahsi" }].map(o => (
+        <button key={o.v} onClick={() => onChange(o.v)} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: value === o.v ? T.bgCard : "transparent", color: value === o.v ? T.textPrimary : T.textMuted, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>{o.l}</button>
+      ))}
+    </div>
+  );
+}
+const OwnerPill = ({ owner }) => <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: owner === "sahsi" ? T.amberDim : T.indigoDim, color: owner === "sahsi" ? T.amberText : T.indigoText, whiteSpace: "nowrap" }}>{BANK_OWNERS[owner]}</span>;
+
 function AccountingSpending({ autoAdd = false }) {
   const [items, setItems] = useState([]);
+  const banka = useBankMovements();
+  const [owner, setOwner] = useState("all");
+  const [goster, setGoster] = useState(150);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
@@ -9522,26 +9555,41 @@ function AccountingSpending({ autoAdd = false }) {
   const del = async (id) => { if (!await swalConfirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); load(); };
 
   const now = new Date();
-  const ayi = (i) => String(i.expense_date || "").slice(0, 7);
-  const inPeriod = period === "all" ? items : items.filter(i => ayi(i) === period);
+  // Elle girilen giderler şirketindir; ekstre giderleri hesabın sahibine göre şirket ya da şahsi
+  const tumu = [
+    ...items.map(i => ({ ...i, key: "m" + i.id, owner: "sirket", date: i.expense_date })),
+    ...banka.txs.filter(t => Number(t.amount) < 0).map(t => ({ key: "b" + t.id, bank: true, owner: t.owner, hesap: t.hesap, category: t.category, title: t.description, amount: -Number(t.amount), date: t.tx_date })),
+  ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const sahibe = owner === "all" ? tumu : tumu.filter(i => i.owner === owner);
+  const catLabel = (id) => EXPENSE_CATEGORIES.some(c => c.id === id) ? expCatLabel(id) : bankCatLabel(id);
+  const ayi = (i) => String(i.date || "").slice(0, 7);
+  const inPeriod = period === "all" ? sahibe : sahibe.filter(i => ayi(i) === period);
   const filtered = filterCat === "all" ? inPeriod : inPeriod.filter(i => i.category === filterCat);
-  const total = sumAmount(items);
-  const thisMonth = sumAmount(items.filter(i => ayi(i) === currentMonthRef()));
-  const periodOptions = [...new Set([currentMonthRef(), ...items.map(ayi).filter(Boolean)])].sort().reverse();
+  const total = sumAmount(sahibe);
+  const thisMonth = sumAmount(sahibe.filter(i => ayi(i) === currentMonthRef()));
+  const periodOptions = [...new Set([currentMonthRef(), ...tumu.map(ayi).filter(Boolean)])].sort().reverse();
   const byCat = {};
   inPeriod.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + Number(i.amount || 0); });
+  const katSirasi = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+  const sahipToplam = (o) => sumAmount(inPeriod.filter(i => i.owner === o));
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Toplam Gider" value={fmtMoney(total)} color={T.amberText} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+        <OwnerSwitch value={owner} onChange={v => { setOwner(v); setFilterCat("all"); }} />
+        <div style={{ fontSize: 12, color: T.textMuted, flex: 1, minWidth: 220, lineHeight: 1.5 }}>Elle girdiğiniz giderler ve yüklediğiniz banka / kart ekstrelerindeki harcamalar birlikte listelenir. Elle girilenler şirket gideri sayılır; ekstreyle gelen bir harcamayı ayrıca elle girmeyin, iki kez sayılır.</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label={`${owner === "all" ? "Toplam" : BANK_OWNERS[owner]} Gider`} value={fmtMoney(total)} color={T.amberText} sub="Tüm zamanlar" />
         <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.redText} />
+        {owner === "all" && <StatCard label="Şirket" value={fmtMoney(sahipToplam("sirket"))} color={T.indigoText} sub={period === "all" ? "Tüm zamanlar" : monthRefLabel(period)} />}
+        {owner === "all" && <StatCard label="Şahsi" value={fmtMoney(sahipToplam("sahsi"))} color={T.amberText} sub={period === "all" ? "Tüm zamanlar" : monthRefLabel(period)} />}
       </div>
       {err && <div style={{ background: T.redDim, color: T.redText, padding: "10px 14px", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>Giderler okunamadı: {err}</div>}
 
-      {/* Kategori özet kartları */}
+      {/* Kategori özet kartları (seçili dönem ve hesap sahibine göre) */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 10, marginBottom: 16 }}>
-        {EXPENSE_CATEGORIES.map(c => (
+        {katSirasi.map(id => ({ id, label: catLabel(id), color: expCatColor(id) })).map(c => (
           <div key={c.id} onClick={() => setFilterCat(filterCat === c.id ? "all" : c.id)} style={{ background: filterCat === c.id ? c.color + "22" : T.bgCard, border: `1px solid ${filterCat === c.id ? c.color : T.border}`, borderRadius: 10, padding: "12px 14px", cursor: "pointer", borderLeft: `3px solid ${c.color}` }}>
             <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 4 }}>{c.label}</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: T.textPrimary }}>{fmtMoney(byCat[c.id] || 0)}</div>
@@ -9553,7 +9601,7 @@ function AccountingSpending({ autoAdd = false }) {
         <Btn variant="primary" onClick={() => { setForm({ category: "yakit", expense_date: todayStr() }); setFile(null); setModal(true); }}>+ Gider Ekle</Btn>
         <input ref={aiFileRef} type="file" accept=".pdf,image/*" onChange={onAiFile} style={{ display: "none" }} />
         <Btn onClick={() => !aiBusy && aiFileRef.current?.click()} style={{ background: T.indigoDim, color: T.indigoText, opacity: aiBusy ? 0.7 : 1 }}>{aiBusy ? "⏳ Fatura okunuyor…" : "📄 Faturadan Gider Ekle (PDF / JPG / PNG, otomatik oku)"}</Btn>
-        {filterCat !== "all" && <Btn onClick={() => setFilterCat("all")} style={{ fontSize: 12 }}>✕ Filtreyi Temizle ({expCatLabel(filterCat)})</Btn>}
+        {filterCat !== "all" && <Btn onClick={() => setFilterCat("all")} style={{ fontSize: 12 }}>✕ Filtreyi Temizle ({catLabel(filterCat)})</Btn>}
         <div style={{ width: 170, marginLeft: "auto" }}>
           <Select value={period} onChange={e => setPeriod(e.target.value)}>
             <option value="all">Tüm zamanlar</option>
@@ -9566,18 +9614,30 @@ function AccountingSpending({ autoAdd = false }) {
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
         filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gider kaydı yok</div> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {filtered.map(i => (
-              <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${expCatColor(i.category)}` }}>
+            {filtered.slice(0, goster).map(i => i.bank ? (
+              <div key={i.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${expCatColor(i.category)}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || expCatLabel(i.category)}</div>
-                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{expCatLabel(i.category)} · {i.expense_date}{i.notes ? " · " + i.notes : ""}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.title || catLabel(i.category)}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{catLabel(i.category)} · {bankGun(i.date)} · Ekstre: {i.hesap}</div>
                 </div>
+                <OwnerPill owner={i.owner} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.amberText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
+                <span title="Ekstre kayıtları Banka ve Ekstre sekmesinden düzenlenir" style={{ width: 40 }} />
+              </div>
+            ) : (
+              <div key={i.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${expCatColor(i.category)}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || catLabel(i.category)}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{catLabel(i.category)} · {i.expense_date}{i.notes ? " · " + i.notes : ""}</div>
+                </div>
+                <OwnerPill owner="sirket" />
                 {i.document_url && <a {...storedFileLink(i.document_url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.amberText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
                 <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
+            {filtered.length > goster && <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}><Btn onClick={() => setGoster(n => n + 150)}>Daha fazla göster ({filtered.length - goster})</Btn></div>}
           </div>
         )}
 
@@ -9610,6 +9670,10 @@ function AccountingSpending({ autoAdd = false }) {
 // ═══════════════ GELİRLER ═══════════════
 function AccountingIncome({ autoAdd = false }) {
   const [items, setItems] = useState([]);
+  const banka = useBankMovements();
+  const [owner, setOwner] = useState("all");
+  const [period, setPeriod] = useState("all");
+  const [goster, setGoster] = useState(150);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
@@ -9654,37 +9718,71 @@ function AccountingIncome({ autoAdd = false }) {
   const del = async (id) => { if (!await swalConfirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); load(); };
 
   const now = new Date();
-  const total = sumAmount(items);
-  const thisMonth = sumAmount(items.filter(i => String(i.income_date || "").slice(0, 7) === currentMonthRef()));
+  // Elle girilen gelirler şirketindir; ekstreye giren para hesabın sahibine göre şirket ya da şahsi
+  const tumu = [
+    ...items.map(i => ({ ...i, key: "m" + i.id, owner: "sirket", date: i.income_date })),
+    ...banka.txs.filter(t => Number(t.amount) > 0).map(t => ({ key: "b" + t.id, bank: true, owner: t.owner, hesap: t.hesap, category: t.category, title: t.description, amount: Number(t.amount), date: t.tx_date })),
+  ].sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const sahibe = owner === "all" ? tumu : tumu.filter(i => i.owner === owner);
+  const ayi = (i) => String(i.date || "").slice(0, 7);
+  const gorunen = period === "all" ? sahibe : sahibe.filter(i => ayi(i) === period);
+  const periodOptions = [...new Set([currentMonthRef(), ...tumu.map(ayi).filter(Boolean)])].sort().reverse();
+  const total = sumAmount(sahibe);
+  const thisMonth = sumAmount(sahibe.filter(i => ayi(i) === currentMonthRef()));
+  const sahipToplam = (o) => sumAmount(gorunen.filter(i => i.owner === o));
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 12, marginBottom: 16 }}>
-        <StatCard label="Diğer Gelirler Toplamı" value={fmtMoney(total)} color={T.greenText} />
-        <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.greenText} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+        <OwnerSwitch value={owner} onChange={setOwner} />
+        <div style={{ width: 170, marginLeft: "auto" }}>
+          <Select value={period} onChange={e => setPeriod(e.target.value)}>
+            <option value="all">Tüm zamanlar</option>
+            {periodOptions.map(m => <option key={m} value={m}>{monthRefLabel(m)}</option>)}
+          </Select>
+        </div>
       </div>
-      <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 14 }}>Burası müşteri ödemeleri dışındaki gelirler içindir. Müşteri ödemeleri Müşteri Cari sekmesinde girilir; bütün gelirlerin toplamı Özet sekmesindedir.</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 16 }}>
+        <StatCard label={`${owner === "all" ? "Toplam" : BANK_OWNERS[owner]} Gelir`} value={fmtMoney(total)} color={T.greenText} sub="Tüm zamanlar" />
+        <StatCard label="Bu Ay" value={fmtMoney(thisMonth)} color={T.greenText} />
+        {owner === "all" && <StatCard label="Şirket" value={fmtMoney(sahipToplam("sirket"))} color={T.indigoText} sub={period === "all" ? "Tüm zamanlar" : monthRefLabel(period)} />}
+        {owner === "all" && <StatCard label="Şahsi" value={fmtMoney(sahipToplam("sahsi"))} color={T.amberText} sub={period === "all" ? "Tüm zamanlar" : monthRefLabel(period)} />}
+      </div>
+      <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 14, lineHeight: 1.55 }}>Elle girdiğiniz gelirler (şirket sayılır) ve yüklediğiniz ekstrelerde hesaba giren paralar birlikte listelenir; kart borcu ödemesi ve hesaplar arası transfer sayılmaz. Müşteri ödemeleri ayrıca Müşteri Cari sekmesinde girilir; bankaya gelen müşteri ödemesi burada da görünür. Özet sekmesindeki toplamlar ekstreleri içermez.</div>
       {err && <div style={{ background: T.redDim, color: T.redText, padding: "10px 14px", borderRadius: 10, fontSize: 12, marginBottom: 14 }}>Gelirler okunamadı: {err}</div>}
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
         <Btn variant="primary" onClick={() => { setForm({ income_date: todayStr() }); setFile(null); setModal(true); }}>+ Gelir Ekle</Btn>
       </div>
 
+      {(period !== "all" || owner !== "all") && <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10 }}>Listelenen: {gorunen.length} kayıt · {fmtMoney(sumAmount(gorunen))}</div>}
       {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div> :
-        items.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gelir kaydı yok</div> : (
+        gorunen.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Gelir kaydı yok</div> : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {items.map(i => (
-              <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${T.green}` }}>
+            {gorunen.slice(0, goster).map(i => i.bank ? (
+              <div key={i.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${T.green}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.title || bankCatLabel(i.category)}</div>
+                  <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{bankCatLabel(i.category)} · {bankGun(i.date)} · Ekstre: {i.hesap}</div>
+                </div>
+                <OwnerPill owner={i.owner} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.greenText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
+                <span title="Ekstre kayıtları Banka ve Ekstre sekmesinden düzenlenir" style={{ width: 40 }} />
+              </div>
+            ) : (
+              <div key={i.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, borderLeft: `3px solid ${T.green}` }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{i.title || i.source || "Gelir"}</div>
                   <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>{i.source ? i.source + " · " : ""}{i.income_date}{i.notes ? " · " + i.notes : ""}</div>
                 </div>
+                <OwnerPill owner="sirket" />
                 {i.document_url && <a {...storedFileLink(i.document_url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.greenText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
                 <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
+            {gorunen.length > goster && <div style={{ display: "flex", justifyContent: "center", marginTop: 6 }}><Btn onClick={() => setGoster(n => n + 150)}>Daha fazla göster ({gorunen.length - goster})</Btn></div>}
           </div>
         )}
 
