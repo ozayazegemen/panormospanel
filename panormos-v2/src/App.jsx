@@ -8446,7 +8446,12 @@ const BANK_CATEGORIES = [
   { id: "alisveris", label: "Alışveriş" },
   { id: "yazilim", label: "Yazılım / Abonelik" },
   { id: "reklam", label: "Reklam" },
-  { id: "fatura", label: "Elektrik / Su / İnternet / Telefon" },
+  { id: "elektrik", label: "Elektrik Faturası" },
+  { id: "su", label: "Su Faturası" },
+  { id: "dogalgaz", label: "Doğalgaz Faturası" },
+  { id: "internet", label: "İnternet Faturası" },
+  { id: "telefon", label: "Telefon (Cep) Faturası" },
+  { id: "fatura", label: "Diğer Fatura" },
   { id: "kira", label: "Kira" },
   { id: "ekipman", label: "Ekipman" },
   { id: "ulasim", label: "Ulaşım / Seyahat" },
@@ -8474,7 +8479,12 @@ const BANK_RULES = [
   [/OPET|SHELL|\bBP\b|PETROL|AYTEMIZ|AKARYAKIT|TOTAL ?ENERJ|LUKOIL|ALPET|\bPO\b/, "yakit"],
   [/FACEBK|FACEBOOK|META ?ADS|GOOGLE ?ADS|TIKTOK ?ADS|REKLAM/, "reklam"],
   [/ADOBE|CANVA|GOOGLE|APPLE\.COM|MICROSOFT|OPENAI|ANTHROPIC|NETFLIX|SPOTIFY|YOUTUBE|HOSTING|GODADDY|NETLIFY|SUPABASE|CAPCUT|ENVATO|PARASUT/, "yazilim"],
-  [/ELEKTRIK|DOGALGAZ|TURK TELEKOM|TURKCELL|VODAFONE|SUPERONLINE|TURKNET|INTERNET|UEDAS|ENERJISA|\bSU FATURA|FATURA ODE/, "fatura"],
+  [/ELEKTRIK|\bUEDAS|ENERJISA|CK ENERJI|BOGAZICI EDAS|AYEDAS|AYDEM|GEDIZ ELEK|BASKENT EDAS|TOROSLAR EDAS|AKEDAS|SEDAS|\bOEDAS|\bEDAS\b/, "elektrik"],
+  [/DOGALGAZ|DOGAL GAZ|\bIGDAS|BALIKESIR ?GAZ|BURSAGAZ|ENERYA|AKSA ?GAZ|AKSA DOGAL|GAZDAS|BASKENTGAZ|IZMIRGAZ/, "dogalgaz"],
+  [/\bBASKI\b|\bSU FATURA|SU VE KANAL|SU ISLERI|\bISKI\b|\bBUSKI\b|\bASKI\b|\bIZSU\b|\bMASKI\b/, "su"],
+  [/TURKNET|SUPERONLINE|\bTTNET|TURK TELEKOM|MILLENICOM|KABLONET|TURKSAT|INTERNET/, "internet"],
+  [/TURKCELL|VODAFONE|\bAVEA\b/, "telefon"],
+  [/FATURA ODE|FATURA TAHSIL/, "fatura"],
   [/\bKIRA\b/, "kira"],
   [/RESTORAN|RESTAURANT|CAFE|KAFE|LOKANTA|BURGER|PIZZA|STARBUCKS|YEMEKSEPETI|GETIR ?YEMEK|KEBAP|DONER|PASTANE|FIRIN|KAHVE/, "yemek"],
   [/MIGROS|\bBIM\b|A101|\bSOK\b|CARREFOUR|MARKET|GETIR|MACRO ?CENTER|FILE MARKET/, "market"],
@@ -8749,6 +8759,13 @@ function AccountingBank({ staff = [] }) {
       all.push(...(data || []));
       if (!data || data.length < 1000) break;
     }
+    // Eski tek "Fatura" kategorisindeki çıkışları elektrik / su / doğalgaz / internet / telefon diye ayır (bir kez; sonra "fatura"da kalmazlar)
+    const ayir = {};
+    all.forEach(t => { if (t.category === "fatura" && Number(t.amount) < 0) { const yeni = bankGuessCategory(t.description, Number(t.amount), "banka"); if (["elektrik", "su", "dogalgaz", "internet", "telefon"].includes(yeni)) (ayir[yeni] = ayir[yeni] || []).push(t.id); } });
+    for (const [cat, ids] of Object.entries(ayir)) {
+      const { error } = await supabase.from('bank_transactions').update({ category: cat }).in('id', ids);
+      if (!error) all.forEach(t => { if (ids.includes(t.id)) t.category = cat; });
+    }
     setErr([e1, e2].filter(Boolean).map(e => e.message).join(" · "));
     setAccounts(acc || []); setTxs(all); setLoading(false);
   };
@@ -8839,7 +8856,11 @@ function AccountingBank({ staff = [] }) {
     });
     let hata = null;
     for (let i = 0; i < yeni.length && !hata; i += 500) {
-      const { error } = await supabase.from('bank_transactions').insert(yeni.slice(i, i + 500));
+      let { error } = await supabase.from('bank_transactions').insert(yeni.slice(i, i + 500));
+      // Veritabanı yeni fatura türlerini (elektrik, su…) henüz tanımıyorsa bu kalemler "Diğer Fatura" olarak kaydedilir
+      if (error && /check constraint|violates check/i.test(error.message)) {
+        ({ error } = await supabase.from('bank_transactions').insert(yeni.slice(i, i + 500).map(r => ["elektrik", "su", "dogalgaz", "internet", "telefon"].includes(r.category) ? { ...r, category: "fatura" } : r)));
+      }
       if (error) hata = error;
     }
     setBusy(false);
