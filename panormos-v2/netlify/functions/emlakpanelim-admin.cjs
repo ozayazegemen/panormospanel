@@ -1,5 +1,5 @@
 // netlify/functions/emlakpanelim-admin.cjs
-// Panormos Panel -> bu fonksiyon -> EmlakPanelim'in Supabase projesi (service role ile).
+// Panormos Panel -> bu fonksiyon -> Emlak Panelim'in Supabase projesi (service role ile).
 // Servis anahtarı yalnızca burada, sunucu tarafında kullanılır; tarayıcıya hiç gitmez.
 const { createClient } = require("@supabase/supabase-js");
 const { yetkili } = require("../lib/auth.cjs");
@@ -18,7 +18,7 @@ exports.handler = async (event) => {
   };
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
 
-  // EmlakPanelim yönetimi yalnızca Panormos paneline giriş yapmış yöneticiye açık
+  // Emlak Panelim yönetimi yalnızca Panormos paneline giriş yapmış yöneticiye açık
   const red = await yetkili(event, { yonetici: true });
   if (red) return { ...red, headers };
 

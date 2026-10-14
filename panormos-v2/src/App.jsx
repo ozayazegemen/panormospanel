@@ -6535,7 +6535,7 @@ function EmlakPanelimPage() {
     setBekle(null);
   }
   async function planSil(id) {
-    if (!await swalConfirm("Bu paket silinecek ve EmlakPanelim fiyat sayfasından kalkacak. Emin misiniz?")) return;
+    if (!await swalConfirm("Bu paket silinecek ve Emlak Panelim fiyat sayfasından kalkacak. Emin misiniz?")) return;
     try { await gonder({ aksiyon: "plan_sil", id }); await yukle(); } catch (e) { swalAlert(e.message); }
   }
   async function planEkle() {
@@ -6712,7 +6712,7 @@ const NAV=[
   {id:"inventory",label:"Envanter",icon:"🎒"},
   {id:"yearly",label:"Yıllık Özet",icon:"📊"},
   {id:"staff",label:"Çalışanlar",icon:"👥"},
-  {id:"emlakpanelim",label:"EmlakPanelim",icon:"🏘️"},
+  {id:"emlakpanelim",label:"Emlak Panelim",icon:"🏘️"},
 ];
 
 // Menü bölümleri (sırası ve başlıkları)
@@ -9598,7 +9598,7 @@ function AccountingIncome({ autoAdd = false }) {
 }
 
 // ═══════════════ MÜŞTERİ CARİ ═══════════════
-// EmlakPanelim'e kayıt olan her firmayı muhasebede "EmlakPanelim müşterisi" olarak açar; ad / telefon / e-posta ve
+// Emlak Panelim'e kayıt olan her firmayı muhasebede "Emlak Panelim müşterisi" olarak açar; ad / telefon / e-posta ve
 // fatura bilgilerini güncel tutar. Yalnızca yönetici çağırabilir (sunucu işlevi yönetici oturumu ister).
 async function syncEmlakClients() {
   const res = await panelFetch("/.netlify/functions/emlakpanelim-admin");
@@ -9614,7 +9614,7 @@ async function syncEmlakClients() {
     const alanlar = {
       name: f.ad.trim(), phone: f.telefon || "", email: f.eposta || "", address: f.fatura_adresi || f.adres || "",
       tax_number: f.vergi_no || "", tax_office: f.vergi_dairesi || "",
-      description: ["EmlakPanelim abonesi", f.fatura_unvani && "Fatura unvanı: " + f.fatura_unvani, planOf[f.plan_id]?.ad && "Paket: " + planOf[f.plan_id].ad, f.durum && "Durum: " + ({ deneme: "Deneme", aktif: "Aktif", donduruldu: "Donduruldu" }[f.durum] || f.durum), f.abonelik_bitis && "Abonelik bitişi: " + new Date(f.abonelik_bitis + "T00:00:00").toLocaleDateString("tr-TR")].filter(Boolean).join(" · "),
+      description: ["Emlak Panelim abonesi", f.fatura_unvani && "Fatura unvanı: " + f.fatura_unvani, planOf[f.plan_id]?.ad && "Paket: " + planOf[f.plan_id].ad, f.durum && "Durum: " + ({ deneme: "Deneme", aktif: "Aktif", donduruldu: "Donduruldu" }[f.durum] || f.durum), f.abonelik_bitis && "Abonelik bitişi: " + new Date(f.abonelik_bitis + "T00:00:00").toLocaleDateString("tr-TR")].filter(Boolean).join(" · "),
     };
     const var_ = byFirma[f.id];
     if (var_) {
@@ -9623,7 +9623,7 @@ async function syncEmlakClients() {
       continue;
     }
     const { data: yeni, error: e2 } = await supabase.from('clients').insert({
-      ...alanlar, category: "EmlakPanelim", initials: alanlar.name.split(" ").map(w => w[0]).join("").slice(0, 2).toLocaleUpperCase("tr-TR"),
+      ...alanlar, category: "Emlak Panelim", initials: alanlar.name.split(" ").map(w => w[0]).join("").slice(0, 2).toLocaleUpperCase("tr-TR"),
       accent_color: "#0EA5E9", city: "", district: "", social_media: "", platforms: [], publish_days: [], shoot_days: [], publish_times: [],
       work_type: "monthly", contract_start: f.created_at ? `${TR_MONTHS[new Date(f.created_at).getMonth()]} ${new Date(f.created_at).getFullYear()}` : "",
       source: "emlakpanelim", emlak_firma_id: f.id,
@@ -9651,10 +9651,10 @@ function AccountingCari({ clients, autoAdd = false }) {
   const [emlakNote, setEmlakNote] = useState("");
   const emlakSynced = useRef(false);
   const load = async () => {
-    // Sayfa ilk açıldığında yeni EmlakPanelim abonelerini cariye ekle
+    // Sayfa ilk açıldığında yeni Emlak Panelim abonelerini cariye ekle
     if (!emlakSynced.current) {
       emlakSynced.current = true;
-      try { const r = await syncEmlakClients(); if (r.added > 0) setEmlakNote(`${r.added} yeni EmlakPanelim abonesi cariye eklendi.`); else if (r.error) setEmlakNote("EmlakPanelim aboneleri alınamadı: " + r.error); } catch (e) { setEmlakNote("EmlakPanelim aboneleri alınamadı: " + e.message); }
+      try { const r = await syncEmlakClients(); if (r.added > 0) setEmlakNote(`${r.added} yeni Emlak Panelim abonesi cariye eklendi.`); else if (r.error) setEmlakNote("Emlak Panelim aboneleri alınamadı: " + r.error); } catch (e) { setEmlakNote("Emlak Panelim aboneleri alınamadı: " + e.message); }
     }
     const [{ data: payData, error: e1 }, { data: invData, error: e2 }, { data: allCRaw, error: e3 }, { data: feeData }] = await Promise.all([
       supabase.from('client_payments').select('*').order('payment_date', { ascending: false }),
@@ -9687,7 +9687,7 @@ function AccountingCari({ clients, autoAdd = false }) {
         paymentDueDate: c.payment_due_date || null, phone: "", email: "",
         _departed: true,
       }));
-    // EmlakPanelim aboneleri: sosyal medya müşterisi değil, yalnızca cari hesapta görünür
+    // Emlak Panelim aboneleri: sosyal medya müşterisi değil, yalnızca cari hesapta görünür
     const emlak = (allClientsRaw || [])
       .filter(c => c.source === 'emlakpanelim' && !c.deleted_at)
       .map(c => ({
@@ -9820,7 +9820,7 @@ function AccountingCari({ clients, autoAdd = false }) {
         <Btn onClick={exportCari} style={{ background: T.greenDim, color: T.greenText }}>📊 Cari Excel</Btn>
         <div style={{ flex: 1 }} />
         <div style={{ display: "flex", gap: 4, background: T.bgInput, borderRadius: 10, padding: 4 }}>
-          {[{ v: "all", l: "Tümü" }, { v: "sosyal", l: "Sosyal Medya" }, { v: "emlak", l: `EmlakPanelim (${mergedClients.filter(c => c._emlak).length})` }].map(o => (
+          {[{ v: "all", l: "Tümü" }, { v: "sosyal", l: "Sosyal Medya" }, { v: "emlak", l: `Emlak Panelim (${mergedClients.filter(c => c._emlak).length})` }].map(o => (
             <button key={o.v} onClick={() => { setKind(o.v); setShowAll(false); }} style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: kind === o.v ? T.bgCard : "transparent", color: kind === o.v ? T.textPrimary : T.textMuted, fontSize: 12.5, fontWeight: 600, cursor: "pointer", boxShadow: kind === o.v ? T.shadow : "none" }}>{o.l}</button>
           ))}
         </div>
@@ -9839,7 +9839,7 @@ function AccountingCari({ clients, autoAdd = false }) {
                 <div onClick={() => setExpanded(isOpen ? null : cs.client.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", borderLeft: `3px solid ${cs.client.accentColor}` }}>
                   <div style={{ width: 38, height: 38, borderRadius: "50%", background: cs.client.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{cs.client.initials}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{cs.client.name}{cs.client._emlak && <span style={{ marginLeft: 6, fontSize: 10, background: "rgba(14,165,233,0.15)", color: T.indigoText, borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>EmlakPanelim</span>}{cs.client._departed && <span style={{ marginLeft: 6, fontSize: 10, background: T.bgInput, color: T.textMuted, borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>Ayrıldı</span>}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{cs.client.name}{cs.client._emlak && <span style={{ marginLeft: 6, fontSize: 10, background: "rgba(14,165,233,0.15)", color: T.indigoText, borderRadius: 4, padding: "1px 6px", fontWeight: 600 }}>Emlak Panelim</span>}{cs.client._departed && <span style={{ marginLeft: 6, fontSize: 10, background: T.bgInput, color: T.textMuted, borderRadius: 4, padding: "1px 5px", fontWeight: 500 }}>Ayrıldı</span>}</div>
                     <div style={{ fontSize: 11, color: T.textMuted }}>Aylık {fmtMoney(cs.client.monthlyFee)} · Tahsil edilen {fmtMoney(cs.totalPaid)}{cs.unpaidMonths.length > 0 ? ` · ${cs.unpaidMonths.length} ay ödenmemiş` : ""}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -9880,7 +9880,7 @@ function AccountingCari({ clients, autoAdd = false }) {
                       <Btn onClick={() => printClientStatement(cs.client, clientInvoices.filter(i => i.client_id === cs.client.id), payments.filter(p => p.client_id === cs.client.id))} style={{background:T.greenDim,color:T.greenText,fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>📑 Hesap Raporu (PDF)</Btn>
                       <Btn variant="primary" onClick={() => openPay(cs.client.id)} style={{fontSize:11,whiteSpace:"nowrap"}}>+ Ödeme Ekle</Btn>
                     </div>
-                    {/* EmlakPanelim abonesi: iletişim ve fatura bilgileri */}
+                    {/* Emlak Panelim abonesi: iletişim ve fatura bilgileri */}
                     {cs.client._emlak && (
                       <div style={{ marginTop: 12, padding: "12px 14px", background: T.bgInput, borderRadius: 10, fontSize: 12.5, color: T.textSecondary, lineHeight: 1.7 }}>
                         <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 4 }}>İletişim ve Fatura Bilgileri</div>
@@ -10920,7 +10920,7 @@ async function loadAllData() {
   const feeOf = {}; (financeRaw || []).forEach(f => { feeOf[f.client_id] = Number(f.monthly_fee || 0); });
   const sifreOf = {}; (secretsRaw || []).forEach(x => { sifreOf[x.client_id] = x.sifre || ""; });
 
-  // EmlakPanelim aboneleri yalnızca muhasebede (Müşteri Cari) görünür; sosyal medya müşterisi değildir
+  // Emlak Panelim aboneleri yalnızca muhasebede (Müşteri Cari) görünür; sosyal medya müşterisi değildir
   const socialRaw = (clientsRaw || []).filter(c => c.source !== 'emlakpanelim');
   const clients = socialRaw.filter(c => !c.deleted_at).map(c => ({
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
@@ -12090,13 +12090,13 @@ function LandingPage({ onEnter }) {
           <div className="sec-head reveal"><span className="sec-label">Web Sitesi & Yazılım</span><h2>Web siteni ve yazılımını da biz yapıyoruz</h2><p>Sosyal medyanın yanında işletmene özel web siteleri, yönetim panelleri ve yazılımlar geliştiriyoruz. İşte ürettiklerimizden örnekler.</p></div>
           <div className="works">
             <div className="work reveal">
-              <a className="work-shot" href="https://emlakpanelim.com" target="_blank" rel="noopener" aria-label="EmlakPanelim sitesini aç">
+              <a className="work-shot" href="https://emlakpanelim.com" target="_blank" rel="noopener" aria-label="Emlak Panelim sitesini aç">
                 <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>emlakpanelim.com</span></div>
-                <img src="/isler/emlakpanelim.jpg" alt="EmlakPanelim ana sayfasının ekran görüntüsü" width="1200" height="675" loading="lazy" />
+                <img src="/isler/emlakpanelim.jpg" alt="Emlak Panelim ana sayfasının ekran görüntüsü" width="1200" height="675" loading="lazy" />
               </a>
               <div>
                 <span className="work-tag">Kendi yazılımımız</span>
-                <h3>EmlakPanelim</h3>
+                <h3>Emlak Panelim</h3>
                 <p>Emlak ofisleri için sıfırdan geliştirdiğimiz yönetim paneli. İlanlar, mal sahipleri, müşteri talepleri ve sözleşmeler tek ekranda toplanır; müşterinin aradığı mülk ilanlarda varsa sistem kendiliğinden eşleştirir.</p>
                 <ul><li>İlan, müşteri ve sözleşme takibi</li><li>Talep ile ilanı kendiliğinden eşleştirme</li><li>Bilgisayarda ve telefonda çalışır</li></ul>
                 <a href="https://emlakpanelim.com" className="btn-ghost" target="_blank" rel="noopener">emlakpanelim.com →</a>
