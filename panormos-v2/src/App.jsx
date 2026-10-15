@@ -11824,6 +11824,9 @@ const LP_CSS = `
   .lp .work-bar i{width:9px;height:9px;border-radius:50%;background:#3A465A;display:block}
   .lp .work-bar span{margin-left:10px;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .lp .work-shot img{display:block;width:100%;height:auto}
+  .lp .work-shot.mock{border:0;background:transparent;box-shadow:0 30px 70px rgba(0,0,0,0.35);border-radius:18px;transition:transform .35s}
+  .lp .work-shot.mock:hover{transform:translateY(-4px) scale(1.01)}
+  .lp .work ul li{margin-bottom:4px}
   .lp .work-tag{display:inline-block;font-family:'Space Grotesk';font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;padding:6px 14px;border-radius:100px;border:1px solid rgba(236,72,153,0.35);background:rgba(236,72,153,0.08);color:#F9A8D4;margin-bottom:16px}
   .lp .work h3{font-family:'Space Grotesk';font-weight:700;font-size:clamp(26px,3.4vw,36px);letter-spacing:-0.02em;line-height:1.1;margin-bottom:14px}
   .lp .work p{font-size:15.5px;color:var(--muted);line-height:1.7;margin-bottom:18px}
@@ -12367,41 +12370,53 @@ function LandingPage({ onEnter }) {
           <div className="sec-head reveal"><span className="sec-label">Web Sitesi & Yazılım</span><h2>Web siteni ve yazılımını da biz yapıyoruz</h2><p>Sosyal medyanın yanında işletmene özel web siteleri, yönetim panelleri ve yazılımlar geliştiriyoruz. İşte ürettiklerimizden örnekler.</p></div>
           <div className="works">
             <div className="work reveal">
-              <a className="work-shot" href="https://emlakpanelim.com" target="_blank" rel="noopener" aria-label="Emlak Panelim sitesini aç">
-                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>emlakpanelim.com</span></div>
-                <img src="/isler/emlakpanelim.jpg" alt="Emlak Panelim ana sayfasının ekran görüntüsü" width="1200" height="675" loading="lazy" />
+              <a className="work-shot mock" href="https://emlakpanelim.com" target="_blank" rel="noopener" aria-label="Emlak Panelim sitesini aç">
+                <img src="/isler/emlakpanelim.jpg?v=2" alt="Emlak Panelim: bilgisayar ve telefon görünümü" width="1600" height="1000" loading="lazy" />
               </a>
               <div>
                 <span className="work-tag">Kendi yazılımımız</span>
                 <h3>Emlak Panelim</h3>
-                <p>Emlak ofisleri için sıfırdan geliştirdiğimiz yönetim paneli. İlanlar, mal sahipleri, müşteri talepleri ve sözleşmeler tek ekranda toplanır; müşterinin aradığı mülk ilanlarda varsa sistem kendiliğinden eşleştirir.</p>
-                <ul><li>İlan, müşteri ve sözleşme takibi</li><li>Talep ile ilanı kendiliğinden eşleştirme</li><li>Bilgisayarda ve telefonda çalışır</li></ul>
+                <p>Emlak ofisleri için sıfırdan geliştirdiğimiz bulut tabanlı yönetim paneli. İlanlar, mal sahipleri, müşteri talepleri, randevular, kira ve satış sözleşmeleri tek ekranda; müşterinin aradığı mülk portföyde varsa sistem kendiliğinden eşleştirir.</p>
+                <ul>
+                  <li>Talep ile ilanı otomatik eşleştirme, WhatsApp ile paylaşım</li>
+                  <li>Kira ve satış sözleşmeleri, yenileme hatırlatmaları, komisyon raporu</li>
+                  <li>Kartla ödeme (iyzico) ve telefona anlık bildirim</li>
+                  <li>Ofislerin web sitelerinden gelen talepler doğrudan panele düşer</li>
+                </ul>
                 <a href="https://emlakpanelim.com" className="btn-ghost" target="_blank" rel="noopener">emlakpanelim.com →</a>
               </div>
             </div>
             <div className="work rev reveal">
-              <a className="work-shot" href="https://edinlergida.com.tr" target="_blank" rel="noopener" aria-label="Edin Peynir sitesini aç">
-                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>edinlergida.com.tr</span></div>
-                <img src="/isler/edin-peynir.jpg" alt="Edin Peynir web sitesinin ekran görüntüsü" width="1200" height="675" loading="lazy" />
+              <a className="work-shot mock" href="https://edinlergida.com.tr" target="_blank" rel="noopener" aria-label="Edin Peynir sitesini aç">
+                <img src="/isler/edin-peynir.jpg?v=2" alt="Edin Peynir web sitesi: bilgisayar ve telefon görünümü" width="1600" height="1000" loading="lazy" />
               </a>
               <div>
                 <span className="work-tag">Kurumsal web sitesi</span>
-                <h3>Edin Peynir</h3>
-                <p>Bandırmalı peynir üreticisi Edinler Gıda için tasarladığımız kurumsal web sitesi. Ürünler, kalite belgeleri ve toptan teklif formu tek bir sitede; telefonda da bilgisayarda da aynı özenle görünür.</p>
-                <ul><li>Markaya özel tasarım</li><li>Ürün sayfaları ve toptan teklif formu</li><li>Telefona uyumlu, hızlı açılan sayfalar</li></ul>
+                <h3>Edin Peynir — Edinler Gıda</h3>
+                <p>Bandırmalı beyaz peynir üreticisi Edinler Gıda için markanın renklerinden ve teneke tasarımlarından yola çıkarak hazırladığımız kurumsal site. Çiftlikten sofraya hikâyeyi, ürünleri ve kaliteyi tek sayfada anlatıyor; toptancıları doğrudan teklif formuna yönlendiriyor.</p>
+                <ul>
+                  <li>Teneke ve paket ürün sayfaları, içerik ve özellik tabloları</li>
+                  <li>ISO belgeleri ve marka tescilleri, misyon ve vizyon</li>
+                  <li>Toptan teklif ile şikâyet, dilek ve öneri formları</li>
+                  <li>Google'da bulunabilir yapı, telefona uyumlu tasarım</li>
+                </ul>
                 <a href="https://edinlergida.com.tr" className="btn-ghost" target="_blank" rel="noopener">edinlergida.com.tr →</a>
               </div>
             </div>
             <div className="work reveal">
-              <a className="work-shot" href="https://xn--ayazgayrmenkul-dgc.com" target="_blank" rel="noopener" aria-label="Ayaz Gayrimenkul sitesini aç">
-                <div className="work-bar" aria-hidden="true"><i></i><i></i><i></i><span>ayazgayrımenkul.com</span></div>
-                <img src="/isler/ayaz-gayrimenkul.jpg" alt="Ayaz Gayrimenkul web sitesinin ekran görüntüsü" width="1200" height="675" loading="lazy" />
+              <a className="work-shot mock" href="https://xn--ayazgayrmenkul-dgc.com" target="_blank" rel="noopener" aria-label="Ayaz Gayrimenkul sitesini aç">
+                <img src="/isler/ayaz-gayrimenkul.jpg?v=2" alt="Ayaz Gayrimenkul web sitesi: bilgisayar ve telefon görünümü" width="1600" height="1000" loading="lazy" />
               </a>
               <div>
-                <span className="work-tag">Kurumsal web sitesi</span>
+                <span className="work-tag">Kurumsal site ve bilgi portalı</span>
                 <h3>Ayaz Gayrimenkul</h3>
-                <p>Bandırmalı emlak ofisi Ayaz Gayrimenkul Danışmanlığı için hazırladığımız kurumsal site. İlan vitrini yerine ev fikirleri, blog, güncel altın ve döviz fiyatları ile kira artışı hesaplayıcı sunuyor; ziyaretçinin bıraktığı talep doğrudan ofisin paneline düşüyor.</p>
-                <ul><li>Ev arayan ve mülkünü satmak isteyen için talep formu</li><li>Canlı altın, döviz ve kira artışı hesaplayıcı</li><li>Panelden yönetilen blog</li></ul>
+                <p>Bandırmalı emlak ofisi Ayaz Gayrimenkul Danışmanlığı için ilan vitrini yerine bilgi veren bir emlak portalı kurduk. Satın almadan tarlaya, tapudan krediye rehberler; doğru bilinen yanlışlar ve emlak sözlüğüyle ziyaretçiye güven veriyor, bıraktığı talebi doğrudan ofisin paneline iletiyor.</p>
+                <ul>
+                  <li>TÜİK verisinden otomatik kira artış oranı ve hesaplayıcı</li>
+                  <li>Bankaların güncel konut kredisi oranları, banka seçerek taksit hesabı</li>
+                  <li>Canlı altın, gümüş ve döviz; tapu harcı hesaplayıcı</li>
+                  <li>Panelden yönetilen blog ve ev fikirleri, talep formu</li>
+                </ul>
                 <a href="https://xn--ayazgayrmenkul-dgc.com" className="btn-ghost" target="_blank" rel="noopener">ayazgayrımenkul.com →</a>
               </div>
             </div>
