@@ -1,3 +1,4 @@
+import Site from "./Site.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -12835,7 +12836,7 @@ export default function App() {
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
   if (!session) {
     if (showLogin) return <Login onLogin={() => {}} />;
-    return <LandingPage onEnter={() => { setShowLogin(true); window.scrollTo(0,0); }} />;
+    return <Site onEnter={() => { setShowLogin(true); window.scrollTo(0,0); }} />;
   }
 
   // Giriş yapıldı ama çalışan kaydı çözülüyor
