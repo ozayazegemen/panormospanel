@@ -12690,6 +12690,8 @@ export default function App() {
   const [allStaff, setAllStaff] = useState([]);
 
   useEffect(() => {
+    // Herkese açık sayfalarda (QR menü, blog) adrese panel sayfası eklenmesin
+    if (/^\/(m|blog)(\/|$)/.test(window.location.pathname)) return;
     localStorage.setItem('currentPage', page);
     if (window.location.hash.replace('#', '') !== page) {
       window.location.hash = page;
