@@ -150,8 +150,8 @@ function Plak() {
   );
 }
 
-// İlk ekranda balon gibi uçuşan platform logoları (sade çizimler)
-const BALONLAR = [
+// İlk ekranda serbestçe uçuşan platform logoları (sade çizimler)
+const LOGOLAR = [
   { ad: "TikTok", sinif: "b1", ikon: (
     <svg viewBox="0 0 48 48"><g fill="none" strokeWidth="5" strokeLinecap="round"><path d="M27 9v22a7 7 0 1 1-7-7" stroke="#25F4EE" transform="translate(-1.5 -1.5)" /><path d="M27 9v22a7 7 0 1 1-7-7" stroke="#FE2C55" transform="translate(1.5 1.5)" /><path d="M27 9v22a7 7 0 1 1-7-7M27 9c1 5 5 8 10 8" stroke="#111" /></g></svg>
   ) },
@@ -174,6 +174,56 @@ const BALONLAR = [
     <svg viewBox="0 0 48 48"><g fill="none" strokeWidth="6.5"><path d="M36.5 15.5A15 15 0 0 0 10.7 17" stroke="#EA4335" /><path d="M10.7 17a15 15 0 0 0 0 14" stroke="#FBBC05" /><path d="M10.7 31a15 15 0 0 0 24.6 3.4" stroke="#34A853" /><path d="M35.3 34.4A15 15 0 0 0 39 24H24" stroke="#4285F4" /></g></svg>
   ) },
 ];
+
+// Logolar ilk ekranda serbestçe uçuşur: her biri kendi hızıyla gider, kenara çarpınca yön değiştirir,
+// yazıların arkasından geçer (tıklamayı engellemez). Hareket azaltma ayarı açık olanlarda yerinde durur.
+function UcanLogolar() {
+  const kap = useRef(null);
+  useEffect(() => {
+    const el = kap.current;
+    if (!el) return;
+    const ogeler = [...el.children];
+    const durgun = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    let en = el.clientWidth, boy = el.clientHeight;
+    const boyut = () => (en < 640 ? 46 : 70);
+    const durum = ogeler.map((_, i) => {
+      const hiz = 0.35 + Math.random() * 0.45;
+      const aci = Math.random() * Math.PI * 2;
+      return {
+        x: Math.random() * Math.max(1, en - boyut()), y: Math.random() * Math.max(1, boy - boyut()),
+        vx: Math.cos(aci) * hiz, vy: Math.sin(aci) * hiz,
+        r: Math.random() * 40 - 20, vr: (Math.random() - 0.5) * 0.5,
+        faz: i * 1.3,
+      };
+    });
+    let kare = 0, son = performance.now();
+    const ciz = (t) => {
+      const adim = Math.min(3, (t - son) / 16.7); son = t;
+      const b = boyut();
+      durum.forEach((d, i) => {
+        if (!durgun) {
+          d.x += d.vx * adim; d.y += d.vy * adim; d.r += d.vr * adim;
+          if (d.x < 0) { d.x = 0; d.vx = Math.abs(d.vx); }
+          if (d.x > en - b) { d.x = en - b; d.vx = -Math.abs(d.vx); }
+          if (d.y < 0) { d.y = 0; d.vy = Math.abs(d.vy); }
+          if (d.y > boy - b) { d.y = boy - b; d.vy = -Math.abs(d.vy); }
+        }
+        const salin = durgun ? 0 : Math.sin(t / 900 + d.faz) * 6;
+        ogeler[i].style.transform = `translate(${d.x}px, ${d.y + salin}px) rotate(${d.r}deg)`;
+      });
+      kare = requestAnimationFrame(ciz);
+    };
+    kare = requestAnimationFrame(ciz);
+    const boyutla = () => { en = el.clientWidth; boy = el.clientHeight; };
+    window.addEventListener("resize", boyutla);
+    return () => { cancelAnimationFrame(kare); window.removeEventListener("resize", boyutla); };
+  }, []);
+  return (
+    <div className="ucan-logolar" ref={kap} aria-hidden="true">
+      {LOGOLAR.map((b) => <span key={b.ad} className="ucan-logo" title={b.ad}>{b.ikon}</span>)}
+    </div>
+  );
+}
 
 const blogTarihi = (t) => (t ? new Date(t).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }) : "");
 
@@ -276,14 +326,7 @@ export default function Site({ onEnter }) {
             </div>
           </div>
         </div>
-        <div className="balonlar" aria-hidden="true">
-          {BALONLAR.map((b) => (
-            <span key={b.ad} className={`balon ${b.sinif}`} title={b.ad}>
-              <span className="balon-yuz">{b.ikon}</span>
-              <svg className="balon-ip" viewBox="0 0 20 70"><path d="M10 0 C2 18 18 30 10 46 C4 58 14 64 10 70" /></svg>
-            </span>
-          ))}
-        </div>
+        <UcanLogolar />
         <Plak />
       </header>
 
@@ -522,23 +565,9 @@ const SITE_CSS = `
 .pm-site .sekil.s1{width:420px;height:420px;background:var(--sari);top:-120px;right:-80px}
 .pm-site .sekil.s2{width:260px;height:260px;background:var(--pembe);bottom:-90px;right:22%;border-radius:40% 60% 50% 50%}
 .pm-site .sekil.s3{width:150px;height:150px;background:var(--mavi);top:30%;right:6%;border-radius:30px;transform:rotate(18deg)}
-.pm-site .balonlar{position:absolute;inset:0;z-index:1;pointer-events:none}
-.pm-site .balon{position:absolute;display:flex;flex-direction:column;align-items:center;animation:pmBalon 7s ease-in-out infinite;pointer-events:auto}
-.pm-site .balon-yuz{width:78px;height:78px;border-radius:50%;background:#fff;border:3px solid var(--murekkep);box-shadow:5px 5px 0 var(--murekkep),inset -8px -10px 0 rgba(14,14,20,.06);display:flex;align-items:center;justify-content:center;transition:transform .25s}
-.pm-site .balon-yuz svg{width:58%;height:58%}
-.pm-site .balon:hover .balon-yuz{transform:scale(1.15) rotate(-8deg)}
-.pm-site .balon-ip{width:14px;height:52px;margin-top:-2px}
-.pm-site .balon-ip path{fill:none;stroke:var(--murekkep);stroke-width:2;stroke-linecap:round}
-.pm-site .balon.b1{top:15%;right:35%;animation-delay:-1s}
-.pm-site .balon.b2{top:28%;right:20%;animation-delay:-3.5s;animation-duration:8s}
-.pm-site .balon.b3{top:13%;right:7%;animation-delay:-2s}
-.pm-site .balon.b4{top:46%;right:4%;animation-delay:-5s;animation-duration:6.5s}
-.pm-site .balon.b5{bottom:18%;right:43%;animation-delay:-4s;animation-duration:7.5s}
-.pm-site .balon.b6{bottom:6%;right:31%;animation-delay:-6s}
-.pm-site .balon.b7{top:12%;right:52%;animation-delay:-2.8s;animation-duration:8.5s}
-.pm-site .balon.b2 .balon-yuz,.pm-site .balon.b6 .balon-yuz{width:92px;height:92px}
-.pm-site .balon.b4 .balon-yuz,.pm-site .balon.b7 .balon-yuz{width:66px;height:66px}
-@keyframes pmBalon{0%,100%{transform:translateY(0) rotate(-4deg)}25%{transform:translateY(-14px) rotate(3deg)}50%{transform:translateY(-26px) rotate(-2deg)}75%{transform:translateY(-10px) rotate(4deg)}}
+.pm-site .ucan-logolar{position:absolute;inset:80px 0 0;z-index:1;pointer-events:none;overflow:hidden}
+.pm-site .ucan-logo{position:absolute;left:0;top:0;width:70px;height:70px;will-change:transform;filter:drop-shadow(4px 5px 0 rgba(14,14,20,.18))}
+.pm-site .ucan-logo svg{width:100%;height:100%}
 .pm-site .plak{position:absolute;z-index:2;right:8%;bottom:9%;width:170px;display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:none;cursor:pointer;font-family:inherit;color:var(--murekkep);-webkit-tap-highlight-color:transparent}
 .pm-site .plak-disk{position:relative;width:170px;height:170px;border-radius:50%;box-shadow:0 14px 30px rgba(14,14,20,.35),6px 6px 0 var(--murekkep);transition:transform .3s}
 .pm-site .plak:hover .plak-disk{transform:scale(1.06)}
@@ -682,7 +711,7 @@ const SITE_CSS = `
   .pm-site .hizmetler{grid-template-columns:repeat(2,1fr)}
   .pm-site .surec{grid-template-columns:repeat(2,1fr)}
   .pm-site .bloglar{grid-template-columns:1fr 1fr}
-  .pm-site .balon.b7,.pm-site .balon.b1{display:none}
+  
 }
 /* Telefon ve küçük tablet: menü tam ekran açılır */
 @media (max-width:920px){
@@ -706,18 +735,10 @@ const SITE_CSS = `
   .pm-site .alt-dev .c{-webkit-text-stroke-width:3px}
   .pm-site .ust{left:10px;right:10px;padding:8px 8px 8px 16px}
   .pm-site .logo{font-size:16px}
-  .pm-site .hero{padding:130px 0 160px;min-height:auto}
+  .pm-site .hero{padding:130px 0 110px;min-height:auto}
   .pm-site .sekil.s1{width:260px;height:260px;top:-90px;right:-110px}
   .pm-site .sekil.s2{width:160px;height:160px;right:-40px;bottom:-60px}
-  .pm-site .balon .balon-yuz{width:50px!important;height:50px!important;box-shadow:3px 3px 0 var(--murekkep)}
-  .pm-site .balon-ip{height:30px;width:10px}
-  .pm-site .balon.b1,.pm-site .balon.b7{display:flex}
-  .pm-site .balon.b1{top:auto;bottom:3%;right:78%}
-  .pm-site .balon.b2{top:auto;bottom:6%;right:58%}
-  .pm-site .balon.b3{top:auto;bottom:2%;right:40%}
-  .pm-site .balon.b4{top:auto;bottom:7%;right:22%}
-  .pm-site .balon.b5{bottom:3%;right:4%}
-  .pm-site .balon.b6,.pm-site .balon.b7{display:none}
+  .pm-site .ucan-logo{width:46px;height:46px}
   .pm-site .plak{right:8px;bottom:auto;top:80px;width:80px;gap:6px}
   .pm-site .plak-disk{width:80px;height:80px;box-shadow:0 8px 18px rgba(14,14,20,.3),4px 4px 0 var(--murekkep)}
   .pm-site .plak-yazi{font-size:12px;padding:4px 10px}
