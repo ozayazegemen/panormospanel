@@ -80,13 +80,19 @@ async function kiraOraniYukle() {
   }
   hesapla()
 }
+// Tutar kutularında nokta her zaman binlik ayıracıdır, kuruş virgülle yazılır: "18.500" → 18500, "1.8500" → 18500
+const tutarOku = (v) => {
+  const m = String(v ?? '').replace(/[^\d,]/g, '').replace(',', '.')
+  const n = Number(m)
+  return m && Number.isFinite(n) ? n : NaN
+}
 function sayiOku(v) {
   const m = String(v ?? '').replace(/[%\s₺]/g, '')
   const n = Number(m.includes(',') ? m.replace(/\./g, '').replace(',', '.') : m.replace(/\.(?=\d{3}(\D|$))/g, ''))
   return Number.isFinite(n) ? n : NaN
 }
 function hesapla() {
-  const kira = sayiOku($('#kira-gir')?.value), oran = sayiOku($('#oran-gir')?.value), sonuc = $('#kira-sonuc')
+  const kira = tutarOku($('#kira-gir')?.value), oran = sayiOku($('#oran-gir')?.value), sonuc = $('#kira-sonuc')
   if (!sonuc) return
   if (!(kira > 0) || !(oran >= 0)) { sonuc.innerHTML = 'Mevcut kirayı ve oranı yazın, yeni kira burada görünsün.'; return }
   const yeni = kira * (1 + oran / 100)
@@ -363,14 +369,14 @@ document.querySelectorAll('.arac-sekmeler button').forEach((b) => b.addEventList
   document.querySelectorAll('[data-arac-govde]').forEach((g) => { g.hidden = g.dataset.aracGovde !== b.dataset.arac })
 }))
 function tapuHesapla() {
-  const bedel = sayiOku($('#tapu-bedel')?.value), alan = $('#tapu-sonuc')
+  const bedel = tutarOku($('#tapu-bedel')?.value), alan = $('#tapu-sonuc')
   if (!alan) return
   if (!(bedel > 0)) { alan.innerHTML = 'Satış bedelini yazın.'; return }
   const harc = bedel * 0.02
   alan.innerHTML = `Alıcının ödeyeceği harç<b>${para(harc, 0)} ₺</b><span>Satıcı da ayrıca ${para(harc, 0)} ₺ öder. Toplam harç: ${para(harc * 2, 0)} ₺</span>`
 }
 function krediHesapla() {
-  const tutar = sayiOku($('#kredi-tutar')?.value), faiz = sayiOku($('#kredi-faiz')?.value) / 100, vade = Math.round(sayiOku($('#kredi-vade')?.value)), alan = $('#kredi-sonuc')
+  const tutar = tutarOku($('#kredi-tutar')?.value), faiz = sayiOku($('#kredi-faiz')?.value) / 100, vade = Math.round(sayiOku($('#kredi-vade')?.value)), alan = $('#kredi-sonuc')
   if (!alan) return
   if (!(tutar > 0) || !(faiz >= 0) || !(vade > 0)) { alan.innerHTML = 'Tutar, faiz ve vadeyi yazın.'; return }
   const taksit = faiz === 0 ? tutar / vade : tutar * faiz / (1 - Math.pow(1 + faiz, -vade))
