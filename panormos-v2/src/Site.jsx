@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 // panormosmedya.com ana sayfası (giriş yapılmamış ziyaretçinin gördüğü site).
@@ -43,6 +43,137 @@ const SURECLER = [
 
 const SERIT_1 = ["Sosyal medya", "Meta reklam", "Reels", "Tanıtım filmi", "Drone çekimi", "Logo", "Web sitesi", "SEO"];
 const SERIT_2 = ["Ürün çekimi", "Kurumsal kimlik", "Yazılım", "İçerik üretimi", "Menü çekimi", "Baskı", "Promosyon", "Google İşletme"];
+
+// Kendi ürettiğimiz kısa, neşeli bir müzik döngüsü (Web Audio ile çalınır; dosya ve telif yok).
+// Tarayıcılar ses çalmayı ziyaretçi sayfaya en az bir kez tıklamadan başlatmaz:
+// üstüne gelince çalar; hiç tıklanmamışsa plağa tıklamak yeter.
+function muzikKur() {
+  let ctx = null, ana = null, zaman = 0, adim = 0, iv = null, gurultu = null;
+  const BPM = 118, ON6 = 60 / BPM / 4;
+  const AKOR = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // La minör, Fa, Do, Sol
+  const MELODI = [76, 0, 72, 0, 74, 76, 0, 79, 77, 0, 76, 0, 72, 0, 74, 0];
+  const frek = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  function nota(f, t, sure, tip, ses) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = tip; o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(ses, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + sure);
+    o.connect(g); g.connect(ana); o.start(t); o.stop(t + sure + 0.05);
+  }
+  function kick(t) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+    g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    o.connect(g); g.connect(ana); o.start(t); o.stop(t + 0.25);
+  }
+  function hihat(t, ses) {
+    const k = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    k.buffer = gurultu; f.type = "highpass"; f.frequency.value = 7000;
+    g.gain.setValueAtTime(ses, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    k.connect(f); f.connect(g); g.connect(ana); k.start(t); k.stop(t + 0.06);
+  }
+  function planla() {
+    while (zaman < ctx.currentTime + 0.15) {
+      const s = adim % 16, ak = AKOR[Math.floor(adim / 16) % 4];
+      if (s % 4 === 0) kick(zaman);
+      if (s % 2 === 1) hihat(zaman, s % 4 === 3 ? 0.18 : 0.08);
+      if (s === 0 || s === 6 || s === 10) nota(frek(ak[0] - 24), zaman, ON6 * 3, "triangle", 0.45);
+      if (s % 2 === 0) nota(frek(ak[(s / 2) % 3] + 12), zaman, ON6 * 1.6, "square", 0.045);
+      if (s === 0 || s === 8) ak.forEach((m) => nota(frek(m), zaman, ON6 * 7, "sawtooth", 0.035));
+      if (MELODI[s] && Math.floor(adim / 16) % 2 === 1) nota(frek(MELODI[s]), zaman, ON6 * 1.8, "triangle", 0.12);
+      zaman += ON6; adim++;
+    }
+  }
+  return {
+    async baslat() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        ctx = new AC();
+        const yumusat = ctx.createBiquadFilter(); yumusat.type = "lowpass"; yumusat.frequency.value = 5200;
+        ana = ctx.createGain(); ana.gain.value = 0.0001; ana.connect(yumusat); yumusat.connect(ctx.destination);
+        gurultu = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+        const v = gurultu.getChannelData(0); for (let i = 0; i < v.length; i++) v[i] = Math.random() * 2 - 1;
+      }
+      try { await ctx.resume(); } catch (e) {}
+      if (ctx.state !== "running") return false;
+      ana.gain.cancelScheduledValues(ctx.currentTime);
+      ana.gain.setTargetAtTime(0.55, ctx.currentTime, 0.15);
+      if (!iv) { zaman = ctx.currentTime + 0.05; adim = 0; iv = setInterval(planla, 25); }
+      return true;
+    },
+    durdur() {
+      if (!ctx || !iv) return;
+      ana.gain.cancelScheduledValues(ctx.currentTime);
+      ana.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.12);
+      const eski = iv; iv = null;
+      setTimeout(() => clearInterval(eski), 600);
+    },
+  };
+}
+
+function Plak() {
+  const muzik = useRef(null);
+  const [caliyor, setCaliyor] = useState(false);
+  const [tikla, setTikla] = useState(false);
+  const al = () => { if (!muzik.current) muzik.current = muzikKur(); return muzik.current; };
+  const baslat = async () => { const ok = await al().baslat(); setCaliyor(ok); setTikla(!ok); };
+  const durdur = () => { al().durdur(); setCaliyor(false); };
+  useEffect(() => () => muzik.current?.durdur(), []);
+  return (
+    <button
+      type="button"
+      className={`plak${caliyor ? " caliyor" : ""}`}
+      aria-label={caliyor ? "Müziği durdur" : "Müzik dinle"}
+      onMouseEnter={baslat}
+      onMouseLeave={durdur}
+      onClick={() => (caliyor ? durdur() : baslat())}
+    >
+      <span className="plak-disk">
+        <svg className="don-disk" viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="100" fill="#111116" />
+          {[92, 86, 80, 74, 68, 62, 56, 50].map((r) => <circle key={r} cx="100" cy="100" r={r} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="1.2" />)}
+          <circle cx="100" cy="100" r="38" fill="#F25124" />
+          <path d="M100 62 A38 38 0 0 1 138 100 L100 100 Z" fill="#FF2E88" />
+          <path d="M100 138 A38 38 0 0 1 62 100 L100 100 Z" fill="#FFD23F" />
+          <text x="100" y="86" textAnchor="middle" fontFamily="Unbounded, sans-serif" fontWeight="800" fontSize="11" fill="#fff">panormos</text>
+          <text x="100" y="122" textAnchor="middle" fontFamily="Unbounded, sans-serif" fontWeight="800" fontSize="11" fill="#0E0E14">medya</text>
+          <circle cx="100" cy="100" r="5" fill="#FFF6EA" />
+        </svg>
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <path d="M100 100 L40 12 A100 100 0 0 1 100 0 Z" fill="rgba(255,255,255,.10)" />
+          <path d="M100 100 L160 188 A100 100 0 0 1 100 200 Z" fill="rgba(255,255,255,.08)" />
+        </svg>
+        <span className="nota" aria-hidden="true">♪</span><span className="nota n2" aria-hidden="true">♫</span><span className="nota n3" aria-hidden="true">♪</span>
+      </span>
+      <span className="plak-yazi">{caliyor ? "çalıyor ♪" : tikla ? "tıkla, dinle :)" : "dinle :)"}</span>
+    </button>
+  );
+}
+
+// İlk ekranda balon gibi uçuşan platform logoları (sade çizimler)
+const BALONLAR = [
+  { ad: "TikTok", sinif: "b1", ikon: (
+    <svg viewBox="0 0 48 48"><g fill="none" strokeWidth="5" strokeLinecap="round"><path d="M27 9v22a7 7 0 1 1-7-7" stroke="#25F4EE" transform="translate(-1.5 -1.5)" /><path d="M27 9v22a7 7 0 1 1-7-7" stroke="#FE2C55" transform="translate(1.5 1.5)" /><path d="M27 9v22a7 7 0 1 1-7-7M27 9c1 5 5 8 10 8" stroke="#111" /></g></svg>
+  ) },
+  { ad: "Instagram", sinif: "b2", ikon: (
+    <svg viewBox="0 0 48 48"><defs><linearGradient id="pm-ig" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#FEDA75" /><stop offset=".35" stopColor="#FA7E1E" /><stop offset=".6" stopColor="#D62976" /><stop offset="1" stopColor="#4F5BD5" /></linearGradient></defs><rect x="7" y="7" width="34" height="34" rx="10" fill="url(#pm-ig)" /><circle cx="24" cy="24" r="7.5" fill="none" stroke="#fff" strokeWidth="3.5" /><circle cx="33" cy="15" r="2.3" fill="#fff" /></svg>
+  ) },
+  { ad: "YouTube", sinif: "b3", ikon: (
+    <svg viewBox="0 0 48 48"><rect x="5" y="11" width="38" height="26" rx="8" fill="#FF0000" /><path d="M20 17.5v13l11-6.5z" fill="#fff" /></svg>
+  ) },
+  { ad: "X", sinif: "b4", ikon: (
+    <svg viewBox="0 0 48 48"><path d="M12 11h7l17 26h-7z" fill="#111" /><path d="M35 11 13 37" stroke="#111" strokeWidth="3.5" strokeLinecap="round" /></svg>
+  ) },
+  { ad: "Facebook", sinif: "b5", ikon: (
+    <svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="#1877F2" /><path d="M26.5 40V27h4.2l.7-5h-4.9v-3.1c0-1.4.5-2.4 2.5-2.4h2.6v-4.4c-.5-.1-2-.2-3.8-.2-3.7 0-6.2 2.3-6.2 6.4V22h-4.2v5h4.2v13" fill="#fff" /></svg>
+  ) },
+  { ad: "Meta", sinif: "b6", ikon: (
+    <svg viewBox="0 0 48 48"><defs><linearGradient id="pm-meta" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="#0064E0" /><stop offset="1" stopColor="#0082FB" /></linearGradient></defs><path d="M9 30c0-9 5-15 9.5-15 4 0 6.5 4 10.5 11s5.5 9 8 9c2.5 0 3.5-2.5 3.5-6 0-6-3-14-8-14-3.5 0-6 4-9.5 10S16 35 12.5 35C10 35 9 33 9 30Z" fill="none" stroke="url(#pm-meta)" strokeWidth="4.2" strokeLinejoin="round" /></svg>
+  ) },
+  { ad: "Google", sinif: "b7", ikon: (
+    <svg viewBox="0 0 48 48"><g fill="none" strokeWidth="6.5"><path d="M36.5 15.5A15 15 0 0 0 10.7 17" stroke="#EA4335" /><path d="M10.7 17a15 15 0 0 0 0 14" stroke="#FBBC05" /><path d="M10.7 31a15 15 0 0 0 24.6 3.4" stroke="#34A853" /><path d="M35.3 34.4A15 15 0 0 0 39 24H24" stroke="#4285F4" /></g></svg>
+  ) },
+];
 
 const blogTarihi = (t) => (t ? new Date(t).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }) : "");
 
@@ -130,13 +261,12 @@ export default function Site({ onEnter }) {
       <header id="lp-top" className="hero">
         <div className="sekil s1" aria-hidden="true" />
         <div className="sekil s2" aria-hidden="true" />
-        <div className="sekil s3" aria-hidden="true" />
         <div className="kap">
           <span className="ust-etiket"><span className="nabiz" />Bandırma'dan dijital ajans</span>
           <h1>
             <span className="satir dolu">MARKANI</span>
+            <span className="satir cizgi">DİJİTALDE</span>
             <span className="satir donen" key={kelime}><span>{ROTATOR[kelime]}</span></span>
-            <span className="satir cizgi">DİJİTALDE.</span>
           </h1>
           <div className="hero-alt">
             <p>Sosyal medya, reklam, çekim, tasarım ve yazılım tek çatı altında. Markanı görünür, aranır ve konuşulur yapan ekip.</p>
@@ -146,19 +276,15 @@ export default function Site({ onEnter }) {
             </div>
           </div>
         </div>
-        <div className="etiketler" aria-hidden="true">
-          <span className="et e1">Reels</span>
-          <span className="et e2">Meta reklam</span>
-          <span className="et e3">Drone</span>
-          <span className="et e4">Web sitesi</span>
-          <span className="et e5">Logo</span>
+        <div className="balonlar" aria-hidden="true">
+          {BALONLAR.map((b) => (
+            <span key={b.ad} className={`balon ${b.sinif}`} title={b.ad}>
+              <span className="balon-yuz">{b.ikon}</span>
+              <svg className="balon-ip" viewBox="0 0 20 70"><path d="M10 0 C2 18 18 30 10 46 C4 58 14 64 10 70" /></svg>
+            </span>
+          ))}
         </div>
-        <svg className="donen-rozet" viewBox="0 0 200 200" aria-hidden="true">
-          <defs><path id="pm-cember" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" /></defs>
-          <circle cx="100" cy="100" r="98" />
-          <text><textPath href="#pm-cember">PANORMOS MEDYA ✶ BANDIRMA ✶ DİJİTAL AJANS ✶ </textPath></text>
-          <path className="ok" d="M86 114 L114 86 M94 86 H114 V106" />
-        </svg>
+        <Plak />
       </header>
 
       <div className="seritler">
@@ -385,7 +511,7 @@ const SITE_CSS = `
 @keyframes pmNabiz{70%{box-shadow:0 0 0 12px rgba(181,242,61,0)}100%{box-shadow:0 0 0 0 rgba(181,242,61,0)}}
 .pm-site h1{font-size:clamp(38px,8vw,122px);margin-bottom:34px}
 .pm-site h1 .satir{display:block;transform:skewX(-9deg);transform-origin:left}
-.pm-site h1 .donen{margin:6px 0}
+.pm-site h1 .donen{margin:8px 0 0}
 .pm-site h1 .donen span{display:inline-block;background:var(--turuncu);color:#fff;padding:0 .14em .04em;border-radius:.12em;animation:pmDon .5s cubic-bezier(.2,.9,.3,1.3)}
 @keyframes pmDon{from{transform:translateY(40%) rotate(-4deg);opacity:0}to{transform:none;opacity:1}}
 .pm-site h1 .cizgi{-webkit-text-stroke:5px var(--murekkep)}
@@ -396,18 +522,36 @@ const SITE_CSS = `
 .pm-site .sekil.s1{width:420px;height:420px;background:var(--sari);top:-120px;right:-80px}
 .pm-site .sekil.s2{width:260px;height:260px;background:var(--pembe);bottom:-90px;right:22%;border-radius:40% 60% 50% 50%}
 .pm-site .sekil.s3{width:150px;height:150px;background:var(--mavi);top:30%;right:6%;border-radius:30px;transform:rotate(18deg)}
-.pm-site .etiketler{position:absolute;inset:0;z-index:1;pointer-events:none}
-.pm-site .et{position:absolute;font-family:'Unbounded',sans-serif;font-weight:800;font-size:15px;padding:10px 18px;border-radius:100px;border:2px solid var(--murekkep);box-shadow:4px 4px 0 var(--murekkep);animation:pmYuz 6s ease-in-out infinite}
-.pm-site .et.e1{background:var(--yesil);top:18%;right:30%;transform:rotate(-8deg)}
-.pm-site .et.e2{background:#fff;top:46%;right:4%;transform:rotate(6deg);animation-delay:-1.5s}
-.pm-site .et.e3{background:var(--mor);color:#fff;top:24%;right:5%;transform:rotate(10deg);animation-delay:-3s}
-.pm-site .et.e4{background:var(--sari);bottom:30%;right:30%;transform:rotate(-5deg);animation-delay:-2s}
-.pm-site .et.e5{background:var(--turuncu);color:#fff;bottom:40%;right:14%;transform:rotate(12deg);animation-delay:-4s}
-@keyframes pmYuz{0%,100%{translate:0 0}50%{translate:0 -12px}}
-.pm-site .donen-rozet{position:absolute;z-index:2;width:150px;height:150px;left:auto;right:9%;bottom:12%;animation:pmCevir 14s linear infinite}
-.pm-site .donen-rozet circle{fill:var(--murekkep)}
-.pm-site .donen-rozet text{fill:#fff;font-family:'Unbounded',sans-serif;font-weight:700;font-size:15.5px;letter-spacing:2px}
-.pm-site .donen-rozet .ok{stroke:var(--sari);stroke-width:6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.pm-site .balonlar{position:absolute;inset:0;z-index:1;pointer-events:none}
+.pm-site .balon{position:absolute;display:flex;flex-direction:column;align-items:center;animation:pmBalon 7s ease-in-out infinite;pointer-events:auto}
+.pm-site .balon-yuz{width:78px;height:78px;border-radius:50%;background:#fff;border:3px solid var(--murekkep);box-shadow:5px 5px 0 var(--murekkep),inset -8px -10px 0 rgba(14,14,20,.06);display:flex;align-items:center;justify-content:center;transition:transform .25s}
+.pm-site .balon-yuz svg{width:58%;height:58%}
+.pm-site .balon:hover .balon-yuz{transform:scale(1.15) rotate(-8deg)}
+.pm-site .balon-ip{width:14px;height:52px;margin-top:-2px}
+.pm-site .balon-ip path{fill:none;stroke:var(--murekkep);stroke-width:2;stroke-linecap:round}
+.pm-site .balon.b1{top:15%;right:35%;animation-delay:-1s}
+.pm-site .balon.b2{top:28%;right:20%;animation-delay:-3.5s;animation-duration:8s}
+.pm-site .balon.b3{top:13%;right:7%;animation-delay:-2s}
+.pm-site .balon.b4{top:46%;right:4%;animation-delay:-5s;animation-duration:6.5s}
+.pm-site .balon.b5{bottom:18%;right:43%;animation-delay:-4s;animation-duration:7.5s}
+.pm-site .balon.b6{bottom:6%;right:31%;animation-delay:-6s}
+.pm-site .balon.b7{top:12%;right:52%;animation-delay:-2.8s;animation-duration:8.5s}
+.pm-site .balon.b2 .balon-yuz,.pm-site .balon.b6 .balon-yuz{width:92px;height:92px}
+.pm-site .balon.b4 .balon-yuz,.pm-site .balon.b7 .balon-yuz{width:66px;height:66px}
+@keyframes pmBalon{0%,100%{transform:translateY(0) rotate(-4deg)}25%{transform:translateY(-14px) rotate(3deg)}50%{transform:translateY(-26px) rotate(-2deg)}75%{transform:translateY(-10px) rotate(4deg)}}
+.pm-site .plak{position:absolute;z-index:2;right:8%;bottom:9%;width:170px;display:flex;flex-direction:column;align-items:center;gap:10px;background:none;border:none;cursor:pointer;font-family:inherit;color:var(--murekkep);-webkit-tap-highlight-color:transparent}
+.pm-site .plak-disk{position:relative;width:170px;height:170px;border-radius:50%;box-shadow:0 14px 30px rgba(14,14,20,.35),6px 6px 0 var(--murekkep);transition:transform .3s}
+.pm-site .plak:hover .plak-disk{transform:scale(1.06)}
+.pm-site .plak-disk svg{position:absolute;inset:0;width:100%;height:100%}
+.pm-site .plak-disk .don-disk{animation:pmCevir 4s linear infinite}
+.pm-site .plak.caliyor .plak-disk .don-disk{animation-duration:1.6s}
+.pm-site .plak-yazi{font-family:'Unbounded',sans-serif;font-weight:800;font-size:15px;background:var(--sari);border:2px solid var(--murekkep);box-shadow:3px 3px 0 var(--murekkep);border-radius:100px;padding:6px 14px;transform:rotate(-4deg);white-space:nowrap}
+.pm-site .plak.caliyor .plak-yazi{background:var(--yesil)}
+.pm-site .plak .nota{position:absolute;font-size:22px;font-weight:900;opacity:0;pointer-events:none}
+.pm-site .plak.caliyor .nota{animation:pmNota 1.8s ease-out infinite}
+.pm-site .plak .nota.n2{animation-delay:.6s!important;left:10px}
+.pm-site .plak .nota.n3{animation-delay:1.2s!important;right:6px}
+@keyframes pmNota{0%{opacity:0;transform:translate(0,40px) rotate(-10deg)}20%{opacity:1}100%{opacity:0;transform:translate(14px,-50px) rotate(15deg)}}
 @keyframes pmCevir{to{transform:rotate(360deg)}}
 
 /* Eğik kayan şeritler */
@@ -538,7 +682,7 @@ const SITE_CSS = `
   .pm-site .hizmetler{grid-template-columns:repeat(2,1fr)}
   .pm-site .surec{grid-template-columns:repeat(2,1fr)}
   .pm-site .bloglar{grid-template-columns:1fr 1fr}
-  .pm-site .et.e1,.pm-site .et.e4{display:none}
+  .pm-site .balon.b7,.pm-site .balon.b1{display:none}
 }
 /* Telefon ve küçük tablet: menü tam ekran açılır */
 @media (max-width:920px){
@@ -562,12 +706,21 @@ const SITE_CSS = `
   .pm-site .alt-dev .c{-webkit-text-stroke-width:3px}
   .pm-site .ust{left:10px;right:10px;padding:8px 8px 8px 16px}
   .pm-site .logo{font-size:16px}
-  .pm-site .hero{padding:130px 0 90px;min-height:auto}
+  .pm-site .hero{padding:130px 0 160px;min-height:auto}
   .pm-site .sekil.s1{width:260px;height:260px;top:-90px;right:-110px}
   .pm-site .sekil.s2{width:160px;height:160px;right:-40px;bottom:-60px}
-  .pm-site .sekil.s3{display:none}
-  .pm-site .et{display:none}
-  .pm-site .donen-rozet{display:none}
+  .pm-site .balon .balon-yuz{width:50px!important;height:50px!important;box-shadow:3px 3px 0 var(--murekkep)}
+  .pm-site .balon-ip{height:30px;width:10px}
+  .pm-site .balon.b1,.pm-site .balon.b7{display:flex}
+  .pm-site .balon.b1{top:auto;bottom:3%;right:78%}
+  .pm-site .balon.b2{top:auto;bottom:6%;right:58%}
+  .pm-site .balon.b3{top:auto;bottom:2%;right:40%}
+  .pm-site .balon.b4{top:auto;bottom:7%;right:22%}
+  .pm-site .balon.b5{bottom:3%;right:4%}
+  .pm-site .balon.b6,.pm-site .balon.b7{display:none}
+  .pm-site .plak{right:8px;bottom:auto;top:80px;width:80px;gap:6px}
+  .pm-site .plak-disk{width:80px;height:80px;box-shadow:0 8px 18px rgba(14,14,20,.3),4px 4px 0 var(--murekkep)}
+  .pm-site .plak-yazi{font-size:12px;padding:4px 10px}
   .pm-site h1{font-size:clamp(30px,9.6vw,60px)}
   .pm-site h1 .donen{font-size:.84em}
   .pm-site h1 .cizgi,.pm-site .dev .cizgi,.pm-site .koyu-yazi .cizgi{-webkit-text-stroke-width:3px}
