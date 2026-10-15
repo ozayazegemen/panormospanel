@@ -409,4 +409,26 @@ document.querySelectorAll('#kira-gir, #tapu-bedel, #kredi-tutar, #t-butce').forE
   tutarBicimle(el)
 })
 
+// ---- Kredi hesaplayıcı: bankaların güncel konut kredisi oranları (sunucu işlevi, 6 saatte bir yenilenir) ----
+async function bankaOranlariYukle() {
+  const kutu = $('#banka-sec'), dugmeler = $('#banka-dugmeler')
+  if (!kutu) return
+  let v = null
+  try { v = await (await fetch('/.netlify/functions/kredi')).json() } catch (e) { return }
+  const liste = v?.bankalar ?? []
+  if (!liste.length) return
+  dugmeler.innerHTML = liste.map((b, i) => `<button type="button" data-oran="${b.oran}" data-banka="${kacis(b.banka)}"${i === 0 ? ' class="en-dusuk"' : ''}><b>${kacis(b.banka)}</b><span>%${para(b.oran)}${b.katilim ? ' kâr payı' : ''}</span></button>`).join('')
+  const tarih = v.guncelleme ? new Date(v.guncelleme).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' }) : ''
+  $('#banka-not').textContent = `${para(v.tutar, 0)} ₺ ve ${v.vade} ay vade için bankaların ilan ettiği aylık oranlar${tarih ? ` (${tarih})` : ''}. Kaynak: ${v.kaynak}. Oranlar tutara, vadeye ve kişiye göre değişebilir.`
+  kutu.hidden = false
+  dugmeler.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return
+    dugmeler.querySelectorAll('button').forEach((x) => x.classList.toggle('secili', x === b))
+    $('#kredi-faiz').value = para(Number(b.dataset.oran))
+    if (!$('#kredi-vade').value) $('#kredi-vade').value = '120'
+    krediHesapla()
+  })
+}
+bankaOranlariYukle()
+
 const yil = $('#yil'); if (yil) yil.textContent = new Date().getFullYear()

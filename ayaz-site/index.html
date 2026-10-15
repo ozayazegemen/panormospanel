@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/ayaz.css?v=6">
+<link rel="stylesheet" href="/ayaz.css?v=7">
 </head>
 <body>
 
@@ -176,11 +176,16 @@
         <div class="arac-sonuc"><div class="sonuc" id="tapu-sonuc" aria-live="polite">Satış bedelini yazın.</div></div>
       </div>
       <div class="arac" data-arac-govde="kredi" hidden>
+        <div class="banka-sec" id="banka-sec" hidden>
+          <span class="banka-sec-baslik">Banka seçin, güncel aylık faiz kendiliğinden yazılsın:</span>
+          <div class="banka-dugmeler" id="banka-dugmeler" role="group" aria-label="Banka seçin"></div>
+          <small class="banka-not" id="banka-not"></small>
+        </div>
         <div class="arac-form">
           <div><label for="kredi-tutar">Kredi tutarı (₺)</label><input id="kredi-tutar" inputmode="decimal" placeholder="Örneğin 2.000.000"></div>
           <div><label for="kredi-faiz">Aylık faiz (%)</label><input id="kredi-faiz" inputmode="decimal" placeholder="Örneğin 2,79"></div>
           <div><label for="kredi-vade">Vade (ay)</label><input id="kredi-vade" inputmode="numeric" placeholder="Örneğin 120"></div>
-          <p class="arac-not">Eşit taksitli hesaplamadır; vergi, sigorta ve masraflar dahil değildir. Güncel oranlar için bankanıza danışın.</p>
+          <p class="arac-not">Eşit taksitli hesaplamadır; vergi, sigorta ve masraflar dahil değildir. Kesin teklif için bankanıza danışın.</p>
         </div>
         <div class="arac-sonuc"><div class="sonuc" id="kredi-sonuc" aria-live="polite">Tutar, faiz ve vadeyi yazın.</div></div>
       </div>
@@ -357,6 +362,6 @@
 </aside>
 
 <div class="buyutec" id="buyutec" role="dialog" aria-label="Büyük görsel"><img alt=""></div>
-<script src="/ayaz.js?v=10" defer></script>
+<script src="/ayaz.js?v=11" defer></script>
 </body>
 </html>
