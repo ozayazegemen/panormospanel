@@ -332,6 +332,13 @@ async function portalYukle() {
     }).join('')
     belirmeyiBaslat()
   }
+  // Ev fikirleri: "Ev tasarımı" yazıları görsel kartlar olarak; panelden yazılan her yeni fikir burada çıkar
+  const fikirler = $('#fikirler')
+  if (fikirler) {
+    const liste = yazilar.filter((y) => y.kategori === 'Ev tasarımı').slice(0, 6)
+    fikirler.innerHTML = liste.length ? liste.map((y, i) => `<a class="fikir${i === 0 ? ' genis' : ''}" href="${adres(y)}" data-belir>${y.kapak ? `<img src="${kacis(y.kapak)}" alt="" loading="lazy">` : ''}<div><b>${kacis(y.baslik)}</b>${i === 0 && y.ozet ? `<p>${kacis(y.ozet)}</p>` : ''}<span>Fikri oku →</span></div></a>`).join('') : '<p class="bos">Ev fikirleri yakında burada.</p>'
+    belirmeyiBaslat()
+  }
 }
 portalYukle()
 
