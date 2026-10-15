@@ -5,7 +5,7 @@ const VERI = 'https://pjkjeetcodqvwnwgmktt.supabase.co/rest/v1/'
 const ANAHTAR = 'sb_publishable_E7p4PBeVosh5dny_7Yi7SA_zBLdS-Is'
 
 exports.handler = async () => {
-  const adresler = [{ loc: SITE + '/' }, { loc: SITE + '/blog' }]
+  const adresler = ['/', '/kurumsal', '/hizmetler', '/iletisim', '/blog'].map((y) => ({ loc: SITE + y }))
   try {
     const r = await fetch(`${VERI}blog_yazilari?site=eq.ayaz&yayinda=eq.true&select=slug,yayin_tarihi,guncellenme&order=yayin_tarihi.desc`, { headers: { apikey: ANAHTAR } })
     const yazilar = r.ok ? await r.json() : []
