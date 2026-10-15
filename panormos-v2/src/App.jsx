@@ -1198,7 +1198,7 @@ function MessagingPanel({clientId, clientName, onClose}) {
   
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2500,backdropFilter:"blur(4px)"}} onClick={onClose}>
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,width:420,height:500,display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,width:420,height:500,display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
         <div style={{padding:"16px 20px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{clientName}</div>
@@ -1376,7 +1376,7 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
   
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2500,backdropFilter:"blur(4px)"}} onClick={onClose}>
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,maxWidth:500,width:"90%"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:24,maxWidth:500,width:"90%"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
           <div style={{fontSize:15,fontWeight:600,color:T.textPrimary}}>📁 Dosya Yükle</div>
           <button onClick={onClose} style={{background:"none",border:"none",color:T.textMuted,fontSize:18,cursor:"pointer"}}>✕</button>
@@ -1520,13 +1520,13 @@ function Avatar({initials,color,size=36}) {
 
 function Card({children,style={},onClick,hover=false}) {
   const [hov,setHov]=useState(false);
-  return <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:hov&&hover?T.bgCardHover:T.bgCard,border:`1px solid ${hov&&hover?T.borderLight:T.border}`,borderRadius:14,boxShadow:T.shadow,transition:"all 0.15s ease",cursor:onClick?"pointer":"default",...style}}>{children}</div>;
+  return <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:hov&&hover?T.bgCardHover:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderRadius:18,boxShadow:T.shadow,transform:hov&&hover?"translate(-2px,-2px)":"none",transition:"all 0.15s ease",cursor:onClick?"pointer":"default",...style}}>{children}</div>;
 }
 
 function StatCard({label,value,color,sub}) {
-  return <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px",boxShadow:T.shadow}}>
-    <div style={{fontSize:10.5,color:T.textMuted,marginBottom:8,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase"}}>{label}</div>
-    <div style={{fontSize:23,fontWeight:700,color:color||T.textPrimary,letterSpacing:"-0.02em",lineHeight:1.15}}>{value}</div>
+  return <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderRadius:18,padding:"16px 18px",boxShadow:T.shadow,borderTop:`5px solid ${color||T.amber}`}}>
+    <div style={{fontSize:10.5,color:T.textMuted,marginBottom:8,fontWeight:700,letterSpacing:"0.07em",textTransform:"uppercase"}}>{label}</div>
+    <div className="pm-sayi" style={{fontSize:23,fontWeight:800,color:color||T.textPrimary,letterSpacing:"-0.02em",lineHeight:1.15}}>{value}</div>
     {sub&&<div style={{fontSize:11.5,color:T.textMuted,marginTop:6}}>{sub}</div>}
   </div>;
 }
@@ -1534,17 +1534,17 @@ function StatCard({label,value,color,sub}) {
 function Btn({children,onClick,variant="ghost",style={},disabled=false,title}) {
   const [hov,setHov]=useState(false);
   const styles={
-    primary:{background:T.amber,color:T.white,border:"1px solid transparent",boxShadow:"0 1px 2px rgba(0,0,0,0.3), 0 6px 16px -8px rgba(242,81,36,0.7)"},
+    primary:{background:T.amber,color:T.white,border:`1.5px solid ${THEME==="light"?"#0E0E14":"transparent"}`,boxShadow:hov?`3px 3px 0 ${THEME==="light"?"#0E0E14":"#FFD23F"}`:"none",transform:hov?"translate(-1px,-1px)":"none"},
     ghost:{background:hov?T.bgSurface:"transparent",color:hov?T.textPrimary:T.textSecondary,border:`1px solid ${hov?T.borderLight:T.border}`},
   };
-  return <button onClick={onClick} disabled={disabled} title={title} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12.5,fontWeight:600,padding:"7px 14px",borderRadius:9,cursor:disabled?"default":"pointer",opacity:disabled?0.55:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
+  return <button onClick={onClick} disabled={disabled} title={title} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{fontSize:12.5,fontWeight:700,padding:"7px 14px",borderRadius:11,cursor:disabled?"default":"pointer",opacity:disabled?0.55:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,transition:"all 0.12s ease",...styles[variant],...style}}>{children}</button>;
 }
 
 function Modal({title,onClose,children,width=500}) {
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,backdropFilter:"blur(6px)"}} onMouseDown={e=>{ if(e.target===e.currentTarget) e.currentTarget.dataset.closing="1"; else delete e.currentTarget.dataset.closing; }} onClick={e=>{ if(e.target===e.currentTarget && e.currentTarget.dataset.closing==="1") onClose(); delete e.currentTarget.dataset.closing; }}>
-    <div className="pm-modal" style={{background:T.bgCard,border:`1px solid ${T.borderLight}`,borderRadius:18,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 70px -12px rgba(0,0,0,0.75)"}}>
+    <div className="pm-modal" style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderRadius:22,padding:24,width:"90%",maxWidth:width,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 24px 70px -12px rgba(0,0,0,0.75)"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:18,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:16,fontWeight:700,color:T.textPrimary,letterSpacing:"-0.01em"}}>{title}</div>
+        <div className="pm-baslik" style={{fontSize:16,color:T.textPrimary}}>{title}</div>
         <button onClick={onClose} aria-label="Kapat" className="pm-icon-btn" style={{background:"transparent",border:"none",color:T.textMuted,fontSize:15,cursor:"pointer",lineHeight:1,width:30,height:30,borderRadius:8,flexShrink:0}}>✕</button>
       </div>
       {children}
@@ -4003,7 +4003,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
     {selectedTask && (
       <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setSelectedTask(null)}>
-        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:400}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:24,width:400}} onClick={e=>e.stopPropagation()}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
             <div style={{fontSize:16,fontWeight:600,color:T.textPrimary}}>{selectedTask.title}</div>
             <button onClick={()=>setSelectedTask(null)} style={{background:"none",border:"none",color:T.textMuted,fontSize:20,cursor:"pointer"}}>✕</button>
@@ -4050,7 +4050,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
     {deleteModal && (
       <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}} onClick={()=>setDeleteModal(null)}>
-        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:420}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:24,width:420}} onClick={e=>e.stopPropagation()}>
           <div style={{fontSize:15,fontWeight:600,color:T.textPrimary,marginBottom:16}}>Görevi Sil</div>
           <FormField label="Silme Sebebi">
             <Select value={deleteModal.reason} onChange={e=>setDeleteModal({...deleteModal,reason:e.target.value})}>
@@ -4072,7 +4072,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     {/* Revize Modalı */}
     {revisionModal && (
       <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1001}} onClick={()=>setRevisionModal(null)}>
-        <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:24,width:440}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:24,width:440}} onClick={e=>e.stopPropagation()}>
           <div style={{fontSize:15,fontWeight:700,color:T.textPrimary,marginBottom:6}}>🔄 Revize Al</div>
           <div style={{fontSize:12,color:T.textMuted,marginBottom:16,lineHeight:1.5}}>Görev "Revize" kolonuna taşınacak. Revizeyi <strong style={{color:T.textPrimary}}>{currentStaff?.name}</strong> olarak, şu an ({new Date().toLocaleDateString("tr-TR")} {new Date().toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}) kaydedilecek.</div>
           <FormField label="Revize Açıklaması (ne değişmeli?)">
@@ -5889,7 +5889,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
 
   const NavCard = ({icon,label,value,sub,color,target}) => (
     <div onClick={()=>setPage(target)} style={{
-      background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",
+      background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:"20px",
       cursor:"pointer",transition:"all 0.15s ease",
     }}
     onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderLight;e.currentTarget.style.background=T.bgCardHover;}}
@@ -5908,7 +5908,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
     <div style={{marginBottom:24,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
       <div>
         {(() => { const g = dashboardGreeting(currentStaff?.name, today); return <>
-          <div style={{fontSize:22,fontWeight:700,color:T.textPrimary}}>{g.title}</div>
+          <div className="pm-baslik pm-egik" style={{fontSize:26,color:T.textPrimary}}>{g.title} <span className="pm-el" aria-hidden="true">👋</span></div>
           <div style={{fontSize:13,color:T.textSecondary,marginTop:6,fontStyle:"italic"}}>{g.line}</div>
           <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
         </>; })()}
@@ -5948,13 +5948,13 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
       ];
       const greeting = (()=>{ const h=today.getHours(); if(h<12) return "Günaydın ☀️"; if(h<18) return "İyi çalışmalar 👋"; return "İyi akşamlar 🌙"; })();
       return (
-        <div style={{background:`linear-gradient(135deg, ${T.bgCard}, rgba(99,102,241,0.08))`,border:`1px solid ${T.border}`,borderRadius:14,padding:"16px 18px",marginBottom:16}}>
-          <div style={{fontSize:13,fontWeight:700,color:T.textPrimary,marginBottom:12}}>{greeting} — İşte bugünün özeti:</div>
+        <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderRadius:20,padding:"18px 18px",marginBottom:18,boxShadow:T.shadow}}>
+          <div style={{fontSize:13.5,fontWeight:800,color:T.textPrimary,marginBottom:12}}>{greeting} — İşte bugünün özeti:</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:10}}>
             {items.map((it,i)=>(
-              <div key={i} onClick={()=>setPage(it.page)} style={{background:T.bgInput,borderRadius:10,padding:"12px 14px",cursor:"pointer",transition:"transform .15s",display:"flex",flexDirection:"column",gap:3}}
-                onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
-                <div style={{fontSize:22,fontWeight:800,color:it.val>0?it.color:T.textMuted,lineHeight:1}}>{it.val}</div>
+              <div key={i} className="pm-ozet" onClick={()=>setPage(it.page)} style={{background:it.val>0?`${PM_RENKLER[i%PM_RENKLER.length]}1F`:T.bgInput,border:`1.5px solid ${it.val>0?PM_RENKLER[i%PM_RENKLER.length]:T.border}`,borderRadius:14,padding:"12px 14px",cursor:"pointer",transition:"transform .15s",display:"flex",flexDirection:"column",gap:3}}
+                onMouseEnter={e=>e.currentTarget.style.transform="translateY(-3px) rotate(-1deg)"} onMouseLeave={e=>e.currentTarget.style.transform="none"}>
+                <div className="pm-sayi" style={{fontSize:24,color:it.val>0?it.color:T.textMuted,lineHeight:1}}>{it.val}</div>
                 <div style={{fontSize:11,color:T.textMuted}}>{it.icon} {it.label}</div>
               </div>
             ))}
@@ -5969,27 +5969,27 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
     {/* Finansal Özet - sadece yönetici görür */}
     {perms.companyFinance && (
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:16}}>
-      <div style={{background:`linear-gradient(135deg, ${T.bgCard}, ${T.indigoDim})`,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
-        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Toplam Ciro</div>
-        <div style={{fontSize:26,fontWeight:700,color:T.textPrimary}}>{fmtMoney(totalRevenue)}</div>
+      <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderTop:"6px solid #2D5BFF",borderRadius:18,padding:"20px",boxShadow:T.shadow}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Toplam Ciro</div>
+        <div className="pm-sayi" style={{fontSize:26,color:T.textPrimary}}>{fmtMoney(totalRevenue)}</div>
       </div>
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
-        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Tahsil Edilen</div>
-        <div style={{fontSize:26,fontWeight:700,color:T.greenText}}>{fmtMoney(paidRevenue)}</div>
+      <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderTop:"6px solid #22C55E",borderRadius:18,padding:"20px",boxShadow:T.shadow}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Tahsil Edilen</div>
+        <div className="pm-sayi" style={{fontSize:26,color:T.greenText}}>{fmtMoney(paidRevenue)}</div>
       </div>
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
-        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Bekleyen Tahsilat</div>
-        <div style={{fontSize:26,fontWeight:700,color:T.amberText}}>{fmtMoney(pendingRevenue)}</div>
+      <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderTop:"6px solid #FF2E88",borderRadius:18,padding:"20px",boxShadow:T.shadow}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Bekleyen Tahsilat</div>
+        <div className="pm-sayi" style={{fontSize:26,color:T.amberText}}>{fmtMoney(pendingRevenue)}</div>
       </div>
-      <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px"}}>
-        <div style={{fontSize:11,color:T.textMuted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:8}}>Aylık Gelir</div>
-        <div style={{fontSize:26,fontWeight:700,color:T.indigoText}}>{fmtMoney(monthlyTotal)}</div>
+      <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,borderTop:"6px solid #FFD23F",borderRadius:18,padding:"20px",boxShadow:T.shadow}}>
+        <div style={{fontSize:11,color:T.textMuted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:8}}>Aylık Gelir</div>
+        <div className="pm-sayi" style={{fontSize:26,color:T.indigoText}}>{fmtMoney(monthlyTotal)}</div>
       </div>
     </div>
     )}
 
     {/* Bugün */}
-    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
+    <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:"20px",marginBottom:16}}>
       <div style={{fontSize:14,fontWeight:600,color:T.textPrimary,marginBottom:14}}>📅 Bugün ({todayName})</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <div>
@@ -6058,7 +6058,7 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
     })()}
 
     {/* Görev İlerlemesi */}
-    <div style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:14,padding:"20px",marginBottom:16}}>
+    <div style={{background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:"20px",marginBottom:16}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
         <span style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>📋 Görev İlerlemesi</span>
         <span style={{fontSize:16,fontWeight:700,color:T.amber}}>{taskProgress}%</span>
@@ -6168,7 +6168,7 @@ function RevenueChart() {
   const chartH = 160;
 
   return (
-    <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginTop: 24 }}>
+    <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 20, marginTop: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>📊 Gelir - Gider - Kâr/Zarar (Son 6 Ay)</div>
         <div style={{ display: "flex", gap: 16, fontSize: 12 }}>
@@ -6280,7 +6280,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
     <div style={{ marginTop: 24 }}>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* Ayrılan Müşteriler */}
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+        <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 18 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>🚪 Ayrılan Müşteriler</div>
           <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14 }}>Kayıtları saklanıyor · tekrar aktif yapılabilir</div>
           {departedClients.length === 0 ? (
@@ -6294,7 +6294,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
         </div>
 
         {/* Ayrılan Çalışanlar */}
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18 }}>
+        <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 18 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>🚪 Ayrılan Çalışanlar</div>
           <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 14 }}>Kayıtları saklanıyor · tekrar aktif yapılabilir</div>
           {departedStaff.length === 0 ? (
@@ -6694,6 +6694,9 @@ function canAccessPage(id, perms) {
   if (id === 'yearly' || id === 'emlakpanelim' || id === 'blog') return perms.isAdmin;
   return true;
 }
+
+// Menü simgeleri ve özet kutucukları için sitedeki renkler
+const PM_RENKLER = ["#F25124", "#FF2E88", "#2D5BFF", "#E0A800", "#7B3FF2", "#22B07D"];
 
 const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
@@ -8996,7 +8999,7 @@ function AccountingBank({ staff = [] }) {
 
       {/* Kategori dağılımı */}
       {ozet.byCat.length > 0 && (
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: T.shadow }}>
+        <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 18, marginBottom: 16, boxShadow: T.shadow }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 12 }}>Gider Kategorileri</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {ozet.byCat.map(c => (
@@ -9049,7 +9052,7 @@ function AccountingBank({ staff = [] }) {
           );
         };
         return (
-          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: T.shadow }}>
+          <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 18, marginBottom: 16, boxShadow: T.shadow }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>Haftalık Harcama</div>
               <div style={{ fontSize: 11.5, color: T.textMuted }}>{donemEtiketi}{accountId ? ` · ${accOf(Number(accountId))?.name || accOf(accountId)?.name || ""}` : " · tüm hesaplar"}</div>
@@ -9083,7 +9086,7 @@ function AccountingBank({ staff = [] }) {
       })()}
 
       {/* Hareketler */}
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", boxShadow: T.shadow }}>
+      <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, overflow: "hidden", boxShadow: T.shadow }}>
         <div style={{ padding: "14px 18px", borderBottom: `1px solid ${T.border}`, fontSize: 13, fontWeight: 700, color: T.textPrimary }}>Hareketler <span style={{ color: T.textMuted, fontWeight: 500 }}>· {shown.length} kalem</span></div>
         {shown.length === 0 ? (
           <div style={{ textAlign: "center", color: T.textMuted, padding: 30, fontSize: 13 }}>Bu süzgeçte hareket yok.</div>
@@ -10988,7 +10991,7 @@ function MessagesPage({ currentStaff, staff }) {
   return (
     <div style={{ display: "flex", gap: 16, height: "calc(100vh - 140px)" }}>
       {/* SOL: Sohbet listesi */}
-      <div style={{ width: 300, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ width: 300, background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}` }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 10 }}>💬 Sohbetler</div>
           <div style={{ display: "flex", gap: 6 }}>
@@ -11021,7 +11024,7 @@ function MessagesPage({ currentStaff, staff }) {
       </div>
 
       {/* SAĞ: Aktif sohbet */}
-      <div style={{ flex: 1, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: 1, background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {!activeConv ? (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: T.textMuted }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
@@ -11388,7 +11391,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
       </div>
 
       {/* Otomatik gece yedekleri */}
-      <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20, marginBottom: 20, boxShadow: T.shadow }}>
+      <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 20, marginBottom: 20, boxShadow: T.shadow }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary, marginBottom: 6 }}>Otomatik Gece Yedekleri</div>
@@ -11437,7 +11440,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
 
           {/* Aylık gelir grafiği */}
           {perms.companyFinance && totalIncome > 0 && (
-            <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
+            <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 18 }}>📈 {year} Aylık Gelir Dağılımı</div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 180 }}>
                 {monthData.map((d, i) => (
@@ -12020,11 +12023,11 @@ function BlogPage() {
       </div>
 
       {kurulumYok ? (
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 24, color: T.textSecondary, fontSize: 13.5, lineHeight: 1.6 }}>Blog henüz kurulmamış: veritabanında blog tablosu yok. Kurulum için gereken SQL adımı çalıştırılınca bu sayfa açılır.</div>
+        <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 24, color: T.textSecondary, fontSize: 13.5, lineHeight: 1.6 }}>Blog henüz kurulmamış: veritabanında blog tablosu yok. Kurulum için gereken SQL adımı çalıştırılınca bu sayfa açılır.</div>
       ) : yazilar.length === 0 ? (
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: "36px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>Henüz yazı yok. "+ Yeni Yazı" ile ilk yazınızı ekleyin.</div>
+        <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: "36px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>Henüz yazı yok. "+ Yeni Yazı" ile ilk yazınızı ekleyin.</div>
       ) : (
-        <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, overflow: "hidden", boxShadow: T.shadow }}>
+        <div style={{ background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, overflow: "hidden", boxShadow: T.shadow }}>
           {yazilar.map((y, i) => (
             <div key={y.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderTop: i ? `1px solid ${T.border}` : "none", flexWrap: "wrap" }}>
               {y.kapak ? <img src={y.kapak} alt="" style={{ width: 84, height: 52, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <div style={{ width: 84, height: 52, borderRadius: 8, background: T.bgInput, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, color: T.textMuted }}>Görsel yok</div>}
@@ -12500,10 +12503,23 @@ function LandingPage({ onEnter }) {
 const BASE_CSS = `
 :root { color-scheme: ${THEME}; }
 .pm-app, .pm-app button, .pm-app input, .pm-app select, .pm-app textarea {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Manrope', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
+/* panormosmedya.com ile aynı dil: geniş başlık yazısı, renkli şerit, hap menü */
+.pm-app .pm-baslik { font-family: 'Unbounded', 'Manrope', sans-serif; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.pm-app .pm-egik { display: inline-block; transform: skewX(-7deg); transform-origin: left; }
+.pm-app .pm-sayi { font-family: 'Unbounded', 'Manrope', sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+.pm-app .pm-logo { font-family: 'Unbounded', sans-serif; font-weight: 800; font-size: 17px; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; }
+.pm-app .pm-logo b { color: #F25124; font-weight: 800; margin-left: 4px; }
+.pm-app .pm-logo i { color: #FF2E88; font-style: normal; }
+.pm-app .pm-rozet { display: inline-block; margin-top: 8px; font-size: 9.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; padding: 4px 9px; border-radius: 100px; background: #FFD23F; color: #0E0E14; transform: rotate(-2deg); }
+.pm-app .pm-serit { height: 5px; flex-shrink: 0; background: linear-gradient(90deg, #F25124 0 20%, #FF2E88 20% 40%, #FFD23F 40% 60%, #2D5BFF 60% 80%, #B5F23D 80% 100%); background-size: 200% 100%; animation: pmSerit 12s linear infinite; }
+@keyframes pmSerit { to { background-position: -200% 0; } }
+.pm-app .pm-el { display: inline-block; transform-origin: 70% 80%; animation: pmEl 2.4s ease-in-out infinite; }
+@keyframes pmEl { 0%,60%,100% { transform: rotate(0); } 10%,30% { transform: rotate(16deg); } 20%,40% { transform: rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) { .pm-app .pm-serit, .pm-app .pm-el { animation: none; } }
 .pm-app { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; font-feature-settings: "tnum" 1, "cv11" 1; line-height: 1.45; }
-.pm-app ::selection { background: rgba(242,81,36,0.35); color: #fff; }
+.pm-app ::selection { background: #FF2E88; color: #fff; }
 
 /* Form alanları: belirgin odak, okunaklı yer tutucu */
 .pm-app input, .pm-app select, .pm-app textarea { transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
@@ -12845,7 +12861,7 @@ export default function App() {
   // Giriş yapıldı ama bu email çalışan listesinde yok → erişim reddedildi
   if (authDenied) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,padding:20}}>
-      <div style={{maxWidth:440,textAlign:"center",background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:16,padding:"40px 32px"}}>
+      <div style={{maxWidth:440,textAlign:"center",background:T.bgCard,border:`1.5px solid ${T.cardBorder}`,boxShadow:T.shadow,borderRadius:18,padding:"40px 32px"}}>
         <div style={{fontSize:44,marginBottom:16}}>🔒</div>
         <div style={{fontSize:20,fontWeight:700,color:T.textPrimary,marginBottom:10}}>Erişim Yetkiniz Yok</div>
         <div style={{fontSize:14,color:T.textSecondary,lineHeight:1.6,marginBottom:8}}>
@@ -12863,7 +12879,7 @@ export default function App() {
 
   if (dataLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Veriler yükleniyor...</div>;
 
-  return <div className="pm-app" style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Inter',-apple-system,'Segoe UI',sans-serif",position:"relative"}}>
+  return <div className="pm-app" style={{display:"flex",height:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"'Manrope','Inter',-apple-system,'Segoe UI',sans-serif",position:"relative"}}>
     <style>{BASE_CSS + RESPONSIVE_CSS}</style>
     {/* Mobilde drawer açıkken arka plan karartma */}
     {isMobile && drawerOpen && <div onClick={()=>setDrawerOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:90}} />}
@@ -12874,8 +12890,8 @@ export default function App() {
     }}>
       <div style={{padding:"20px 20px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:19,fontWeight:800,letterSpacing:"-0.03em",lineHeight:1.1}}><span style={{color:T.textPrimary}}>panormos</span> <span style={{color:T.amber}}>medya.</span></div>
-          <div style={{fontSize:10,fontWeight:600,color:T.textMuted,letterSpacing:"0.14em",textTransform:"uppercase",marginTop:5}}>Yönetim Paneli</div>
+          <div className="pm-logo"><span style={{color:T.textPrimary}}>panormos</span><b>medya</b><i>.</i></div>
+          <div className="pm-rozet">Yönetim Paneli</div>
         </div>
         {isMobile && <button onClick={()=>setDrawerOpen(false)} style={{background:"none",border:"none",color:T.textMuted,fontSize:22,cursor:"pointer",padding:4}}>✕</button>}
       </div>
@@ -12887,14 +12903,14 @@ export default function App() {
             {g.label && <div style={{fontSize:10,fontWeight:700,color:T.textMuted,letterSpacing:"0.1em",textTransform:"uppercase",padding:"0 10px",marginBottom:6}}>{g.label}</div>}
             {items.map(item => {
               const active = page === item.id;
+              const renk = PM_RENKLER[NAV.findIndex(n => n.id === item.id) % PM_RENKLER.length];
               return (
                 <div key={item.id} className="pm-nav" onClick={()=>{setPage(item.id);setDrawerOpen(false);}} style={{
-                  position:"relative",display:"flex",alignItems:"center",gap:11,padding:"8px 10px",borderRadius:9,marginBottom:1,
-                  ...(active ? {background:T.amberDim} : {}),
-                  color:active?T.textPrimary:T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:active?600:500,transition:"background 0.12s, color 0.12s",
+                  position:"relative",display:"flex",alignItems:"center",gap:11,padding:"8px 10px",borderRadius:12,marginBottom:2,
+                  ...(active ? {background:T.amber,boxShadow:`3px 3px 0 ${THEME==="light"?"#0E0E14":"#FFD23F"}`,border:`1.5px solid ${THEME==="light"?"#0E0E14":T.amber}`} : {border:"1.5px solid transparent"}),
+                  color:active?"#fff":T.textSecondary,cursor:"pointer",fontSize:13,fontWeight:active?800:600,transition:"background 0.12s, color 0.12s",
                 }}>
-                  {active && <span style={{position:"absolute",left:-12,top:7,bottom:7,width:3,borderRadius:"0 3px 3px 0",background:T.amber}} />}
-                  <span style={{display:"flex",color:active?T.amber:T.textMuted}}><NavIcon id={item.id} /></span>
+                  <span style={{display:"flex",color:active?"#fff":renk}}><NavIcon id={item.id} /></span>
                   <span style={{flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.label}</span>
                   {item.id==="messages" && unreadMsgs>0 && (
                     <span style={{minWidth:18,height:18,padding:"0 5px",borderRadius:9,background:T.amber,color:"#fff",fontSize:10.5,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadMsgs}</span>
@@ -12931,10 +12947,11 @@ export default function App() {
     </div>
 
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+      <div className="pm-serit" aria-hidden="true" />
       {isMobile && <InstallBanner />}
       <div style={{padding:isMobile?"12px 14px":"14px 32px",borderBottom:`1px solid ${T.border}`,background:T.headerBg,backdropFilter:"blur(10px)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:isMobile?8:16}}>
         {isMobile && <button onClick={()=>setDrawerOpen(true)} style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:10,width:38,height:38,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:T.textPrimary}}>☰</button>}
-        <div style={{fontSize:isMobile?16:19,fontWeight:700,color:T.textPrimary,letterSpacing:"-0.02em",flexShrink:isMobile?1:0,minWidth:0,flex:isMobile?1:"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+        <div className="pm-baslik pm-egik" style={{fontSize:isMobile?15:19,color:T.textPrimary,flexShrink:isMobile?1:0,minWidth:0,flex:isMobile?1:"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {PAGE_TITLES[page] || NAV.find(n => n.id === page)?.label || "Panel"}
         </div>
         {!isMobile && <GlobalSearch clients={clients} tasks={tasks} setPage={setPage} allStaff={staff} />}

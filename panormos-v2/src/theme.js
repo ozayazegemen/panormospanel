@@ -2,34 +2,35 @@
 // Seçim tarayıcıda saklanır; değiştirince sayfa yenilenir (renkler modül yüklenirken okunur).
 const KEY = "panormos_theme";
 
+// Renkler panormosmedya.com ile aynı aileden: mürekkep siyahı, krem, turuncu, pembe, elektrik mavisi, sarı, mor.
 const DARK = {
-  bg: "#0A111D", bgCard: "#101927", bgCardHover: "#152033", bgSurface: "#172337", bgInput: "#0B1321",
-  border: "#1D2A3F", borderLight: "#2B3B55",
-  indigo: "#24406A", indigoDim: "#182B47", indigoGlow: "rgba(36,64,106,0.35)", indigoText: "#8FB4DA",
-  amber: "#F25124", amberDim: "rgba(242,81,36,0.15)", amberText: "#F8906E",
-  green: "#10B981", greenDim: "rgba(16,185,129,0.15)", greenText: "#6EE7B7",
-  red: "#EF4444", redDim: "rgba(239,68,68,0.12)", redText: "#FCA5A5",
-  violet: "#F25124", violetDim: "rgba(242,81,36,0.12)", violetText: "#F8906E",
-  pinkText: "#F9A8D4", purpleText: "#C4B5FD",
-  textPrimary: "#F1F5FA", textSecondary: "#A2B4C9", textMuted: "#6C8098", white: "#FFFFFF",
-  shadow: "0 1px 2px rgba(0,0,0,0.25), 0 8px 24px -12px rgba(0,0,0,0.45)",
-  sidebarBg: "#0D1522", headerBg: "rgba(13,21,34,0.85)", hover: "rgba(255,255,255,0.045)",
-  placeholder: "#566A82", scrollThumb: "#24334B", scrollThumbHover: "#34486A",
+  bg: "#0E0E14", bgCard: "#17171F", bgCardHover: "#1D1D27", bgSurface: "#22222D", bgInput: "#121219",
+  border: "#2A2A37", borderLight: "#3A3A4A", cardBorder: "#34343F",
+  indigo: "#2D5BFF", indigoDim: "rgba(45,91,255,0.16)", indigoGlow: "rgba(45,91,255,0.35)", indigoText: "#93A9FF",
+  amber: "#F25124", amberDim: "rgba(242,81,36,0.16)", amberText: "#FF9B78",
+  green: "#22C55E", greenDim: "rgba(34,197,94,0.15)", greenText: "#7EE2A2",
+  red: "#EF4444", redDim: "rgba(239,68,68,0.13)", redText: "#FCA5A5",
+  violet: "#FF2E88", violetDim: "rgba(255,46,136,0.14)", violetText: "#FF8CC0",
+  pinkText: "#FF8CC0", purpleText: "#B79CFF",
+  textPrimary: "#F7F4EE", textSecondary: "#B9B6C6", textMuted: "#7D7A8C", white: "#FFFFFF",
+  shadow: "4px 4px 0 rgba(0,0,0,0.55)",
+  sidebarBg: "#0B0B10", headerBg: "rgba(14,14,20,0.86)", hover: "rgba(255,255,255,0.05)",
+  placeholder: "#5F5C6E", scrollThumb: "#2E2E3B", scrollThumbHover: "#45455A",
 };
 
 const LIGHT = {
-  bg: "#F3F5F9", bgCard: "#FFFFFF", bgCardHover: "#F8FAFC", bgSurface: "#EDF1F6", bgInput: "#F6F8FB",
-  border: "#DFE5EE", borderLight: "#C5CFDD",
-  indigo: "#2A4A75", indigoDim: "#E3EBF6", indigoGlow: "rgba(42,74,117,0.13)", indigoText: "#27507F",
-  amber: "#F25124", amberDim: "rgba(242,81,36,0.10)", amberText: "#C2410C",
-  green: "#059669", greenDim: "rgba(16,185,129,0.13)", greenText: "#047857",
+  bg: "#FFF6EA", bgCard: "#FFFFFF", bgCardHover: "#FFFCF7", bgSurface: "#FBEEDD", bgInput: "#FFFDF9",
+  border: "#EADDCB", borderLight: "#D8C7B0", cardBorder: "#0E0E14",
+  indigo: "#2D5BFF", indigoDim: "#E3E9FF", indigoGlow: "rgba(45,91,255,0.14)", indigoText: "#1F45D6",
+  amber: "#F25124", amberDim: "rgba(242,81,36,0.12)", amberText: "#C2410C",
+  green: "#16A34A", greenDim: "rgba(22,163,74,0.13)", greenText: "#15803D",
   red: "#DC2626", redDim: "rgba(239,68,68,0.10)", redText: "#B91C1C",
-  violet: "#F25124", violetDim: "rgba(242,81,36,0.10)", violetText: "#C2410C",
-  pinkText: "#BE185D", purpleText: "#6D28D9",
-  textPrimary: "#0F1B2D", textSecondary: "#44556B", textMuted: "#728196", white: "#FFFFFF",
-  shadow: "0 1px 2px rgba(16,24,40,0.05), 0 10px 24px -16px rgba(16,24,40,0.22)",
-  sidebarBg: "#FFFFFF", headerBg: "rgba(255,255,255,0.88)", hover: "rgba(15,27,45,0.05)",
-  placeholder: "#9AA7B8", scrollThumb: "#CBD5E1", scrollThumbHover: "#A9B6C8",
+  violet: "#FF2E88", violetDim: "rgba(255,46,136,0.12)", violetText: "#C2185B",
+  pinkText: "#C2185B", purpleText: "#6D28D9",
+  textPrimary: "#0E0E14", textSecondary: "#4A4756", textMuted: "#857F8F", white: "#FFFFFF",
+  shadow: "4px 4px 0 #0E0E14",
+  sidebarBg: "#FFFFFF", headerBg: "rgba(255,246,234,0.9)", hover: "rgba(14,14,20,0.05)",
+  placeholder: "#A69E93", scrollThumb: "#E2D3BF", scrollThumbHover: "#CDB99F",
 };
 
 export const THEME = (() => {
