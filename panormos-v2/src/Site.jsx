@@ -296,7 +296,7 @@ export default function Site({ onEnter }) {
       <section className="bolum koyu" id="lp-hakkimizda">
         <div className="kap">
           <div className="no belir">01 — Biz kimiz?</div>
-          <h2 className="dev belir"><span className="dolu">KÜÇÜK EKİP</span><span className="cizgi renkli">BÜYÜK İŞLER</span></h2>
+          <h2 className="dev belir"><span className="dolu">BÜYÜK EKİP</span><span className="cizgi renkli">BÜYÜK İŞLER</span></h2>
           <div className="iki-sutun">
             <p className="belir">Panormos Medya, markaların dijitalde hak ettiği yeri alması için kuruldu. Aynı masada içerik üreten, çeken, tasarlayan ve kod yazan bir ekibiz. Bu yüzden işin bir parçasını başka yere taşımadan, her şeyi tek elden çıkarıyoruz.</p>
             <p className="belir">Amacımız güzel paylaşım yapmakla bitmiyor. Markanı tanıyıp hedef kitlenle bağ kuran, satışa ve bilinirliğe dönüşen işler çıkarıyoruz. Ne yaptığımızı her ay açıkça raporluyoruz.</p>
