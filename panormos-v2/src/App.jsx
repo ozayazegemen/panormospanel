@@ -8847,11 +8847,19 @@ function AccountingBank({ staff = [] }) {
     const key = (t) => `${String(t.tx_date).slice(0, 10)}|${(t.description || "").trim()}|${Number(t.amount).toFixed(2)}`;
     const mevcut = {};
     txs.filter(t => t.account_id === acc.id).forEach(t => { mevcut[key(t)] = (mevcut[key(t)] || 0) + 1; });
+    // Cariye ödeme girilirken bu hesaba işlenmiş tahsilatlar: ekstredeki aynı tutarlı giriş (±5 gün) ikinci kez eklenmez
+    const cariKayit = txs.filter(t => t.account_id === acc.id && t.client_payment_id != null).map(t => ({ gun: new Date(String(t.tx_date).slice(0, 10)).getTime(), tutar: Number(t.amount), kullanildi: false }));
+    let cariEslesen = 0;
     const batch_id = `${Date.now()}`;
     const yeni = [];
     impRows.forEach(r => {
       const k = key(r);
       if (mevcut[k] > 0) { mevcut[k] -= 1; return; }
+      if (Number(r.amount) > 0) {
+        const gun = new Date(String(r.tx_date).slice(0, 10)).getTime();
+        const es = cariKayit.find(c => !c.kullanildi && Math.abs(c.tutar - Number(r.amount)) < 0.01 && Math.abs(c.gun - gun) <= 5 * 86400000);
+        if (es) { es.kullanildi = true; cariEslesen++; return; }
+      }
       yeni.push({ account_id: acc.id, tx_date: r.tx_date, description: r.description, amount: r.amount, category: bankGuessCategory(r.description, r.amount, acc.kind, maasAlanlar), batch_id, source_file: imp.fileName });
     });
     let hata = null;
@@ -8865,10 +8873,10 @@ function AccountingBank({ staff = [] }) {
     }
     setBusy(false);
     if (hata) { swalAlert("Hareketler kaydedilemedi: " + hata.message); load(); return; }
-    const atlanan = impRows.length - yeni.length;
+    const atlanan = impRows.length - yeni.length - cariEslesen;
     setImp(null);
     await load();
-    swalAlert(`✅ ${yeni.length} hareket eklendi${atlanan ? `, ${atlanan} hareket daha önce yüklendiği için atlandı` : ""}.\n\nKategoriler açıklamadan tahmin edildi; listeden tek tek düzeltebilirsiniz.`);
+    swalAlert(`✅ ${yeni.length} hareket eklendi${atlanan ? `, ${atlanan} hareket daha önce yüklendiği için atlandı` : ""}${cariEslesen ? `, ${cariEslesen} tahsilat cariye girilen ödemeyle eşleştiği için ikinci kez eklenmedi` : ""}.\n\nKategoriler açıklamadan tahmin edildi; listeden tek tek düzeltebilirsiniz.`);
   };
 
   // ── Hareket işlemleri ──
@@ -9878,6 +9886,16 @@ function AccountingCari({ clients, autoAdd = false }) {
   const [err, setErr] = useState("");
 
   const [kind, setKind] = useState("all");            // all | sosyal | emlak
+  const [bankalar, setBankalar] = useState([]);       // ödemenin işleneceği banka hesapları (kredi kartları hariç)
+  // Son seçilen hesap hatırlanır ("yok": bankaya işlenmesin); hiç seçilmediyse ilk şirket hesabı
+  const varsayilanBanka = (liste = bankalar) => {
+    let son = null;
+    try { son = localStorage.getItem("cari_banka_hesabi"); } catch (e) { /* önemli değil */ }
+    if (son === "yok") return "";
+    if (son && liste.some(b => String(b.id) === son)) return son;
+    const sirket = liste.find(b => b.owner !== "sahsi") || liste[0];
+    return sirket ? String(sirket.id) : (son || null);
+  };
   const [emlakNote, setEmlakNote] = useState("");
   const emlakSynced = useRef(false);
   const load = async () => {
@@ -9892,6 +9910,11 @@ function AccountingCari({ clients, autoAdd = false }) {
       supabase.from('clients').select('id,name,initials,accent_color,contract_start,payment_due_date,deleted_at,source,phone,email,address,tax_number,tax_office,description'),
       supabase.from('client_finance').select('client_id,monthly_fee'),
     ]);
+    const { data: bankData } = await supabase.from('bank_accounts').select('id,name,kind,owner').order('id');
+    const bl = (bankData || []).filter(b => b.kind !== "kredi_karti");
+    setBankalar(bl);
+    // Pencere hesaplar yüklenmeden açıldıysa varsayılan hesap sonradan doldurulur
+    setForm(f => (f && f.client_id !== undefined && f.bank_account_id == null) ? { ...f, bank_account_id: varsayilanBanka(bl) } : f);
     const feeOf = {}; (feeData || []).forEach(f => { feeOf[f.client_id] = Number(f.monthly_fee || 0); });
     const allCData = (allCRaw || []).map(c => ({ ...c, monthly_fee: feeOf[c.id] || 0 }));
     setErr([e1, e2, e3].filter(Boolean).map(e => e.message).join(" · "));
@@ -9902,7 +9925,7 @@ function AccountingCari({ clients, autoAdd = false }) {
   };
   useEffect(() => { load(); }, []);
   // Özet'ten "+ Müşteri Ödemesi" ile gelindiyse ödeme penceresini aç
-  useEffect(() => { if (autoAdd) { setForm({ client_id: "", amount: "", month_ref: currentMonthRef(), payment_date: todayStr(), method: "havale" }); setModal(true); } }, []);
+  useEffect(() => { if (autoAdd) { setForm({ client_id: "", amount: "", month_ref: currentMonthRef(), payment_date: todayStr(), method: "havale", bank_account_id: varsayilanBanka() }); setModal(true); } }, []);
 
   // Aktif müşteriler + sözleşmesi bitmiş ama alacaklı olduğumuz müşteriler
   const mergedClients = useMemo(() => {
@@ -9956,7 +9979,9 @@ function AccountingCari({ clients, autoAdd = false }) {
     const borc = cs?.months.find(x => x.debt > 0 && x.m);
     return { client_id: clientId || "", amount: borc ? borc.debt : (cs?.client.monthlyFee || ""), month_ref: borc?.m || nowRef };
   };
-  const openPay = (clientId) => { setForm({ ...payDefaults(clientId), payment_date: todayStr(), method: "havale" }); setModal(true); };
+  const openPay = (clientId) => { setForm({ ...payDefaults(clientId), payment_date: todayStr(), method: "havale", bank_account_id: varsayilanBanka() }); setModal(true); };
+  // Son seçilen banka hesabı hatırlanır; yoksa şirket hesabı gelir
+  const bankaAdi = (id) => bankalar.find(b => String(b.id) === String(id))?.name || "";
 
   const savePayment = async () => {
     if (saving) return;
@@ -9969,16 +9994,25 @@ function AccountingCari({ clients, autoAdd = false }) {
       month_ref: form.month_ref || nowRef,
       method: form.method || "havale",
       notes: form.notes || "",
+      bank_account_id: form.bank_account_id ? Number(form.bank_account_id) : null,
     });
     setSaving(false);
     if (error) { swalAlert("Ödeme kaydedilemedi: " + error.message); return; }
+    try { localStorage.setItem("cari_banka_hesabi", form.bank_account_id ? String(form.bank_account_id) : "yok"); } catch (e) { /* önemli değil */ }
     // Kaydedilen ödeme hemen görünsün diye müşterinin kartı açılır
     setExpanded(mergedClients.find(c => String(c.id) === String(form.client_id))?.id ?? form.client_id);
     setModal(false); setForm({});
     load();
   };
 
-  // Silinen ödemeye bağlı fatura varsa "ödendi" işareti de kalkar
+  // Eski ödemenin hangi hesaba geldiği sonradan da seçilebilir; banka hareketi kendiliğinden eklenir / taşınır / silinir
+  const bankaDegistir = async (p, hesapId) => {
+    const { error } = await supabase.from('client_payments').update({ bank_account_id: hesapId ? Number(hesapId) : null }).eq('id', p.id);
+    if (error) { swalAlert("Banka hesabı kaydedilemedi: " + error.message); return; }
+    load();
+  };
+
+  // Silinen ödemeye bağlı fatura varsa "ödendi" işareti de kalkar; bankaya işlenmiş hareketi de silinir
   const removePayments = async (ids) => {
     if (!ids.length) return;
     const { error } = await supabase.from('client_payments').delete().in('id', ids);
@@ -10159,6 +10193,12 @@ function AccountingCari({ clients, autoAdd = false }) {
                               <span style={{ color: T.textMuted }}>{p.payment_date}</span>
                               <span style={{ color: T.amberText, fontSize: 11 }}>{monthRefLabel(p.month_ref)}</span>
                               <span style={{ color: T.textMuted, fontSize: 11 }}>{p.method}</span>
+                              {bankalar.length > 0 && (
+                                <select value={p.bank_account_id || ""} onChange={e => bankaDegistir(p, e.target.value)} title="Ödemenin geldiği hesap" style={{ marginLeft: 6, maxWidth: 190, background: T.bgCard, color: p.bank_account_id ? T.textPrimary : T.textMuted, border: `1px solid ${T.borderLight}`, borderRadius: 6, padding: "3px 6px", fontSize: 11 }}>
+                                  <option value="">🏦 Hesap seçilmedi</option>
+                                  {bankalar.map(b => <option key={b.id} value={b.id}>🏦 {b.name}</option>)}
+                                </select>
+                              )}
                               <button onClick={() => deletePayment(p.id)} style={{ marginLeft: "auto", background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 13 }}>✕</button>
                             </div>
                           ))}
@@ -10194,12 +10234,19 @@ function AccountingCari({ clients, autoAdd = false }) {
           </FormField>
           <FormField label="Ödeme Tarihi"><Input type="date" value={form.payment_date || ""} onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))} /></FormField>
           <FormField label="Ödeme Yöntemi">
-            <Select value={form.method || "havale"} onChange={e => setForm(f => ({ ...f, method: e.target.value }))}>
+            <Select value={form.method || "havale"} onChange={e => { const m = e.target.value; setForm(f => ({ ...f, method: m, bank_account_id: m === "nakit" ? "" : (f.bank_account_id || varsayilanBanka()) })); }}>
               <option value="havale">Havale / EFT</option>
               <option value="nakit">Nakit</option>
               <option value="kredi kartı">Kredi Kartı</option>
               <option value="çek">Çek</option>
             </Select>
+          </FormField>
+          <FormField label="Hangi hesaba geldi?">
+            <Select value={form.bank_account_id || ""} onChange={e => setForm(f => ({ ...f, bank_account_id: e.target.value }))}>
+              <option value="">Bankaya işlenmesin (nakit vb.)</option>
+              {bankalar.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
+            {form.bank_account_id && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>Ödeme kaydedilince {bankaAdi(form.bank_account_id)} hesabına giriş olarak da işlenir. Bu hesabın ekstresini yüklediğinizde aynı tahsilat ikinci kez eklenmez.</div>}
           </FormField>
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => setModal(false)} onSave={savePayment} saveLabel={saving ? "Kaydediliyor..." : "Kaydet"} />
