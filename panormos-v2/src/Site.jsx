@@ -120,6 +120,7 @@ export default function Site({ onEnter }) {
           <a href="/blog" onClick={kapat}>Blog</a>
           <a href="#lp-iletisim" onClick={kapat}>İletişim</a>
           <a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener" className="ig" aria-label="Instagram">{ig}<span> Instagram</span></a>
+          <button type="button" className="giris" onClick={() => { kapat(); onEnter?.(); }}>Giriş yap</button>
           <a href="#lp-iletisim" className="dugme pembe" onClick={kapat}>Teklif al</a>
         </div>
         <button className={`hamburger${menu ? " acik" : ""}`} aria-label="Menü" aria-expanded={menu} onClick={() => setMenu((m) => !m)}><span /><span /></button>
@@ -338,6 +339,8 @@ const SITE_CSS = `
 .pm-site .baglantilar>a{font-size:14px;font-weight:600;padding:9px 14px;border-radius:12px;transition:background .2s,color .2s}
 .pm-site .baglantilar>a:hover{background:rgba(255,255,255,.1)}
 .pm-site .baglantilar .ig{display:inline-flex;align-items:center;gap:6px}
+.pm-site .baglantilar .giris{font-family:inherit;font-size:14px;font-weight:700;color:#fff;background:none;border:2px solid rgba(255,255,255,.35);border-radius:12px;padding:8px 14px;cursor:pointer;transition:border-color .2s,background .2s}
+.pm-site .baglantilar .giris:hover{border-color:#fff;background:rgba(255,255,255,.1)}
 .pm-site .baglantilar .ig span{display:none}
 .pm-site .hamburger{display:none;width:46px;height:46px;border-radius:14px;border:none;background:var(--turuncu);cursor:pointer;position:relative}
 .pm-site .hamburger span{position:absolute;left:13px;right:13px;height:3px;border-radius:2px;background:#fff;transition:transform .3s,top .3s}
@@ -545,7 +548,8 @@ const SITE_CSS = `
   .pm-site .baglantilar>a{font-family:'Unbounded',sans-serif;font-weight:800;font-size:28px;padding:10px 0;transform:skewX(-8deg)}
   .pm-site .baglantilar>a:hover{background:none;color:var(--sari)}
   .pm-site .baglantilar .ig span{display:inline}
-  .pm-site .baglantilar .dugme{margin-top:16px;font-size:18px;padding:18px;transform:none;background:var(--murekkep)}
+  .pm-site .baglantilar .dugme{margin-top:10px;font-size:18px;padding:18px;transform:none;background:var(--murekkep)}
+  .pm-site .baglantilar .giris{margin-top:16px;font-size:17px;padding:15px;border-color:#fff}
   .pm-site .is,.pm-site .is.ters{grid-template-columns:1fr;gap:30px}
   .pm-site .is.ters .is-gorsel{order:0}
   .pm-site .iki-sutun{grid-template-columns:1fr;gap:18px}
