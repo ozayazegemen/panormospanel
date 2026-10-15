@@ -162,7 +162,9 @@ async function yazilariYukle() {
       })
     }
   }
-  ciz('')
+  const ilk = new URLSearchParams(location.search).get('k') || ''
+  if (ilk && filtre) filtre.querySelectorAll('button').forEach((x) => x.classList.toggle('aktif', x.dataset.k === ilk))
+  ciz(yazilar.some((y) => y.kategori === ilk) ? ilk : '')
 }
 yazilariYukle()
 
@@ -176,7 +178,7 @@ function icerikYaz(metin) {
     const satirlar = b.split('\n')
     if (satirlar.every((s) => /^[-•]\s+/.test(s))) return `<ul>${satirlar.map((s) => `<li>${kacis(s.replace(/^[-•]\s+/, ''))}</li>`).join('')}</ul>`
     return `<p>${satirlar.map(kacis).join('<br>')}</p>`
-  }).join('')
+  }).join('').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
 }
 async function yaziYukle() {
   const alan = $('#yazi')
@@ -303,5 +305,63 @@ if (hizli && talepForm) {
     setTimeout(() => $('#t-ad').focus({ preventScroll: true }), 700)
   })
 }
+
+// ---- Portal: öne çıkanlar ve konu rehberleri ----
+const KONULAR = [
+  ['Satın alma', '🔑'], ['Satış', '🏷️'], ['Kiralama', '📄'], ['Arsa ve tarla', '🌾'],
+  ['Tapu ve hukuk', '⚖️'], ['Kredi ve finans', '💳'], ['Ev tasarımı', '🛋️'], ['Piyasa', '📈'],
+]
+async function portalYukle() {
+  const oneCikan = $('#one-cikan'), rehber = $('#rehber-izgara')
+  if (!oneCikan && !rehber) return
+  let yazilar = []
+  try { yazilar = await sorgu('blog_yazilari?site=eq.ayaz&yayinda=eq.true&select=slug,baslik,ozet,kategori,kapak,yayin_tarihi&order=yayin_tarihi.desc') } catch (e) { /* aşağıda boş gösterilir */ }
+  const adres = (y) => '/blog/' + encodeURIComponent(y.slug)
+  if (oneCikan) {
+    if (!yazilar.length) { oneCikan.innerHTML = '<p class="bos">Yazılar şu anda yüklenemedi.</p>'; return }
+    const [m, ...digerleri] = yazilar
+    oneCikan.innerHTML = `<a class="manset" href="${adres(m)}">${m.kapak ? `<img src="${kacis(m.kapak)}" alt="">` : ''}<div class="manset-ic"><span class="kategori">${kacis(m.kategori)}</span><h2>${kacis(m.baslik)}</h2>${m.ozet ? `<p>${kacis(m.ozet)}</p>` : ''}</div></a>
+      <div class="yan-liste">${digerleri.slice(0, 4).map((y) => `<a class="yan-yazi" href="${adres(y)}">${y.kapak ? `<img src="${kacis(y.kapak)}" alt="" loading="lazy">` : '<span></span>'}<div><small>${kacis(y.kategori)}</small><b>${kacis(y.baslik)}</b></div></a>`).join('')}</div>`
+  }
+  if (rehber) {
+    rehber.innerHTML = KONULAR.filter(([k]) => k !== 'Piyasa' || yazilar.some((y) => y.kategori === k)).slice(0, 6).map(([k, simge]) => {
+      const liste = yazilar.filter((y) => y.kategori === k).slice(0, 3)
+      return `<article class="rehber" data-belir><div class="rehber-bas"><span aria-hidden="true">${simge}</span><h3>${kacis(k)}</h3></div>
+        ${liste.length ? `<ul>${liste.map((y) => `<li><a href="${adres(y)}">${kacis(y.baslik)}</a></li>`).join('')}</ul>` : '<p class="bos-not">Bu konuda yazılarımız hazırlanıyor.</p>'}
+        <a class="rehber-tum" href="/blog?k=${encodeURIComponent(k)}">Tümünü gör →</a></article>`
+    }).join('')
+    belirmeyiBaslat()
+  }
+}
+portalYukle()
+
+// ---- Hesaplama araçları ----
+document.querySelectorAll('.arac-sekmeler button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.arac-sekmeler button').forEach((x) => x.classList.toggle('aktif', x === b))
+  document.querySelectorAll('[data-arac-govde]').forEach((g) => { g.hidden = g.dataset.aracGovde !== b.dataset.arac })
+}))
+function tapuHesapla() {
+  const bedel = sayiOku($('#tapu-bedel')?.value), alan = $('#tapu-sonuc')
+  if (!alan) return
+  if (!(bedel > 0)) { alan.innerHTML = 'Satış bedelini yazın.'; return }
+  const harc = bedel * 0.02
+  alan.innerHTML = `Alıcının ödeyeceği harç<b>${para(harc, 0)} ₺</b><span>Satıcı da ayrıca ${para(harc, 0)} ₺ öder. Toplam harç: ${para(harc * 2, 0)} ₺</span>`
+}
+function krediHesapla() {
+  const tutar = sayiOku($('#kredi-tutar')?.value), faiz = sayiOku($('#kredi-faiz')?.value) / 100, vade = Math.round(sayiOku($('#kredi-vade')?.value)), alan = $('#kredi-sonuc')
+  if (!alan) return
+  if (!(tutar > 0) || !(faiz >= 0) || !(vade > 0)) { alan.innerHTML = 'Tutar, faiz ve vadeyi yazın.'; return }
+  const taksit = faiz === 0 ? tutar / vade : tutar * faiz / (1 - Math.pow(1 + faiz, -vade))
+  alan.innerHTML = `Aylık taksit<b>${para(taksit, 0)} ₺</b><span>Toplam geri ödeme: ${para(taksit * vade, 0)} ₺ · Toplam faiz: ${para(taksit * vade - tutar, 0)} ₺</span>`
+}
+$('#tapu-bedel')?.addEventListener('input', tapuHesapla)
+document.querySelectorAll('#kredi-tutar, #kredi-faiz, #kredi-vade').forEach((el) => el.addEventListener('input', krediHesapla))
+
+// ---- Sözlükte arama ----
+const sozlukAra = $('#sozluk-ara')
+if (sozlukAra) sozlukAra.addEventListener('input', () => {
+  const q = sozlukAra.value.trim().toLocaleLowerCase('tr')
+  document.querySelectorAll('#sozluk-liste > div').forEach((d) => d.classList.toggle('gizli', !!q && !d.textContent.toLocaleLowerCase('tr').includes(q)))
+})
 
 const yil = $('#yil'); if (yil) yil.textContent = new Date().getFullYear()

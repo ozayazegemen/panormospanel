@@ -6,6 +6,13 @@
   command = ""
   functions = "netlify/functions"
 
+# Eski Netlify adresi asıl alan adına (Google aynı siteyi iki kez saymasın)
+[[redirects]]
+  from = "https://ayazgayrimenkul.netlify.app/*"
+  to = "https://xn--ayazgayrmenkul-dgc.com/:splat"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/sitemap.xml"
   to = "/.netlify/functions/sitemap"
