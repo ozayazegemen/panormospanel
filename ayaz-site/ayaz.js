@@ -386,4 +386,21 @@ if (sozlukAra) sozlukAra.addEventListener('input', () => {
   document.querySelectorAll('#sozluk-liste > div').forEach((d) => d.classList.toggle('gizli', !!q && !d.textContent.toLocaleLowerCase('tr').includes(q)))
 })
 
+// ---- Tutar kutuları: yazarken binlik nokta konur (15000 → 15.000; kuruş virgülle: 15.000,50) ----
+function tutarBicimle(el) {
+  const once = el.value, imlecSagi = once.length - (el.selectionStart ?? once.length)
+  let [tam, ...kesir] = once.replace(/[^\d,]/g, '').split(',')
+  tam = tam.replace(/^0+(?=\d)/, '')
+  let yeni = tam.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  if (kesir.length) yeni += ',' + kesir.join('').slice(0, 2)
+  if (yeni === once) return
+  el.value = yeni
+  const yer = Math.max(0, yeni.length - imlecSagi)
+  try { el.setSelectionRange(yer, yer) } catch (e) { /* bazı kutu türleri imleç konumunu desteklemez */ }
+}
+document.querySelectorAll('#kira-gir, #tapu-bedel, #kredi-tutar, #t-butce').forEach((el) => {
+  el.addEventListener('input', () => tutarBicimle(el))
+  tutarBicimle(el)
+})
+
 const yil = $('#yil'); if (yil) yil.textContent = new Date().getFullYear()
