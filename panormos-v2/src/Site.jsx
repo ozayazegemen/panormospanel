@@ -298,7 +298,18 @@ export default function Site({ onEnter }) {
               <a onClick={onEnter} role="button" tabIndex={0}>Çalışan girişi</a>
             </div>
           </div>
-          <div className="alt-dev" aria-hidden="true">PANORMOS</div>
+        </div>
+        <div className="alt-dev" aria-hidden="true">
+          <div className="alt-dev-ic">
+            {[0, 1].map((k) => (
+              <div key={k}>
+                <span className="d1">PANORMOS</span><span className="c">MEDYA</span><i>✶</i>
+                <span className="d2">PANORMOS</span><span className="c">MEDYA</span><i>✶</i>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="kap">
           <div className="alt-son"><span>© {new Date().getFullYear()} Panormos Medya. Tüm hakları saklıdır.</span><span>Bandırma / Balıkesir</span></div>
         </div>
       </footer>
@@ -498,8 +509,16 @@ const SITE_CSS = `
 .pm-site .alt-linkler{display:flex;flex-wrap:wrap;gap:6px 22px}
 .pm-site .alt-linkler a{font-weight:700;font-size:14.5px;opacity:.8}
 .pm-site .alt-linkler a:hover{opacity:1;color:var(--sari)}
-.pm-site .alt-dev{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(60px,15.5vw,230px);line-height:1;letter-spacing:-.04em;color:var(--murekkep);-webkit-text-stroke:4px rgba(255,255,255,.22);paint-order:stroke fill;margin:40px 0 20px;transform:skewX(-9deg);white-space:nowrap}
-.pm-site .alt-son{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:13px;opacity:.6}
+.pm-site .alt-dev{margin:48px 0 26px;overflow:hidden;font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(46px,8vw,128px);line-height:1.05;letter-spacing:-.04em}
+.pm-site .alt-dev-ic{display:flex;width:max-content;animation:pmKay 26s linear infinite}
+.pm-site .alt-dev-ic>div{display:flex;align-items:center}
+.pm-site .alt-dev span{display:inline-block;padding:0 .18em;transform:skewX(-9deg);white-space:nowrap}
+.pm-site .alt-dev .d1{color:var(--turuncu)}
+.pm-site .alt-dev .d2{color:var(--pembe)}
+.pm-site .alt-dev .c{color:var(--murekkep);-webkit-text-stroke:4px #fff;paint-order:stroke fill}
+.pm-site .alt-dev i{font-style:normal;color:var(--sari);font-size:.5em;padding:0 .3em}
+.pm-site .alt-dev:hover .alt-dev-ic{animation-play-state:paused}
+.pm-site .alt-son{display:flex;margin-top:6px;flex-wrap:wrap;justify-content:space-between;gap:10px;font-size:13px;opacity:.6}
 
 /* Sabit WhatsApp */
 .pm-site .wa-sabit{position:fixed;right:18px;bottom:18px;z-index:40;width:58px;height:58px;border-radius:18px;background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;border:3px solid var(--murekkep);box-shadow:4px 4px 0 var(--murekkep);transition:transform .2s}
@@ -536,6 +555,7 @@ const SITE_CSS = `
 }
 @media (max-width:640px){
   .pm-site .kap{padding:0 18px}
+  .pm-site .alt-dev .c{-webkit-text-stroke-width:3px}
   .pm-site .ust{left:10px;right:10px;padding:8px 8px 8px 16px}
   .pm-site .logo{font-size:16px}
   .pm-site .hero{padding:130px 0 90px;min-height:auto}
