@@ -4,6 +4,7 @@
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
   publish = "."
   command = ""
+  functions = "netlify/functions"
 # Formlar: Netlify Forms (teklif, gorus) — form algılama 13.10.2026'da açıldı
 
 # Tarayıcılar ve Google sekme ikonunu önce /favicon.ico adresinde arar
