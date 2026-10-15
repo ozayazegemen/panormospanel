@@ -1,4 +1,6 @@
 import Site from "./Site.jsx";
+import QrMenu from "./QrMenu.jsx";
+import QrMenuPage from "./QrMenuPanel.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -6712,6 +6714,7 @@ const NAV=[
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"mail",label:"E-posta",icon:"📧"},
   {id:"blog",label:"Blog",icon:"✍️"},
+  {id:"qrmenu",label:"QR Menü",icon:"🍽️"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"inventory",label:"Envanter",icon:"🎒"},
   {id:"yearly",label:"Yıllık Özet",icon:"📊"},
@@ -6723,7 +6726,7 @@ const NAV=[
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "ideas"] },
-  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
+  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog", "qrmenu"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
   { label: "Yönetim", ids: ["inventory", "staff", "emlakpanelim"] },
 ];
@@ -6744,6 +6747,7 @@ const NAV_ICON_PATHS = {
   messages: <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
   blog: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4M12 20h8" />,
+  qrmenu: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18v2h2M18 18h2v2" />,
   accounting: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></>,
   inventory: <><path d="M3 8l9-5 9 5v8l-9 5-9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></>,
   yearly: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
@@ -12847,6 +12851,9 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentStaff]);
 
+  // Restoran ve barların QR menüsü: panormosmedya.com/m/<slug> (herkese açık)
+  const qrYol = window.location.pathname.match(/^\/m\/([a-z0-9-]+)\/?$/);
+  if (qrYol) return <QrMenu slug={qrYol[1]} />;
   // Sitedeki blog: giriş durumundan bağımsız, herkese açık
   if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSite />;
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
@@ -12985,6 +12992,7 @@ export default function App() {
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
         {page==="emlakpanelim"&&<EmlakPanelimPage/>}
         {page==="blog"&&<BlogPage/>}
+        {page==="qrmenu"&&<QrMenuPage clients={allClients||clients}/>}
       </div>
     </div>
   </div>;
