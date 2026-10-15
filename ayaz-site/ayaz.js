@@ -62,7 +62,7 @@ async function kiraOraniYukle() {
     if (k && k.oran > 0) {
       oran = para(k.oran)
       donem = `(${k.uygulama})`
-      not = `${k.uygulama}'da yenilenen konut kira sözleşmelerinde uygulanabilecek en yüksek artış oranı. TÜİK ${k.veri} TÜFE verisine göre on iki aylık ortalama değişim; her ay kendiliğinden güncellenir.`
+      not = `Yenileme ayı ${k.uygulama} olan konut kira sözleşmelerinde uygulanabilecek en yüksek artış oranı. TÜİK ${k.veri} TÜFE verisine göre on iki aylık ortalama değişim; her ay kendiliğinden güncellenir.`
     }
   } catch (e) { /* aşağıda elle girilen orana bakılır */ }
   if (!oran) {
