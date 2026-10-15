@@ -33,13 +33,15 @@ function degisimYaz(d) {
   if (typeof d !== 'number' || d === 0) return ''
   return `<i class="${d > 0 ? 'arti' : 'eksi'}">${d > 0 ? '▲' : '▼'} %${para(Math.abs(d))}</i>`
 }
+// Döviz, altın ve otomatik kira artış oranı tek istekle gelir
+let piyasaSozu = null
+const piyasaVerisi = () => (piyasaSozu ??= fetch('/.netlify/functions/piyasa').then((r) => (r.ok ? r.json() : Promise.reject(new Error('alınamadı')))))
 async function piyasaYukle() {
   const fiyatlar = $('#fiyatlar'), guncelleme = $('#guncelleme'), kaynak = $('#kaynak')
   if (!fiyatlar) return
   try {
-    const r = await fetch('/.netlify/functions/piyasa')
-    if (!r.ok) throw new Error('alınamadı')
-    const v = await r.json()
+    const v = await piyasaVerisi()
+    if (!(v.doviz?.length || v.altin?.length)) throw new Error('boş')
     const kalemler = [...(v.doviz ?? []), ...(v.altin ?? [])]
     fiyatlar.innerHTML = kalemler.map((k) => `<div class="fiyat"><small>${kacis(k.ad)}</small><b>${para(k.satis)} ₺</b>${degisimYaz(k.degisim)}</div>`).join('')
     if (guncelleme && v.guncelleme) guncelleme.textContent = 'Son güncelleme: ' + v.guncelleme
@@ -53,13 +55,26 @@ piyasaYukle()
 async function kiraOraniYukle() {
   const kutu = $('#kira-kutu')
   if (!kutu) return
-  let p = {}
-  try { p = (await sorgu('sistem_ayarlari?select=piyasa&id=eq.true'))[0]?.piyasa ?? {} } catch (e) { /* oran yoksa hesaplayıcı elle çalışır */ }
-  const oran = String(p.kira_artis ?? '').trim()
+  // Oran TÜİK verisinden kendiliğinden hesaplanır (sunucu işlevi); alınamazsa panelde elle girilen orana düşülür
+  let oran = '', donem = '', not = ''
+  try {
+    const k = (await piyasaVerisi()).kira
+    if (k && k.oran > 0) {
+      oran = para(k.oran)
+      donem = `(${k.uygulama})`
+      not = `${k.uygulama}'da yenilenen konut kira sözleşmelerinde uygulanabilecek en yüksek artış oranı. TÜİK ${k.veri} TÜFE verisine göre on iki aylık ortalama değişim; her ay kendiliğinden güncellenir.`
+    }
+  } catch (e) { /* aşağıda elle girilen orana bakılır */ }
+  if (!oran) {
+    try {
+      const p = (await sorgu('sistem_ayarlari?select=piyasa&id=eq.true'))[0]?.piyasa ?? {}
+      oran = String(p.kira_artis ?? '').trim(); donem = p.kira_donem || ''; not = p.kira_not || ''
+    } catch (e) { /* oran yoksa hesaplayıcı elle çalışır */ }
+  }
   if (oran) {
     $('#kira-oran').textContent = '%' + oran
-    $('#kira-donem').textContent = p.kira_donem || ''
-    if (p.kira_not) $('#kira-not').textContent = p.kira_not
+    $('#kira-donem').textContent = donem
+    if (not) $('#kira-not').textContent = not
     $('#oran-gir').value = oran
     $('#kira-oran-alan').hidden = false
   }
