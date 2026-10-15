@@ -44,42 +44,59 @@ const SURECLER = [
 const SERIT_1 = ["Sosyal medya", "Meta reklam", "Reels", "Tanıtım filmi", "Drone çekimi", "Logo", "Web sitesi", "SEO"];
 const SERIT_2 = ["Ürün çekimi", "Kurumsal kimlik", "Yazılım", "İçerik üretimi", "Menü çekimi", "Baskı", "Promosyon", "Google İşletme"];
 
-// Kendi ürettiğimiz kısa, neşeli bir müzik döngüsü (Web Audio ile çalınır; dosya ve telif yok).
+// Kendi bestelediğimiz kısa, neşeli 8 bit "atari" müziği (Web Audio ile çalınır; dosya ve telif yok).
+// Kare dalga melodi, hızlı arpej, üçgen dalga bas ve gürültüden davul: eski oyun konsolu sesi.
 // Tarayıcılar ses çalmayı ziyaretçi sayfaya en az bir kez tıklamadan başlatmaz:
 // üstüne gelince çalar; hiç tıklanmamışsa plağa tıklamak yeter.
 function muzikKur() {
   let ctx = null, ana = null, zaman = 0, adim = 0, iv = null, gurultu = null;
-  const BPM = 118, ON6 = 60 / BPM / 4;
-  const AKOR = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // La minör, Fa, Do, Sol
-  const MELODI = [76, 0, 72, 0, 74, 76, 0, 79, 77, 0, 76, 0, 72, 0, 74, 0];
+  const BPM = 144, ON6 = 60 / BPM / 4;
+  // 4 ölçülük akor döngüsü: Do, La minör, Fa, Sol (kök notalar)
+  const AKOR = [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]];
+  // Ana melodi: 4 ölçü × 16 adım (0 = sus)
+  const MELODI = [
+    72, 0, 76, 0, 79, 0, 76, 79, 84, 0, 83, 0, 79, 0, 76, 0,
+    74, 0, 76, 0, 72, 0, 69, 72, 76, 0, 74, 0, 72, 0, 0, 0,
+    72, 0, 77, 0, 81, 0, 77, 81, 84, 0, 81, 0, 77, 0, 74, 0,
+    79, 0, 83, 0, 86, 0, 83, 79, 77, 76, 74, 0, 71, 0, 74, 0,
+  ];
   const frek = (m) => 440 * Math.pow(2, (m - 69) / 12);
-  function nota(f, t, sure, tip, ses) {
+  function nota(f, t, sure, tip, ses, kayma) {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = tip; o.frequency.setValueAtTime(f, t);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(ses, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + sure);
-    o.connect(g); g.connect(ana); o.start(t); o.stop(t + sure + 0.05);
+    if (kayma) o.frequency.setValueAtTime(f * kayma, t + 0.03);
+    g.gain.setValueAtTime(ses, t); g.gain.setValueAtTime(ses * 0.7, t + sure * 0.6); g.gain.linearRampToValueAtTime(0.0001, t + sure);
+    o.connect(g); g.connect(ana); o.start(t); o.stop(t + sure + 0.02);
+  }
+  // 8 bit davul: gürültüden; "kick" kısa ve kalın, "trampet" uzun ve parlak
+  function davul(t, sure, frekans, ses) {
+    const k = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    k.buffer = gurultu; f.type = "bandpass"; f.frequency.value = frekans;
+    g.gain.setValueAtTime(ses, t); g.gain.exponentialRampToValueAtTime(0.0001, t + sure);
+    k.connect(f); f.connect(g); g.connect(ana); k.start(t); k.stop(t + sure + 0.01);
   }
   function kick(t) {
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
-    g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
-    o.connect(g); g.connect(ana); o.start(t); o.stop(t + 0.25);
-  }
-  function hihat(t, ses) {
-    const k = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    k.buffer = gurultu; f.type = "highpass"; f.frequency.value = 7000;
-    g.gain.setValueAtTime(ses, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-    k.connect(f); f.connect(g); g.connect(ana); k.start(t); k.stop(t + 0.06);
+    o.type = "square"; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.08);
+    g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+    o.connect(g); g.connect(ana); o.start(t); o.stop(t + 0.12);
   }
   function planla() {
     while (zaman < ctx.currentTime + 0.15) {
-      const s = adim % 16, ak = AKOR[Math.floor(adim / 16) % 4];
-      if (s % 4 === 0) kick(zaman);
-      if (s % 2 === 1) hihat(zaman, s % 4 === 3 ? 0.18 : 0.08);
-      if (s === 0 || s === 6 || s === 10) nota(frek(ak[0] - 24), zaman, ON6 * 3, "triangle", 0.45);
-      if (s % 2 === 0) nota(frek(ak[(s / 2) % 3] + 12), zaman, ON6 * 1.6, "square", 0.045);
-      if (s === 0 || s === 8) ak.forEach((m) => nota(frek(m), zaman, ON6 * 7, "sawtooth", 0.035));
-      if (MELODI[s] && Math.floor(adim / 16) % 2 === 1) nota(frek(MELODI[s]), zaman, ON6 * 1.8, "triangle", 0.12);
+      const s = adim % 16, olcu = Math.floor(adim / 16) % 4, ak = AKOR[olcu];
+      // Davul
+      if (s === 0 || s === 8 || s === 11) kick(zaman);
+      if (s === 4 || s === 12) davul(zaman, 0.12, 2500, 0.5);
+      if (s % 2 === 1) davul(zaman, 0.025, 9000, 0.12);
+      // Üçgen dalga bas: kök ve oktav sıçraması
+      nota(frek(ak[0] - 24 + (s % 4 === 2 ? 12 : 0)), zaman, ON6 * 0.9, "triangle", 0.5);
+      // Hızlı arpej (akor notaları sırayla, yarım adım aralıklarla)
+      const yarim = ON6 / 2;
+      nota(frek(ak[s % 3] + 12), zaman, yarim * 0.9, "square", 0.05);
+      nota(frek(ak[(s + 1) % 3] + 12), zaman + yarim, yarim * 0.9, "square", 0.05);
+      // Melodi
+      const m = MELODI[olcu * 16 + s];
+      if (m) nota(frek(m), zaman, ON6 * 1.7, "square", 0.11, m >= 84 ? 1.005 : 0);
       zaman += ON6; adim++;
     }
   }
@@ -89,24 +106,25 @@ function muzikKur() {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return false;
         ctx = new AC();
-        const yumusat = ctx.createBiquadFilter(); yumusat.type = "lowpass"; yumusat.frequency.value = 5200;
-        ana = ctx.createGain(); ana.gain.value = 0.0001; ana.connect(yumusat); yumusat.connect(ctx.destination);
-        gurultu = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
-        const v = gurultu.getChannelData(0); for (let i = 0; i < v.length; i++) v[i] = Math.random() * 2 - 1;
+        ana = ctx.createGain(); ana.gain.value = 0.0001; ana.connect(ctx.destination);
+        gurultu = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+        const v = gurultu.getChannelData(0);
+        // Eski konsollardaki gibi "basamaklı" gürültü: her değer birkaç örnek boyunca aynı kalır
+        for (let i = 0; i < v.length; i += 4) { const r = Math.random() * 2 - 1; for (let j = 0; j < 4 && i + j < v.length; j++) v[i + j] = r; }
       }
       try { await ctx.resume(); } catch (e) {}
       if (ctx.state !== "running") return false;
       ana.gain.cancelScheduledValues(ctx.currentTime);
-      ana.gain.setTargetAtTime(0.55, ctx.currentTime, 0.15);
+      ana.gain.setTargetAtTime(0.45, ctx.currentTime, 0.1);
       if (!iv) { zaman = ctx.currentTime + 0.05; adim = 0; iv = setInterval(planla, 25); }
       return true;
     },
     durdur() {
       if (!ctx || !iv) return;
       ana.gain.cancelScheduledValues(ctx.currentTime);
-      ana.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.12);
+      ana.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.1);
       const eski = iv; iv = null;
-      setTimeout(() => clearInterval(eski), 600);
+      setTimeout(() => clearInterval(eski), 500);
     },
   };
 }
