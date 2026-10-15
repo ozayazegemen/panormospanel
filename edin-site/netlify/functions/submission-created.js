@@ -44,10 +44,11 @@ function okuyucu(soket) {
   })
 }
 
-async function komut(soket, oku, satir, beklenen) {
+// etiket: hata mesajında görünecek ad. Kullanıcı adı ve şifre adımlarında komutun kendisi asla günlüğe yazılmaz.
+async function komut(soket, oku, satir, beklenen, etiket) {
   if (satir !== null) soket.write(satir + '\r\n')
   const y = await oku()
-  if (!beklenen.includes(y.kod)) throw new Error(`SMTP ${satir ? satir.split(' ')[0] : 'bağlantı'}: ${y.metin.trim().slice(0, 200)}`)
+  if (!beklenen.includes(y.kod)) throw new Error(`SMTP ${etiket || (satir ? satir.split(' ')[0] : 'bağlantı')}: ${y.metin.trim().slice(0, 200)}`)
   return y
 }
 
@@ -69,8 +70,8 @@ async function mailGonder({ konu, metin, yanitAdresi }) {
       ehlo = await komut(soket, oku, 'EHLO edinlergida.com.tr', [250])
     }
     await komut(soket, oku, 'AUTH LOGIN', [334])
-    await komut(soket, oku, b64(ADRES), [334])
-    await komut(soket, oku, b64(sifre), [235])
+    await komut(soket, oku, b64(ADRES), [334], 'kullanıcı adı')
+    await komut(soket, oku, b64(sifre), [235], 'şifre')
     await komut(soket, oku, `MAIL FROM:<${ADRES}>`, [250])
     await komut(soket, oku, `RCPT TO:<${ADRES}>`, [250, 251])
     await komut(soket, oku, 'DATA', [354])
@@ -89,7 +90,7 @@ async function mailGonder({ konu, metin, yanitAdresi }) {
       govde,
       '.',
     ].join('\r\n')
-    await komut(soket, oku, ileti, [250])
+    await komut(soket, oku, ileti, [250], 'ileti')
     soket.write('QUIT\r\n')
   } finally {
     setTimeout(() => soket.destroy(), 500)
