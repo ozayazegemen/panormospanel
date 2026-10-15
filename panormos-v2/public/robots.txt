@@ -1,6 +1,5 @@
 User-agent: *
 Allow: /
 Disallow: /f/
-Disallow: /.netlify/
 
 Sitemap: https://panormosmedya.com/sitemap.xml
