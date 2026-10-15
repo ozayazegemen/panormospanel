@@ -477,3 +477,50 @@ h1 em, h2 em { font-style: normal; }
 .harita iframe { width: 100%; height: 100%; min-height: 420px; border: 0; display: block; }
 @media (max-width: 860px) { .iletisim-izgara { grid-template-columns: 1fr; } }
 .hakkinda-dugme { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+
+/* ================= Yumuşak tonlar: koyu gri bantlar yerine sıcak krem ================= */
+:root { --yumusak: #F1EDE4; --yumusak-2: #E8E3D7; --alt-zemin: #3B3934; }
+.bolum.koyu { background: var(--yumusak); color: var(--antrasit); }
+.koyu .baslik .ust-yazi, .koyu .ust-yazi { color: var(--gri); }
+.koyu .baslik p { color: var(--gri); }
+.bolum.koyu h2 em { color: inherit; background: linear-gradient(transparent 58%, var(--sari) 58%, var(--sari) 90%, transparent 90%); padding: 0 .08em; }
+.yanlis { background: var(--beyaz); border: 1px solid var(--yumusak-2); box-shadow: 0 6px 18px rgba(35,35,35,.04); }
+.yanlis:hover { background: var(--beyaz); box-shadow: 0 14px 30px rgba(35,35,35,.08); }
+.yanlis p { color: var(--gri); }
+.yanlis p b { color: var(--antrasit); background: var(--sari-acik); padding: 0 4px; border-radius: 4px; }
+.etiket-y { background: #F3D9D6; color: #A3312A; }
+.adimlar li { background: var(--beyaz); border: 1px solid var(--yumusak-2); }
+.adimlar li:hover { background: var(--beyaz); box-shadow: 0 14px 30px rgba(35,35,35,.08); }
+.adimlar p { color: var(--gri); }
+.hakkinda p { color: var(--gri-koyu); }
+.hizmet-liste div { background: var(--beyaz); border: 1px solid var(--yumusak-2); }
+.hizmet-liste small { color: var(--gri); }
+.koyu .kutu { background: var(--beyaz); border: 1px solid var(--yumusak-2); }
+.koyu .kutu h3 span, .koyu .not { color: var(--gri-acik); }
+.koyu .fiyat { background: var(--zemin); }
+.koyu .fiyat small { color: var(--gri); }
+.koyu .fiyat i.arti { color: var(--yesil); }
+.koyu .fiyat i.eksi { color: var(--kirmizi); }
+.hakkinda-dugme .btn-cizgi { color: var(--antrasit); }
+/* sayfa başları, konu şeridi, üst bilgi */
+.sayfa-bas { background: radial-gradient(700px 300px at 90% 0%, rgba(242,222,27,.28), transparent 60%), var(--yumusak); color: var(--antrasit); }
+.sayfa-bas p { color: var(--gri); }
+.sayfa-bas .yol { color: var(--gri-acik); }
+.sayfa-bas .yol a, .sayfa-bas .geri { color: var(--antrasit); text-decoration: underline; text-decoration-color: var(--sari-koyu); text-underline-offset: 3px; }
+.konu-seridi { background: var(--yumusak); border-bottom: 1px solid var(--yumusak-2); }
+.konu-seridi a { color: var(--gri-koyu); }
+.konu-seridi a:hover { background: var(--sari); color: var(--antrasit); }
+.ust-bilgi { background: var(--yumusak); color: var(--gri); border-bottom: 1px solid var(--yumusak-2); }
+.ust-bilgi a { color: var(--gri-koyu); }
+.ust-bilgi a:hover { color: var(--antrasit); }
+.arac-sekmeler { background: var(--yumusak); }
+.arac-sekmeler button { color: var(--gri-koyu); }
+.yazi-alt { background: var(--yumusak); color: var(--antrasit); }
+.yazi-alt p { color: var(--gri) !important; }
+/* alt bilgi: daha yumuşak koyu ton */
+.alt { background: var(--alt-zemin); }
+.koyu + .alt { border-top: 0; }
+.davet { background: var(--beyaz); color: var(--antrasit); border: 1px solid var(--yumusak-2); }
+.davet p { color: var(--gri); }
+.davet .btn-cizgi { color: var(--antrasit); }
+.davet-kapat { color: var(--gri-acik); }
