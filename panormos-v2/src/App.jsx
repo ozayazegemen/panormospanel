@@ -1,4 +1,4 @@
-import Site from "./Site.jsx";
+import Site, { BlogSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
@@ -12857,7 +12857,7 @@ export default function App() {
   const qrYol = window.location.pathname.match(/^\/m\/([a-z0-9-]+)\/?$/);
   if (qrYol) return <QrMenu slug={qrYol[1]} />;
   // Sitedeki blog: giriş durumundan bağımsız, herkese açık
-  if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSite />;
+  if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSayfasi Icerik={BlogIcerik} />;
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
   if (!session) {
     if (showLogin) return <Login onLogin={() => {}} />;

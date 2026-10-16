@@ -259,10 +259,80 @@ function Serit({ kelimeler, sinif }) {
   );
 }
 
-export default function Site({ onEnter }) {
+const ig = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="0.8" fill="currentColor" /></svg>
+);
+const wa = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.1-.2-.2-.4-.3Z" /></svg>
+);
+
+
+// Üst menü (ana sayfa ve blog ortak). onek: blog sayfalarında "/" (bağlantılar ana sayfadaki bölümlere gider)
+export function SiteUst({ onEnter, onek = "" }) {
   const [menu, setMenu] = useState(false);
-  const [kelime, setKelime] = useState(0);
   const [kaydi, setKaydi] = useState(false);
+  useEffect(() => {
+    const kaydir = () => setKaydi(window.scrollY > 30);
+    kaydir();
+    window.addEventListener("scroll", kaydir, { passive: true });
+    return () => window.removeEventListener("scroll", kaydir);
+  }, []);
+  useEffect(() => { document.body.style.overflow = menu ? "hidden" : "auto"; }, [menu]);
+  const kapat = () => setMenu(false);
+  return (
+    <nav className={`ust${kaydi ? " kaydi" : ""}${menu ? " menu-acik" : ""}`}>
+      <a href={`${onek}#lp-top`} className="logo" onClick={kapat}>panormos<b>medya</b><i>.</i></a>
+      <div className={`baglantilar${menu ? " acik" : ""}`}>
+        <a href={`${onek}#lp-hizmetler`} onClick={kapat}>Hizmetler</a>
+        <a href={`${onek}#lp-isler`} onClick={kapat}>İşlerimiz</a>
+        <a href={`${onek}#lp-surec`} onClick={kapat}>Nasıl çalışırız</a>
+        <a href="/blog" onClick={kapat}>Blog</a>
+        <a href={`${onek}#lp-iletisim`} onClick={kapat}>İletişim</a>
+        <a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener" className="ig" aria-label="Instagram">{ig}<span> Instagram</span></a>
+        <button type="button" className="giris" onClick={() => { kapat(); onEnter?.(); }}>Giriş yap</button>
+        <a href={`${onek}#lp-iletisim`} className="dugme pembe" onClick={kapat}>Teklif al</a>
+      </div>
+      <button className={`hamburger${menu ? " acik" : ""}`} aria-label="Menü" aria-expanded={menu} onClick={() => setMenu((m) => !m)}><span /><span /></button>
+    </nav>
+  );
+}
+
+// Alt bilgi (ana sayfa ve blog ortak)
+export function SiteAlt({ onEnter, onek = "" }) {
+  return (
+    <footer className="alt">
+      <div className="kap">
+        <div className="alt-ust">
+          <a href={`${onek}#lp-top`} className="logo">panormos<b>medya</b><i>.</i></a>
+          <div className="alt-linkler">
+            <a href={`${onek}#lp-hizmetler`}>Hizmetler</a>
+            <a href={`${onek}#lp-isler`}>İşlerimiz</a>
+            <a href={`${onek}#lp-surec`}>Nasıl çalışırız</a>
+            <a href="/blog">Blog</a>
+            <a href={`${onek}#lp-iletisim`}>İletişim</a>
+            <a onClick={onEnter} role="button" tabIndex={0}>Çalışan girişi</a>
+          </div>
+        </div>
+      </div>
+      <div className="alt-dev" aria-hidden="true">
+        <div className="alt-dev-ic">
+          {[0, 1].map((k) => (
+            <div key={k}>
+              <span className="d1">PANORMOS</span><span className="c">MEDYA</span><i>✶</i>
+              <span className="d2">PANORMOS</span><span className="c">MEDYA</span><i>✶</i>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="kap">
+        <div className="alt-son"><span>© {new Date().getFullYear()} Panormos Medya. Tüm hakları saklıdır.</span><span>Bandırma / Balıkesir</span></div>
+      </div>
+    </footer>
+  );
+}
+
+export default function Site({ onEnter }) {
+  const [kelime, setKelime] = useState(0);
   const [yazilar, setYazilar] = useState([]);
 
   useEffect(() => {
@@ -277,8 +347,6 @@ export default function Site({ onEnter }) {
     const hedef = /^#lp-[a-z]+$/.test(window.location.hash) ? window.location.hash.slice(1) : "";
     const hz = hedef ? setTimeout(() => document.getElementById(hedef)?.scrollIntoView(), 150) : null;
 
-    const kaydir = () => setKaydi(window.scrollY > 30);
-    window.addEventListener("scroll", kaydir, { passive: true });
     const iv = setInterval(() => setKelime((k) => (k + 1) % ROTATOR.length), 2400);
 
     const io = new IntersectionObserver((g) => g.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("gor"); io.unobserve(e.target); } }), { threshold: 0.12 });
@@ -291,44 +359,19 @@ export default function Site({ onEnter }) {
       .then(({ data }) => setYazilar(data || []), () => {});
 
     return () => {
-      window.removeEventListener("scroll", kaydir); clearInterval(iv); io.disconnect(); delete window.__pmGozle; if (hz) clearTimeout(hz);
+      clearInterval(iv); io.disconnect(); delete window.__pmGozle; if (hz) clearTimeout(hz);
       html.style.height = once.hh; html.style.overflow = once.ho; body.style.height = once.bh; body.style.overflow = once.bo; body.style.position = once.bp;
       if (root) { root.style.height = once.rh; root.style.overflow = once.ro; }
     };
   }, []);
 
-  useEffect(() => {
-    document.body.style.overflow = menu ? "hidden" : "auto";
-  }, [menu]);
-
   useEffect(() => { if (yazilar.length) window.__pmGozle?.(); }, [yazilar]);
-
-  const kapat = () => setMenu(false);
-  const ig = (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.3" cy="6.7" r="0.8" fill="currentColor" /></svg>
-  );
-  const wa = (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .1-1.2c0-.1-.2-.2-.4-.3Z" /></svg>
-  );
 
   return (
     <div className="pm-site">
       <style>{SITE_CSS}</style>
 
-      <nav className={`ust${kaydi ? " kaydi" : ""}${menu ? " menu-acik" : ""}`}>
-        <a href="#lp-top" className="logo" onClick={kapat}>panormos<b>medya</b><i>.</i></a>
-        <div className={`baglantilar${menu ? " acik" : ""}`}>
-          <a href="#lp-hizmetler" onClick={kapat}>Hizmetler</a>
-          <a href="#lp-isler" onClick={kapat}>İşlerimiz</a>
-          <a href="#lp-surec" onClick={kapat}>Nasıl çalışırız</a>
-          <a href="/blog" onClick={kapat}>Blog</a>
-          <a href="#lp-iletisim" onClick={kapat}>İletişim</a>
-          <a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener" className="ig" aria-label="Instagram">{ig}<span> Instagram</span></a>
-          <button type="button" className="giris" onClick={() => { kapat(); onEnter?.(); }}>Giriş yap</button>
-          <a href="#lp-iletisim" className="dugme pembe" onClick={kapat}>Teklif al</a>
-        </div>
-        <button className={`hamburger${menu ? " acik" : ""}`} aria-label="Menü" aria-expanded={menu} onClick={() => setMenu((m) => !m)}><span /><span /></button>
-      </nav>
+      <SiteUst onEnter={onEnter} />
 
       {/* HERO */}
       <header id="lp-top" className="hero">
@@ -478,39 +521,167 @@ export default function Site({ onEnter }) {
         </div>
       </section>
 
-      <footer className="alt">
-        <div className="kap">
-          <div className="alt-ust">
-            <a href="#lp-top" className="logo">panormos<b>medya</b><i>.</i></a>
-            <div className="alt-linkler">
-              <a href="#lp-hizmetler">Hizmetler</a>
-              <a href="#lp-isler">İşlerimiz</a>
-              <a href="#lp-surec">Nasıl çalışırız</a>
-              <a href="/blog">Blog</a>
-              <a href="#lp-iletisim">İletişim</a>
-              <a onClick={onEnter} role="button" tabIndex={0}>Çalışan girişi</a>
-            </div>
-          </div>
-        </div>
-        <div className="alt-dev" aria-hidden="true">
-          <div className="alt-dev-ic">
-            {[0, 1].map((k) => (
-              <div key={k}>
-                <span className="d1">PANORMOS</span><span className="c">MEDYA</span><i>✶</i>
-                <span className="d2">PANORMOS</span><span className="c">MEDYA</span><i>✶</i>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="kap">
-          <div className="alt-son"><span>© {new Date().getFullYear()} Panormos Medya. Tüm hakları saklıdır.</span><span>Bandırma / Balıkesir</span></div>
-        </div>
-      </footer>
+      <SiteAlt onEnter={onEnter} />
 
       <a href="https://wa.me/905364716012" target="_blank" rel="noopener" className="wa-sabit" aria-label="WhatsApp'tan yaz">{wa}</a>
     </div>
   );
 }
+
+// panormosmedya.com/blog ve /blog/<yazı>: ana sayfayla aynı renkli tasarım.
+// Icerik: yazı gövdesini çizen bileşen (App.jsx'teki BlogIcerik; panel önizlemesiyle aynı kurallar)
+export function BlogSayfasi({ Icerik }) {
+  const yol = window.location.pathname.replace(/\/+$/, "");
+  const slug = yol.startsWith("/blog/") ? decodeURIComponent(yol.slice(6)) : "";
+  const [liste, setListe] = useState(null);
+  const [yazi, setYazi] = useState(undefined); // undefined: yükleniyor, null: bulunamadı
+  const girisYap = () => { window.location.href = "/#giris"; };
+
+  useEffect(() => {
+    const html = document.documentElement, body = document.body, root = document.getElementById("root");
+    html.style.height = "auto"; html.style.overflow = "auto";
+    body.style.height = "auto"; body.style.overflow = "auto"; body.style.position = "static";
+    if (root) { root.style.height = "auto"; root.style.overflow = "visible"; }
+    window.scrollTo(0, 0);
+    let sorgu = supabase.from("blog_yazilari").select("id, slug, baslik, ozet, kategori, kapak, yayin_tarihi").eq("yayinda", true).order("yayin_tarihi", { ascending: false });
+    if (slug) sorgu = sorgu.limit(4);
+    sorgu.then(({ data }) => setListe(data || []), () => setListe([]));
+    if (!slug) { document.title = "Blog — Panormos Medya"; return; }
+    supabase.from("blog_yazilari").select("*").eq("slug", slug).eq("yayinda", true).maybeSingle().then(({ data }) => {
+      setYazi(data || null);
+      if (data?.baslik) document.title = `${data.baslik} — Panormos Medya`;
+    }, () => setYazi(null));
+  }, [slug]);
+
+  const digerleri = (liste || []).filter((y) => y.slug !== slug).slice(0, 3);
+  const kartlar = (l) => (
+    <div className="bloglar">
+      {l.map((y, i) => (
+        <a key={y.id} href={`/blog/${y.slug}`} className={`blog-kart ${["pembe", "mavi", "sari"][i % 3]}`}>
+          {y.kapak ? <img src={y.kapak} alt="" loading="lazy" /> : <div className="blog-bos" aria-hidden="true" />}
+          <div>
+            <span className="b-kat">{y.kategori}</span>
+            <h3>{y.baslik}</h3>
+            {y.ozet && <p>{y.ozet}</p>}
+            <span className="b-tarih">{blogTarihi(y.yayin_tarihi)} · Oku →</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="pm-site">
+      <style>{SITE_CSS + BLOG_SAYFA_CSS}</style>
+      <SiteUst onEnter={girisYap} onek="/" />
+
+      {!slug ? (
+        <>
+          <header className="blog-ust krem">
+            <div className="kap">
+              <div className="no">Blog</div>
+              <h1 className="dev koyu-yazi"><span className="dolu">OKU,</span><span className="cizgi">UYGULA.</span></h1>
+              <p className="blog-giris">Sosyal medya, reklam, web sitesi ve yazılım üzerine ekibimizin kaleminden, işine hemen yarayacak notlar.</p>
+            </div>
+          </header>
+          <section className="bolum beyaz blog-liste">
+            <div className="kap">
+              {liste === null ? <p className="blog-bilgi">Yükleniyor…</p>
+                : liste.length === 0 ? <p className="blog-bilgi">Henüz yayınlanmış yazı yok. Yakında burada olacak.</p>
+                : kartlar(liste)}
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          <header className="blog-ust krem yazi-ust">
+            <div className="kap dar">
+              <a href="/blog" className="geri-link">← Tüm yazılar</a>
+              {yazi === undefined ? <p className="blog-bilgi">Yükleniyor…</p> : !yazi ? (
+                <>
+                  <h1 className="yazi-baslik">Yazı bulunamadı</h1>
+                  <p className="blog-giris">Aradığın yazı kaldırılmış ya da adresi değişmiş olabilir.</p>
+                </>
+              ) : (
+                <>
+                  <span className="yazi-kat">{yazi.kategori}</span>
+                  <h1 className="yazi-baslik">{yazi.baslik}</h1>
+                  <div className="yazi-tarih">{blogTarihi(yazi.yayin_tarihi)} · Panormos Medya</div>
+                </>
+              )}
+            </div>
+          </header>
+          {yazi && (
+            <section className="bolum beyaz yazi-bolum">
+              <article className="kap dar">
+                {yazi.kapak && <img className="yazi-kapak" src={yazi.kapak} alt="" />}
+                {yazi.ozet && <p className="yazi-ozet">{yazi.ozet}</p>}
+                <div className="yazi-govde">{Icerik ? <Icerik metin={yazi.icerik} /> : null}</div>
+                <div className="yazi-cta">
+                  <h3>Markanı birlikte büyütelim</h3>
+                  <p>Ücretsiz tanışma görüşmesi için yaz ya da ara; sana özel teklifini hazırlayalım.</p>
+                  <div className="ilet-dugmeler">
+                    <a href="https://wa.me/905364716012" target="_blank" rel="noopener" className="dugme beyaz-d buyuk">{wa} WhatsApp</a>
+                    <a href="/#lp-iletisim" className="dugme koyu buyuk">İletişim bilgileri →</a>
+                  </div>
+                </div>
+              </article>
+            </section>
+          )}
+          {yazi !== undefined && digerleri.length > 0 && (
+            <section className="bolum krem">
+              <div className="kap">
+                <div className="no">Diğer yazılar</div>
+                <div style={{ height: 28 }} />
+                {kartlar(digerleri)}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      <SiteAlt onEnter={girisYap} onek="/" />
+      <a href="https://wa.me/905364716012" target="_blank" rel="noopener" className="wa-sabit" aria-label="WhatsApp'tan yaz">{wa}</a>
+    </div>
+  );
+}
+
+const BLOG_SAYFA_CSS = `
+.pm-site .blog-ust{padding:150px 0 70px;position:relative;overflow:hidden}
+.pm-site .blog-ust .dev{margin-bottom:24px}
+.pm-site .blog-giris{font-size:clamp(17px,1.8vw,20px);font-weight:600;color:#3a3a46;max-width:620px}
+.pm-site .blog-liste{padding-top:80px}
+.pm-site .blog-bilgi{font-size:17px;font-weight:600;color:var(--gri);padding:30px 0}
+.pm-site .kap.dar{max-width:820px}
+.pm-site .yazi-ust{padding-bottom:50px}
+.pm-site .geri-link{display:table;font-weight:800;font-size:14px;margin-bottom:26px;padding:8px 14px;border:2px solid var(--murekkep);border-radius:12px;background:#fff;box-shadow:3px 3px 0 var(--murekkep)}
+.pm-site .geri-link:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--murekkep)}
+.pm-site .yazi-kat{display:inline-block;font-weight:800;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border-radius:100px;background:var(--sari);border:2px solid var(--murekkep);margin-bottom:18px}
+.pm-site .yazi-baslik{font-family:'Unbounded',sans-serif;font-weight:800;font-size:clamp(28px,4.4vw,52px);line-height:1.08;letter-spacing:-.03em;margin-bottom:16px}
+.pm-site .yazi-tarih{font-weight:700;color:var(--gri);font-size:14px}
+.pm-site .yazi-bolum{padding-top:60px}
+.pm-site .yazi-kapak{display:block;width:100%;border-radius:24px;border:3px solid var(--murekkep);box-shadow:8px 8px 0 var(--murekkep);margin-bottom:36px}
+.pm-site .yazi-ozet{font-size:clamp(18px,2vw,21px);font-weight:700;line-height:1.55;margin-bottom:28px;padding-left:18px;border-left:6px solid var(--turuncu)}
+.pm-site .yazi-govde{font-size:17.5px;line-height:1.8;color:#2a2a34}
+.pm-site .yazi-govde p{margin-bottom:20px}
+.pm-site .yazi-govde h2{font-family:'Unbounded',sans-serif;font-weight:800;font-size:clamp(22px,2.6vw,28px);line-height:1.2;margin:38px 0 14px;letter-spacing:-.02em}
+.pm-site .yazi-govde ul{margin:0 0 22px;padding:0;list-style:none;display:grid;gap:8px}
+.pm-site .yazi-govde li{padding-left:26px;position:relative}
+.pm-site .yazi-govde li::before{content:"";position:absolute;left:4px;top:.65em;width:10px;height:10px;border-radius:3px;background:var(--pembe);transform:rotate(45deg)}
+.pm-site .yazi-govde figure{margin:30px 0}
+.pm-site .yazi-govde figure img{width:100%;border-radius:18px;border:2px solid var(--murekkep)}
+.pm-site .yazi-govde figcaption{font-size:14px;color:var(--gri);margin-top:8px;text-align:center}
+.pm-site .yazi-cta{margin-top:50px;padding:34px 30px;border-radius:26px;color:#fff;background:linear-gradient(120deg,var(--turuncu) 0%,var(--pembe) 55%,var(--mor) 100%);border:3px solid var(--murekkep);box-shadow:8px 8px 0 var(--murekkep)}
+.pm-site .yazi-cta h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:clamp(22px,2.8vw,30px);margin-bottom:8px}
+.pm-site .yazi-cta p{font-weight:700;margin-bottom:20px;font-size:16px}
+.pm-site .yazi-cta .ilet-dugmeler{margin-bottom:0}
+@media (max-width:640px){
+  .pm-site .blog-ust{padding:120px 0 50px}
+  .pm-site .yazi-govde{font-size:16.5px}
+  .pm-site .yazi-cta{padding:26px 20px}
+  .pm-site .yazi-kapak{box-shadow:5px 5px 0 var(--murekkep)}
+}
+`;
 
 const SITE_CSS = `
 .pm-site{--murekkep:#0E0E14;--krem:#FFF6EA;--turuncu:#F25124;--pembe:#FF2E88;--mavi:#2D5BFF;--sari:#FFD23F;--mor:#7B3FF2;--yesil:#B5F23D;--gri:#5B5B6B;
