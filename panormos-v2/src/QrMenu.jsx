@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 // Restoran ve barların dijital menüsü: panormosmedya.com/m/<slug>
@@ -6,9 +6,9 @@ import { supabase } from "./supabaseClient";
 // Menü panelden (QR Menü bölümü) yönetilir; fiyat değişince menü anında güncellenir, PDF gerekmez.
 
 const YAZI_TIPLERI = {
-  zarif: { baslik: "'DM Sans', sans-serif", urun: "'Playfair Display', Georgia, serif", govde: "'DM Sans', sans-serif", link: "family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@500;600;700" },
-  modern: { baslik: "'Manrope', sans-serif", urun: "'Manrope', sans-serif", govde: "'Manrope', sans-serif", link: "family=Manrope:wght@400;500;600;700;800" },
-  eglenceli: { baslik: "'Unbounded', sans-serif", urun: "'Manrope', sans-serif", govde: "'Manrope', sans-serif", link: "family=Unbounded:wght@600;800&family=Manrope:wght@400;500;600;700;800" },
+  zarif: { baslik: "'DM Sans', sans-serif", urun: "'Lora', Georgia, serif", kbaslik: "'Cormorant Garamond', Georgia, serif", govde: "'DM Sans', sans-serif", link: "family=DM+Sans:wght@400;500;700&family=Lora:wght@500;600;700&family=Cormorant+Garamond:wght@500;600" },
+  modern: { baslik: "'Manrope', sans-serif", urun: "'Manrope', sans-serif", kbaslik: "'Manrope', sans-serif", govde: "'Manrope', sans-serif", link: "family=Manrope:wght@400;500;600;700;800" },
+  eglenceli: { baslik: "'Unbounded', sans-serif", urun: "'Manrope', sans-serif", kbaslik: "'Unbounded', sans-serif", govde: "'Manrope', sans-serif", link: "family=Unbounded:wght@600;800&family=Manrope:wght@400;500;600;700;800" },
 };
 
 const ALERJEN_ADLARI = { G: "Gluten", D: "Süt ürünleri", N: "Kuruyemiş", V: "Vejetaryen", VG: "Vegan", SF: "Kabuklu deniz ürünleri", ALC: "Alkol", SSM: "Susam" };
@@ -79,10 +79,21 @@ export default function QrMenu({ slug }) {
     const u = new URL(window.location.href);
     if (id) u.searchParams.set("k", id); else u.searchParams.delete("k");
     window.history.pushState({}, "", u);
-    setSecili(id); window.scrollTo(0, 0);
+    setSecili(id);
+    if (!id) window.scrollTo(0, 0);
   };
+  // Seçilen kategorinin başlığına kay (bölümün ilk kategorisiyse sayfanın en üstü)
+  useEffect(() => {
+    if (!secili) return;
+    const t = setTimeout(() => {
+      const el = document.getElementById(`k-${secili}`);
+      if (!el) return;
+      const ilk = el.parentElement?.querySelector(".qm-kb") === el;
+      window.scrollTo({ top: ilk ? 0 : el.getBoundingClientRect().top + window.scrollY - 112, behavior: "smooth" });
+    }, 30);
+    return () => clearTimeout(t);
+  }, [secili, menu]);
   const kategori = kategoriler.find((k) => k.id === secili);
-  const kategoriUrunleri = useMemo(() => urunler.filter((u) => u.kategori_id === secili), [urunler, secili]);
 
   if (menu === undefined) return <div style={{ minHeight: "100vh", background: "#F3F1EC" }} />;
   if (menu === null) {
@@ -94,14 +105,9 @@ export default function QrMenu({ slug }) {
   }
 
   const ana = menu.ana_renk, zemin = menu.zemin_renk;
-  const etiketler = String(kategori?.fiyat_etiketleri || "").split(/[,|/]/).map((s) => s.trim()).filter(Boolean);
   const wa = menu.whatsapp ? `https://wa.me/${telLink(menu.whatsapp)}` : "";
   const rez = menu.rezervasyon ? (/^https?:/i.test(menu.rezervasyon) ? menu.rezervasyon : `tel:+${telLink(menu.rezervasyon)}`) : "";
 
-  // İkiden çok ölçü (Tek, Duble, 20 cl…): fiyatlar ürün adının altında küçük bir tabloda gösterilir;
-  // kategoride hiç fiyat yoksa ölçüler başlığın altında bir kez yazılır
-  const cokOlcu = etiketler.length > 2;
-  const olcuFiyatiVar = kategoriUrunleri.some((u) => etiketler.some((_, i) => fiyatYaz(fiyatAl(u, i))));
   const olcuAdi = (e) => (en ? OLCU_EN[e.toLocaleLowerCase("tr")] || e : e);
   // Giriş sayfasında kategoriler bölüm adına göre gruplanır (ör. İçki Menüsü / Şarap Menüsü); bölümsüzler tek grup
   const bolumler = [];
@@ -119,7 +125,7 @@ export default function QrMenu({ slug }) {
   );
 
   return (
-    <div className="qm" lang={en ? "en" : "tr"} style={{ "--ana": ana, "--zemin": zemin, "--baslik": tip.baslik, "--urun": tip.urun, "--govde": tip.govde }}>
+    <div className="qm" lang={en ? "en" : "tr"} style={{ "--ana": ana, "--zemin": zemin, "--baslik": tip.baslik, "--urun": tip.urun, "--kbaslik": tip.kbaslik, "--govde": tip.govde }}>
       <style>{QM_CSS}</style>
 
       {!kategori ? (
@@ -161,44 +167,52 @@ export default function QrMenu({ slug }) {
               </span>
             ))}
           </div>
-          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 62 : etiketler.length <= 4 ? 50 : 38}px` }}>
-            <div className="qm-kat-baslik">
-              <span className="qm-no">{String(kategoriler.findIndex((k) => k.id === secili) + 1).padStart(2, "0")}</span>
-              <h2>{yaz(kategori.ad, kategori.ad_en)}</h2>
-              {yaz(kategori.aciklama, kategori.aciklama_en) && <p>{yaz(kategori.aciklama, kategori.aciklama_en)}</p>}
-            </div>
-            {etiketler.length > 0 && (
-              <div className="qm-olcu-baslik"><span className="qm-olcu-bosluk">{cokOlcu ? yaz("Fiyat (₺)", "Price (₺)") : ""}</span>{etiketler.map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>
-            )}
-            {kategoriUrunleri.map((u) => {
-              const fiyatlar = etiketler.length ? etiketler.map((_, i) => fiyatAl(u, i)) : [fiyatAl(u, 0)];
-              const yazF = (f) => (cokOlcu ? (f === null || f === undefined || f === "" ? "" : new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Number(f))) : fiyatYaz(f));
-              const fiyatVar = fiyatlar.some((f) => yazF(f));
-              const hucreler = fiyatlar.map((f, i) => <span key={i} className={yazF(f) ? "" : "bos"}>{yazF(f) || (etiketler.length > 1 && fiyatVar ? "–" : "")}</span>);
+          {/* Olden'in kâğıt menüsündeki gibi: bölümdeki bütün kategoriler tek sayfada alt alta */}
+          <div className="qm-kagit">
+            {kategori.bolum && <div className="qm-kagit-bolum">{yaz(kategori.bolum, kategori.bolum_en)}</div>}
+            {kategoriler.filter((k) => (k.bolum || "") === (kategori.bolum || "") && (k.id === secili || urunler.some((u) => u.kategori_id === k.id))).map((k) => {
+              const et = String(k.fiyat_etiketleri || "").split(/[,|/]/).map((x) => x.trim()).filter(Boolean);
+              const kUrunler = urunler.filter((u) => u.kategori_id === k.id);
+              const sutunlu = et.length > 1;
+              const cok = et.length > 2;
+              const fiyatMetni = (f) => (f === null || f === undefined || f === "" ? "" : cok ? new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Number(f)) : fiyatYaz(f));
+              const ikinci = menu.iki_dil && k.ad_en && k.ad_en.toLocaleLowerCase("en") !== k.ad.toLocaleLowerCase("tr") ? (en ? k.ad : k.ad_en) : "";
               return (
-              <article key={u.id} className={`qm-urun${u.tukendi ? " tukendi" : ""}`}>
-                {u.gorsel && <img src={u.gorsel} alt="" loading="lazy" />}
-                <div className="qm-urun-metin">
-                  <div className={`qm-satir${cokOlcu ? " tablo" : ""}`}>
-                    <h3>{yaz(u.ad, u.ad_en)}</h3>
-                    {!cokOlcu && fiyatVar && <span className="qm-nokta" aria-hidden="true" />}
-                    {fiyatVar && <span className="qm-fiyatlar">{hucreler}</span>}
-                  </div>
-                  {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
-                  {((u.alerjenler || []).length > 0 || u.etiket || u.tukendi) && (
-                    <div className="qm-rozetler">
-                      {u.etiket && <em className="qm-etiket">{u.etiket}</em>}
-                      {u.tukendi && <em className="qm-etiket tukendi">{yaz("Tükendi", "Sold out")}</em>}
-                      {(u.alerjenler || []).map((a) => <span key={a} className="qm-alerjen" title={ALERJEN_ADLARI[a] || a}>{a}</span>)}
-                    </div>
+                <section key={k.id} id={`k-${k.id}`} className={`qm-kb${cok ? " cok" : ""}`} style={{ "--sutun": `${et.length <= 2 ? 62 : et.length <= 4 ? 48 : 37}px` }}>
+                  <h2>
+                    {yaz(k.ad, k.ad_en).toLocaleUpperCase(en ? "en" : "tr")}
+                    {ikinci && <> - {ikinci.toLocaleUpperCase(en ? "tr" : "en")}</>}
+                    {et.length === 1 && <small> {olcuAdi(et[0])}</small>}
+                  </h2>
+                  {yaz(k.aciklama, k.aciklama_en) && <p className="qm-kb-aciklama">{yaz(k.aciklama, k.aciklama_en)}</p>}
+                  {sutunlu && (
+                    <div className="qm-kb-olcu"><span className="bos">{cok ? "₺" : ""}</span>{et.map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>
                   )}
-                </div>
-              </article>
+                  {kUrunler.map((u) => {
+                    const fl = (et.length ? et : [""]).map((_, i) => fiyatMetni(fiyatAl(u, i)));
+                    const var_ = fl.some(Boolean);
+                    return (
+                      <article key={u.id} className={`qm-u${u.tukendi ? " tukendi" : ""}`}>
+                        {u.gorsel && <img src={u.gorsel} alt="" loading="lazy" />}
+                        <div className="qm-u-metin">
+                          <h3>
+                            {yaz(u.ad, u.ad_en)}
+                            {(u.alerjenler || []).length > 0 && <span className="qm-alerjen" title={(u.alerjenler || []).map((a) => ALERJEN_ADLARI[a] || a).join(", ")}>{u.alerjenler.join(" · ")}</span>}
+                            {u.etiket && <em className="qm-etiket">{u.etiket}</em>}
+                            {u.tukendi && <em className="qm-etiket tukendi">{yaz("Tükendi", "Sold out")}</em>}
+                          </h3>
+                          {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
+                        </div>
+                        {var_ && <div className={`qm-u-fiyat${sutunlu ? " sutunlu" : ""}`}>{fl.map((f, i) => <span key={i} className={f ? "" : "bos"}>{f || (sutunlu ? "–" : "")}</span>)}</div>}
+                      </article>
+                    );
+                  })}
+                  {kUrunler.length === 0 && <p className="qm-bos">{yaz("Bu bölümde henüz ürün yok.", "No items in this section yet.")}</p>}
+                </section>
               );
             })}
-            {kategoriUrunleri.length === 0 && <p className="qm-bos">{yaz("Bu bölümde henüz ürün yok.", "No items in this section yet.")}</p>}
             {yaz(menu.alerjen_notu, menu.alerjen_notu_en) && <p className="qm-alerjen-notu">{yaz(menu.alerjen_notu, menu.alerjen_notu_en)}</p>}
-          </section>
+          </div>
           <Alt menu={menu} yaz={yaz} />
         </main>
       )}
@@ -290,37 +304,31 @@ const QM_CSS = `
 .qm-sekmeler button{flex:0 0 auto;font-family:var(--govde);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:10px 0 11px;color:#8b827c;border-bottom:2px solid transparent!important;white-space:nowrap}
 .qm-sekme-ayrac{flex:0 0 1px;align-self:center;height:16px;background:color-mix(in srgb,var(--ana) 30%,transparent)}
 .qm-sekmeler button.secili{color:var(--ana);border-bottom-color:var(--ana)!important}
-.qm-liste{padding:24px 18px 10px}
-.qm-kat-baslik{text-align:center;margin-bottom:26px}
-.qm-kat-baslik h2{font-family:var(--urun);font-weight:600;font-size:26px;line-height:1.1;color:var(--ana);margin-top:6px}
-.qm-kat-baslik p{font-size:13.5px;color:#7a716b;margin-top:8px;font-style:italic}
-.qm-olcu-baslik{display:flex;align-items:center;padding:9px 8px 9px 0;margin-bottom:4px;border-radius:10px;background:color-mix(in srgb,var(--ana) 7%,transparent)}
-.qm-olcu-baslik .qm-olcu-bosluk{flex:1;text-align:left;padding-left:10px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:color-mix(in srgb,var(--ana) 60%,#8b827c)}
-.qm-olcu-baslik span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;font-family:var(--govde);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
-.qm-urun{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
-.qm-urun:last-of-type{border-bottom:none}
-.qm-urun img{width:58px;height:58px;object-fit:cover;flex-shrink:0;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
-.qm-urun-metin{flex:1;min-width:0}
-.qm-satir{display:flex;align-items:baseline;gap:8px}
-.qm-satir.tablo h3{flex:1;min-width:0}
-.qm-satir h3+.qm-fiyatlar{margin-left:auto}
-.qm-satir .qm-fiyatlar{margin-right:8px}
-.qm-urun h3{font-family:var(--urun);font-weight:500;font-size:15.5px;line-height:1.25;color:#26211e}
-.qm-nokta{flex:1;min-width:16px;border-bottom:2px dotted color-mix(in srgb,var(--ana) 30%,transparent);transform:translateY(-4px)}
-.qm-fiyatlar{display:flex;flex-shrink:0;font-family:var(--govde);font-weight:700;font-size:13.5px;color:var(--ana)}
-.qm-fiyatlar span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;white-space:nowrap}
-.qm-fiyatlar span.bos{opacity:.35}
-.qm-liste.dar .qm-olcu-baslik span:not(.qm-olcu-bosluk),.qm-liste.dar .qm-fiyatlar span{text-align:center}
-.qm-liste.dar .qm-olcu-baslik span:not(.qm-olcu-bosluk){font-size:10px;letter-spacing:.02em}
-.qm-liste.dar .qm-fiyatlar{font-size:12.5px;font-weight:600;letter-spacing:-.01em}
-.qm-liste.dar .qm-satir.tablo{align-items:center}
-.qm-liste.dar .qm-urun h3{font-size:15px}
-.qm-urun p{font-size:12.5px;line-height:1.45;color:#6d645e;margin-top:4px}
-.qm-rozetler{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;align-items:center}
-.qm-alerjen{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 5px;border-radius:12px;font-size:9.5px;font-weight:700;letter-spacing:.03em;color:var(--ana);border:1px solid color-mix(in srgb,var(--ana) 35%,transparent);background:rgba(255,255,255,.5)}
-.qm-etiket{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--ana);padding:4px 9px;border-radius:12px}
+.qm-kagit{padding:22px 24px 6px}
+.qm-kagit-bolum{text-align:center;font-family:var(--kbaslik);font-weight:500;font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:color-mix(in srgb,var(--ana) 75%,#777);margin:2px 0 22px}
+.qm-kb{margin-bottom:30px}
+.qm-kb h2{font-family:var(--kbaslik);font-weight:500;font-size:23px;line-height:1.1;letter-spacing:.01em;color:var(--ana);margin-bottom:14px}
+.qm-kb h2 small{font-size:.7em;letter-spacing:.02em}
+.qm-kb-aciklama{font-size:11.5px;color:#7a716b;margin:-8px 0 12px;font-style:italic}
+.qm-kb-olcu{display:flex;justify-content:flex-end;margin:-4px 0 6px}
+.qm-kb-olcu span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;font-family:var(--govde);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana)}
+.qm-kb-olcu span.bos{flex:1;text-align:left;font-weight:500;color:#9a918b}
+.qm-u{display:flex;align-items:flex-start;gap:10px;padding:5px 0 6px}
+.qm-u img{width:46px;height:46px;object-fit:cover;flex-shrink:0;border-radius:6px}
+.qm-u-metin{flex:1;min-width:0}
+.qm-u h3{font-family:var(--urun);font-weight:700;font-size:13.5px;line-height:1.3;color:var(--ana)}
+.qm-u p{font-family:var(--govde);font-size:11px;line-height:1.4;color:color-mix(in srgb,var(--ana) 55%,#5a524d);margin-top:1px}
+.qm-u-fiyat{display:flex;flex-shrink:0;font-family:var(--govde);font-size:13.5px;font-weight:500;color:var(--ana);padding-top:1px}
+.qm-u-fiyat span{white-space:nowrap;text-align:right}
+.qm-u-fiyat.sutunlu span{flex:0 0 var(--sutun);width:var(--sutun);font-size:12.5px}
+.qm-u-fiyat span.bos{opacity:.35}
+.qm-kb.cok .qm-kb-olcu span:not(.bos),.qm-kb.cok .qm-u-fiyat span{text-align:center}
+.qm-kb.cok .qm-kb-olcu span:not(.bos){font-size:8.5px;letter-spacing:0}
+.qm-kb.cok .qm-u-fiyat span{font-size:11.5px;letter-spacing:-.02em}
+.qm-u.tukendi h3,.qm-u.tukendi p,.qm-u.tukendi .qm-u-fiyat{opacity:.45}
+.qm-alerjen{font-family:var(--govde);font-weight:500;font-size:9.5px;letter-spacing:.04em;color:color-mix(in srgb,var(--ana) 70%,#888);margin-left:6px;white-space:nowrap}
+.qm-etiket{display:inline-block;font-style:normal;font-family:var(--govde);font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--ana);padding:2px 6px;border-radius:3px;margin-left:6px;vertical-align:2px}
 .qm-etiket.tukendi{background:#9a9390}
-.qm-urun.tukendi h3,.qm-urun.tukendi p,.qm-urun.tukendi .qm-fiyatlar{opacity:.45;text-decoration:line-through;text-decoration-thickness:1px}
 .qm-alerjen-notu{margin-top:30px;padding-top:16px;border-top:1px solid color-mix(in srgb,var(--ana) 15%,transparent);font-size:11px;line-height:1.7;color:#8b827c;text-align:center}
 
 /* Alt bilgi ve alttaki düğmeler */
