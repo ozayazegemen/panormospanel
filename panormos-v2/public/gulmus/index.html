@@ -156,9 +156,19 @@ footer .logo-kutu{width:200px}
 .galeri a:hover img{transform:scale(1.08)}
 .galeri a::after{content:"＋";position:absolute;right:10px;bottom:10px;width:34px;height:34px;border-radius:50%;background:var(--kirmizi);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;opacity:0;transition:opacity .3s}
 .galeri a:hover::after{opacity:1}
-.isik{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+.isik{position:fixed;inset:0;z-index:100;background:rgba(8,9,10,.95);display:none;align-items:center;justify-content:center;padding:20px 80px}
 .isik.acik{display:flex}
-.isik img{max-width:100%;max-height:90vh;border-radius:6px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.isik figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:14px;max-width:100%}
+.isik img{max-width:100%;max-height:82vh;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.isik img.gir{animation:isikGir .3s ease}
+@keyframes isikGir{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.isik figcaption{color:rgba(255,255,255,.7);font-weight:700;font-size:14px;letter-spacing:.1em}
+.isik-ok{position:absolute;top:50%;transform:translateY(-50%);width:58px;height:58px;border-radius:50%;border:none;background:var(--kirmizi);color:#fff;font-size:38px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding-bottom:5px;box-shadow:0 10px 30px -8px rgba(214,31,38,.8);transition:transform .2s,background .2s}
+.isik-ok:hover{background:var(--kirmizi-k);transform:translateY(-50%) scale(1.08)}
+.isik-ok.sol{left:18px}.isik-ok.sag{right:18px}
+.isik-kapat{position:absolute;top:16px;right:18px;width:46px;height:46px;border-radius:50%;border:2px solid rgba(255,255,255,.4);background:transparent;color:#fff;font-size:20px;cursor:pointer}
+.isik-kapat:hover{border-color:var(--sari);color:var(--sari)}
+@media (max-width:600px){.isik{padding:20px 8px}.isik-ok{width:44px;height:44px;font-size:30px;top:auto;bottom:24px;transform:none}.isik-ok:hover{transform:scale(1.05)}.isik-ok.sol{left:calc(50% - 56px)}.isik-ok.sag{right:calc(50% - 56px)}.isik img{max-height:70vh}}
 
 /* Haberler */
 .haberler{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -474,7 +484,7 @@ html.acik .hero,html.acik .hizmet,html.acik .bant,html.acik .rakamlar,html.acik 
   <div class="kap">
     <div class="bolum-ust belir">
       <div><span class="etiket">Sahadan kareler</span><h2 class="genis">İşimiz <em>ortada</em></h2></div>
-      <p>Bandırma, Erdek ve çevresinde yaptığımız çalışmalardan. Fotoğrafa dokunun, büyüsün.</p>
+      <p>Bandırma, Erdek ve çevresinde yaptığımız çalışmalardan. Fotoğrafa dokunun, büyüsün; oklarla gezin.</p>
     </div>
     <div class="galeri"><a href="img/eski/ekskavator-4.jpg" class="belir"><img src="img/eski/ekskavator-4.jpg" alt="" loading="lazy"></a><a href="img/eski/damper-3.jpg" class="belir"><img src="img/eski/damper-3.jpg" alt="" loading="lazy"></a><a href="img/eski/vinc-2.jpg" class="belir"><img src="img/eski/vinc-2.jpg" alt="" loading="lazy"></a><a href="img/eski/yikim-2.jpg" class="belir"><img src="img/eski/yikim-2.jpg" alt="" loading="lazy"></a><a href="img/eski/filo-3.jpg" class="belir"><img src="img/eski/filo-3.jpg" alt="" loading="lazy"></a><a href="img/eski/kazi-2.jpg" class="belir"><img src="img/eski/kazi-2.jpg" alt="" loading="lazy"></a><a href="img/eski/vidanjor.jpg" class="belir"><img src="img/eski/vidanjor.jpg" alt="" loading="lazy"></a><a href="img/eski/hafriyat-2.jpg" class="belir"><img src="img/eski/hafriyat-2.jpg" alt="" loading="lazy"></a><a href="img/eski/malzeme.jpg" class="belir"><img src="img/eski/malzeme.jpg" alt="" loading="lazy"></a><a href="img/eski/ekskavator-3.jpg" class="belir"><img src="img/eski/ekskavator-3.jpg" alt="" loading="lazy"></a><a href="img/eski/filo-4.jpg" class="belir"><img src="img/eski/filo-4.jpg" alt="" loading="lazy"></a><a href="img/eski/gubre.jpg" class="belir"><img src="img/eski/gubre.jpg" alt="" loading="lazy"></a><a href="img/eski/yikim-3.jpg" class="belir"><img src="img/eski/yikim-3.jpg" alt="" loading="lazy"></a><a href="img/eski/filo-2.jpg" class="belir"><img src="img/eski/filo-2.jpg" alt="" loading="lazy"></a><a href="img/eski/kamyon.jpg" class="belir"><img src="img/eski/kamyon.jpg" alt="" loading="lazy"></a><a href="img/eski/kazi.jpg" class="belir"><img src="img/eski/kazi.jpg" alt="" loading="lazy"></a></div>
   </div>
@@ -605,10 +615,28 @@ document.querySelectorAll('[data-say]').forEach(b=>sayIO.observe(b));
 document.getElementById('form').onsubmit=e=>{e.preventDefault();document.getElementById('tamam').classList.add('goster')};
 // Tema düğmesi
 document.getElementById('tema').onclick=()=>{const a=document.documentElement.classList.toggle('acik');try{localStorage.setItem('gulmus_tema',a?'acik':'koyu')}catch(e){}};
-// Galeri ve sertifikalar: fotoğrafa dokununca büyük açılır
-const isik=document.createElement('div');isik.className='isik';isik.innerHTML='<img alt="">';document.body.appendChild(isik);
-isik.onclick=()=>isik.classList.remove('acik');
-document.querySelectorAll('.galeri a,.sertifikalar a').forEach(a=>a.onclick=e=>{e.preventDefault();isik.querySelector('img').src=a.href;isik.classList.add('acik')});
+// Fotoğraf görüntüleyici: galeri, makine parkı ve sertifikalardaki fotoğraflar büyük açılır;
+// oklar, klavye (← → Esc) ve telefonda kaydırma ile aynı bölümdeki fotoğraflar arasında gezilir
+const isik=document.createElement('div');isik.className='isik';
+isik.innerHTML='<button class="isik-kapat" aria-label="Kapat">✕</button><button class="isik-ok sol" aria-label="Önceki">‹</button><figure><img alt=""><figcaption></figcaption></figure><button class="isik-ok sag" aria-label="Sonraki">›</button>';
+document.body.appendChild(isik);
+const isikImg=isik.querySelector('img'),isikYazi=isik.querySelector('figcaption');
+let grup=[],sira=0;
+const goster=()=>{isikImg.classList.remove('gir');void isikImg.offsetWidth;isikImg.src=grup[sira];isikImg.classList.add('gir');isikYazi.textContent=(sira+1)+' / '+grup.length};
+const ac=(liste,i)=>{grup=liste;sira=i;goster();isik.classList.add('acik');document.body.style.overflow='hidden'};
+const kapat=()=>{isik.classList.remove('acik');document.body.style.overflow=''};
+const git=y=>{sira=(sira+y+grup.length)%grup.length;goster()};
+isik.querySelector('.sol').onclick=e=>{e.stopPropagation();git(-1)};
+isik.querySelector('.sag').onclick=e=>{e.stopPropagation();git(1)};
+isik.querySelector('.isik-kapat').onclick=kapat;
+isik.onclick=e=>{if(e.target===isik)kapat()};
+addEventListener('keydown',e=>{if(!isik.classList.contains('acik'))return;if(e.key==='ArrowLeft')git(-1);if(e.key==='ArrowRight')git(1);if(e.key==='Escape')kapat()});
+let x0=null;isik.addEventListener('touchstart',e=>{x0=e.touches[0].clientX},{passive:true});
+isik.addEventListener('touchend',e=>{if(x0===null)return;const d=e.changedTouches[0].clientX-x0;if(Math.abs(d)>40)git(d<0?1:-1);x0=null});
+[['.galeri a','href'],['.sertifikalar a','href'],['.makine img','src'],['.haber img','src'],['.hizmet img','src']].forEach(([sec,att])=>{
+  const ogeler=[...document.querySelectorAll(sec)];const liste=ogeler.map(o=>o.getAttribute(att));
+  ogeler.forEach((o,i)=>{o.style.cursor='zoom-in';o.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();ac(liste,i)})});
+});
 </script>
 </body>
 </html>
