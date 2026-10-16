@@ -29,19 +29,20 @@ img{display:block;max-width:100%}
 .okla:hover::before,.okla:hover::after{width:30px}
 
 /* Üst menü */
-.ust{position:fixed;inset:0 0 auto;z-index:60;transition:background .45s,box-shadow .45s}
+.ust{position:fixed;inset:0 0 auto;z-index:60;background:linear-gradient(180deg,rgba(14,30,41,.85) 0%,rgba(14,30,41,.45) 70%,rgba(14,30,41,0) 100%);transition:background .45s,box-shadow .45s}
 .ust.kaydi,.ust.dolu{background:rgba(14,30,41,.97);box-shadow:0 1px 0 rgba(198,164,108,.18)}
 .ust-ic{display:flex;align-items:center;justify-content:space-between;height:94px;gap:24px}
 .logo{display:flex;flex-direction:column;align-items:center;line-height:1;color:var(--pirinc)}
-.logo b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:34px;letter-spacing:.2em;padding-left:.2em}
-.logo small{white-space:nowrap;font-size:8.5px;letter-spacing:.32em;margin-top:6px;text-transform:uppercase;padding-left:.42em}
+.logo b{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:30px;letter-spacing:.06em;white-space:nowrap;color:#fff}
+.logo small{white-space:nowrap;font-size:11px;letter-spacing:.5em;margin-top:7px;text-transform:uppercase;padding-left:.5em;display:flex;align-items:center;gap:10px}
+.logo small::before,.logo small::after{content:"";width:18px;height:1px;background:currentColor;opacity:.7}
 .logo i{display:block;width:26px;height:9px;margin-bottom:6px;background:radial-gradient(circle at 6px 4.5px,currentColor 2.5px,transparent 3px),linear-gradient(currentColor,currentColor) center/100% 1px no-repeat;opacity:.85}
 .menu{display:flex;align-items:center;gap:26px}
-.menu a{white-space:nowrap;font-size:12.5px;font-weight:400;letter-spacing:.18em;text-transform:uppercase;color:var(--pirinc);position:relative;padding:6px 0}
+.menu a{white-space:nowrap;font-size:12.5px;font-weight:400;letter-spacing:.18em;text-transform:uppercase;color:var(--fildisi);position:relative;padding:6px 0}
 .menu a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--pirinc);transform:scaleX(0);transition:transform .35s}
 .menu a:hover::after,.menu a.aktif::after{transform:scaleX(1)}
 .ust-sag{display:flex;align-items:center;gap:18px}
-.dil{white-space:nowrap;font-size:12.5px;letter-spacing:.18em;color:var(--pirinc);background:none;border:none;cursor:pointer;font-family:inherit}
+.dil{white-space:nowrap;font-size:12.5px;letter-spacing:.18em;color:var(--pirinc2);background:none;border:none;cursor:pointer;font-family:inherit}
 .dil b{font-weight:500;color:var(--fildisi)}
 .ig{width:20px;height:20px;color:var(--pirinc)}
 .hamburger{display:none;width:44px;height:44px;border:1px solid rgba(198,164,108,.5);background:none;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:6px}
@@ -53,9 +54,10 @@ img{display:block;max-width:100%}
 .acilis .slayt{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.8s ease;transform:scale(1.08)}
 .acilis .slayt.aktif{opacity:1;animation:yakin 9s ease-out forwards}
 @keyframes yakin{from{transform:scale(1.1)}to{transform:scale(1)}}
-.acilis::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,30,41,.55) 0%,rgba(14,30,41,.05) 35%,rgba(14,30,41,.25) 65%,rgba(14,30,41,.92) 100%)}
+.acilis::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,30,41,.55) 0%,rgba(14,30,41,.2) 30%,rgba(14,30,41,.45) 60%,rgba(14,30,41,.95) 100%)}
 .acilis-ic{position:relative;z-index:2;text-align:center;padding-bottom:110px;max-width:900px}
-.acilis-ic h1{font-weight:300;font-size:clamp(34px,5.4vw,70px);letter-spacing:.16em;text-transform:uppercase;line-height:1.15;margin:16px 0 18px;color:#fff}
+.acilis-ic .ust-baslik{color:var(--pirinc2);text-shadow:0 1px 12px rgba(0,0,0,.6)}
+.acilis-ic h1{text-shadow:0 2px 24px rgba(0,0,0,.45);font-weight:300;font-size:clamp(34px,5.4vw,70px);letter-spacing:.16em;text-transform:uppercase;line-height:1.15;margin:16px 0 18px;color:#fff}
 .acilis-ic p{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(20px,2.2vw,26px);color:rgba(255,255,255,.88)}
 .asagi{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);z-index:2;color:#fff;opacity:.8;animation:sek 2.2s infinite}
 @keyframes sek{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,8px)}}
@@ -186,7 +188,8 @@ img{display:block;max-width:100%}
   body{font-size:15.5px}
   .kap,.dar{padding:0 20px}
   .ust-ic{height:76px}
-  .logo b{font-size:27px}
+  .logo b{font-size:23px}
+  .logo small{font-size:9.5px}
   .bolum{padding:84px 0}
   .acilis-ic{padding:0 20px 96px}
   .ikili-foto{height:320px}

@@ -13,7 +13,7 @@
     ['galeri.html', 'Galeri', 'Gallery', 'galeri'],
     ['iletisim.html', 'İletişim', 'Contact', 'iletisim'],
   ];
-  var logo = '<a href="index.html" class="logo" aria-label="Şehir Restaurant"><i></i><b>ŞEHİR</b><small>Restaurant · Bandırma</small></a>';
+  var logo = '<a href="index.html" class="logo" aria-label="Şehir Restaurant"><b>Şehir Restaurant</b><small>Bandırma</small></a>';
   var igSvg = '<svg class="ig" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".7" fill="currentColor"/></svg>';
 
   var ust = document.createElement('header');
