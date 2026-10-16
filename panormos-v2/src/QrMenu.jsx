@@ -161,7 +161,7 @@ export default function QrMenu({ slug }) {
               </span>
             ))}
           </div>
-          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 64 : etiketler.length <= 4 ? 58 : 48}px` }}>
+          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 60 : etiketler.length <= 4 ? 54 : 47}px` }}>
             <div className="qm-kat-baslik">
               <span className="qm-no">{String(kategoriler.findIndex((k) => k.id === secili) + 1).padStart(2, "0")}</span>
               <h2>{yaz(kategori.ad, kategori.ad_en)}</h2>
@@ -257,26 +257,26 @@ const QM_CSS = `
 .qm-dil button.secili{background:var(--ana);color:#fff}
 
 /* Giriş */
-.qm-giris{max-width:460px;margin:0 auto;padding:18px 20px 10px;display:flex;flex-direction:column;align-items:center}
+.qm-giris{max-width:380px;margin:0 auto;padding:18px 18px 10px;display:flex;flex-direction:column;align-items:center}
 .qm-ust-cubuk{width:100%;display:flex;justify-content:flex-end;min-height:34px;margin-bottom:22px}
 .qm-logo{display:flex;flex-direction:column;align-items:center;color:var(--ana);text-align:center}
 .qm-logo img{max-height:40px;max-width:140px;object-fit:contain}
-.qm-logo.buyuk{width:150px;height:150px;border-radius:50%;justify-content:center;border:1.5px solid color-mix(in srgb,var(--ana) 45%,transparent);box-shadow:0 0 0 7px var(--zemin),0 0 0 8px color-mix(in srgb,var(--ana) 22%,transparent);background:rgba(255,255,255,.35)}
+.qm-logo.buyuk{width:132px;height:132px;border-radius:50%;justify-content:center;border:1.5px solid color-mix(in srgb,var(--ana) 45%,transparent);box-shadow:0 0 0 7px var(--zemin),0 0 0 8px color-mix(in srgb,var(--ana) 22%,transparent);background:rgba(255,255,255,.35)}
 .qm-logo.buyuk img{max-height:92px;max-width:112px}
 .qm-logo-ad{font-family:var(--urun);font-weight:600;font-size:18px;letter-spacing:.04em;line-height:1.05}
-.qm-logo.buyuk .qm-logo-ad{font-size:30px;padding:0 10px}
+.qm-logo.buyuk .qm-logo-ad{font-size:26px;padding:0 10px}
 .qm-logo-alt{font-family:var(--govde);font-size:10px;letter-spacing:.22em;text-transform:uppercase;margin-top:3px;opacity:.85}
 .qm-logo.buyuk .qm-logo-alt{font-size:11px;margin-top:6px}
 .qm-susleme{display:flex;align-items:center;gap:10px;color:var(--ana);font-size:12px;margin:26px 0 10px;opacity:.8}
 .qm-susleme span{width:44px;height:1px;background:currentColor}
-.qm-hosgeldin{font-family:var(--urun);font-weight:500;font-style:italic;font-size:19px;color:var(--ana);margin-bottom:22px;text-align:center}
-.qm-kartlar{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.qm .qm-kart{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:112px;padding:16px 14px 14px;border-radius:70px 70px 14px 14px;background:rgba(255,255,255,.55);border:1px solid color-mix(in srgb,var(--ana) 22%,transparent);transition:transform .2s,background .2s,box-shadow .2s}
+.qm-hosgeldin{font-family:var(--urun);font-weight:500;font-style:italic;font-size:16.5px;color:var(--ana);margin-bottom:22px;text-align:center}
+.qm-kartlar{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qm .qm-kart{position:relative;display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-height:98px;padding:13px 12px 12px;border-radius:60px 60px 12px 12px;background:rgba(255,255,255,.55);border:1px solid color-mix(in srgb,var(--ana) 22%,transparent);transition:transform .2s,background .2s,box-shadow .2s}
 .qm .qm-kart:hover,.qm .qm-kart:active{transform:translateY(-3px);background:#fff;box-shadow:0 10px 24px -14px color-mix(in srgb,var(--ana) 80%,transparent)}
-.qm-kart .qm-no{align-self:center;margin-bottom:14px}
+.qm-kart .qm-no{align-self:center;margin-bottom:10px}
 .qm-no{font-family:var(--govde);font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--ana);opacity:.7}
-.qm-kart strong{font-family:var(--urun);font-weight:600;font-size:19px;line-height:1.15;color:#26211e}
-.qm-kart small{font-size:11.5px;letter-spacing:.06em;color:#7a716b;margin-top:3px}
+.qm-kart strong{font-family:var(--urun);font-weight:600;font-size:16.5px;line-height:1.15;color:#26211e}
+.qm-kart small{font-size:10.5px;letter-spacing:.06em;color:#7a716b;margin-top:3px}
 .qm-ok{position:absolute;right:14px;bottom:12px;color:var(--ana);font-size:16px;transition:transform .2s}
 .qm-kart:hover .qm-ok{transform:translateX(3px)}
 .qm-kartlar .qm-bos{grid-column:1/-1}
@@ -286,35 +286,35 @@ const QM_CSS = `
 .qm-bos{text-align:center;color:#777;font-size:14px;padding:20px 0}
 
 /* Kategori sayfası */
-.qm-sayfa{max-width:620px;margin:0 auto}
+.qm-sayfa{max-width:430px;margin:0 auto}
 .qm-ust{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:color-mix(in srgb,var(--zemin) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .qm-geri{width:40px;height:40px;border-radius:50%;border:1px solid color-mix(in srgb,var(--ana) 35%,transparent)!important;color:var(--ana)!important;font-size:18px}
-.qm-sekmeler{display:flex;gap:22px;overflow-x:auto;padding:4px 20px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent);scrollbar-width:none;position:sticky;top:60px;z-index:4;background:color-mix(in srgb,var(--zemin) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.qm-sekmeler{display:flex;gap:18px;overflow-x:auto;padding:4px 20px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent);scrollbar-width:none;position:sticky;top:60px;z-index:4;background:color-mix(in srgb,var(--zemin) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .qm-sekmeler::-webkit-scrollbar{display:none}
-.qm-sekmeler button{flex:0 0 auto;font-family:var(--govde);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:10px 0 11px;color:#8b827c;border-bottom:2px solid transparent!important;white-space:nowrap}
+.qm-sekmeler button{flex:0 0 auto;font-family:var(--govde);font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:10px 0 11px;color:#8b827c;border-bottom:2px solid transparent!important;white-space:nowrap}
 .qm-sekme-ayrac{flex:0 0 1px;align-self:center;height:16px;background:color-mix(in srgb,var(--ana) 30%,transparent)}
 .qm-sekmeler button.secili{color:var(--ana);border-bottom-color:var(--ana)!important}
-.qm-liste{padding:28px 22px 10px}
+.qm-liste{padding:24px 18px 10px}
 .qm-kat-baslik{text-align:center;margin-bottom:26px}
-.qm-kat-baslik h2{font-family:var(--urun);font-weight:600;font-size:32px;line-height:1.1;color:var(--ana);margin-top:6px}
+.qm-kat-baslik h2{font-family:var(--urun);font-weight:600;font-size:26px;line-height:1.1;color:var(--ana);margin-top:6px}
 .qm-kat-baslik p{font-size:13.5px;color:#7a716b;margin-top:8px;font-style:italic}
 .qm-olcu-baslik{position:sticky;top:102px;z-index:3;display:flex;justify-content:flex-end;padding:9px 0 7px;margin-bottom:2px;background:color-mix(in srgb,var(--zemin) 94%,transparent);border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
 .qm-olcu-baslik span{width:var(--sutun);text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
-.qm-urun{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
+.qm-urun{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
 .qm-urun:last-of-type{border-bottom:none}
-.qm-urun img{width:68px;height:68px;object-fit:cover;flex-shrink:0;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
+.qm-urun img{width:58px;height:58px;object-fit:cover;flex-shrink:0;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
 .qm-urun-metin{flex:1;min-width:0}
 .qm-satir{display:flex;align-items:baseline;gap:8px}
-.qm-urun h3{font-family:var(--urun);font-weight:600;font-size:17.5px;line-height:1.25;color:#26211e}
+.qm-urun h3{font-family:var(--urun);font-weight:500;font-size:15.5px;line-height:1.25;color:#26211e}
 .qm-nokta{flex:1;min-width:16px;border-bottom:2px dotted color-mix(in srgb,var(--ana) 30%,transparent);transform:translateY(-4px)}
-.qm-fiyatlar{display:flex;flex-shrink:0;font-family:var(--govde);font-weight:700;font-size:14.5px;color:var(--ana)}
+.qm-fiyatlar{display:flex;flex-shrink:0;font-family:var(--govde);font-weight:700;font-size:13.5px;color:var(--ana)}
 .qm-fiyatlar span{width:var(--sutun);text-align:right;white-space:nowrap}
 .qm-fiyatlar span.bos{opacity:.35}
 .qm-olcu-satir{justify-content:flex-end;margin-top:6px;font-size:13px}
 .qm-liste.dar .qm-olcu-baslik span,.qm-liste.dar .qm-olcu-satir span{text-align:center}
 .qm-liste.dar .qm-olcu-baslik span{font-size:9.5px;letter-spacing:0}
 .qm-liste.dar .qm-olcu-satir{font-size:11.5px;letter-spacing:-.01em}
-.qm-urun p{font-size:13.5px;line-height:1.5;color:#6d645e;margin-top:4px}
+.qm-urun p{font-size:12.5px;line-height:1.45;color:#6d645e;margin-top:4px}
 .qm-rozetler{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;align-items:center}
 .qm-alerjen{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 5px;border-radius:12px;font-size:9.5px;font-weight:700;letter-spacing:.03em;color:var(--ana);border:1px solid color-mix(in srgb,var(--ana) 35%,transparent);background:rgba(255,255,255,.5)}
 .qm-etiket{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--ana);padding:4px 9px;border-radius:12px}
@@ -323,7 +323,7 @@ const QM_CSS = `
 .qm-alerjen-notu{margin-top:30px;padding-top:16px;border-top:1px solid color-mix(in srgb,var(--ana) 15%,transparent);font-size:11px;line-height:1.7;color:#8b827c;text-align:center}
 
 /* Alt bilgi ve alttaki düğmeler */
-.qm-alt{text-align:center;padding:34px 20px 10px;font-size:12.5px;color:#7a716b}
+.qm-alt{text-align:center;padding:30px 18px 10px;font-size:12px;color:#7a716b}
 .qm-iletisim{display:flex;flex-direction:column;gap:4px;margin-bottom:16px}
 .qm-iletisim a{color:var(--ana);font-weight:500}
 .qm-imza{font-size:11px;opacity:.75;letter-spacing:.03em}
@@ -332,5 +332,10 @@ const QM_CSS = `
 .qm-alt-dugmeler a{display:inline-flex;align-items:center;gap:7px;padding:11px 16px;border-radius:100px;background:var(--ana);color:#fff;font-size:13px;font-weight:700;white-space:nowrap}
 .qm-alt-dugmeler a.wa{background:#25D366}
 .qm-alt-dugmeler svg{width:17px;height:17px}
+.qm-giris,.qm-sayfa{background:var(--zemin)}
+@media (min-width:520px){
+  .qm{background:color-mix(in srgb,var(--zemin) 88%,var(--ana))}
+  .qm-giris,.qm-sayfa{min-height:100vh;box-shadow:0 0 0 1px color-mix(in srgb,var(--ana) 12%,transparent),0 20px 60px -30px rgba(0,0,0,.35)}
+}
 @media (max-width:360px){.qm-kartlar{grid-template-columns:1fr}.qm-alt-dugmeler a{padding:10px 12px;font-size:12px}}
 `;
