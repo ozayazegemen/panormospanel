@@ -178,7 +178,7 @@ export default function QrMenu({ slug }) {
               const fiyatMetni = (f) => (f === null || f === undefined || f === "" ? "" : cok ? new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Number(f)) : fiyatYaz(f));
               const ikinci = menu.iki_dil && k.ad_en && k.ad_en.toLocaleLowerCase("en") !== k.ad.toLocaleLowerCase("tr") ? (en ? k.ad : k.ad_en) : "";
               return (
-                <section key={k.id} id={`k-${k.id}`} className={`qm-kb${cok ? " cok" : ""}`} style={{ "--sutun": `${et.length <= 2 ? 62 : et.length <= 4 ? 48 : 37}px` }}>
+                <section key={k.id} id={`k-${k.id}`} className={`qm-kb${cok ? " cok" : ""}`} style={{ "--sutun": `${et.length <= 2 ? 74 : et.length <= 4 ? 50 : 37}px` }}>
                   <h2>
                     {yaz(k.ad, k.ad_en).toLocaleUpperCase(en ? "en" : "tr")}
                     {ikinci && <> - {ikinci.toLocaleUpperCase(en ? "tr" : "en")}</>}
@@ -311,18 +311,18 @@ const QM_CSS = `
 .qm-kb h2 small{font-size:.7em;letter-spacing:.02em}
 .qm-kb-aciklama{font-size:11.5px;color:#7a716b;margin:-8px 0 12px;font-style:italic}
 .qm-kb-olcu{display:flex;justify-content:flex-end;margin:-4px 0 6px}
-.qm-kb-olcu span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;font-family:var(--govde);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana)}
+.qm-kb-olcu span{flex:0 0 var(--sutun);width:var(--sutun);padding-left:8px;box-sizing:border-box;text-align:right;font-family:var(--govde);font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana)}
 .qm-kb-olcu span.bos{flex:1;text-align:left;font-weight:500;color:#9a918b}
-.qm-u{display:flex;align-items:flex-start;gap:10px;padding:5px 0 6px}
+.qm-u{display:flex;align-items:flex-start;gap:12px;padding:6px 0 7px}
 .qm-u img{width:46px;height:46px;object-fit:cover;flex-shrink:0;border-radius:6px}
 .qm-u-metin{flex:1;min-width:0}
 .qm-u h3{font-family:var(--urun);font-weight:700;font-size:13.5px;line-height:1.3;color:var(--ana)}
 .qm-u p{font-family:var(--govde);font-size:11px;line-height:1.4;color:color-mix(in srgb,var(--ana) 55%,#5a524d);margin-top:1px}
 .qm-u-fiyat{display:flex;flex-shrink:0;font-family:var(--govde);font-size:13.5px;font-weight:500;color:var(--ana);padding-top:1px}
 .qm-u-fiyat span{white-space:nowrap;text-align:right}
-.qm-u-fiyat.sutunlu span{flex:0 0 var(--sutun);width:var(--sutun);font-size:12.5px}
+.qm-u-fiyat.sutunlu span{flex:0 0 var(--sutun);width:var(--sutun);font-size:13px;padding-left:8px;box-sizing:border-box}
 .qm-u-fiyat span.bos{opacity:.35}
-.qm-kb.cok .qm-kb-olcu span:not(.bos),.qm-kb.cok .qm-u-fiyat span{text-align:center}
+.qm-kb.cok .qm-kb-olcu span:not(.bos),.qm-kb.cok .qm-u-fiyat span{text-align:center;padding-left:0}
 .qm-kb.cok .qm-kb-olcu span:not(.bos){font-size:8.5px;letter-spacing:0}
 .qm-kb.cok .qm-u-fiyat span{font-size:11.5px;letter-spacing:-.02em}
 .qm-u.tukendi h3,.qm-u.tukendi p,.qm-u.tukendi .qm-u-fiyat{opacity:.45}
