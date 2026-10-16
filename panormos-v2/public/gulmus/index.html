@@ -32,6 +32,8 @@ img{display:block;max-width:100%}
 .logo-isaret{width:46px;height:46px;border-radius:10px;background:var(--kirmizi);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px -6px rgba(214,31,38,.7)}
 .logo-isaret svg{width:30px;height:30px}
 .logo-ad{font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:900;font-size:24px;letter-spacing:.02em;line-height:1}
+.logo-kutu{display:block;width:132px;height:50px;overflow:hidden;background:#fff;border-radius:8px;padding:6px 8px;box-shadow:0 8px 22px -10px rgba(0,0,0,.6)}
+.logo-kutu img{width:116px;max-width:none}
 .logo-alt{display:block;font-size:10.5px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.65);margin-top:4px;text-transform:uppercase}
 .menu{display:flex;align-items:center;gap:30px;font-weight:600;font-size:14.5px}
 .menu a:not(.btn){opacity:.85;transition:opacity .2s,color .2s}
@@ -47,10 +49,14 @@ img{display:block;max-width:100%}
 
 /* Açılış */
 .hero{position:relative;height:100vh;min-height:680px;overflow:hidden;display:flex;align-items:flex-end}
-.hero-foto{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.12);transition:opacity 1.6s ease}
-.hero-foto.aktif{opacity:1;animation:kenburns 9s ease-out forwards}
-@keyframes kenburns{from{transform:scale(1.14)}to{transform:scale(1)}}
-.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,18,20,.55) 0%,rgba(17,18,20,.15) 35%,rgba(17,18,20,.85) 78%,var(--asfalt) 100%),linear-gradient(90deg,rgba(17,18,20,.75) 0%,rgba(17,18,20,0) 60%)}
+.mozaik{position:absolute;inset:-40px -20px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;transform:rotate(-4deg) scale(1.08)}
+.mz-kol{overflow:hidden}
+.mz-kol>div{display:flex;flex-direction:column;gap:10px;animation:mzYukari 60s linear infinite}
+.mz-kol.k1>div,.mz-kol.k3>div{animation-name:mzAsagi;animation-duration:70s}
+.mz-kol img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;filter:saturate(1.05) contrast(1.05)}
+@keyframes mzYukari{from{transform:translateY(0)}to{transform:translateY(-50%)}}
+@keyframes mzAsagi{from{transform:translateY(-50%)}to{transform:translateY(0)}}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,18,20,.7) 0%,rgba(17,18,20,.35) 35%,rgba(17,18,20,.88) 78%,var(--asfalt) 100%),linear-gradient(90deg,rgba(17,18,20,.9) 0%,rgba(17,18,20,.2) 70%)}
 .hero-ic{position:relative;z-index:2;width:100%;padding-bottom:110px}
 .hero h1{font-size:clamp(40px,8.2vw,124px);margin:22px 0 26px}
 .hero h1 .k{color:var(--kirmizi);display:block;font-size:.74em;margin:.06em 0}
@@ -102,7 +108,7 @@ img{display:block;max-width:100%}
 .hikaye-ic{display:grid;grid-template-columns:1fr 1.1fr;gap:70px;align-items:start}
 .hikaye-foto{position:sticky;top:120px}
 .hikaye-foto figure{position:relative;border-radius:6px;overflow:hidden;box-shadow:24px 24px 0 var(--kirmizi)}
-.hikaye-foto img{width:100%;height:560px;object-fit:cover;filter:grayscale(1) contrast(1.1)}
+.hikaye-foto img{width:100%;height:auto;aspect-ratio:320/220;object-fit:cover;filter:grayscale(1) contrast(1.1) sepia(.15)}
 .hikaye-foto figcaption{position:absolute;left:0;bottom:0;right:0;padding:22px;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);color:#fff;font-family:'Archivo',sans-serif;font-stretch:120%;font-weight:800;letter-spacing:.06em;text-transform:uppercase;font-size:14px}
 .hikaye h2{font-size:clamp(36px,5vw,70px);margin:16px 0 26px}
 .hikaye-giris{font-size:18px;color:#3d3b37;margin-bottom:46px}
@@ -134,11 +140,23 @@ img{display:block;max-width:100%}
 .neden p{color:rgba(255,255,255,.65);font-size:14.5px}
 
 /* Paralaks bant */
-.bant{position:relative;height:460px;background-size:cover;background-position:center;background-attachment:fixed;display:flex;align-items:center}
-.bant::before{content:"";position:absolute;inset:0;background:rgba(17,18,20,.55)}
+.bant{position:relative;height:460px;background-size:cover;background-position:center;display:flex;align-items:center}
+.bant::before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(17,18,20,.72),rgba(17,18,20,.6));backdrop-filter:blur(1.5px)}
 .bant .kap{position:relative;text-align:center}
 .bant h2{font-size:clamp(34px,6vw,86px)}
 .bant h2 span{color:var(--sari)}
+
+/* Galeri */
+.galeri{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:190px;gap:10px}
+.galeri a{border-radius:6px;overflow:hidden;position:relative}
+.galeri a:nth-child(1),.galeri a:nth-child(8){grid-column:span 2;grid-row:span 2}
+.galeri img{width:100%;height:100%;object-fit:cover;transition:transform .6s}
+.galeri a:hover img{transform:scale(1.08)}
+.galeri a::after{content:"＋";position:absolute;right:10px;bottom:10px;width:34px;height:34px;border-radius:50%;background:var(--kirmizi);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;opacity:0;transition:opacity .3s}
+.galeri a:hover::after{opacity:1}
+.isik{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;padding:20px;cursor:zoom-out}
+.isik.acik{display:flex}
+.isik img{max-width:100%;max-height:90vh;border-radius:6px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 
 /* Haberler */
 .haberler{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px}
@@ -155,6 +173,10 @@ img{display:block;max-width:100%}
 .kalite{background:var(--kum2);color:var(--asfalt)}
 .kalite .etiket{color:var(--kirmizi)}.kalite .etiket::before{background:var(--kirmizi)}
 .kalite .bolum-ust p{color:#55524c}
+.sertifikalar{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.sertifikalar a{display:block;background:#fff;padding:10px;border-radius:6px;box-shadow:0 20px 40px -28px rgba(0,0,0,.5);transition:transform .3s}
+.sertifikalar a:hover{transform:translateY(-6px) rotate(-1deg)}
+.sertifikalar img{width:100%;aspect-ratio:500/366;object-fit:cover}
 .belgeler{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .belge{background:#fff;border-radius:6px;padding:34px;display:flex;gap:22px;align-items:center;box-shadow:0 20px 40px -30px rgba(0,0,0,.4)}
 .muhur{flex:0 0 96px;height:96px;border-radius:50%;border:3px solid var(--kirmizi);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--kirmizi);font-family:'Archivo',sans-serif;font-stretch:120%;font-weight:900;line-height:1;position:relative}
@@ -223,6 +245,8 @@ footer li a:hover{color:#fff}
   .hizmetler{grid-template-columns:repeat(2,1fr)}
   .neden{grid-template-columns:repeat(2,1fr)}
   .haberler{grid-template-columns:1fr 1fr}.haber.buyuk{grid-column:1/-1}
+  .galeri{grid-template-columns:repeat(3,1fr)}
+  .sertifikalar{grid-template-columns:repeat(2,1fr)}
   .belgeler{grid-template-columns:1fr}
   .alt-ust{grid-template-columns:1fr 1fr}
 }
@@ -252,6 +276,8 @@ footer li a:hover{color:#fff}
   .hero-sayac{display:none}
   .bolum{padding:84px 0}
   .hizmetler,.haberler,.neden{grid-template-columns:1fr}
+  .galeri{grid-template-columns:1fr 1fr;grid-auto-rows:140px}
+  .mozaik{grid-template-columns:repeat(3,1fr)}.mz-kol.k3{display:none}
   .hizmet{height:340px}
   .hizmet p{max-height:none;opacity:1}
   .makine{flex-basis:84vw}
@@ -272,13 +298,14 @@ footer li a:hover{color:#fff}
 <header class="ust" id="ust">
   <div class="kap ust-ic">
     <a href="#" class="logo" aria-label="Gülmüş ana sayfa">
-      <span class="logo-isaret"><svg viewBox="0 0 32 32" fill="#fff" aria-hidden="true"><path d="M3 21h15v-7h5l4 4v3h2v3h-3.2a3.2 3.2 0 0 1-6.3 0H12.2a3.2 3.2 0 0 1-6.3 0H3zm16-5v3h6l-3-3zM9 22.3a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4zm13.3 0a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4zM4 8h11l-2 9H6z"/></svg></span>
-      <span><span class="logo-ad">GÜLMÜŞ</span><span class="logo-alt">Hafriyat · Nakliyat</span></span>
+      <span class="logo-kutu"><img src="img/logo-gulmus.png" alt="Gülmüş"></span>
+      <span class="logo-alt">Hafriyat · Nakliyat<br>1950'den günümüze</span>
     </a>
     <nav class="menu" id="menu">
       <a href="#hizmetler">Hizmetler</a>
       <a href="#hikaye">Hikâyemiz</a>
       <a href="#makineler">Makine Parkı</a>
+      <a href="#galeri">Galeri</a>
       <a href="#kalite">Kalite</a>
       <a href="#iletisim">İletişim</a>
       <a href="#teklif" class="btn btn-k">Teklif Al</a>
@@ -288,9 +315,12 @@ footer li a:hover{color:#fff}
 </header>
 
 <section class="hero">
-  <div class="hero-foto aktif" style="background-image:url(img/hero-ekskavator.jpg)"></div>
-  <div class="hero-foto" style="background-image:url(img/hero-dozer.jpg)"></div>
-  <div class="hero-foto" style="background-image:url(img/hero-damper.jpg)"></div>
+  <div class="mozaik" aria-hidden="true">
+    <div class="mz-kol k0"><div><img src="img/eski/ekskavator-paletli.jpg" alt=""><img src="img/eski/damper.jpg" alt=""><img src="img/eski/vidanjor.jpg" alt=""><img src="img/eski/hafriyat.jpg" alt=""><img src="img/eski/filo-2.jpg" alt=""><img src="img/eski/kazi.jpg" alt=""><img src="img/eski/ekskavator-paletli.jpg" alt=""><img src="img/eski/damper.jpg" alt=""><img src="img/eski/vidanjor.jpg" alt=""><img src="img/eski/hafriyat.jpg" alt=""><img src="img/eski/filo-2.jpg" alt=""><img src="img/eski/kazi.jpg" alt=""></div></div>
+    <div class="mz-kol k1"><div><img src="img/eski/ekskavator-lastikli.jpg" alt=""><img src="img/eski/vinc.jpg" alt=""><img src="img/eski/kum.jpg" alt=""><img src="img/eski/damper-2.jpg" alt=""><img src="img/eski/yikim-3.jpg" alt=""><img src="img/eski/ekskavator-4.jpg" alt=""><img src="img/eski/ekskavator-lastikli.jpg" alt=""><img src="img/eski/vinc.jpg" alt=""><img src="img/eski/kum.jpg" alt=""><img src="img/eski/damper-2.jpg" alt=""><img src="img/eski/yikim-3.jpg" alt=""><img src="img/eski/ekskavator-4.jpg" alt=""></div></div>
+    <div class="mz-kol k2"><div><img src="img/eski/filo.jpg" alt=""><img src="img/eski/temel-kazi.jpg" alt=""><img src="img/eski/vidanjor-2.jpg" alt=""><img src="img/eski/ekskavator-3.jpg" alt=""><img src="img/eski/damper-3.jpg" alt=""><img src="img/eski/kazi-2.jpg" alt=""><img src="img/eski/filo.jpg" alt=""><img src="img/eski/temel-kazi.jpg" alt=""><img src="img/eski/vidanjor-2.jpg" alt=""><img src="img/eski/ekskavator-3.jpg" alt=""><img src="img/eski/damper-3.jpg" alt=""><img src="img/eski/kazi-2.jpg" alt=""></div></div>
+    <div class="mz-kol k3"><div><img src="img/eski/hafriyat-2.jpg" alt=""><img src="img/eski/kamyon.jpg" alt=""><img src="img/eski/vinc-2.jpg" alt=""><img src="img/eski/traktor.jpg" alt=""><img src="img/eski/yikim.jpg" alt=""><img src="img/eski/filo-4.jpg" alt=""><img src="img/eski/hafriyat-2.jpg" alt=""><img src="img/eski/kamyon.jpg" alt=""><img src="img/eski/vinc-2.jpg" alt=""><img src="img/eski/traktor.jpg" alt=""><img src="img/eski/yikim.jpg" alt=""><img src="img/eski/filo-4.jpg" alt=""></div></div>
+  </div>
   <div class="kap hero-ic">
     <span class="etiket">Bandırma · Erdek · Güney Marmara</span>
     <h1 class="genis"><span>Toprağı</span><span class="k">şekillendiriyoruz.</span><span class="ince">1950'den beri.</span></h1>
@@ -300,7 +330,6 @@ footer li a:hover{color:#fff}
       <a href="tel:02667211100" class="btn btn-c">0 (266) 721 11 00</a>
     </div>
   </div>
-  <div class="hero-sayac" id="sayac"><i class="aktif"></i><i></i><i></i></div>
   <div class="kaydir" aria-hidden="true"></div>
   <div class="hero-alt serit"></div>
 </section>
@@ -321,12 +350,12 @@ footer li a:hover{color:#fff}
       <p>Büyük metrajlı hafriyattan bahçenize gelecek organik gübreye kadar altı ayrı alanda, tek telefonla hizmet.</p>
     </div>
     <div class="hizmetler">
-      <article class="hizmet belir" tabindex="0"><img src="img/hafriyat.jpg" alt="" loading="lazy"><span class="hizmet-no">01</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Hafriyat</h3><p>Geniş makine parkımız ve tecrübeli kadromuzla büyük metrajlı hafriyat ve bina yıkımı işlerini en zor koşullarda bile zamanında teslim ediyoruz.</p></div></article>
-      <article class="hizmet belir" tabindex="0"><img src="img/nakliyat.jpg" alt="" loading="lazy"><span class="hizmet-no">02</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Nakliyat</h3><p>Kamyon filomuzla yurt içinde her bölgeye her türlü nakliye işini güvenle yapıyoruz.</p></div></article>
-      <article class="hizmet belir" tabindex="0"><img src="img/insaat-malzemeleri.jpg" alt="" loading="lazy"><span class="hizmet-no">03</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>İnşaat malzemeleri</h3><p>Kum, çakıl, çimento, demir, kuyu büzü, yol büzü ve tuğla; şantiyenize kadar teslim.</p></div></article>
-      <article class="hizmet belir" tabindex="0"><img src="img/kanal-acma.jpg" alt="" loading="lazy"><span class="hizmet-no">04</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Kanal açma</h3><p>Son model iş makinelerimiz ve deneyimli operatörlerimizle her koşulda kanal açma işleri.</p></div></article>
-      <article class="hizmet belir" tabindex="0"><img src="img/organik-gubre.jpg" alt="" loading="lazy"><span class="hizmet-no">05</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Organik gübre</h3><p>Zeytinlik, bahçe ve tarlalar için tamamen doğal büyükbaş hayvan gübresi temini.</p></div></article>
-      <article class="hizmet belir" tabindex="0"><img src="img/vidanjor.jpg" alt="" loading="lazy"><span class="hizmet-no">06</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Vidanjör</h3><p>8 ve 12 tonluk vidanjörlerimizle su ve foseptik çekimi; kanal açma aracımızla tıkalı hatları açıyoruz.</p></div></article>
+      <article class="hizmet belir" tabindex="0"><img src="img/eski/hafriyat.jpg" alt="" loading="lazy"><span class="hizmet-no">01</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Hafriyat</h3><p>Geniş makine parkımız ve tecrübeli kadromuzla büyük metrajlı hafriyat ve bina yıkımı işlerini en zor koşullarda bile zamanında teslim ediyoruz.</p></div></article>
+      <article class="hizmet belir" tabindex="0"><img src="img/eski/damper.jpg" alt="" loading="lazy"><span class="hizmet-no">02</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Nakliyat</h3><p>Kamyon filomuzla yurt içinde her bölgeye her türlü nakliye işini güvenle yapıyoruz.</p></div></article>
+      <article class="hizmet belir" tabindex="0"><img src="img/eski/kum.jpg" alt="" loading="lazy"><span class="hizmet-no">03</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>İnşaat malzemeleri</h3><p>Kum, çakıl, çimento, demir, kuyu büzü, yol büzü ve tuğla; şantiyenize kadar teslim.</p></div></article>
+      <article class="hizmet belir" tabindex="0"><img src="img/eski/kanal.jpg" alt="" loading="lazy"><span class="hizmet-no">04</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Kanal açma</h3><p>Son model iş makinelerimiz ve deneyimli operatörlerimizle her koşulda kanal açma işleri.</p></div></article>
+      <article class="hizmet belir" tabindex="0"><img src="img/eski/traktor.jpg" alt="" loading="lazy"><span class="hizmet-no">05</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Organik gübre</h3><p>Zeytinlik, bahçe ve tarlalar için tamamen doğal büyükbaş hayvan gübresi temini.</p></div></article>
+      <article class="hizmet belir" tabindex="0"><img src="img/eski/vidanjor.jpg" alt="" loading="lazy"><span class="hizmet-no">06</span><div class="hizmet-ic"><div class="hizmet-cubuk"></div><h3>Vidanjör</h3><p>8 ve 12 tonluk vidanjörlerimizle su ve foseptik çekimi; kanal açma aracımızla tıkalı hatları açıyoruz.</p></div></article>
     </div>
   </div>
 </section>
@@ -334,7 +363,7 @@ footer li a:hover{color:#fff}
 <section class="bolum hikaye" id="hikaye">
   <div class="kap hikaye-ic">
     <div class="hikaye-foto belir">
-      <figure><img src="img/tarihce.jpg" alt="" loading="lazy"><figcaption>1950'ler · Yolculuk burada başladı</figcaption></figure>
+      <figure><img src="img/eski/tarihce-1950.jpg" alt="Gülmüş'ün ilk kamyonları, siyah-beyaz fotoğraf" loading="lazy"><figcaption>Gülmüş arşivinden · İlk kamyonlarımız</figcaption></figure>
     </div>
     <div>
       <span class="etiket belir">Hikâyemiz</span>
@@ -358,12 +387,13 @@ footer li a:hover{color:#fff}
       <p>Her zemin, her metraj ve her mesafe için doğru makine. Kaydırarak inceleyin →</p>
     </div>
     <div class="park-kaydir">
-      <div class="makine"><img src="img/ekskavator.jpg" alt="" loading="lazy"><div><h4>Ekskavatör</h4><p>Kazı, yükleme ve yıkım işlerinin ağır yükünü taşır.</p><em>Hafriyat · Yıkım</em></div></div>
-      <div class="makine"><img src="img/dozer.jpg" alt="" loading="lazy"><div><h4>Dozer</h4><p>Zemin düzeltme ve toprak itmede güç ve hassasiyet.</p><em>Hafriyat · Saha</em></div></div>
-      <div class="makine"><img src="img/yukleyici.jpg" alt="" loading="lazy"><div><h4>Yükleyici</h4><p>Paletli ve lastik tekerlekli; moloz ve toprağı hızla kamyona alır.</p><em>Yükleme</em></div></div>
-      <div class="makine"><img src="img/kamyonlar.jpg" alt="" loading="lazy"><div><h4>Damperli kamyon</h4><p>Hafriyat ve inşaat malzemesini şantiyeden şantiyeye taşır.</p><em>Nakliyat</em></div></div>
-      <div class="makine"><img src="img/vidanjor.jpg" alt="" loading="lazy"><div><h4>Vidanjör</h4><p>8 ve 12 tonluk tanklarla su ve foseptik çekimi.</p><em>Altyapı</em></div></div>
-      <div class="makine"><img src="img/vinc.jpg" alt="" loading="lazy"><div><h4>Vinç</h4><p>Ağır parçaların güvenle kaldırılması ve taşınması.</p><em>Kaldırma</em></div></div>
+      <div class="makine"><img src="img/eski/ekskavator-paletli.jpg" alt="" loading="lazy"><div><h4>Paletli ekskavatör</h4><p>Kazı, yükleme ve yıkım işlerinin ağır yükünü taşır.</p><em>Hafriyat · Yıkım</em></div></div>
+      <div class="makine"><img src="img/eski/ekskavator-lastikli.jpg" alt="" loading="lazy"><div><h4>Lastik tekerlekli ekskavatör</h4><p>Şehir içinde hızlı yer değiştirir, dar alanda çalışır.</p><em>Hafriyat · Kanal</em></div></div>
+      <div class="makine"><img src="img/eski/damper-2.jpg" alt="" loading="lazy"><div><h4>Damperli kamyon</h4><p>Hafriyat ve inşaat malzemesini şantiyeden şantiyeye taşır.</p><em>Nakliyat</em></div></div>
+      <div class="makine"><img src="img/eski/vidanjor-2.jpg" alt="" loading="lazy"><div><h4>Vidanjör</h4><p>8 ve 12 tonluk tanklarla su ve foseptik çekimi.</p><em>Altyapı</em></div></div>
+      <div class="makine"><img src="img/eski/vinc.jpg" alt="" loading="lazy"><div><h4>Vinçli kamyon</h4><p>Ağır parçaların güvenle kaldırılması ve taşınması.</p><em>Kaldırma</em></div></div>
+      <div class="makine"><img src="img/eski/silindir.jpg" alt="" loading="lazy"><div><h4>Silindir</h4><p>Dolgu ve yol zemininde sıkıştırma.</p><em>Saha · Yol</em></div></div>
+      <div class="makine"><img src="img/eski/traktor.jpg" alt="" loading="lazy"><div><h4>Traktör ve römork</h4><p>Organik gübre ve malzeme teslimatı.</p><em>Tarım · Teslimat</em></div></div>
     </div>
   </div>
 </section>
@@ -382,8 +412,18 @@ footer li a:hover{color:#fff}
   </div>
 </section>
 
-<section class="bant" style="background-image:url(img/santiye-havadan.jpg)">
-  <div class="kap belir"><h2 class="genis">Güney Marmara'nın<br><span>güvenilir</span> gücü</h2></div>
+<section class="bant" style="background-image:url(img/eski/filo.jpg)">
+  <div class="kap belir"><h2 class="genis">Filomuz<br><span>yola hazır</span></h2></div>
+</section>
+
+<section class="bolum galeri-bolum" id="galeri" style="padding-top:0">
+  <div class="kap">
+    <div class="bolum-ust belir">
+      <div><span class="etiket">Sahadan kareler</span><h2 class="genis">İşimiz <em>ortada</em></h2></div>
+      <p>Bandırma, Erdek ve çevresinde yaptığımız çalışmalardan. Fotoğrafa dokunun, büyüsün.</p>
+    </div>
+    <div class="galeri"><a href="img/eski/ekskavator-4.jpg" class="belir"><img src="img/eski/ekskavator-4.jpg" alt="" loading="lazy"></a><a href="img/eski/damper-3.jpg" class="belir"><img src="img/eski/damper-3.jpg" alt="" loading="lazy"></a><a href="img/eski/vinc-2.jpg" class="belir"><img src="img/eski/vinc-2.jpg" alt="" loading="lazy"></a><a href="img/eski/yikim-2.jpg" class="belir"><img src="img/eski/yikim-2.jpg" alt="" loading="lazy"></a><a href="img/eski/filo-3.jpg" class="belir"><img src="img/eski/filo-3.jpg" alt="" loading="lazy"></a><a href="img/eski/kazi-2.jpg" class="belir"><img src="img/eski/kazi-2.jpg" alt="" loading="lazy"></a><a href="img/eski/vidanjor.jpg" class="belir"><img src="img/eski/vidanjor.jpg" alt="" loading="lazy"></a><a href="img/eski/hafriyat-2.jpg" class="belir"><img src="img/eski/hafriyat-2.jpg" alt="" loading="lazy"></a><a href="img/eski/malzeme.jpg" class="belir"><img src="img/eski/malzeme.jpg" alt="" loading="lazy"></a><a href="img/eski/ekskavator-3.jpg" class="belir"><img src="img/eski/ekskavator-3.jpg" alt="" loading="lazy"></a><a href="img/eski/filo-4.jpg" class="belir"><img src="img/eski/filo-4.jpg" alt="" loading="lazy"></a><a href="img/eski/gubre.jpg" class="belir"><img src="img/eski/gubre.jpg" alt="" loading="lazy"></a><a href="img/eski/yikim-3.jpg" class="belir"><img src="img/eski/yikim-3.jpg" alt="" loading="lazy"></a><a href="img/eski/filo-2.jpg" class="belir"><img src="img/eski/filo-2.jpg" alt="" loading="lazy"></a></div>
+  </div>
 </section>
 
 <section class="bolum" id="haberler">
@@ -393,9 +433,9 @@ footer li a:hover{color:#fff}
       <p>Bandırma ve Erdek'te imzamızı taşıyan çalışmalardan.</p>
     </div>
     <div class="haberler">
-      <a class="haber buyuk belir" href="#teklif"><img src="img/yikim.jpg" alt="" loading="lazy"><div><small>Yıkım</small><h4>Bandırma böyle yıkım görmedi</h4><p>Bandırma'nın konuştuğu yıkım çalışmasından kareler.</p></div></a>
-      <a class="haber belir" href="#teklif"><img src="img/temel-kazi.jpg" alt="" loading="lazy"><div><small>Hafriyat</small><h4>Erdek hastane inşaatının temel kazısı Gülmüş'ten</h4></div></a>
-      <a class="haber belir" href="#teklif"><img src="img/kamyonlar.jpg" alt="" loading="lazy"><div><small>Kurumsal</small><h4>BTO Bandırma Ticaret Borsası Gülmüş'e kiraladı</h4></div></a>
+      <a class="haber buyuk belir" href="#teklif"><img src="img/eski/yikim.jpg" alt="" loading="lazy"><div><small>Yıkım</small><h4>Bandırma böyle yıkım görmedi</h4><p>Bandırma'nın konuştuğu yıkım çalışmasından kareler.</p></div></a>
+      <a class="haber belir" href="#teklif"><img src="img/eski/temel-kazi.jpg" alt="" loading="lazy"><div><small>Hafriyat</small><h4>Erdek hastane inşaatının temel kazısı Gülmüş'ten</h4></div></a>
+      <a class="haber belir" href="#teklif"><img src="img/eski/bina.jpg" alt="" loading="lazy"><div><small>Kurumsal</small><h4>BTO Bandırma Ticaret Borsası Gülmüş'e kiraladı</h4></div></a>
     </div>
   </div>
 </section>
@@ -405,6 +445,12 @@ footer li a:hover{color:#fff}
     <div class="bolum-ust belir">
       <div><span class="etiket">Kalite ve standartlar</span><h2 class="genis">Belgeli <em>güven</em></h2></div>
       <p>Kalite bizim için yalnızca ürün değil; işleyiş, düzen ve iş güvenliğiyle birlikte bir standarttır.</p>
+    </div>
+    <div class="sertifikalar belir">
+      <a href="img/eski/sertifika-2.jpg" target="_blank" rel="noopener"><img src="img/eski/sertifika-2.jpg" alt="Sertifika" loading="lazy"></a>
+      <a href="img/eski/sertifika-3.jpg" target="_blank" rel="noopener"><img src="img/eski/sertifika-3.jpg" alt="Sertifika" loading="lazy"></a>
+      <a href="img/eski/sertifika-4.jpg" target="_blank" rel="noopener"><img src="img/eski/sertifika-4.jpg" alt="Sertifika" loading="lazy"></a>
+      <a href="img/eski/sertifika-1.jpg" target="_blank" rel="noopener"><img src="img/eski/sertifika-1.jpg" alt="Belge" loading="lazy"></a>
     </div>
     <div class="belgeler">
       <div class="belge belir"><div class="muhur"><small>ISO</small><b>9001</b></div><div><h4>Kalite yönetim sistemi</h4><p>Müşteri memnuniyetini ön planda tutan, sürekli iyileşen bir sistem.</p></div></div>
@@ -470,7 +516,7 @@ footer li a:hover{color:#fff}
 <footer>
   <div class="kap alt-ust">
     <div>
-      <a href="#" class="logo" style="margin-bottom:18px"><span class="logo-isaret"><svg viewBox="0 0 32 32" fill="#fff" aria-hidden="true"><path d="M3 21h15v-7h5l4 4v3h2v3h-3.2a3.2 3.2 0 0 1-6.3 0H12.2a3.2 3.2 0 0 1-6.3 0H3zm16-5v3h6l-3-3zM9 22.3a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4zm13.3 0a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4zM4 8h11l-2 9H6z"/></svg></span><span><span class="logo-ad">GÜLMÜŞ</span><span class="logo-alt">Hafriyat · Nakliyat</span></span></a>
+      <a href="#" class="logo" style="margin-bottom:18px"><span class="logo-kutu"><img src="img/logo-gulmus.png" alt="Gülmüş"></span></a>
       <p style="color:rgba(255,255,255,.6);font-size:14.5px;max-width:320px">Gülmüş Hafriyat Nakliyat İnşaat Taahhüt Turizm Ticaret ve Sanayi Ltd. Şti. 1950'den günümüze.</p>
     </div>
     <div><h5>Hizmetler</h5><ul><li><a href="#hizmetler">Hafriyat</a></li><li><a href="#hizmetler">Nakliyat</a></li><li><a href="#hizmetler">İnşaat malzemeleri</a></li><li><a href="#hizmetler">Kanal açma</a></li><li><a href="#hizmetler">Organik gübre</a></li><li><a href="#hizmetler">Vidanjör</a></li></ul></div>
@@ -478,7 +524,7 @@ footer li a:hover{color:#fff}
     <div><h5>İletişim</h5><ul><li><a href="tel:02667211100">Bandırma: 0 (266) 721 11 00</a></li><li><a href="tel:02668456910">Erdek: 0 (266) 845 69 10</a></li><li><a href="https://www.facebook.com/gulmus.com.tr/" target="_blank" rel="noopener">Facebook</a></li><li><a href="https://gulmusnakliyat.sahibinden.com/" target="_blank" rel="noopener">sahibinden.com mağazası</a></li></ul></div>
   </div>
   <div class="alt-dev" aria-hidden="true">GÜLMÜŞ</div>
-  <div class="kap alt-son"><span>© 2026 Gülmüş Hafriyat Nakliyat. Tüm hakları saklıdır.</span><span>Tasarım önizlemesi: Panormos Medya · Görseller temsilîdir.</span></div>
+  <div class="kap alt-son"><span>© 2026 Gülmüş Hafriyat Nakliyat. Tüm hakları saklıdır.</span><span>Tasarım önizlemesi: Panormos Medya</span></div>
 </footer>
 
 <nav class="mobil-cubuk">
@@ -493,9 +539,6 @@ const ust=document.getElementById('ust'),menu=document.getElementById('menu');
 addEventListener('scroll',()=>ust.classList.toggle('kaydi',scrollY>40),{passive:true});
 document.getElementById('hamburger').onclick=()=>menu.classList.toggle('acik');
 menu.querySelectorAll('a').forEach(a=>a.onclick=()=>menu.classList.remove('acik'));
-// Açılış fotoğrafları sırayla değişir
-const fotolar=[...document.querySelectorAll('.hero-foto')],cizgiler=[...document.querySelectorAll('#sayac i')];let s=0;
-setInterval(()=>{fotolar[s].classList.remove('aktif');cizgiler[s].classList.remove('aktif');s=(s+1)%fotolar.length;fotolar[s].classList.add('aktif');cizgiler[s].classList.add('aktif')},6000);
 // Kaydırınca beliren öğeler ve sayaçlar
 const io=new IntersectionObserver(g=>g.forEach(e=>{if(e.isIntersecting){e.target.classList.add('gor');io.unobserve(e.target)}}),{threshold:.12});
 document.querySelectorAll('.belir').forEach((el,i)=>{el.style.transitionDelay=(i%3)*.08+'s';io.observe(el)});
@@ -503,6 +546,10 @@ const sayIO=new IntersectionObserver(g=>g.forEach(e=>{if(!e.isIntersecting)retur
 document.querySelectorAll('[data-say]').forEach(b=>sayIO.observe(b));
 // Form (önizleme): gönderilince teşekkür ekranı
 document.getElementById('form').onsubmit=e=>{e.preventDefault();document.getElementById('tamam').classList.add('goster')};
+// Galeri ve sertifikalar: fotoğrafa dokununca büyük açılır
+const isik=document.createElement('div');isik.className='isik';isik.innerHTML='<img alt="">';document.body.appendChild(isik);
+isik.onclick=()=>isik.classList.remove('acik');
+document.querySelectorAll('.galeri a,.sertifikalar a').forEach(a=>a.onclick=e=>{e.preventDefault();isik.querySelector('img').src=a.href;isik.classList.add('acik')});
 </script>
 </body>
 </html>
