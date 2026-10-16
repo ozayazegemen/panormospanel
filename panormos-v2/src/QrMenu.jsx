@@ -203,7 +203,8 @@ export default function QrMenu({ slug }) {
                           </h3>
                           {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
                         </div>
-                        {var_ && <div className={`qm-u-fiyat${sutunlu ? " sutunlu" : ""}`}>{fl.map((f, i) => <span key={i} className={f ? "" : "bos"}>{f || (sutunlu ? "–" : "")}</span>)}</div>}
+                        {/* Ölçülü kategoride fiyat alanı her zaman ayrılır: fiyat girilmemiş olsa da yazı o sütunlara taşmaz */}
+                        {(var_ || et.length > 0) && <div className={`qm-u-fiyat${et.length ? " sutunlu" : ""}`}>{fl.map((f, i) => <span key={i} className={f ? "" : "bos"}>{f || (sutunlu && var_ ? "–" : "")}</span>)}</div>}
                       </article>
                     );
                   })}
