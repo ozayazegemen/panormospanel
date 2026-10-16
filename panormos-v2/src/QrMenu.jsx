@@ -161,7 +161,7 @@ export default function QrMenu({ slug }) {
               </span>
             ))}
           </div>
-          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 60 : etiketler.length <= 4 ? 46 : 35}px` }}>
+          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 62 : etiketler.length <= 4 ? 50 : 38}px` }}>
             <div className="qm-kat-baslik">
               <span className="qm-no">{String(kategoriler.findIndex((k) => k.id === secili) + 1).padStart(2, "0")}</span>
               <h2>{yaz(kategori.ad, kategori.ad_en)}</h2>
@@ -182,7 +182,7 @@ export default function QrMenu({ slug }) {
                   <div className={`qm-satir${cokOlcu ? " tablo" : ""}`}>
                     <h3>{yaz(u.ad, u.ad_en)}</h3>
                     {!cokOlcu && fiyatVar && <span className="qm-nokta" aria-hidden="true" />}
-                    {(cokOlcu || fiyatVar) && <span className="qm-fiyatlar">{hucreler}</span>}
+                    {fiyatVar && <span className="qm-fiyatlar">{hucreler}</span>}
                   </div>
                   {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
                   {((u.alerjenler || []).length > 0 || u.etiket || u.tukendi) && (
@@ -294,9 +294,9 @@ const QM_CSS = `
 .qm-kat-baslik{text-align:center;margin-bottom:26px}
 .qm-kat-baslik h2{font-family:var(--urun);font-weight:600;font-size:26px;line-height:1.1;color:var(--ana);margin-top:6px}
 .qm-kat-baslik p{font-size:13.5px;color:#7a716b;margin-top:8px;font-style:italic}
-.qm-olcu-baslik{display:flex;align-items:flex-end;padding:9px 0 7px;margin-bottom:2px;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
-.qm-olcu-baslik .qm-olcu-bosluk{flex:1;text-align:left;font-size:11px;color:#8b827c}
-.qm-olcu-baslik span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
+.qm-olcu-baslik{display:flex;align-items:center;padding:9px 8px 9px 0;margin-bottom:4px;border-radius:10px;background:color-mix(in srgb,var(--ana) 7%,transparent)}
+.qm-olcu-baslik .qm-olcu-bosluk{flex:1;text-align:left;padding-left:10px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:color-mix(in srgb,var(--ana) 60%,#8b827c)}
+.qm-olcu-baslik span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;font-family:var(--govde);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
 .qm-urun{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
 .qm-urun:last-of-type{border-bottom:none}
 .qm-urun img{width:58px;height:58px;object-fit:cover;flex-shrink:0;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
@@ -304,15 +304,17 @@ const QM_CSS = `
 .qm-satir{display:flex;align-items:baseline;gap:8px}
 .qm-satir.tablo h3{flex:1;min-width:0}
 .qm-satir h3+.qm-fiyatlar{margin-left:auto}
+.qm-satir .qm-fiyatlar{margin-right:8px}
 .qm-urun h3{font-family:var(--urun);font-weight:500;font-size:15.5px;line-height:1.25;color:#26211e}
 .qm-nokta{flex:1;min-width:16px;border-bottom:2px dotted color-mix(in srgb,var(--ana) 30%,transparent);transform:translateY(-4px)}
 .qm-fiyatlar{display:flex;flex-shrink:0;font-family:var(--govde);font-weight:700;font-size:13.5px;color:var(--ana)}
 .qm-fiyatlar span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;white-space:nowrap}
 .qm-fiyatlar span.bos{opacity:.35}
 .qm-liste.dar .qm-olcu-baslik span:not(.qm-olcu-bosluk),.qm-liste.dar .qm-fiyatlar span{text-align:center}
-.qm-liste.dar .qm-olcu-baslik span{font-size:9px;letter-spacing:0}
-.qm-liste.dar .qm-fiyatlar{font-size:11px;letter-spacing:-.02em}
-.qm-liste.dar .qm-urun h3{font-size:14.5px}
+.qm-liste.dar .qm-olcu-baslik span:not(.qm-olcu-bosluk){font-size:10px;letter-spacing:.02em}
+.qm-liste.dar .qm-fiyatlar{font-size:12.5px;font-weight:600;letter-spacing:-.01em}
+.qm-liste.dar .qm-satir.tablo{align-items:center}
+.qm-liste.dar .qm-urun h3{font-size:15px}
 .qm-urun p{font-size:12.5px;line-height:1.45;color:#6d645e;margin-top:4px}
 .qm-rozetler{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;align-items:center}
 .qm-alerjen{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 5px;border-radius:12px;font-size:9.5px;font-weight:700;letter-spacing:.03em;color:var(--ana);border:1px solid color-mix(in srgb,var(--ana) 35%,transparent);background:rgba(255,255,255,.5)}
