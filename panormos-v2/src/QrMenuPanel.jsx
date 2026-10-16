@@ -215,13 +215,21 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
   // ---- Ürünler ----
   const katUrunleri = useMemo(() => urunler.filter((u) => u.kategori_id === kategori), [urunler, kategori]);
   const seciliKat = kategoriler.find((k) => k.id === kategori);
-  const ikiFiyat = String(seciliKat?.fiyat_etiketleri || "").split(/[,|/]/).filter((s) => s.trim()).length > 1;
+  // Kategorideki ölçüler (Tek, Duble, 20 cl…): her biri için ayrı fiyat girilir
+  const olculer = String(seciliKat?.fiyat_etiketleri || "").split(/[,|/]/).map((x) => x.trim()).filter(Boolean);
+  const fiyatAl = (u, i) => { const f = (u.fiyatlar || [])[i]; return f !== undefined && f !== null ? f : i === 0 ? u.fiyat : i === 1 ? u.fiyat2 : null; };
   async function urunKaydet() {
     const f = urunForm;
     if (!f.ad?.trim()) { setHata("Ürün adı boş olamaz."); return; }
     const kayit = {
       ad: f.ad.trim(), ad_en: f.ad_en || "", aciklama: f.aciklama || "", aciklama_en: f.aciklama_en || "",
-      fiyat: sayiOku(f.fiyat), fiyat2: sayiOku(f.fiyat2), alerjenler: f.alerjenler || [], etiket: f.etiket || "",
+      ...(() => {
+        // Ölçülü kategoride fiyatlar liste olarak; ilk ikisi eski alanlara da yazılır
+        if (!olculer.length) return { fiyat: sayiOku(f.fiyat), fiyat2: null, fiyatlar: [] };
+        const l = olculer.map((_, i) => sayiOku((f.olcuFiyat || [])[i]));
+        return { fiyat: l[0] ?? null, fiyat2: l[1] ?? null, fiyatlar: l };
+      })(),
+      alerjenler: f.alerjenler || [], etiket: f.etiket || "",
       gorsel: f.gorsel || "", tukendi: !!f.tukendi, aktif: f.aktif !== false,
     };
     const { error } = f.id
@@ -347,7 +355,7 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
               <Alan etiket="Kategori adı"><input style={girdi} autoFocus value={katForm.ad} onChange={(e) => setKatForm({ ...katForm, ad: e.target.value })} /></Alan>
               {menu.iki_dil && <Alan etiket="İngilizcesi"><input style={girdi} value={katForm.ad_en || ""} onChange={(e) => setKatForm({ ...katForm, ad_en: e.target.value })} /></Alan>}
               <Alan etiket="Kısa açıklama (isteğe bağlı)"><input style={girdi} value={katForm.aciklama || ""} onChange={(e) => setKatForm({ ...katForm, aciklama: e.target.value })} /></Alan>
-              <Alan etiket="İki fiyat sütunu (ör. Kadeh, Şişe)"><input style={girdi} placeholder="boş bırakılırsa tek fiyat" value={katForm.fiyat_etiketleri || ""} onChange={(e) => setKatForm({ ...katForm, fiyat_etiketleri: e.target.value })} /></Alan>
+              <Alan etiket="Ölçüler (virgülle: Tek, Duble, 35 cl, 70 cl)"><input style={girdi} placeholder="boş bırakılırsa tek fiyat" value={katForm.fiyat_etiketleri || ""} onChange={(e) => setKatForm({ ...katForm, fiyat_etiketleri: e.target.value })} /></Alan>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
               <Dugme tur="ana" onClick={kategoriKaydet}>Kaydet</Dugme>
@@ -371,7 +379,7 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
                 <button type="button" title="Aşağı" onClick={() => sirala("qr_urunler", katUrunleri, i, 1)} style={kucukDugme}>▼</button>
               </div>
               {u.gorsel && <img src={u.gorsel} alt="" style={{ width: 42, height: 42, objectFit: "cover", borderRadius: 8 }} />}
-              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setUrunForm({ ...u, fiyat: u.fiyat ?? "", fiyat2: u.fiyat2 ?? "" })}>
+              <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => setUrunForm({ ...u, fiyat: u.fiyat ?? "", olcuFiyat: olculer.map((_, i) => fiyatAl(u, i) ?? "") })}>
                 <div style={{ fontWeight: 800, fontSize: 14, color: T.textPrimary }}>
                   {u.ad} {(u.alerjenler || []).length > 0 && <span style={{ fontSize: 11, color: T.amberText, fontWeight: 700 }}>({u.alerjenler.join(", ")})</span>}
                   {u.etiket && <span style={{ fontSize: 10.5, marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: T.violetDim, color: T.violetText }}>{u.etiket}</span>}
@@ -379,7 +387,12 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
                 </div>
                 {u.aciklama && <div style={{ fontSize: 12.5, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.aciklama}</div>}
               </div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: T.textPrimary, whiteSpace: "nowrap" }}>{fiyatYaz(u.fiyat)}{u.fiyat2 != null && <span style={{ color: T.textMuted }}> / {fiyatYaz(u.fiyat2)}</span>}</div>
+              <div style={{ fontWeight: 800, fontSize: 13, color: T.textPrimary, textAlign: "right", maxWidth: 220 }}>
+                {olculer.length
+                  ? olculer.map((o, j) => (fiyatAl(u, j) != null ? <span key={o} style={{ display: "inline-block", marginLeft: 8, whiteSpace: "nowrap" }}><span style={{ color: T.textMuted, fontWeight: 600 }}>{o}</span> {fiyatYaz(fiyatAl(u, j))}</span> : null))
+                  : fiyatYaz(u.fiyat)}
+                {olculer.length > 0 && !olculer.some((_, j) => fiyatAl(u, j) != null) && <span style={{ color: T.textMuted, fontWeight: 600 }}>Fiyat yok</span>}
+              </div>
               <Dugme onClick={() => urunDegistir(u, { tukendi: !u.tukendi })} title="Tükendi olarak işaretle">{u.tukendi ? "Var" : "Tükendi"}</Dugme>
               <Dugme onClick={() => urunDegistir(u, { aktif: !u.aktif })}>{u.aktif ? "Gizle" : "Göster"}</Dugme>
             </div>
@@ -397,8 +410,19 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
               {menu.iki_dil && <Alan etiket="İngilizcesi"><input style={girdi} value={urunForm.ad_en || ""} onChange={(e) => setUrunForm({ ...urunForm, ad_en: e.target.value })} /></Alan>}
               <Alan etiket="İçindekiler / açıklama" genis><textarea style={{ ...girdi, minHeight: 60, resize: "vertical" }} value={urunForm.aciklama || ""} onChange={(e) => setUrunForm({ ...urunForm, aciklama: e.target.value })} /></Alan>
               {menu.iki_dil && <Alan etiket="Açıklama (İngilizce)" genis><textarea style={{ ...girdi, minHeight: 50, resize: "vertical" }} value={urunForm.aciklama_en || ""} onChange={(e) => setUrunForm({ ...urunForm, aciklama_en: e.target.value })} /></Alan>}
-              <Alan etiket={ikiFiyat ? `Fiyat (${String(seciliKat.fiyat_etiketleri).split(/[,|/]/)[0].trim()})` : "Fiyat (₺)"}><input style={girdi} inputMode="decimal" value={urunForm.fiyat ?? ""} onChange={(e) => setUrunForm({ ...urunForm, fiyat: e.target.value })} /></Alan>
-              {ikiFiyat && <Alan etiket={`Fiyat (${String(seciliKat.fiyat_etiketleri).split(/[,|/]/)[1].trim()})`}><input style={girdi} inputMode="decimal" value={urunForm.fiyat2 ?? ""} onChange={(e) => setUrunForm({ ...urunForm, fiyat2: e.target.value })} /></Alan>}
+              {!olculer.length && <Alan etiket="Fiyat (₺)"><input style={girdi} inputMode="decimal" value={urunForm.fiyat ?? ""} onChange={(e) => setUrunForm({ ...urunForm, fiyat: e.target.value })} /></Alan>}
+              {olculer.length > 0 && (
+                <Alan etiket="Fiyatlar (₺) — boş bırakılan ölçü menüde görünmez" genis>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 8 }}>
+                    {olculer.map((o, i) => (
+                      <label key={o} style={{ display: "block" }}>
+                        <span style={{ display: "block", fontSize: 11.5, fontWeight: 700, color: T.textMuted, marginBottom: 3 }}>{o}</span>
+                        <input style={girdi} inputMode="decimal" value={(urunForm.olcuFiyat || [])[i] ?? ""} onChange={(e) => { const l = [...(urunForm.olcuFiyat || [])]; l[i] = e.target.value; setUrunForm({ ...urunForm, olcuFiyat: l }); }} />
+                      </label>
+                    ))}
+                  </div>
+                </Alan>
+              )}
               <Alan etiket="Etiket (isteğe bağlı)"><input style={girdi} placeholder="Yeni, Şefin önerisi, Acı…" value={urunForm.etiket || ""} onChange={(e) => setUrunForm({ ...urunForm, etiket: e.target.value })} /></Alan>
               <Alan etiket="Alerjenler" genis>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>

@@ -13,6 +13,10 @@ const YAZI_TIPLERI = {
 
 const ALERJEN_ADLARI = { G: "Gluten", D: "Süt ürünleri", N: "Kuruyemiş", V: "Vejetaryen", VG: "Vegan", SF: "Kabuklu deniz ürünleri", ALC: "Alkol", SSM: "Susam" };
 
+// Ölçü adlarının İngilizcesi (menüde EN seçilince)
+const OLCU_EN = { tek: "Single", duble: "Double", kadeh: "Glass", şişe: "Bottle", sise: "Bottle", porsiyon: "Portion", küçük: "Small", büyük: "Large", orta: "Medium", yarım: "Half", tam: "Full" };
+// Ürünün i. ölçüdeki fiyatı: yeni "fiyatlar" listesi, yoksa eski tek/çift fiyat alanları
+const fiyatAl = (u, i) => { const f = (u.fiyatlar || [])[i]; return f !== undefined && f !== null ? f : i === 0 ? u.fiyat : i === 1 ? u.fiyat2 : null; };
 const fiyatYaz = (n) => (n === null || n === undefined || n === "" ? "" : `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Number(n))}₺`);
 // "0532 000 00 00" → "905320000000" (WhatsApp ve telefon bağlantısı için)
 const telLink = (t) => { const d = String(t || "").replace(/\D/g, "").replace(/^0+/, ""); return d.startsWith("90") ? d : `90${d}`; };
@@ -94,6 +98,11 @@ export default function QrMenu({ slug }) {
   const wa = menu.whatsapp ? `https://wa.me/${telLink(menu.whatsapp)}` : "";
   const rez = menu.rezervasyon ? (/^https?:/i.test(menu.rezervasyon) ? menu.rezervasyon : `tel:+${telLink(menu.rezervasyon)}`) : "";
 
+  // İkiden çok ölçü (Tek, Duble, 20 cl…): fiyatlar ürün adının altında küçük bir tabloda gösterilir;
+  // kategoride hiç fiyat yoksa ölçüler başlığın altında bir kez yazılır
+  const cokOlcu = etiketler.length > 2;
+  const olcuFiyatiVar = cokOlcu && kategoriUrunleri.some((u) => etiketler.some((_, i) => fiyatYaz(fiyatAl(u, i))));
+  const olcuAdi = (e) => (en ? OLCU_EN[e.toLocaleLowerCase("tr")] || e : e);
   const dilAnahtari = menu.iki_dil && (
     <div className="qm-dil" role="group" aria-label="Dil / Language">
       <button className={!en ? "secili" : ""} onClick={() => dilSec("tr")}>TR</button>
@@ -142,8 +151,11 @@ export default function QrMenu({ slug }) {
               <h2>{yaz(kategori.ad, kategori.ad_en)}</h2>
               {yaz(kategori.aciklama, kategori.aciklama_en) && <p>{yaz(kategori.aciklama, kategori.aciklama_en)}</p>}
             </div>
-            {etiketler.length > 1 && (
-              <div className="qm-fiyat-baslik">{etiketler.slice(0, 2).map((e) => <span key={e}>{e}</span>)}</div>
+            {cokOlcu && !olcuFiyatiVar && (
+              <div className="qm-olculer"><span>{yaz("Ölçüler", "Sizes")}</span>{etiketler.map((e) => <em key={e}>{olcuAdi(e)}</em>)}</div>
+            )}
+            {!cokOlcu && etiketler.length > 1 && (
+              <div className="qm-fiyat-baslik">{etiketler.slice(0, 2).map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>
             )}
             {kategoriUrunleri.map((u) => (
               <article key={u.id} className={`qm-urun${u.tukendi ? " tukendi" : ""}`}>
@@ -151,16 +163,23 @@ export default function QrMenu({ slug }) {
                 <div className="qm-urun-metin">
                   <div className="qm-satir">
                     <h3>{yaz(u.ad, u.ad_en)}</h3>
-                    {(fiyatYaz(u.fiyat) || fiyatYaz(u.fiyat2)) && (
+                    {!cokOlcu && (fiyatYaz(fiyatAl(u, 0)) || fiyatYaz(fiyatAl(u, 1))) && (
                       <>
                         <span className="qm-nokta" aria-hidden="true" />
                         <span className="qm-fiyatlar">
-                          <span>{fiyatYaz(u.fiyat)}</span>
-                          {fiyatYaz(u.fiyat2) && <span>{fiyatYaz(u.fiyat2)}</span>}
+                          <span>{fiyatYaz(fiyatAl(u, 0))}</span>
+                          {etiketler.length > 1 && fiyatYaz(fiyatAl(u, 1)) && <span>{fiyatYaz(fiyatAl(u, 1))}</span>}
                         </span>
                       </>
                     )}
                   </div>
+                  {cokOlcu && olcuFiyatiVar && (
+                    <div className="qm-olcu-tablo">
+                      {etiketler.map((e, i) => fiyatYaz(fiyatAl(u, i)) ? (
+                        <span key={e}><small>{olcuAdi(e)}</small><b>{fiyatYaz(fiyatAl(u, i))}</b></span>
+                      ) : null)}
+                    </div>
+                  )}
                   {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
                   {((u.alerjenler || []).length > 0 || u.etiket || u.tukendi) && (
                     <div className="qm-rozetler">
@@ -268,6 +287,13 @@ const QM_CSS = `
 .qm-kat-baslik p{font-size:13.5px;color:#7a716b;margin-top:8px;font-style:italic}
 .qm-fiyat-baslik{display:flex;justify-content:flex-end;gap:10px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ana);margin-bottom:4px}
 .qm-fiyat-baslik span{min-width:58px;text-align:right}
+.qm-olculer{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin:-8px 0 18px}
+.qm-olculer span{width:100%;text-align:center;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8b827c;margin-bottom:2px}
+.qm-olculer em{font-style:normal;font-size:12px;font-weight:700;color:var(--ana);padding:5px 11px;border-radius:14px;border:1px solid color-mix(in srgb,var(--ana) 30%,transparent);background:rgba(255,255,255,.5)}
+.qm-olcu-tablo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.qm-olcu-tablo span{display:flex;flex-direction:column;align-items:center;min-width:62px;padding:5px 8px;border-radius:10px;background:rgba(255,255,255,.55);border:1px solid color-mix(in srgb,var(--ana) 18%,transparent)}
+.qm-olcu-tablo small{font-size:10px;font-weight:700;letter-spacing:.06em;color:#8b827c;text-transform:uppercase}
+.qm-olcu-tablo b{font-size:13.5px;color:var(--ana)}
 .qm-urun{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
 .qm-urun:last-of-type{border-bottom:none}
 .qm-urun img{width:68px;height:68px;object-fit:cover;flex-shrink:0;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
