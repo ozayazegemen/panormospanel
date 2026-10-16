@@ -151,11 +151,15 @@ export default function QrMenu({ slug }) {
                 <div className="qm-urun-metin">
                   <div className="qm-satir">
                     <h3>{yaz(u.ad, u.ad_en)}</h3>
-                    <span className="qm-nokta" aria-hidden="true" />
-                    <span className="qm-fiyatlar">
-                      <span>{fiyatYaz(u.fiyat)}</span>
-                      {(u.fiyat2 !== null && u.fiyat2 !== undefined && u.fiyat2 !== "") && <span>{fiyatYaz(u.fiyat2)}</span>}
-                    </span>
+                    {(fiyatYaz(u.fiyat) || fiyatYaz(u.fiyat2)) && (
+                      <>
+                        <span className="qm-nokta" aria-hidden="true" />
+                        <span className="qm-fiyatlar">
+                          <span>{fiyatYaz(u.fiyat)}</span>
+                          {fiyatYaz(u.fiyat2) && <span>{fiyatYaz(u.fiyat2)}</span>}
+                        </span>
+                      </>
+                    )}
                   </div>
                   {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
                   {((u.alerjenler || []).length > 0 || u.etiket || u.tukendi) && (
