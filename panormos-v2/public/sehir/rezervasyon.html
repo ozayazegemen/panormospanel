@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rezervasyon — Şehir Restaurant</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0E1E29">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400;1,500&family=Jost:wght@300;400;500&display=swap">
+<link rel="stylesheet" href="site.css?v=2">
+</head>
+<body data-sayfa="rez">
+<section class="acilis sayfa-acilis"><div class="slayt aktif" style="background-image:url(img/masa-mum.jpg)"></div>
+  <div class="acilis-ic"><div class="ust-baslik" data-tr="Rezervasyon" data-en="Reservations">Rezervasyon</div><h1 data-tr="Masanız hazır" data-en="Your table awaits">Masanız hazır</h1><p data-tr="" data-en=""></p></div>
+  <svg class="asagi" width="26" height="14" viewBox="0 0 26 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 1l12 12L25 1"/></svg>
+</section>
+<section class="bolum"><div class="dar"><h2 class="baslik baslik-cizgili belir" style="margin-top:14px"><span data-tr="Rezervasyon" data-en="Book a table">Rezervasyon</span></h2><div class="metin belir" style="margin-top:26px"><p data-tr="Formu doldurun; bilgileriniz WhatsApp mesajı olarak doğrudan restoranımıza iletilir. Dilerseniz bizi arayabilirsiniz: 0532 242 09 66" data-en="Fill in the form and your details will be sent straight to us as a WhatsApp message. You can also call us: +90 532 242 09 66">Formu doldurun; bilgileriniz WhatsApp mesajı olarak doğrudan restoranımıza iletilir. Dilerseniz bizi arayabilirsiniz: 0532 242 09 66</p></div>
+<form class="rez belir" id="rezForm">
+  <label><span data-tr="Ad soyad" data-en="Full name">Ad soyad</span><input name="ad" required autocomplete="name"></label>
+  <label><span data-tr="Telefon" data-en="Phone">Telefon</span><input name="tel" type="tel" required autocomplete="tel"></label>
+  <label><span data-tr="Tarih" data-en="Date">Tarih</span><input name="tarih" type="date" required></label>
+  <label><span data-tr="Saat" data-en="Time">Saat</span><select name="saat"><option>18:00</option><option>18:30</option><option>19:00</option><option>19:30</option><option>20:00</option><option>20:30</option><option>21:00</option><option>21:30</option><option>22:00</option></select></label>
+  <label class="tam"><span data-tr="Kişi sayısı" data-en="Guests">Kişi sayısı</span><select name="kisi"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>10+</option></select></label>
+  <label class="tam"><span data-tr="Notunuz (isteğe bağlı)" data-en="Note (optional)">Notunuz (isteğe bağlı)</span><textarea name="not"></textarea></label>
+  <button class="dugme dolu" type="submit"><span data-tr="WhatsApp ile gönder" data-en="Send via WhatsApp">WhatsApp ile gönder</span></button>
+</form>
+<p class="rez-not"><span data-tr="Rezervasyonunuz restoranımızın onayıyla kesinleşir." data-en="Your reservation is confirmed once the restaurant replies.">Rezervasyonunuz restoranımızın onayıyla kesinleşir.</span></p>
+</div></section>
+<script src="site.js?v=2"></script>
+</body>
+</html>
