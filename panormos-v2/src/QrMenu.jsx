@@ -298,7 +298,7 @@ const QM_CSS = `
 .qm-kat-baslik{text-align:center;margin-bottom:26px}
 .qm-kat-baslik h2{font-family:var(--urun);font-weight:600;font-size:26px;line-height:1.1;color:var(--ana);margin-top:6px}
 .qm-kat-baslik p{font-size:13.5px;color:#7a716b;margin-top:8px;font-style:italic}
-.qm-olcu-baslik{position:sticky;top:102px;z-index:3;display:flex;justify-content:flex-end;padding:9px 0 7px;margin-bottom:2px;background:color-mix(in srgb,var(--zemin) 94%,transparent);border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
+.qm-olcu-baslik{display:flex;justify-content:flex-end;padding:9px 0 7px;margin-bottom:2px;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
 .qm-olcu-baslik span{width:var(--sutun);text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
 .qm-urun{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
 .qm-urun:last-of-type{border-bottom:none}
