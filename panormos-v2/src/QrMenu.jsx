@@ -161,33 +161,29 @@ export default function QrMenu({ slug }) {
               </span>
             ))}
           </div>
-          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 60 : etiketler.length <= 4 ? 54 : 47}px` }}>
+          <section className={etiketler.length > 4 ? "qm-liste dar" : "qm-liste"} style={{ "--sutun": `${etiketler.length <= 2 ? 60 : etiketler.length <= 4 ? 46 : 35}px` }}>
             <div className="qm-kat-baslik">
               <span className="qm-no">{String(kategoriler.findIndex((k) => k.id === secili) + 1).padStart(2, "0")}</span>
               <h2>{yaz(kategori.ad, kategori.ad_en)}</h2>
               {yaz(kategori.aciklama, kategori.aciklama_en) && <p>{yaz(kategori.aciklama, kategori.aciklama_en)}</p>}
             </div>
             {etiketler.length > 0 && (
-              <div className="qm-olcu-baslik">{etiketler.map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>
+              <div className="qm-olcu-baslik"><span className="qm-olcu-bosluk">{cokOlcu ? yaz("Fiyat (₺)", "Price (₺)") : ""}</span>{etiketler.map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>
             )}
             {kategoriUrunleri.map((u) => {
-              const fiyatlar = etiketler.length ? etiketler.map((_, i) => fiyatYaz(fiyatAl(u, i))) : [fiyatYaz(fiyatAl(u, 0))];
-              const fiyatVar = fiyatlar.some(Boolean);
-              const hucreler = fiyatlar.map((f, i) => <span key={i} className={f ? "" : "bos"}>{f || (etiketler.length > 1 ? "–" : "")}</span>);
+              const fiyatlar = etiketler.length ? etiketler.map((_, i) => fiyatAl(u, i)) : [fiyatAl(u, 0)];
+              const yazF = (f) => (cokOlcu ? (f === null || f === undefined || f === "" ? "" : new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Number(f))) : fiyatYaz(f));
+              const fiyatVar = fiyatlar.some((f) => yazF(f));
+              const hucreler = fiyatlar.map((f, i) => <span key={i} className={yazF(f) ? "" : "bos"}>{yazF(f) || (etiketler.length > 1 && fiyatVar ? "–" : "")}</span>);
               return (
               <article key={u.id} className={`qm-urun${u.tukendi ? " tukendi" : ""}`}>
                 {u.gorsel && <img src={u.gorsel} alt="" loading="lazy" />}
                 <div className="qm-urun-metin">
-                  <div className="qm-satir">
+                  <div className={`qm-satir${cokOlcu ? " tablo" : ""}`}>
                     <h3>{yaz(u.ad, u.ad_en)}</h3>
-                    {!cokOlcu && fiyatVar && (
-                      <>
-                        <span className="qm-nokta" aria-hidden="true" />
-                        <span className="qm-fiyatlar">{hucreler}</span>
-                      </>
-                    )}
+                    {!cokOlcu && fiyatVar && <span className="qm-nokta" aria-hidden="true" />}
+                    {(cokOlcu || fiyatVar) && <span className="qm-fiyatlar">{hucreler}</span>}
                   </div>
-                  {cokOlcu && fiyatVar && <div className="qm-fiyatlar qm-olcu-satir">{hucreler}</div>}
                   {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
                   {((u.alerjenler || []).length > 0 || u.etiket || u.tukendi) && (
                     <div className="qm-rozetler">
@@ -298,22 +294,25 @@ const QM_CSS = `
 .qm-kat-baslik{text-align:center;margin-bottom:26px}
 .qm-kat-baslik h2{font-family:var(--urun);font-weight:600;font-size:26px;line-height:1.1;color:var(--ana);margin-top:6px}
 .qm-kat-baslik p{font-size:13.5px;color:#7a716b;margin-top:8px;font-style:italic}
-.qm-olcu-baslik{display:flex;justify-content:flex-end;padding:9px 0 7px;margin-bottom:2px;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
-.qm-olcu-baslik span{width:var(--sutun);text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
+.qm-olcu-baslik{display:flex;align-items:flex-end;padding:9px 0 7px;margin-bottom:2px;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
+.qm-olcu-baslik .qm-olcu-bosluk{flex:1;text-align:left;font-size:11px;color:#8b827c}
+.qm-olcu-baslik span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ana);white-space:nowrap}
 .qm-urun{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 9%,transparent)}
 .qm-urun:last-of-type{border-bottom:none}
 .qm-urun img{width:58px;height:58px;object-fit:cover;flex-shrink:0;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 12px -6px rgba(0,0,0,.4)}
 .qm-urun-metin{flex:1;min-width:0}
 .qm-satir{display:flex;align-items:baseline;gap:8px}
+.qm-satir.tablo h3{flex:1;min-width:0}
+.qm-satir h3+.qm-fiyatlar{margin-left:auto}
 .qm-urun h3{font-family:var(--urun);font-weight:500;font-size:15.5px;line-height:1.25;color:#26211e}
 .qm-nokta{flex:1;min-width:16px;border-bottom:2px dotted color-mix(in srgb,var(--ana) 30%,transparent);transform:translateY(-4px)}
 .qm-fiyatlar{display:flex;flex-shrink:0;font-family:var(--govde);font-weight:700;font-size:13.5px;color:var(--ana)}
-.qm-fiyatlar span{width:var(--sutun);text-align:right;white-space:nowrap}
+.qm-fiyatlar span{flex:0 0 var(--sutun);width:var(--sutun);text-align:right;white-space:nowrap}
 .qm-fiyatlar span.bos{opacity:.35}
-.qm-olcu-satir{justify-content:flex-end;margin-top:6px;font-size:13px}
-.qm-liste.dar .qm-olcu-baslik span,.qm-liste.dar .qm-olcu-satir span{text-align:center}
-.qm-liste.dar .qm-olcu-baslik span{font-size:9.5px;letter-spacing:0}
-.qm-liste.dar .qm-olcu-satir{font-size:11.5px;letter-spacing:-.01em}
+.qm-liste.dar .qm-olcu-baslik span:not(.qm-olcu-bosluk),.qm-liste.dar .qm-fiyatlar span{text-align:center}
+.qm-liste.dar .qm-olcu-baslik span{font-size:9px;letter-spacing:0}
+.qm-liste.dar .qm-fiyatlar{font-size:11px;letter-spacing:-.02em}
+.qm-liste.dar .qm-urun h3{font-size:14.5px}
 .qm-urun p{font-size:12.5px;line-height:1.45;color:#6d645e;margin-top:4px}
 .qm-rozetler{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;align-items:center}
 .qm-alerjen{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 5px;border-radius:12px;font-size:9.5px;font-weight:700;letter-spacing:.03em;color:var(--ana);border:1px solid color-mix(in srgb,var(--ana) 35%,transparent);background:rgba(255,255,255,.5)}
