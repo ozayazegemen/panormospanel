@@ -3,7 +3,7 @@
   var TEL = '0532 242 09 66', TEL_LINK = 'tel:+905322420966', WA = '905322420966';
   var ADRES = 'Hacıyusuf Mah. Cumhuriyet Cad. No: 49, Bandırma / Balıkesir';
   var IG = 'https://instagram.com/bandirmasehirrestourant';
-  var MENU_LINK = '/m/sehir-restoran';
+  var MENU_LINK = '/m/sehir-restoran?genis=1';
   var sayfa = document.body.dataset.sayfa || '';
 
   var linkler = [

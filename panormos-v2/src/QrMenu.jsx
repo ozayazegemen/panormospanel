@@ -30,6 +30,8 @@ export default function QrMenu({ slug }) {
     if (q === "en" || q === "tr") return q;
     try { return localStorage.getItem("qrmenu_dil") || "tr"; } catch (e) { return "tr"; }
   });
+  // ?genis=1: işletmenin web sitesinden açılınca bilgisayarda geniş düzen (telefonda ve QR koddan açılınca dar kalır)
+  const genis = new URLSearchParams(window.location.search).get("genis") === "1";
   const [secili, setSecili] = useState(() => new URLSearchParams(window.location.search).get("k") || "");
 
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function QrMenu({ slug }) {
   );
 
   return (
-    <div className="qm" lang={en ? "en" : "tr"} style={{ "--ana": ana, "--zemin": zemin, "--baslik": tip.baslik, "--urun": tip.urun, "--kbaslik": tip.kbaslik, "--govde": tip.govde }}>
+    <div className={`qm${genis ? " qm-genis" : ""}`} lang={en ? "en" : "tr"} style={{ "--ana": ana, "--zemin": zemin, "--baslik": tip.baslik, "--urun": tip.urun, "--kbaslik": tip.kbaslik, "--govde": tip.govde }}>
       <style>{QM_CSS}</style>
 
       {!kategori ? (
@@ -346,6 +348,18 @@ const QM_CSS = `
 @media (min-width:520px){
   .qm{background:color-mix(in srgb,var(--zemin) 88%,var(--ana))}
   .qm-giris,.qm-sayfa{min-height:100vh;box-shadow:0 0 0 1px color-mix(in srgb,var(--ana) 12%,transparent),0 20px 60px -30px rgba(0,0,0,.35)}
+}
+@media (min-width:1000px){
+  .qm-genis .qm-giris{max-width:1000px}
+  .qm-genis .qm-kartlar{grid-template-columns:repeat(4,1fr);gap:14px}
+  .qm-genis .qm-kart strong{font-size:19px}
+  .qm-genis .qm-sayfa{max-width:1180px}
+  .qm-genis .qm-kagit{column-count:2;column-gap:64px;padding:34px 48px 10px}
+  .qm-genis .qm-kagit-bolum{column-span:all}
+  .qm-genis .qm-kb h2,.qm-genis .qm-kb-olcu{break-after:avoid}
+  .qm-genis .qm-u{break-inside:avoid}
+  .qm-genis .qm-alerjen-notu{column-span:all}
+  .qm-genis .qm-sekmeler{justify-content:center;flex-wrap:wrap}
 }
 @media (max-width:360px){.qm-kartlar{grid-template-columns:1fr}.qm-alt-dugmeler a{padding:10px 12px;font-size:12px}}
 `;
