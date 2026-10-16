@@ -32,6 +32,11 @@ const ISLER = [
     metin: "Bandırmalı emlak ofisi Ayaz Gayrimenkul Danışmanlığı için ilan vitrini yerine bilgi veren bir emlak portalı kurduk. Rehberler, emlak sözlüğü ve hesaplayıcılarla güven veriyor; gelen talebi doğrudan ofisin paneline iletiyor.",
     maddeler: ["Otomatik kira artış oranı", "Bankaların güncel kredi oranları", "Canlı altın ve döviz", "Panelden yönetilen blog"],
   },
+  {
+    renk: "zumrut", etiket: "Restoran ve barlara özel", baslik: "QR Menü", adres: "https://panormosmedya.com/m/ornek-menu", adresYazi: "Örnek menüyü aç", gorsel: "/isler/qr-menu.jpg?v=1",
+    metin: "Masadaki QR koddan açılan, mekânın renklerine göre tasarladığımız dijital menü. Fiyatı ya da ürünü panelden değiştirdiğiniz anda menü güncellenir; her değişiklikte yeni PDF ya da baskı gerekmez.",
+    maddeler: ["Türkçe ve İngilizce, tek dokunuşla geçiş", "Rakıda Tek'ten 100 cl'ye ölçü ve fiyat sütunları", "Şarap menüsünde kadeh ve şişe fiyatı, bölge ve üzüm", "Alerjen bilgisi, tükendi işareti, rezervasyon ve WhatsApp"],
+  },
 ];
 
 const SURECLER = [
@@ -655,15 +660,16 @@ const SITE_CSS = `
 .pm-site .is.mavi .is-gorsel{background:var(--mavi)}
 .pm-site .is.sari .is-gorsel{background:var(--sari)}
 .pm-site .is.pembe .is-gorsel{background:var(--pembe)}
+.pm-site .is.zumrut .is-gorsel{background:#0E3B2F}
 .pm-site .is-gorsel img{display:block;width:100%;height:auto;border-radius:16px}
 .pm-site .is-etiket{display:inline-block;font-weight:800;font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;padding:7px 13px;border-radius:100px;border:2px solid var(--murekkep);margin-bottom:16px}
-.pm-site .is.mavi .is-etiket{background:#dfe6ff}.pm-site .is.sari .is-etiket{background:#fff3c4}.pm-site .is.pembe .is-etiket{background:#ffd9ea}
+.pm-site .is.zumrut .is-etiket{background:#efe3c8}.pm-site .is.mavi .is-etiket{background:#dfe6ff}.pm-site .is.sari .is-etiket{background:#fff3c4}.pm-site .is.pembe .is-etiket{background:#ffd9ea}
 .pm-site .is h3{font-family:'Unbounded',sans-serif;font-weight:900;font-size:clamp(30px,3.6vw,50px);line-height:1;letter-spacing:-.03em;margin-bottom:18px;transform:skewX(-8deg);transform-origin:left}
 .pm-site .is p{font-size:16.5px;color:#3a3a46;margin-bottom:18px}
 .pm-site .is ul{list-style:none;display:grid;gap:8px;margin-bottom:26px}
 .pm-site .is li{font-weight:700;font-size:15px;display:flex;gap:10px;align-items:flex-start}
 .pm-site .is li::before{content:"";flex:0 0 12px;height:12px;margin-top:6px;border-radius:4px;transform:rotate(45deg)}
-.pm-site .is.mavi li::before{background:var(--mavi)}.pm-site .is.sari li::before{background:#e8b400}.pm-site .is.pembe li::before{background:var(--pembe)}
+.pm-site .is.zumrut li::before{background:#0E3B2F}.pm-site .is.mavi li::before{background:var(--mavi)}.pm-site .is.sari li::before{background:#e8b400}.pm-site .is.pembe li::before{background:var(--pembe)}
 .pm-site .is-cta{margin-top:80px;text-align:center}
 
 /* Süreç */
