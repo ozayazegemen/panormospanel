@@ -190,7 +190,7 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
   async function kategoriKaydet() {
     const f = katForm;
     if (!f.ad?.trim()) return;
-    const kayit = { ad: f.ad.trim(), ad_en: f.ad_en || "", aciklama: f.aciklama || "", aciklama_en: f.aciklama_en || "", fiyat_etiketleri: f.fiyat_etiketleri || "", aktif: f.aktif !== false };
+    const kayit = { ad: f.ad.trim(), ad_en: f.ad_en || "", aciklama: f.aciklama || "", aciklama_en: f.aciklama_en || "", fiyat_etiketleri: f.fiyat_etiketleri || "", bolum: (f.bolum || "").trim(), bolum_en: (f.bolum_en || "").trim(), aktif: f.aktif !== false };
     const { error } = f.id
       ? await supabase.from("qr_kategoriler").update(kayit).eq("id", f.id)
       : await supabase.from("qr_kategoriler").insert({ ...kayit, menu_id: menuId, sira: kategoriler.length });
@@ -335,7 +335,7 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
 
       {/* Kategoriler */}
       <div style={kart}>
-        <Baslik sag={<Dugme tur="ana" onClick={() => setKatForm({ ad: "", ad_en: "", aktif: true })}>+ Kategori</Dugme>}>Kategoriler</Baslik>
+        <Baslik sag={<Dugme tur="ana" onClick={() => setKatForm({ ad: "", ad_en: "", aktif: true, bolum: kategoriler[kategoriler.length - 1]?.bolum || "", bolum_en: kategoriler[kategoriler.length - 1]?.bolum_en || "" })}>+ Kategori</Dugme>}>Kategoriler</Baslik>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {kategoriler.map((k, i) => (
             <div key={k.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 4px 4px 12px", borderRadius: 12, border: `1.5px solid ${k.id === kategori ? T.amber : T.border}`, background: k.id === kategori ? T.amberDim : "transparent", opacity: k.aktif ? 1 : .55 }}>
@@ -355,6 +355,8 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
               <Alan etiket="Kategori adı"><input style={girdi} autoFocus value={katForm.ad} onChange={(e) => setKatForm({ ...katForm, ad: e.target.value })} /></Alan>
               {menu.iki_dil && <Alan etiket="İngilizcesi"><input style={girdi} value={katForm.ad_en || ""} onChange={(e) => setKatForm({ ...katForm, ad_en: e.target.value })} /></Alan>}
               <Alan etiket="Kısa açıklama (isteğe bağlı)"><input style={girdi} value={katForm.aciklama || ""} onChange={(e) => setKatForm({ ...katForm, aciklama: e.target.value })} /></Alan>
+              <Alan etiket="Bölüm (ör. Şarap Menüsü; aynı bölümdekiler birlikte görünür)"><input style={girdi} placeholder="boş bırakılabilir" value={katForm.bolum || ""} onChange={(e) => setKatForm({ ...katForm, bolum: e.target.value })} /></Alan>
+              {menu.iki_dil && <Alan etiket="Bölüm (İngilizce)"><input style={girdi} placeholder="ör. Wine Menu" value={katForm.bolum_en || ""} onChange={(e) => setKatForm({ ...katForm, bolum_en: e.target.value })} /></Alan>}
               <Alan etiket="Ölçüler (virgülle: Tek, Duble, 35 cl, 70 cl)"><input style={girdi} placeholder="boş bırakılırsa tek fiyat" value={katForm.fiyat_etiketleri || ""} onChange={(e) => setKatForm({ ...katForm, fiyat_etiketleri: e.target.value })} /></Alan>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>

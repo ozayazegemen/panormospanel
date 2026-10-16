@@ -101,8 +101,16 @@ export default function QrMenu({ slug }) {
   // İkiden çok ölçü (Tek, Duble, 20 cl…): fiyatlar ürün adının altında küçük bir tabloda gösterilir;
   // kategoride hiç fiyat yoksa ölçüler başlığın altında bir kez yazılır
   const cokOlcu = etiketler.length > 2;
-  const olcuFiyatiVar = cokOlcu && kategoriUrunleri.some((u) => etiketler.some((_, i) => fiyatYaz(fiyatAl(u, i))));
+  const olcuFiyatiVar = kategoriUrunleri.some((u) => etiketler.some((_, i) => fiyatYaz(fiyatAl(u, i))));
   const olcuAdi = (e) => (en ? OLCU_EN[e.toLocaleLowerCase("tr")] || e : e);
+  // Giriş sayfasında kategoriler bölüm adına göre gruplanır (ör. İçki Menüsü / Şarap Menüsü); bölümsüzler tek grup
+  const bolumler = [];
+  kategoriler.forEach((k, i) => {
+    const ad = yaz(k.bolum || "", k.bolum_en || "");
+    const son = bolumler[bolumler.length - 1];
+    if (son && son.anahtar === (k.bolum || "")) son.kategoriler.push({ k, i });
+    else bolumler.push({ anahtar: k.bolum || "", ad, kategoriler: [{ k, i }] });
+  });
   const dilAnahtari = menu.iki_dil && (
     <div className="qm-dil" role="group" aria-label="Dil / Language">
       <button className={!en ? "secili" : ""} onClick={() => dilSec("tr")}>TR</button>
@@ -120,17 +128,22 @@ export default function QrMenu({ slug }) {
           <Logo menu={menu} buyuk />
           <div className="qm-susleme" aria-hidden="true"><span />✦<span /></div>
           <h1 className="qm-hosgeldin">{yaz("Menümüze hoş geldiniz", "Welcome to our menu")}</h1>
-          <nav className="qm-kartlar">
-            {kategoriler.map((k, i) => (
-              <button key={k.id} className="qm-kart" onClick={() => git(k.id)}>
-                <span className="qm-no">{String(i + 1).padStart(2, "0")}</span>
-                <strong>{yaz(k.ad, k.ad_en)}</strong>
-                {menu.iki_dil && k.ad_en && <small>{en ? k.ad : k.ad_en}</small>}
-                <span className="qm-ok" aria-hidden="true">→</span>
-              </button>
-            ))}
-            {kategoriler.length === 0 && <p className="qm-bos">{yaz("Menü hazırlanıyor.", "The menu is being prepared.")}</p>}
-          </nav>
+          {bolumler.map((b) => (
+            <section key={b.anahtar} className="qm-bolum">
+              {b.ad && <h2 className="qm-bolum-baslik"><span />{b.ad}<span /></h2>}
+              <nav className="qm-kartlar">
+                {b.kategoriler.map(({ k, i }) => (
+                  <button key={k.id} className="qm-kart" onClick={() => git(k.id)}>
+                    <span className="qm-no">{String(i + 1).padStart(2, "0")}</span>
+                    <strong>{yaz(k.ad, k.ad_en)}</strong>
+                    {menu.iki_dil && k.ad_en && <small>{en ? k.ad : k.ad_en}</small>}
+                    <span className="qm-ok" aria-hidden="true">→</span>
+                  </button>
+                ))}
+              </nav>
+            </section>
+          ))}
+          {kategoriler.length === 0 && <p className="qm-bos">{yaz("Menü hazırlanıyor.", "The menu is being prepared.")}</p>}
           <Alt menu={menu} yaz={yaz} />
         </main>
       ) : (
@@ -141,8 +154,11 @@ export default function QrMenu({ slug }) {
             {dilAnahtari || <span style={{ width: 40 }} />}
           </header>
           <div className="qm-sekmeler">
-            {kategoriler.map((k) => (
-              <button key={k.id} className={k.id === secili ? "secili" : ""} onClick={() => git(k.id)}>{yaz(k.ad, k.ad_en)}</button>
+            {kategoriler.map((k, i) => (
+              <span key={k.id} style={{ display: "contents" }}>
+                {i > 0 && (k.bolum || "") !== (kategoriler[i - 1].bolum || "") && <i className="qm-sekme-ayrac" aria-hidden="true" />}
+                <button className={k.id === secili ? "secili" : ""} onClick={() => git(k.id)}>{yaz(k.ad, k.ad_en)}</button>
+              </span>
             ))}
           </div>
           <section className="qm-liste">
@@ -151,10 +167,10 @@ export default function QrMenu({ slug }) {
               <h2>{yaz(kategori.ad, kategori.ad_en)}</h2>
               {yaz(kategori.aciklama, kategori.aciklama_en) && <p>{yaz(kategori.aciklama, kategori.aciklama_en)}</p>}
             </div>
-            {cokOlcu && !olcuFiyatiVar && (
+            {etiketler.length > 0 && !olcuFiyatiVar && (
               <div className="qm-olculer"><span>{yaz("Ölçüler", "Sizes")}</span>{etiketler.map((e) => <em key={e}>{olcuAdi(e)}</em>)}</div>
             )}
-            {!cokOlcu && etiketler.length > 1 && (
+            {!cokOlcu && etiketler.length > 1 && olcuFiyatiVar && (
               <div className="qm-fiyat-baslik">{etiketler.slice(0, 2).map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>
             )}
             {kategoriUrunleri.map((u) => (
@@ -271,6 +287,9 @@ const QM_CSS = `
 .qm-ok{position:absolute;right:14px;bottom:12px;color:var(--ana);font-size:16px;transition:transform .2s}
 .qm-kart:hover .qm-ok{transform:translateX(3px)}
 .qm-kartlar .qm-bos{grid-column:1/-1}
+.qm-bolum{width:100%;margin-bottom:26px}
+.qm-bolum-baslik{display:flex;align-items:center;gap:12px;font-family:var(--govde);font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--ana);margin:4px 0 14px}
+.qm-bolum-baslik span{flex:1;height:1px;background:color-mix(in srgb,var(--ana) 25%,transparent)}
 .qm-bos{text-align:center;color:#777;font-size:14px;padding:20px 0}
 
 /* Kategori sayfası */
@@ -280,6 +299,7 @@ const QM_CSS = `
 .qm-sekmeler{display:flex;gap:22px;overflow-x:auto;padding:4px 20px 0;border-bottom:1px solid color-mix(in srgb,var(--ana) 15%,transparent);scrollbar-width:none;position:sticky;top:60px;z-index:4;background:color-mix(in srgb,var(--zemin) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .qm-sekmeler::-webkit-scrollbar{display:none}
 .qm-sekmeler button{flex:0 0 auto;font-family:var(--govde);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:10px 0 11px;color:#8b827c;border-bottom:2px solid transparent!important;white-space:nowrap}
+.qm-sekme-ayrac{flex:0 0 1px;align-self:center;height:16px;background:color-mix(in srgb,var(--ana) 30%,transparent)}
 .qm-sekmeler button.secili{color:var(--ana);border-bottom-color:var(--ana)!important}
 .qm-liste{padding:28px 22px 10px}
 .qm-kat-baslik{text-align:center;margin-bottom:26px}
