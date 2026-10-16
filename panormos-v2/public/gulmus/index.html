@@ -27,13 +27,14 @@ img{display:block;max-width:100%}
 /* Üst menü */
 .ust{position:fixed;inset:0 0 auto;z-index:50;background:rgba(14,15,17,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:3px solid var(--kirmizi);transition:box-shadow .3s}
 .ust.kaydi{box-shadow:0 10px 30px -10px rgba(0,0,0,.7)}
-.ust-ic{display:flex;align-items:center;justify-content:space-between;height:96px;gap:20px}
+.ust-ic{display:flex;align-items:center;justify-content:space-between;height:116px;gap:20px}
 .logo{display:flex;align-items:center;gap:12px}
 .logo-isaret{width:46px;height:46px;border-radius:10px;background:var(--kirmizi);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px -6px rgba(214,31,38,.7)}
 .logo-isaret svg{width:30px;height:30px}
 .logo-ad{font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:900;font-size:24px;letter-spacing:.02em;line-height:1}
-.logo-kutu{display:block;width:190px;height:81px;overflow:hidden}
-.logo-kutu img{width:190px;max-width:none}
+.logo-kutu{display:block;width:138px}
+.logo-kutu img{width:100%;height:auto}
+footer .logo-kutu{width:190px}
 .logo-alt{display:block;font-size:10.5px;font-weight:700;letter-spacing:.22em;color:rgba(255,255,255,.65);margin-top:4px;text-transform:uppercase}
 .menu{display:flex;align-items:center;gap:30px;font-weight:600;font-size:14.5px}
 .menu a:not(.btn){opacity:.85;transition:opacity .2s,color .2s}
@@ -48,7 +49,7 @@ img{display:block;max-width:100%}
 .hamburger{display:none;width:46px;height:46px;border:none;border-radius:6px;background:var(--kirmizi);color:#fff;font-size:22px}
 
 /* Açılış */
-.hero{position:relative;min-height:100vh;overflow:hidden;display:flex;align-items:flex-end;padding-top:150px}
+.hero{position:relative;min-height:100vh;overflow:hidden;display:flex;align-items:flex-end;padding-top:170px}
 .mozaik{position:absolute;inset:-40px -20px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;transform:rotate(-4deg) scale(1.08)}
 .mz-kol{overflow:hidden}
 .mz-kol>div{display:flex;flex-direction:column;gap:10px;animation:mzYukari 60s linear infinite}
@@ -262,8 +263,8 @@ footer li a:hover{color:#fff}
 }
 @media (max-width:600px){
   .kap{padding:0 18px}
-  .ust-ic{height:76px}
-  .logo-kutu{width:150px;height:64px}.logo-kutu img{width:150px}
+  .ust-ic{height:86px}
+  .logo-kutu{width:104px}
   .hero{padding-top:120px}
   .hero{min-height:620px}
   .hero-ic{padding-bottom:96px}
