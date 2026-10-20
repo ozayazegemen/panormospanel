@@ -63,6 +63,13 @@ function sayfaYaz(sablon, { yol, baslik, aciklama, govde, veri = [], resim = "",
   const hedef = yol === "/" ? path.join(DIST, "index.html") : path.join(DIST, ...yol.split("/").filter(Boolean)) + ".html";
   fs.mkdirSync(path.dirname(hedef), { recursive: true });
   fs.writeFileSync(hedef, h);
+  // Aynı sayfa sonunda eğik çizgiyle de (/qr-menu/) yönlendirmesiz açılsın; asıl adres canonical'da yazıyor.
+  // (20.10.2026'daki bir ara sürüm tarayıcılara /qr-menu → /qr-menu/ yönlendirmesini kalıcı kaydettirdi; döngü olmasın)
+  if (yol !== "/") {
+    const klasor = path.join(DIST, ...yol.split("/").filter(Boolean));
+    fs.mkdirSync(klasor, { recursive: true });
+    fs.writeFileSync(path.join(klasor, "index.html"), h);
+  }
   return hedef;
 }
 
