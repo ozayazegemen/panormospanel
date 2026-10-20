@@ -404,6 +404,7 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
         </div>
       </div>
       {hata && <div style={{ ...kart, padding: 14, color: T.redText }} onClick={() => setHata("")}>{hata}</div>}
+      {hata && <div onClick={() => setHata("")} style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: 20, zIndex: 60, background: T.red, color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 16px", borderRadius: 12, boxShadow: T.shadow, cursor: "pointer", maxWidth: "90vw" }}>⚠️ {hata}</div>}
       {bilgi && <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 50, background: T.green, color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 16px", borderRadius: 12, boxShadow: T.shadow }}>{bilgi}</div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 280px", gap: 18, alignItems: "start" }} className="qmp-ust">
