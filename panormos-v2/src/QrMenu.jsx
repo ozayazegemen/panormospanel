@@ -112,7 +112,8 @@ export default function QrMenu({ slug }) {
   const tekSayfa = sablon === "klasik" || sablon === "fotografli";
 
   if (menu === undefined) return <div style={{ minHeight: "100vh", background: "#F3F1EC" }} />;
-  if (menu === null) {
+  const kapali = menu?.kendi_kaydi && menu?.abonelik_bitis && Math.round((Date.now() + 3 * 3600000 - new Date(menu.abonelik_bitis + "T00:00:00Z").getTime()) / 86400000) > 7;
+  if (menu === null || kapali) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F3F1EC", fontFamily: "Georgia, serif", color: "#3a3a3a", padding: 24, textAlign: "center" }}>
         <div><div style={{ fontSize: 22, marginBottom: 8 }}>Menü bulunamadı</div><div style={{ fontSize: 14, opacity: .7 }}>Bağlantı değişmiş ya da menü yayından kaldırılmış olabilir.</div></div>

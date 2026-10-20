@@ -681,18 +681,29 @@ const QR_OZELLIKLER = [
   ["Menü fotoğraf çekimi", "Ürünlerinizi prodüksiyon ekibimiz çeker, fotoğraflar doğrudan menünüze yüklenir."],
 ];
 const QR_ADIMLAR = [
-  ["Menünüzü gönderin", "Excel, PDF ya da kâğıt menünün fotoğrafı yeterli."],
-  ["Tasarımı seçin", "Mekânınıza uygun şablonu, renklerinizi ve logonuzu birlikte belirleriz."],
-  ["QR kodu masaya koyun", "Baskıya hazır QR kodunuzu veririz; masa kartı ve afiş tasarımı da yapabiliriz."],
-  ["Gerisini siz yönetin", "Fiyat ya da ürün değişince panelden güncellersiniz, menü anında yenilenir."],
+  ["Ücretsiz kaydolun", "İşletme adınız, telefonunuz ve e-postanızla bir dakikada hesabınız açılır; kart bilgisi istenmez."],
+  ["Menünüzü ekleyin", "Ürünleri, fiyatları ve fotoğrafları panelden girin ya da Excel listenizi tek seferde yükleyin."],
+  ["Tasarımı seçin", "Dört şablondan birini, renklerinizi ve logonuzu seçin; değişiklik anında menüye yansır."],
+  ["QR kodu masaya koyun", "Logolu QR kodunuzu, masa kartınızı ve afişinizi panelden indirip bastırın."],
 ];
 const QR_SSS = [
+  ["Ücreti ne kadar?", "İlk 14 gün ücretsiz. Sonrasında aylık 249 TL ya da yıllık 2.490 TL (KDV hariç). Yıllık ödemede 2 ay bedava. Kartla ya da havale ile ödenir."],
   ["Misafirin uygulama indirmesi gerekir mi?", "Hayır. Telefon kamerasıyla QR kodu okutması yeterli; menü tarayıcıda açılır."],
   ["Fiyatları kim günceller?", "Size özel bir giriş açıyoruz; ürün, fiyat ve fotoğrafı kendiniz değiştirebilirsiniz. İsterseniz bu işi biz üstleniriz."],
   ["Ürün fotoğrafım yok, olur mu?", "Olur. Zarif ve klasik liste şablonları fotoğrafsız da şık görünür. Fotoğraf isterseniz çekimi ekibimiz yapar."],
   ["Menüyü web sitemde ve Instagram'da kullanabilir miyim?", "Evet. Menünüzün bağlantısını web sitenize, Google İşletme profilinize ve Instagram'a ekleyebilirsiniz."],
 ];
 const QR_WA = "https://wa.me/905364716012?text=" + encodeURIComponent("Merhaba, QR menü hakkında bilgi almak istiyorum.");
+const QR_KOSULLAR = [
+  ["Hizmet", "Panormos Medya, işletmenin menüsünü panormosmedya.com adresinde yayınlar ve düzenleme paneli sunar. Hizmet işletmelere yöneliktir."],
+  ["Deneme", "İlk 14 gün ücretsizdir; kart bilgisi istenmez. Süre bitince ödeme yapılmazsa abonelik başlamaz."],
+  ["Ücret", "Aylık 249 TL + KDV ya da yıllık 2.490 TL + KDV, peşin ödenir. Ödeme kartla ya da havale/EFT ile yapılır; faturanız e-posta adresinize gönderilir."],
+  ["Yenileme", "Otomatik yenileme yoktur. Süre bitmeden panelden ödeme yapılarak uzatılır; kalan süre korunur ve yeni dönem onun üstüne eklenir."],
+  ["Süre dolunca", "Menü düzenlenemez. 7 gün içinde ödeme yapılmazsa menü misafirlere kapanır. Ödeme yapıldığında aynı adres, aynı ürün ve ayarlarla yeniden açılır."],
+  ["İptal", "Aboneliği bitirmek için yenilememek yeterlidir. Başlamış dönemin ücreti iade edilmez."],
+  ["İçerik", "Menüdeki ürün, fiyat, alerjen ve içerik bilgilerinin doğruluğundan işletme sorumludur. Panormos Medya hukuka aykırı içeriği yayından kaldırabilir."],
+  ["Kişisel veriler", "İşletme yetkilisinin ad, telefon ve e-posta bilgileri yalnızca hizmetin sunulması, faturalandırma ve hatırlatmalar için kullanılır."],
+];
 
 function QrKod({ adres }) {
   const [resim, setResim] = useState("");
@@ -729,9 +740,10 @@ export function QrMenuSayfasi() {
           <h1 className="dev koyu-yazi"><span className="dolu">MENÜNÜZ</span><span className="cizgi">CEPLERDE.</span></h1>
           <p className="blog-giris">Restoran, kafe, lokanta ve barlar için masadaki QR koddan açılan dijital menü. Fiyatı panelden değiştirdiğiniz anda menü güncellenir; baskı ve PDF derdi biter.</p>
           <div className="ilet-dugmeler qrs-dugmeler">
+            <a href="/menu-kayit" className="dugme pembe buyuk">14 gün ücretsiz dene →</a>
             <a href="#demolar" className="dugme koyu buyuk">Demoları incele ↓</a>
-            <a href={QR_WA} target="_blank" rel="noopener" className="dugme pembe buyuk">{wa} Teklif al</a>
           </div>
+          <p className="qrs-not">Kart bilgisi istenmez · Sonra aylık 249 ₺ ya da yıllık 2.490 ₺ (+KDV) · <a href="/menu-giris">Giriş yap</a></p>
           </div>
           <img className="qrs-ust-gorsel" src="/isler/qr-menu.jpg?v=1" alt="QR menü: üç telefonda restoran ve bar menüsü" width="1600" height="1000" />
         </div>
@@ -784,11 +796,35 @@ export function QrMenuSayfasi() {
         </div>
       </section>
 
+      <section className="bolum beyaz" id="fiyat">
+        <div className="kap">
+          <div className="no">Fiyat</div>
+          <h2 className="qrs-baslik">Tek paket, bütün özellikler</h2>
+          <div className="qrs-fiyatlar">
+            {[["Aylık", "249", "her ay yenilenir", ""], ["Yıllık", "2.490", "2 ay bedava", "En avantajlı"]].map(([ad, fiyat, alt, rozet]) => (
+              <div key={ad} className={`qrs-fiyat${rozet ? " one" : ""}`}>
+                {rozet && <span className="qrs-rozet">{rozet}</span>}
+                <h3>{ad}</h3>
+                <div className="qrs-tutar"><b>{fiyat} ₺</b><small>+ KDV</small></div>
+                <p>{alt}</p>
+                <ul>{["Sınırsız kategori ve ürün", "Dört tasarım şablonu", "Türkçe ve İngilizce", "Logolu QR, masa kartı ve afiş", "Kendi düzenleme paneliniz"].map((x) => <li key={x}>{x}</li>)}</ul>
+                <a href="/menu-kayit" className={`dugme ${rozet ? "pembe" : "koyu"} buyuk`}>14 gün ücretsiz dene</a>
+              </div>
+            ))}
+          </div>
+          <p className="qrs-not">Menünüz için profesyonel ürün çekimi ve kurulum desteği isterseniz <a href={QR_WA} target="_blank" rel="noopener">bize yazın</a>; ayrıca teklif hazırlarız.</p>
+        </div>
+      </section>
+
       <section className="bolum beyaz">
         <div className="kap dar">
           <div className="no">Sık sorulanlar</div>
           <div className="qrs-sss">
             {QR_SSS.map(([s, c]) => <details key={s}><summary>{s}</summary><p>{c}</p></details>)}
+          </div>
+          <div className="qrs-kosullar" id="kosullar">
+            <h3>Abonelik koşulları</h3>
+            <dl>{QR_KOSULLAR.map(([b, m]) => <div key={b}><dt>{b}</dt><dd>{m}</dd></div>)}</dl>
           </div>
           <div className="yazi-cta">
             <h3>Menünüzü birlikte hazırlayalım</h3>
@@ -835,6 +871,26 @@ const QR_SAYFA_CSS = `
 .pm-site .qrs-adimlar span{font-family:'Unbounded',sans-serif;font-weight:900;font-size:30px;color:var(--turuncu)}
 .pm-site .qrs-adimlar h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:18px;margin:10px 0 8px}
 .pm-site .qrs-adimlar p{font-size:15px;color:#3a3a46}
+.pm-site .qrs-not{margin-top:16px;font-size:14px;font-weight:600;color:#5b5b6b}
+.pm-site .qrs-not a{text-decoration:underline;font-weight:800;color:var(--murekkep)}
+.pm-site .qrs-fiyatlar{display:grid;grid-template-columns:repeat(2,minmax(0,380px));gap:24px;margin-top:30px}
+.pm-site .qrs-fiyat{position:relative;padding:28px;border-radius:26px;border:3px solid var(--murekkep);background:var(--krem);box-shadow:8px 8px 0 var(--murekkep)}
+.pm-site .qrs-fiyat.one{background:#fff0f6}
+.pm-site .qrs-rozet{position:absolute;top:-14px;right:22px;padding:6px 12px;border-radius:100px;background:var(--pembe);color:#fff;font-weight:800;font-size:12px;border:2px solid var(--murekkep)}
+.pm-site .qrs-fiyat h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:20px}
+.pm-site .qrs-tutar{display:flex;align-items:baseline;gap:8px;margin:12px 0 4px}
+.pm-site .qrs-tutar b{font-family:'Unbounded',sans-serif;font-weight:900;font-size:44px;letter-spacing:-.03em}
+.pm-site .qrs-tutar small{font-weight:800;color:#5b5b6b}
+.pm-site .qrs-fiyat p{font-weight:700;color:var(--pembe);margin-bottom:14px}
+.pm-site .qrs-fiyat ul{list-style:none;display:grid;gap:8px;margin-bottom:22px}
+.pm-site .qrs-fiyat li{font-weight:700;font-size:15px;padding-left:22px;position:relative}
+.pm-site .qrs-fiyat li::before{content:"✓";position:absolute;left:0;color:var(--yesil);font-weight:900;-webkit-text-stroke:.5px var(--murekkep)}
+.pm-site .qrs-kosullar{margin:34px 0 10px;padding:24px;border-radius:20px;border:2px solid var(--murekkep);background:#fff;scroll-margin-top:110px}
+.pm-site .qrs-kosullar h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:20px;margin-bottom:12px}
+.pm-site .qrs-kosullar dl{display:grid;gap:10px}
+.pm-site .qrs-kosullar dt{font-weight:800;font-size:14.5px}
+.pm-site .qrs-kosullar dd{margin:2px 0 0;font-size:14.5px;color:#3a3a46;line-height:1.6}
+@media (max-width:760px){.pm-site .qrs-fiyatlar{grid-template-columns:1fr}}
 .pm-site .qrs-sss{display:grid;gap:12px;margin:30px 0 10px}
 .pm-site .qrs-sss details{border:2px solid var(--murekkep);border-radius:16px;padding:16px 20px;background:var(--krem)}
 .pm-site .qrs-sss summary{cursor:pointer;font-weight:800;font-size:17px}

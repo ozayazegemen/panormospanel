@@ -125,15 +125,47 @@ async function gorselYukle(dosya, klasor) {
   return supabase.storage.from("qr-menu").getPublicUrl(yol).data.publicUrl;
 }
 
+// Abonelik durumu rozeti: kendi kaydolan işletmelerde deneme/aktif/doldu; Panormos'un kurduğu menülerde rozet yok
+const bugunTr = () => new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+const gunEkle = (t, g) => new Date(new Date(t + "T00:00:00Z").getTime() + g * 86400000).toISOString().slice(0, 10);
+function abonelikRozeti(m) {
+  if (!m.abonelik_bitis) return null;
+  const kalan = Math.round((new Date(m.abonelik_bitis + "T00:00:00Z") - new Date(bugunTr() + "T00:00:00Z")) / 86400000);
+  if (kalan < 0) return { yazi: `Süresi doldu (${-kalan} gün)`, renk: T.redText, zemin: "rgba(239,68,68,.12)" };
+  if (!m.abonelik_donem) return { yazi: `Deneme · ${kalan} gün`, renk: T.amberText || T.amber, zemin: "rgba(242,81,36,.12)" };
+  return { yazi: `${m.abonelik_donem === "yillik" ? "Yıllık" : "Aylık"} · ${kalan} gün`, renk: T.greenText, zemin: T.greenDim };
+}
+
 export default function QrMenuPage({ clients }) {
   const [menuler, setMenuler] = useState(null);
   const [acik, setAcik] = useState(null); // düzenlenen menünün id'si
   const [hata, setHata] = useState("");
+  const [havaleler, setHavaleler] = useState([]); // onay bekleyen havale bildirimleri
 
   async function yukle() {
     const { data, error } = await supabase.from("qr_menuler").select("*").order("created_at", { ascending: false });
     if (error) setHata("Menüler okunamadı: " + error.message);
     setMenuler(data || []);
+    const { data: h } = await supabase.from("qr_odemeler").select("*").eq("yontem", "havale").eq("durum", "bekliyor").order("created_at");
+    setHavaleler(h || []);
+  }
+  // Havale hesaba geçtiyse onaylanır: abonelik, süresi dolmadıysa bitişin üstüne, dolduysa bugünden uzar
+  async function havaleSonuclandir(o, onay) {
+    const m = (menuler || []).find((x) => x.id === o.menu_id);
+    if (!m) return;
+    const mesaj = onay
+      ? `${m.ad} — ${o.donem === "yillik" ? "yıllık" : "aylık"} ${Number(o.toplam).toLocaleString("tr-TR")} ₺ havalesi hesaba geçti mi? Onaylarsanız abonelik uzatılır.`
+      : `${m.ad} havale bildirimi reddedilsin mi?`;
+    if (!window.confirm(mesaj)) return;
+    if (onay) {
+      const bugun = bugunTr();
+      const taban = m.abonelik_bitis && m.abonelik_bitis > bugun ? m.abonelik_bitis : bugun;
+      const { error } = await supabase.from("qr_menuler").update({ abonelik_bitis: gunEkle(taban, o.donem === "yillik" ? 365 : 30), abonelik_donem: o.donem, aktif: true }).eq("id", m.id);
+      if (error) { setHata("Abonelik uzatılamadı: " + error.message); return; }
+    }
+    const { error } = await supabase.from("qr_odemeler").update({ durum: onay ? "odendi" : "reddedildi", sonuc_tarihi: new Date().toISOString() }).eq("id", o.id);
+    if (error) setHata("Ödeme kaydı güncellenemedi: " + error.message);
+    yukle();
   }
   useEffect(() => { yukle(); }, []);
 
@@ -165,6 +197,24 @@ export default function QrMenuPage({ clients }) {
         <Dugme tur="ana" onClick={yeniMenu}>+ Yeni menü</Dugme>
       </div>
       {hata && <div style={{ ...kart, color: T.redText, padding: 14 }}>{hata}</div>}
+      {havaleler.length > 0 && (
+        <div style={{ ...kart, borderLeft: `5px solid ${T.amber}` }}>
+          <Baslik>Onay bekleyen havaleler ({havaleler.length})</Baslik>
+          {havaleler.map((o) => {
+            const m = (menuler || []).find((x) => x.id === o.menu_id);
+            return (
+              <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "10px 0", borderTop: `1px solid ${T.border}` }}>
+                <div style={{ flex: 1, minWidth: 220, fontSize: 13.5, color: T.textPrimary }}>
+                  <b>{m?.ad || "Menü"}</b> · {o.donem === "yillik" ? "Yıllık" : "Aylık"} · <b>{Number(o.toplam).toLocaleString("tr-TR")} ₺</b>
+                  <div style={{ fontSize: 12, color: T.textMuted }}>{new Date(o.created_at).toLocaleString("tr-TR")} · açıklama: QR {m?.slug} · {m?.sahip_eposta}</div>
+                </div>
+                <Dugme tur="ana" onClick={() => havaleSonuclandir(o, true)}>Hesaba geçti, onayla</Dugme>
+                <Dugme onClick={() => havaleSonuclandir(o, false)}>Reddet</Dugme>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {menuler === null ? <div style={{ color: T.textMuted }}>Yükleniyor…</div> : menuler.length === 0 ? (
         <div style={{ ...kart, textAlign: "center", color: T.textMuted }}>Henüz menü yok. "Yeni menü" ile başlayın.</div>
       ) : (
@@ -182,6 +232,7 @@ export default function QrMenuPage({ clients }) {
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 12 }}>
                 <span style={{ padding: "3px 9px", borderRadius: 20, fontWeight: 700, background: m.aktif ? T.greenDim : T.bgSurface, color: m.aktif ? T.greenText : T.textMuted }}>{m.aktif ? "Yayında" : "Yayında değil"}</span>
+                {abonelikRozeti(m) && <span style={{ padding: "3px 9px", borderRadius: 20, fontWeight: 700, background: abonelikRozeti(m).zemin, color: abonelikRozeti(m).renk }}>{abonelikRozeti(m).yazi}</span>}
                 {m.client_id && <span style={{ color: T.textMuted }}>{(clients || []).find((c) => c.id === m.client_id)?.name || ""}</span>}
               </div>
             </div>

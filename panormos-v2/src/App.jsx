@@ -1,7 +1,7 @@
 import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
-import { QrMusteriGiris, QrMusteriPanelSayfa } from "./QrMusteri.jsx";
+import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -12905,6 +12905,7 @@ export default function App() {
   }
   // QR Menü müşteri girişi: restoran/bar sahibi kendi menüsünü burada düzenler (panel personelinden ayrı)
   if (window.location.pathname === "/menu-giris") return <QrMusteriGiris />;
+  if (window.location.pathname === "/menu-kayit") return <QrMusteriKayit />;
   if (window.location.pathname === "/menu-panel") return <QrMusteriPanelSayfa />;
   // Sitedeki blog: giriş durumundan bağımsız, herkese açık
   if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSayfasi Icerik={BlogIcerik} />;

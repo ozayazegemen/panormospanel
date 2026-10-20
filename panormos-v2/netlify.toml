@@ -49,6 +49,10 @@
   to = "/index.html"
   status = 200
 
+# QR Menü abonelik hatırlatması ve süresi geçen menüleri kapatma: her sabah 09:00 (Türkiye saati)
+[functions."qr-abonelik-hatirlat"]
+  schedule = "0 6 * * *"
+
 # Her gece 02:00'de (Türkiye saati) otomatik tam yedek
 [functions."nightly-backup"]
   schedule = "0 23 * * *"

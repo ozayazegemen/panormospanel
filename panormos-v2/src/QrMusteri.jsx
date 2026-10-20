@@ -129,8 +129,165 @@ export function QrMusteriGiris() {
         {hata && <Hata>{hata}</Hata>}
         <Dugme onClick={girisYap} loading={bekle}>Giriş yap</Dugme>
         <button onClick={() => setUnutuModu(true)} style={{ background: "none", border: "none", color: T.textMuted, fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>Şifremi unuttum</button>
+        <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 14, textAlign: "center", fontSize: 13, color: T.textSecondary }}>
+          Hesabınız yok mu? <a href="/menu-kayit" style={{ color: T.amber, fontWeight: 700, textDecoration: "none" }}>14 gün ücretsiz deneyin →</a>
+        </div>
       </div>
     </Kabuk>
+  );
+}
+
+// İşletmenin kendi kendine kaydı: hesap ve menü açılır, 14 gün ücretsiz deneme başlar
+export function QrMusteriKayit() {
+  const [f, setF] = useState({ isletme: "", telefon: "", eposta: "", sifre: "", sozlesme: false, web_sitesi: "" });
+  const [bekle, setBekle] = useState(false);
+  const [hata, setHata] = useState("");
+  const alan = (ad) => ({ value: f[ad], onChange: (e) => setF((x) => ({ ...x, [ad]: e.target.value })) });
+  async function kaydol() {
+    setHata("");
+    if (!f.isletme.trim() || !f.eposta.trim() || !f.telefon.trim()) { setHata("İşletme adı, telefon ve e-posta zorunlu."); return; }
+    if (f.sifre.length < 8) { setHata("Şifre en az 8 karakter olmalı."); return; }
+    if (!f.sozlesme) { setHata("Abonelik koşullarını onaylayın."); return; }
+    setBekle(true);
+    try {
+      const r = await fetch("/.netlify/functions/qr-menu-kayit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setHata(j.error || "Kayıt tamamlanamadı."); setBekle(false); return; }
+      const { error } = await supabase.auth.signInWithPassword({ email: f.eposta.trim().toLocaleLowerCase("tr"), password: f.sifre });
+      if (error) { setHata("Hesabınız açıldı; giriş sayfasından giriş yapabilirsiniz."); setBekle(false); return; }
+      window.location.href = "/menu-panel";
+    } catch (e) { setHata("Bağlantı hatası. Tekrar deneyin."); setBekle(false); }
+  }
+  const onKey = (e) => { if (e.key === "Enter") kaydol(); };
+  return (
+    <Kabuk>
+      <div style={{ fontSize: 16, fontWeight: 800, color: T.textPrimary, marginBottom: 4 }}>QR menünüzü 14 gün ücretsiz deneyin</div>
+      <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 16, lineHeight: 1.5 }}>Kart bilgisi istenmez. Sonra aylık 249 ₺ ya da yıllık 2.490 ₺ (+KDV).</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div><Etiket>İşletme adı</Etiket><input {...alan("isletme")} onKeyDown={onKey} placeholder="ör. Kahve Durağı" style={inputStyle} /></div>
+        <div><Etiket>Telefon</Etiket><input {...alan("telefon")} onKeyDown={onKey} placeholder="0532 000 00 00" inputMode="tel" autoComplete="tel" style={inputStyle} /></div>
+        <div><Etiket>E-posta</Etiket><input type="email" {...alan("eposta")} onKeyDown={onKey} placeholder="mail@ornek.com" autoComplete="email" style={inputStyle} /></div>
+        <div><Etiket>Şifre</Etiket><input type="password" {...alan("sifre")} onKeyDown={onKey} placeholder="En az 8 karakter" autoComplete="new-password" style={inputStyle} /></div>
+        {/* Botlar için tuzak: insanlar görmez ve doldurmaz */}
+        <input {...alan("web_sitesi")} tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: "absolute", left: -9999, width: 1, height: 1, opacity: 0 }} />
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, cursor: "pointer" }}>
+          <input type="checkbox" checked={f.sozlesme} onChange={(e) => setF((x) => ({ ...x, sozlesme: e.target.checked }))} style={{ marginTop: 3 }} />
+          <span><a href="/qr-menu#kosullar" target="_blank" rel="noopener" style={{ color: T.amber }}>Abonelik koşullarını</a> okudum, kabul ediyorum.</span>
+        </label>
+        {hata && <Hata>{hata}</Hata>}
+        <Dugme onClick={kaydol} loading={bekle}>{bekle ? "Menünüz hazırlanıyor…" : "Ücretsiz başla"}</Dugme>
+        <div style={{ textAlign: "center", fontSize: 13, color: T.textSecondary }}>Hesabınız var mı? <a href="/menu-giris" style={{ color: T.amber, fontWeight: 700, textDecoration: "none" }}>Giriş yapın</a></div>
+      </div>
+    </Kabuk>
+  );
+}
+
+// ---- Abonelik: kalan süre, ödeme (kart / havale) ----
+const KDV = 0.2;
+const tl = (n) => `${new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n)} ₺`;
+const bugunTr = () => new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
+const gunFarki = (a, b) => Math.round((new Date(a + "T00:00:00Z") - new Date(b + "T00:00:00Z")) / 86400000);
+const tarihYaz = (t) => new Date(t + "T00:00:00Z").toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+export function abonelikDurumu(menu) {
+  if (!menu?.abonelik_bitis) return null;
+  const kalan = gunFarki(menu.abonelik_bitis, bugunTr());
+  return { kalan, doldu: kalan < 0, deneme: !menu.abonelik_donem, kapanis: kalan < 0 ? 7 + kalan : null };
+}
+
+function Abonelik({ menu, kullaniciId, yenile }) {
+  const [ayar, setAyar] = useState(null); // { kart, havale, fiyat }
+  const [donem, setDonem] = useState("yillik");
+  const [onay, setOnay] = useState(false);
+  const [havaleAcik, setHavaleAcik] = useState(false);
+  const [odemeler, setOdemeler] = useState([]);
+  const [bekle, setBekle] = useState(false);
+  const [hata, setHata] = useState("");
+  const d = abonelikDurumu(menu);
+  const fiyat = ayar?.fiyat || { aylik: 249, yillik: 2490 };
+  const tutar = fiyat[donem], toplam = Math.round(tutar * (1 + KDV) * 100) / 100;
+  const bekleyen = odemeler.find((o) => o.durum === "bekliyor" && o.yontem === "havale");
+
+  async function yukle() {
+    fetch("/.netlify/functions/qr-odeme-baslat").then((r) => r.json()).then(setAyar).catch(() => setAyar({ kart: false }));
+    const { data } = await supabase.from("qr_odemeler").select("*").eq("menu_id", menu.id).order("created_at", { ascending: false }).limit(10);
+    setOdemeler(data || []);
+  }
+  useEffect(() => { yukle(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [menu.id]);
+
+  async function kartlaOde() {
+    setHata("");
+    if (!onay) { setHata("Abonelik koşullarını onaylayın."); return; }
+    setBekle(true);
+    const { data: o } = await supabase.auth.getSession();
+    const r = await fetch("/.netlify/functions/qr-odeme-baslat", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${o?.session?.access_token || ""}` }, body: JSON.stringify({ donem, sozlesme_onay: true }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.url) { setHata(j.error || "Ödeme başlatılamadı."); setBekle(false); return; }
+    window.location.href = j.url;
+  }
+  async function havaleBildir() {
+    setHata("");
+    if (!onay) { setHata("Abonelik koşullarını onaylayın."); return; }
+    setBekle(true);
+    const { error } = await supabase.from("qr_odemeler").insert({ menu_id: menu.id, olusturan_id: kullaniciId, donem, tutar, toplam, yontem: "havale", durum: "bekliyor", sozlesme_onay: true });
+    setBekle(false);
+    if (error) { setHata("Bildirim gönderilemedi: " + error.message); return; }
+    yukle(); yenile?.();
+  }
+
+  const renk = d?.doldu ? "#ef4444" : d && d.kalan <= 3 ? "#f59e0b" : "#10b981";
+  return (
+    <div style={{ background: T.bgCard, border: `1.5px solid ${d?.doldu ? "rgba(239,68,68,.5)" : T.border}`, borderRadius: 18, padding: 20, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        <span style={{ width: 10, height: 10, borderRadius: "50%", background: renk, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 800, fontSize: 15, color: T.textPrimary }}>
+            {!d ? "Abonelik" : d.doldu ? "Abonelik süreniz doldu" : d.deneme ? `Ücretsiz deneme: ${d.kalan} gün kaldı` : `Aboneliğiniz aktif: ${d.kalan} gün kaldı`}
+          </div>
+          <div style={{ fontSize: 12.5, color: T.textMuted, marginTop: 2 }}>
+            {d && (d.doldu
+              ? (d.kapanis > 0 ? `Menünüzü şu an düzenleyemezsiniz. Ödeme yapılmazsa menünüz ${d.kapanis} gün sonra misafirlerinize kapanır.` : "Menünüz misafirlerinize kapalı. Ödeme yapınca aynı adresle yeniden açılır.")
+              : `Bitiş: ${tarihYaz(menu.abonelik_bitis)}`)}
+          </div>
+        </div>
+      </div>
+
+      {bekleyen ? (
+        <div style={{ fontSize: 13.5, color: T.textPrimary, background: "rgba(16,185,129,.1)", border: "1px solid rgba(16,185,129,.3)", borderRadius: 12, padding: "12px 14px", lineHeight: 1.55 }}>
+          Havale bildiriminiz alındı ({bekleyen.donem === "yillik" ? "yıllık" : "aylık"}, {tl(Number(bekleyen.toplam))}). Ödeme hesabımıza ulaşınca onaylanır ve süreniz uzar; genellikle aynı iş günü.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            {[["aylik", "Aylık", fiyat.aylik, ""], ["yillik", "Yıllık", fiyat.yillik, "2 ay bedava"]].map(([k, ad, t, not_]) => (
+              <button key={k} type="button" onClick={() => setDonem(k)} style={{ textAlign: "left", padding: "12px 14px", borderRadius: 14, cursor: "pointer", fontFamily: "inherit", background: donem === k ? "rgba(242,81,36,.12)" : T.bgInput, border: `2px solid ${donem === k ? T.amber : T.border}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted }}>{ad}{not_ && <span style={{ marginLeft: 6, color: T.amber }}>· {not_}</span>}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: T.textPrimary }}>{tl(t)} <span style={{ fontSize: 11.5, fontWeight: 600, color: T.textMuted }}>+ KDV</span></div>
+              </button>
+            ))}
+          </div>
+          <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12.5, color: T.textSecondary, lineHeight: 1.5, cursor: "pointer", marginBottom: 12 }}>
+            <input type="checkbox" checked={onay} onChange={(e) => setOnay(e.target.checked)} style={{ marginTop: 3 }} />
+            <span><a href="/qr-menu#kosullar" target="_blank" rel="noopener" style={{ color: T.amber }}>Abonelik koşullarını</a> okudum, kabul ediyorum. Ödenecek tutar: <b style={{ color: T.textPrimary }}>{tl(toplam)}</b> (KDV dahil)</span>
+          </label>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {ayar?.kart && <button type="button" onClick={kartlaOde} disabled={bekle} style={{ flex: "1 1 160px", padding: "12px 14px", borderRadius: 12, border: "none", background: T.amber, color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>{bekle ? "Yönlendiriliyor…" : "Kartla öde"}</button>}
+            <button type="button" onClick={() => setHavaleAcik((x) => !x)} style={{ flex: "1 1 160px", padding: "12px 14px", borderRadius: 12, background: ayar?.kart ? T.bgInput : T.amber, color: ayar?.kart ? T.textPrimary : "#fff", border: ayar?.kart ? `1px solid ${T.border}` : "none", fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Havale / EFT ile öde</button>
+          </div>
+          {havaleAcik && ayar?.havale && (
+            <div style={{ marginTop: 12, padding: "14px 16px", borderRadius: 14, background: T.bgInput, border: `1px solid ${T.border}`, fontSize: 13.5, color: T.textPrimary, lineHeight: 1.7 }}>
+              <div><span style={{ color: T.textMuted }}>Banka:</span> {ayar.havale.banka}</div>
+              <div><span style={{ color: T.textMuted }}>Alıcı:</span> {ayar.havale.sahip}</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ color: T.textMuted }}>IBAN:</span> <b style={{ letterSpacing: ".02em" }}>{ayar.havale.iban.replace(/(.{4})/g, "$1 ").trim()}</b>
+                <button type="button" onClick={() => navigator.clipboard?.writeText(ayar.havale.iban)} style={{ fontSize: 11.5, padding: "3px 9px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.bgCard, color: T.textSecondary, cursor: "pointer" }}>Kopyala</button></div>
+              <div><span style={{ color: T.textMuted }}>Tutar:</span> <b>{tl(toplam)}</b> · <span style={{ color: T.textMuted }}>Açıklama:</span> <b>QR {menu.slug}</b></div>
+              <button type="button" onClick={havaleBildir} disabled={bekle} style={{ marginTop: 10, width: "100%", padding: "11px 14px", borderRadius: 12, border: "none", background: "#10b981", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>{bekle ? "Gönderiliyor…" : "Ödemeyi yaptım, bildir"}</button>
+            </div>
+          )}
+        </>
+      )}
+      {hata && <div style={{ marginTop: 10 }}><Hata>{hata}</Hata></div>}
+    </div>
   );
 }
 
@@ -162,6 +319,8 @@ function HosGeldin({ ad, kapat }) {
 export function QrMusteriPanelSayfa() {
   const [durum, setDurum] = useState("yukleniyor"); // yukleniyor | yok | tamam
   const [menu, setMenu] = useState(null);
+  const [kullaniciId, setKullaniciId] = useState("");
+  const odemeSonucu = new URLSearchParams(window.location.search).get("odeme");
   // Hoş geldin penceresi her girişte bir kez (aynı oturumda sayfa yenilenince tekrar çıkmaz)
   const [hosGeldin, setHosGeldin] = useState(() => { try { return !sessionStorage.getItem("qr_hosgeldin_goruldu"); } catch (e) { return true; } });
   const hosGeldinKapat = () => { setHosGeldin(false); try { sessionStorage.setItem("qr_hosgeldin_goruldu", "1"); } catch (e) {} };
@@ -170,11 +329,16 @@ export function QrMusteriPanelSayfa() {
     (async () => {
       const { data: oturum } = await supabase.auth.getSession();
       if (!oturum?.session) { window.location.href = "/menu-giris"; return; }
-      const { data } = await supabase.from("qr_menuler").select("id, ad").eq("sahip_user_id", oturum.session.user.id).maybeSingle();
-      if (!data) { setDurum("yok"); return; }
-      setMenu(data); setDurum("tamam");
+      setKullaniciId(oturum.session.user.id);
+      await menuYukle(oturum.session.user.id);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  async function menuYukle(uid) {
+    const { data } = await supabase.from("qr_menuler").select("*").eq("sahip_user_id", uid || kullaniciId).maybeSingle();
+    if (!data) { setDurum("yok"); return; }
+    setMenu(data); setDurum("tamam");
+  }
 
   async function cikisYap() {
     try { sessionStorage.removeItem("qr_hosgeldin_goruldu"); } catch (e) {}
@@ -202,7 +366,20 @@ export function QrMusteriPanelSayfa() {
           <span style={{ fontSize: 13.5, color: T.textPrimary, lineHeight: 1.45, flex: 1 }}><b>Profesyonel ürün çekimi</b> ile menünüz daha iştah açıcı görünsün. Panormos Medya'dan teklif alın.</span>
           <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 800, color: T.amber }}>Teklif al →</span>
         </a>
-        <MenuDuzenle menuId={menu.id} clients={[]} musteriModu onGeri={cikisYap} />
+        {odemeSonucu && (
+          <div style={{ marginBottom: 14 }}>
+            {odemeSonucu === "basarili" ? <Bilgi>Ödemeniz alındı, aboneliğiniz uzatıldı. Teşekkür ederiz.</Bilgi> : <Hata>Ödeme tamamlanamadı. Kart bilgilerinizi kontrol edip tekrar deneyin ya da havale ile ödeyin.</Hata>}
+          </div>
+        )}
+        {(menu.kendi_kaydi || menu.abonelik_bitis) && <Abonelik menu={menu} kullaniciId={kullaniciId} yenile={() => menuYukle()} />}
+        {abonelikDurumu(menu)?.doldu ? (
+          <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 18, padding: 28, textAlign: "center", color: T.textSecondary, fontSize: 14, lineHeight: 1.6 }}>
+            Abonelik süreniz dolduğu için menünüzü şu an düzenleyemezsiniz.<br />Ödemeniz onaylanınca ürünleriniz ve ayarlarınız olduğu gibi geri gelir.
+            <div style={{ marginTop: 12 }}><a href={`/m/${menu.slug}`} target="_blank" rel="noopener" style={{ color: T.amber, fontWeight: 700 }}>Menünüzü görüntüleyin ↗</a></div>
+          </div>
+        ) : (
+          <MenuDuzenle menuId={menu.id} clients={[]} musteriModu onGeri={cikisYap} />
+        )}
         {hosGeldin && <HosGeldin ad={menu.ad} kapat={hosGeldinKapat} />}
       </div>
     </div>
