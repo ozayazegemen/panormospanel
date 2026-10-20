@@ -1,7 +1,7 @@
 // Yayın sırasında (vite build'den sonra) çalışır: herkese açık her sayfa için Google'ın doğrudan okuyacağı
 // hazır bir index.html üretir. Sayfanın kendi başlığı, açıklaması, adresi (canonical), paylaşım bilgileri,
 // yapılandırılmış verisi ve yazıları sayfaya gömülür; ziyaretçi için uygulama yine aynı şekilde açılır.
-// Netlify önce gerçek dosyaya bakar, yoksa index.html'e düşer; bu yüzden üretilen dosyalar o adreste kullanılır.
+// Netlify önce gerçek dosyaya bakar (/qr-menu için qr-menu.html), yoksa index.html'e düşer.
 // Herhangi bir hata yayını durdurmaz: o sayfa atlanır, site eskisi gibi çalışır.
 const fs = require("fs");
 const path = require("path");
@@ -59,7 +59,8 @@ function sayfaYaz(sablon, { yol, baslik, aciklama, govde, veri = [], resim = "",
   if (veri.length) h = h.replace("</head>", veri.map((v) => `    <script type="application/ld+json">${JSON.stringify(v).replace(/</g, "\\u003c")}</script>`).join("\n") + "\n  </head>");
   // Yazılar #root'un içine gömülür; uygulama açılınca bunların yerini alır
   h = h.replace('<div id="root"></div>', `<div id="root"><div class="hazir-sayfa">\n${govde}\n</div></div>`);
-  const hedef = yol === "/" ? path.join(DIST, "index.html") : path.join(DIST, ...yol.split("/").filter(Boolean), "index.html");
+  // /qr-menu → dist/qr-menu.html: Netlify bunu /qr-menu adresinde yönlendirmesiz sunar (klasör/index.html olsaydı /qr-menu/'e yönlendirirdi)
+  const hedef = yol === "/" ? path.join(DIST, "index.html") : path.join(DIST, ...yol.split("/").filter(Boolean)) + ".html";
   fs.mkdirSync(path.dirname(hedef), { recursive: true });
   fs.writeFileSync(hedef, h);
   return hedef;
