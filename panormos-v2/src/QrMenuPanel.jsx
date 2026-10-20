@@ -241,6 +241,18 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
     bildir("Kaydedildi. Menü güncel.");
   }
 
+  async function kapakSec(e) {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f) return;
+    try { const url = await gorselYukle(f, `kapak/${menuId}`); setMenu((m) => ({ ...m, kapak: url })); bildir("Kapak fotoğrafı yüklendi; kaydetmeyi unutmayın."); }
+    catch (err) { setHata("Kapak yüklenemedi: " + (err?.message || err)); }
+  }
+  async function kategoriGorselSec(e) {
+    const f = e.target.files?.[0]; e.target.value = "";
+    if (!f) return;
+    try { const url = await gorselYukle(f, `kategori/${menuId}`); setKatForm((k) => ({ ...k, gorsel: url })); }
+    catch (err) { setHata("Görsel yüklenemedi: " + (err?.message || err)); }
+  }
   async function logoSec(e) {
     const f = e.target.files?.[0]; e.target.value = "";
     if (!f) return;
@@ -292,6 +304,8 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
     const f = katForm;
     if (!f.ad?.trim()) return;
     const kayit = { ad: f.ad.trim(), ad_en: f.ad_en || "", aciklama: f.aciklama || "", aciklama_en: f.aciklama_en || "", fiyat_etiketleri: f.fiyat_etiketleri || "", bolum: (f.bolum || "").trim(), bolum_en: (f.bolum_en || "").trim(), aktif: f.aktif !== false };
+    // Görsel sütunu olan kurulumlarda kategori görseli de kaydedilir
+    if ("gorsel" in f || kategoriler.some((k) => "gorsel" in k)) kayit.gorsel = f.gorsel || "";
     const { error } = f.id
       ? await supabase.from("qr_kategoriler").update(kayit).eq("id", f.id)
       : await supabase.from("qr_kategoriler").insert({ ...kayit, menu_id: menuId, sira: kategoriler.length });
@@ -476,6 +490,17 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
                 {menu.logo && <Dugme onClick={() => setMenu((m) => ({ ...m, logo: "" }))}>Kaldır</Dugme>}
               </div>
             </Alan>
+            {"kapak" in menu && (
+              <Alan etiket="Kapak fotoğrafı (menünün en üstü)">
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {menu.kapak && <img src={menu.kapak} alt="" style={{ height: 36, width: 64, objectFit: "cover", borderRadius: 6 }} />}
+                  <label style={{ cursor: "pointer" }}><span style={{ ...girdi, display: "inline-block", width: "auto", fontWeight: 700 }}>{menu.kapak ? "Değiştir" : "Fotoğraf yükle"}</span><input type="file" accept="image/*" onChange={kapakSec} style={{ display: "none" }} /></label>
+                  {menu.kapak && <Dugme onClick={() => setMenu((m) => ({ ...m, kapak: "" }))}>Kaldır</Dugme>}
+                </div>
+              </Alan>
+            )}
+            {"duyuru" in menu && <Alan etiket="Duyuru şeridi (ör. Happy Hour 18.00–20.00)"><input style={girdi} placeholder="boş bırakılırsa görünmez" {...alan("duyuru")} /></Alan>}
+            {"duyuru_en" in menu && menu.iki_dil && <Alan etiket="Duyuru (İngilizce)"><input style={girdi} {...alan("duyuru_en")} /></Alan>}
             {/* Şablon sütunu veritabanına eklenmeden önce açılmış menülerde seçici görünmez (kaydetme hata vermesin) */}
             {"sablon" in menu && (
               <Alan etiket="Tasarım şablonu">
@@ -577,6 +602,15 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
               <Alan etiket="Kısa açıklama (isteğe bağlı)"><input style={girdi} value={katForm.aciklama || ""} onChange={(e) => setKatForm({ ...katForm, aciklama: e.target.value })} /></Alan>
               <Alan etiket="Bölüm (ör. Şarap Menüsü; aynı bölümdekiler birlikte görünür)"><input style={girdi} placeholder="boş bırakılabilir" value={katForm.bolum || ""} onChange={(e) => setKatForm({ ...katForm, bolum: e.target.value })} /></Alan>
               {menu.iki_dil && <Alan etiket="Bölüm (İngilizce)"><input style={girdi} placeholder="ör. Wine Menu" value={katForm.bolum_en || ""} onChange={(e) => setKatForm({ ...katForm, bolum_en: e.target.value })} /></Alan>}
+              {("gorsel" in katForm || kategoriler.some((k) => "gorsel" in k)) && (
+                <Alan etiket="Kategori görseli (isteğe bağlı)">
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {katForm.gorsel && <img src={katForm.gorsel} alt="" style={{ height: 36, width: 64, objectFit: "cover", borderRadius: 6 }} />}
+                    <label style={{ cursor: "pointer" }}><span style={{ ...girdi, display: "inline-block", width: "auto", fontWeight: 700 }}>{katForm.gorsel ? "Değiştir" : "Görsel yükle"}</span><input type="file" accept="image/*" onChange={kategoriGorselSec} style={{ display: "none" }} /></label>
+                    {katForm.gorsel && <Dugme onClick={() => setKatForm((k) => ({ ...k, gorsel: "" }))}>Kaldır</Dugme>}
+                  </div>
+                </Alan>
+              )}
               <Alan etiket="Ölçüler (virgülle: Tek, Duble, 35 cl, 70 cl)"><input style={girdi} placeholder="boş bırakılırsa tek fiyat" value={katForm.fiyat_etiketleri || ""} onChange={(e) => setKatForm({ ...katForm, fiyat_etiketleri: e.target.value })} /></Alan>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap", alignItems: "center" }}>
