@@ -134,9 +134,37 @@ export function QrMusteriGiris() {
   );
 }
 
+// İşletmeye profesyonel ürün çekimini hatırlatır; teklif isteği Panormos'un WhatsApp'ına hazır mesajla gelir
+const PANORMOS_WA = "905364716012";
+const cekimTeklifi = (ad) => `https://wa.me/${PANORMOS_WA}?text=${encodeURIComponent(`Merhaba, ${ad || "işletmem"} menüsü için profesyonel ürün çekimi teklifi almak istiyorum.`)}`;
+
+function HosGeldin({ ad, kapat }) {
+  return (
+    <div onClick={kapat} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(8,10,14,.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18, fontFamily: "'Inter',-apple-system,sans-serif" }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ width: "100%", maxWidth: 460, background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 22, overflow: "hidden", boxShadow: "0 30px 80px -30px rgba(0,0,0,.6)" }}>
+        <div style={{ height: 150, background: "url(https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&h=320&fit=crop&q=70&auto=format) center/cover", position: "relative" }}>
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.55))" }} />
+          <div style={{ position: "absolute", left: 22, bottom: 16, color: "#fff", fontSize: 21, fontWeight: 800, letterSpacing: "-.01em" }}>Hoş geldiniz{ad ? `, ${ad}` : ""}</div>
+        </div>
+        <div style={{ padding: "20px 22px 22px" }}>
+          <p style={{ fontSize: 14.5, lineHeight: 1.6, color: T.textPrimary, margin: "0 0 8px", fontWeight: 600 }}>Menünüzü buradan düzenleyebilirsiniz: ürün, fiyat, açıklama ve fotoğraf eklemek birkaç saniye sürer.</p>
+          <p style={{ fontSize: 13.5, lineHeight: 1.6, color: T.textSecondary, margin: "0 0 18px" }}>Menünüz için <b style={{ color: T.amber }}>profesyonel ürün çekimi</b> yaptırmak için bizden teklif almayı unutmayın. İyi çekilmiş fotoğraflar menüyü iştah açıcı gösterir ve siparişi artırır.</p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <a href={cekimTeklifi(ad)} target="_blank" rel="noopener" style={{ flex: "1 1 180px", textAlign: "center", padding: "12px 14px", borderRadius: 12, background: "#25D366", color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>Çekim teklifi al</a>
+            <button onClick={kapat} style={{ flex: "1 1 140px", padding: "12px 14px", borderRadius: 12, background: T.bgInput, color: T.textPrimary, border: `1px solid ${T.border}`, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Menüme geç</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function QrMusteriPanelSayfa() {
   const [durum, setDurum] = useState("yukleniyor"); // yukleniyor | yok | tamam
   const [menu, setMenu] = useState(null);
+  // Hoş geldin penceresi her girişte bir kez (aynı oturumda sayfa yenilenince tekrar çıkmaz)
+  const [hosGeldin, setHosGeldin] = useState(() => { try { return !sessionStorage.getItem("qr_hosgeldin_goruldu"); } catch (e) { return true; } });
+  const hosGeldinKapat = () => { setHosGeldin(false); try { sessionStorage.setItem("qr_hosgeldin_goruldu", "1"); } catch (e) {} };
 
   useEffect(() => {
     (async () => {
@@ -149,6 +177,7 @@ export function QrMusteriPanelSayfa() {
   }, []);
 
   async function cikisYap() {
+    try { sessionStorage.removeItem("qr_hosgeldin_goruldu"); } catch (e) {}
     await supabase.auth.signOut();
     window.location.href = "/menu-giris";
   }
@@ -169,7 +198,12 @@ export function QrMusteriPanelSayfa() {
     <div style={{ minHeight: "100vh", background: T.bg, padding: "20px 16px 60px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 14 }}>QR Menü — <b style={{ color: T.textPrimary }}>{menu.ad}</b></div>
+        <a href={cekimTeklifi(menu.ad)} target="_blank" rel="noopener" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, padding: "12px 16px", borderRadius: 14, textDecoration: "none", background: "linear-gradient(110deg, rgba(242,81,36,.16), rgba(242,81,36,.05))", border: `1px solid rgba(242,81,36,.35)` }}>
+          <span style={{ fontSize: 13.5, color: T.textPrimary, lineHeight: 1.45, flex: 1 }}><b>Profesyonel ürün çekimi</b> ile menünüz daha iştah açıcı görünsün. Panormos Medya'dan teklif alın.</span>
+          <span style={{ flexShrink: 0, fontSize: 13, fontWeight: 800, color: T.amber }}>Teklif al →</span>
+        </a>
         <MenuDuzenle menuId={menu.id} clients={[]} musteriModu onGeri={cikisYap} />
+        {hosGeldin && <HosGeldin ad={menu.ad} kapat={hosGeldinKapat} />}
       </div>
     </div>
   );
