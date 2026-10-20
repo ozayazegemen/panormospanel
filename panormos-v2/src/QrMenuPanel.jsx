@@ -603,11 +603,6 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
           <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 14, fontSize: 13.5, color: T.textPrimary }}>
             <label style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={menu.iki_dil} onChange={(e) => setMenu((m) => ({ ...m, iki_dil: e.target.checked }))} /> Türkçe + İngilizce</label>
             <label style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={menu.aktif} onChange={(e) => setMenu((m) => ({ ...m, aktif: e.target.checked }))} /> Yayında</label>
-            {"whatsapp_siparis" in menu && (
-              <label style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer" }} title="Misafir ürünleri sepete ekler; sipariş, yukarıdaki WhatsApp numarasına hazır mesaj olarak gider">
-                <input type="checkbox" checked={!!menu.whatsapp_siparis} onChange={(e) => setMenu((m) => ({ ...m, whatsapp_siparis: e.target.checked }))} /> WhatsApp'tan sipariş al (sepet)
-              </label>
-            )}
           </div>
         </div>
 
@@ -626,7 +621,7 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
             <input style={{ ...girdi, width: 90 }} type="number" min="1" max="60" placeholder="Masa" value={masaSayisi} onChange={(e) => setMasaSayisi(e.target.value)} title="Kaç masa var? Her masaya kendi numaralı QR kartı" />
             <Dugme onClick={masaKartlariYazdir} disabled={!!baskiBekle} style={{ flex: 1, justifyContent: "center" }}>{baskiBekle === "masalar" ? "Hazırlanıyor…" : "Numaralı kartları yazdır"}</Dugme>
           </div>
-          <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>Numaralı kartlarda QR kod masa numarasını bilir; WhatsApp siparişinde "Masa 4" kendiliğinden yazar. Bağlantı adını değiştirirseniz eski QR kodlar çalışmaz.</div>
+          <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>Numaralı kartların her birinde masa numarası yazar. Bağlantı adını değiştirirseniz eski QR kodlar çalışmaz.</div>
         </div>
         <div style={{ ...kart, textAlign: "center" }}>
           <Baslik sag={<a href={adres} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.textMuted }}>Yeni sekmede aç ↗</a>}>Canlı önizleme</Baslik>
