@@ -17,7 +17,9 @@ const TEMALAR = [
   { ad: "Gece mavisi", ana: "#1F3557", zemin: "#EEF1F5" },
   { ad: "Kiremit", ana: "#B4472A", zemin: "#FBF3EA" },
   { ad: "Kömür", ana: "#222222", zemin: "#F4F4F2" },
+  { ad: "Gece & altın (Gece şablonu)", ana: "#D4B26A", zemin: "#14110F" },
 ];
+const SABLONLAR = [["zarif", "Zarif: kemerli kartlar, kâğıt menü düzeni"], ["klasik", "Klasik liste: tek sayfa, arama, kategori çubuğu"], ["fotografli", "Fotoğraflı kartlar: ürün fotoğraflarıyla"], ["gece", "Gece: koyu zemin (bar ve kokteyl)"]];
 const YAZI_TIPLERI = [["zarif", "Zarif (restoran)"], ["modern", "Modern (kafe)"], ["eglenceli", "Eğlenceli (bar)"]];
 
 const sluglastir = (s) => String(s || "").toLocaleLowerCase("tr")
@@ -474,6 +476,14 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
                 {menu.logo && <Dugme onClick={() => setMenu((m) => ({ ...m, logo: "" }))}>Kaldır</Dugme>}
               </div>
             </Alan>
+            {/* Şablon sütunu veritabanına eklenmeden önce açılmış menülerde seçici görünmez (kaydetme hata vermesin) */}
+            {"sablon" in menu && (
+              <Alan etiket="Tasarım şablonu">
+                <select style={girdi} value={menu.sablon || "zarif"} onChange={(e) => setMenu((m) => ({ ...m, sablon: e.target.value }))}>
+                  {SABLONLAR.map(([d, a]) => <option key={d} value={d}>{a}</option>)}
+                </select>
+              </Alan>
+            )}
             <Alan etiket="Yazı tipi">
               <select style={girdi} value={menu.yazi_tipi} onChange={(e) => setMenu((m) => ({ ...m, yazi_tipi: e.target.value }))}>
                 {YAZI_TIPLERI.map(([d, a]) => <option key={d} value={d}>{a}</option>)}

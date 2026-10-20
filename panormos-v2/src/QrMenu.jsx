@@ -96,6 +96,10 @@ export default function QrMenu({ slug }) {
     return () => clearTimeout(t);
   }, [secili, menu]);
   const kategori = kategoriler.find((k) => k.id === secili);
+  // Tasarım şablonu: zarif (kemerli kartlar + kâğıt menü), gece (zarif'in koyu zeminlisi),
+  // klasik (tek sayfa liste + arama) ve fotografli (tek sayfa fotoğraflı kartlar)
+  const sablon = ["zarif", "gece", "klasik", "fotografli"].includes(menu?.sablon) ? menu.sablon : "zarif";
+  const tekSayfa = sablon === "klasik" || sablon === "fotografli";
 
   if (menu === undefined) return <div style={{ minHeight: "100vh", background: "#F3F1EC" }} />;
   if (menu === null) {
@@ -127,10 +131,13 @@ export default function QrMenu({ slug }) {
   );
 
   return (
-    <div className={`qm${genis ? " qm-genis" : ""}`} lang={en ? "en" : "tr"} style={{ "--ana": ana, "--zemin": zemin, "--baslik": tip.baslik, "--urun": tip.urun, "--kbaslik": tip.kbaslik, "--govde": tip.govde }}>
+    <div className={`qm qm-${sablon}${genis ? " qm-genis" : ""}`} lang={en ? "en" : "tr"} style={{ "--ana": ana, "--zemin": zemin, "--baslik": tip.baslik, "--urun": tip.urun, "--kbaslik": tip.kbaslik, "--govde": tip.govde }}>
       <style>{QM_CSS}</style>
+      {tekSayfa && <style>{QT_CSS}</style>}
 
-      {!kategori ? (
+      {tekSayfa ? (
+        <TekSayfa menu={menu} kategoriler={kategoriler} urunler={urunler} yaz={yaz} olcuAdi={olcuAdi} dilAnahtari={dilAnahtari} fotografli={sablon === "fotografli"} />
+      ) : !kategori ? (
         <main className="qm-giris">
           <div className="qm-ust-cubuk">{dilAnahtari}</div>
           <Logo menu={menu} buyuk />
@@ -227,6 +234,124 @@ export default function QrMenu({ slug }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Klasik ve fotoğraflı şablonlar: bütün kategoriler tek sayfada alt alta, üstte arama ve kategori çubuğu
+const fiyatEtiketleri = (k) => String(k.fiyat_etiketleri || "").split(/[,|/]/).map((x) => x.trim()).filter(Boolean);
+
+function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotografli }) {
+  const [ara, setAra] = useState("");
+  const [aktif, setAktif] = useState(kategoriler[0]?.id || "");
+  const q = ara.trim().toLocaleLowerCase("tr");
+  const eslesir = (u) => !q || [u.ad, u.ad_en, u.aciklama, u.aciklama_en].filter(Boolean).join(" ").toLocaleLowerCase("tr").includes(q);
+  const gorunen = kategoriler
+    .map((k) => ({ k, liste: urunler.filter((u) => u.kategori_id === k.id && eslesir(u)) }))
+    .filter((x) => x.liste.length > 0);
+  const kapak = fotografli ? urunler.find((u) => u.gorsel)?.gorsel : "";
+
+  const kay = (id) => {
+    setAktif(id);
+    const el = document.getElementById(`qt-${id}`);
+    if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 124, behavior: "smooth" });
+  };
+  // Kaydırdıkça üstteki kategori çubuğunda bulunulan kategori seçili görünsün
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const gozcu = new IntersectionObserver((girdiler) => {
+      const g = girdiler.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+      if (g) setAktif(g.target.dataset.id);
+    }, { rootMargin: "-130px 0px -60% 0px" });
+    document.querySelectorAll(".qt-kat").forEach((el) => gozcu.observe(el));
+    return () => gozcu.disconnect();
+  }, [gorunen.length, q]);
+  useEffect(() => {
+    const cubuk = document.querySelector(".qt-sekmeler"), sekme = document.getElementById(`qt-sekme-${aktif}`);
+    if (cubuk && sekme) cubuk.scrollTo({ left: sekme.offsetLeft - cubuk.clientWidth / 2 + sekme.clientWidth / 2, behavior: "smooth" });
+  }, [aktif]);
+
+  const fiyatlar = (u, et) => (et.length ? et : [""]).map((e, i) => ({ e, f: fiyatAl(u, i) })).filter((x) => x.f !== null && x.f !== undefined && x.f !== "");
+  const isaretler = (u) => (
+    <>
+      {u.etiket && <em className="qm-etiket">{u.etiket}</em>}
+      {u.tukendi && <em className="qm-etiket tukendi">{yaz("Tükendi", "Sold out")}</em>}
+      {(u.alerjenler || []).length > 0 && <span className="qm-alerjen" title={u.alerjenler.map((a) => ALERJEN_ADLARI[a] || a).join(", ")}>{u.alerjenler.join(" · ")}</span>}
+    </>
+  );
+
+  let oncekiBolum = null;
+  return (
+    <main className={`qt${fotografli ? " qt-foto" : ""}`}>
+      <header className="qt-kapak" style={kapak ? { backgroundImage: `linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.62)),url(${kapak})` } : undefined}>
+        <div className="qt-kapak-ust">{dilAnahtari}</div>
+        <Logo menu={menu} buyuk />
+        {menu.adres && <p className="qt-adres">{menu.adres}</p>}
+      </header>
+
+      <div className="qt-cubuk">
+        <label className="qt-ara">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          <input type="search" value={ara} onChange={(e) => setAra(e.target.value)} placeholder={yaz("Menüde ara", "Search the menu")} />
+        </label>
+        <nav className="qt-sekmeler">
+          {gorunen.map(({ k }) => (
+            <button key={k.id} id={`qt-sekme-${k.id}`} className={k.id === aktif ? "secili" : ""} onClick={() => kay(k.id)}>{yaz(k.ad, k.ad_en)}</button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="qt-govde">
+        {gorunen.length === 0 && <p className="qm-bos">{q ? yaz("Aradığınız ürün bulunamadı.", "No items found.") : yaz("Menü hazırlanıyor.", "The menu is being prepared.")}</p>}
+        {gorunen.map(({ k, liste }) => {
+          const et = fiyatEtiketleri(k);
+          const sutunlu = et.length > 1 && !fotografli;
+          const bolumBasligi = (k.bolum || "") !== oncekiBolum && k.bolum ? yaz(k.bolum, k.bolum_en) : "";
+          oncekiBolum = k.bolum || "";
+          return (
+            <section key={k.id} id={`qt-${k.id}`} data-id={k.id} className="qt-kat">
+              {bolumBasligi && <div className="qt-bolum">{bolumBasligi}</div>}
+              <h2>{yaz(k.ad, k.ad_en)}{et.length === 1 && <small> · {olcuAdi(et[0])}</small>}</h2>
+              {yaz(k.aciklama, k.aciklama_en) && <p className="qt-kat-aciklama">{yaz(k.aciklama, k.aciklama_en)}</p>}
+              {sutunlu && <div className="qt-olcu">{et.map((e) => <span key={e}>{olcuAdi(e)}</span>)}</div>}
+              <div className={fotografli ? "qt-kartlar" : "qt-satirlar"}>
+                {liste.map((u) => {
+                  const fl = fiyatlar(u, et);
+                  if (fotografli) {
+                    return (
+                      <article key={u.id} className={`qt-kart${u.tukendi ? " tukendi" : ""}`}>
+                        <div className="qt-gorsel">{u.gorsel ? <img src={u.gorsel} alt="" loading="lazy" /> : <span>{(yaz(u.ad, u.ad_en) || "?").charAt(0)}</span>}</div>
+                        <div className="qt-kart-metin">
+                          <h3>{yaz(u.ad, u.ad_en)}</h3>
+                          <div className="qt-isaret">{isaretler(u)}</div>
+                          {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
+                          <div className="qt-kart-fiyat">{fl.map((x) => <span key={x.e || "f"}>{x.e && et.length > 1 ? <small>{olcuAdi(x.e)}</small> : null}{fiyatYaz(x.f)}</span>)}</div>
+                        </div>
+                      </article>
+                    );
+                  }
+                  return (
+                    <article key={u.id} className={`qt-satir${u.tukendi ? " tukendi" : ""}`}>
+                      {u.gorsel && <img src={u.gorsel} alt="" loading="lazy" />}
+                      <div className="qt-satir-metin">
+                        <div className="qt-satir-ust">
+                          <h3>{yaz(u.ad, u.ad_en)}</h3>
+                          {!sutunlu && <><i className="qt-nokta" aria-hidden="true" /><b className="qt-fiyat">{fl.map((x) => fiyatYaz(x.f)).join(" / ")}</b></>}
+                          {sutunlu && <span className="qt-sutunlar">{et.map((e, i) => { const f = fiyatAl(u, i); return <b key={e}>{f === null || f === undefined || f === "" ? "–" : fiyatYaz(f)}</b>; })}</span>}
+                        </div>
+                        <div className="qt-isaret">{isaretler(u)}</div>
+                        {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+        {yaz(menu.alerjen_notu, menu.alerjen_notu_en) && <p className="qm-alerjen-notu">{yaz(menu.alerjen_notu, menu.alerjen_notu_en)}</p>}
+      </div>
+      <Alt menu={menu} yaz={yaz} />
+    </main>
   );
 }
 
@@ -345,6 +470,19 @@ const QM_CSS = `
 .qm-alt-dugmeler a.wa{background:#25D366}
 .qm-alt-dugmeler svg{width:17px;height:17px}
 .qm-giris,.qm-sayfa{background:var(--zemin)}
+/* Gece şablonu: zarif düzen, koyu zemin (bar ve kokteyl mekânları); ana renk açık bir vurgu rengi olmalı (ör. altın) */
+.qm-gece{color:#ece6df}
+.qm-gece .qm-kart{background:rgba(255,255,255,.04)}
+.qm-gece .qm-kart:hover,.qm-gece .qm-kart:active{background:rgba(255,255,255,.09)}
+.qm-gece .qm-kart strong{color:#f4efe8}
+.qm-gece .qm-kart small,.qm-gece .qm-bos,.qm-gece .qm-kb-aciklama,.qm-gece .qm-alt,.qm-gece .qm-alerjen-notu,.qm-gece .qm-kb-olcu span.bos{color:#a39a92}
+.qm-gece .qm-u p{color:#b3aaa2}
+.qm-gece .qm-sekmeler button{color:#9b928a}
+.qm-gece .qm-dil,.qm-gece .qm-logo.buyuk{background:rgba(255,255,255,.05)}
+.qm-gece .qm-dil button{color:#cfc6bd}
+.qm-gece .qm-dil button.secili,.qm-gece .qm-etiket,.qm-gece .qm-alt-dugmeler a{color:#14110f}
+.qm-gece .qm-alt-dugmeler a.wa{color:#fff}
+.qm-gece .qm-alt-dugmeler{background:color-mix(in srgb,var(--zemin) 85%,#fff)}
 @media (min-width:520px){
   .qm{background:color-mix(in srgb,var(--zemin) 88%,var(--ana))}
   .qm-giris,.qm-sayfa{min-height:100vh;box-shadow:0 0 0 1px color-mix(in srgb,var(--ana) 12%,transparent),0 20px 60px -30px rgba(0,0,0,.35)}
@@ -362,4 +500,69 @@ const QM_CSS = `
   .qm-genis .qm-sekmeler{justify-content:center;flex-wrap:wrap}
 }
 @media (max-width:360px){.qm-kartlar{grid-template-columns:1fr}.qm-alt-dugmeler a{padding:10px 12px;font-size:12px}}
+`;
+
+const QT_CSS = `
+.qt{max-width:480px;margin:0 auto;background:var(--zemin);min-height:100vh}
+.qt-kapak{position:relative;display:flex;flex-direction:column;align-items:center;padding:14px 18px 26px;background:color-mix(in srgb,var(--ana) 9%,var(--zemin));background-size:cover;background-position:center}
+.qt-kapak-ust{width:100%;display:flex;justify-content:flex-end;min-height:34px;margin-bottom:10px}
+.qt-adres{margin-top:14px;font-size:12px;color:#7a716b;text-align:center}
+.qt-foto .qt-kapak{padding:14px 18px 34px;color:#fff;background-color:var(--ana)}
+.qt-foto .qt-kapak .qm-logo{color:#fff}
+.qt-foto .qt-kapak .qm-logo.buyuk{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.6);box-shadow:none;backdrop-filter:blur(4px)}
+.qt-foto .qt-adres{color:rgba(255,255,255,.85)}
+.qt-foto .qm-dil{background:rgba(255,255,255,.85)}
+.qt-cubuk{position:sticky;top:0;z-index:5;padding:10px 14px 0;background:color-mix(in srgb,var(--zemin) 94%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid color-mix(in srgb,var(--ana) 14%,transparent)}
+.qt-ara{display:flex;align-items:center;gap:8px;padding:0 12px;height:40px;border-radius:12px;background:#fff;border:1px solid color-mix(in srgb,var(--ana) 18%,transparent);color:#8b827c}
+.qt-ara svg{width:17px;height:17px;flex-shrink:0}
+.qt-ara input{flex:1;min-width:0;border:none;outline:none;background:none;font:inherit;font-size:14px;color:#26211e}
+.qt-sekmeler{display:flex;gap:8px;overflow-x:auto;padding:10px 0;scrollbar-width:none}
+.qt-sekmeler::-webkit-scrollbar{display:none}
+.qt .qt-sekmeler button{flex:0 0 auto;padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;white-space:nowrap;background:#fff;color:#5d5650;border:1px solid color-mix(in srgb,var(--ana) 16%,transparent)}
+.qt .qt-sekmeler button.secili{background:var(--ana);color:#fff;border-color:var(--ana)}
+.qt-govde{padding:6px 16px 4px}
+.qt-kat{padding-top:18px}
+.qt-bolum{margin:10px 0 4px;font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:color-mix(in srgb,var(--ana) 75%,#777)}
+.qt-kat h2{font-family:var(--kbaslik);font-size:22px;font-weight:700;color:var(--ana);margin-bottom:10px}
+.qt-kat h2 small{font-size:.6em;font-weight:600;color:#8b827c}
+.qt-kat-aciklama{font-size:12px;color:#7a716b;margin:-6px 0 10px;font-style:italic}
+.qt-isaret:empty{display:none}
+.qt-isaret{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:3px}
+.qt-isaret .qm-etiket,.qt-isaret .qm-alerjen{margin-left:0}
+/* Klasik liste */
+.qt-satirlar{display:flex;flex-direction:column}
+.qt-satir{display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed color-mix(in srgb,var(--ana) 18%,transparent)}
+.qt-satir:last-child{border-bottom:none}
+.qt-satir img{width:58px;height:58px;border-radius:10px;object-fit:cover;flex-shrink:0}
+.qt-satir-metin{flex:1;min-width:0}
+.qt-satir-ust{display:flex;align-items:baseline;gap:8px}
+.qt-satir h3{font-family:var(--urun);font-size:15px;font-weight:700;color:#26211e;line-height:1.3}
+.qt-nokta{flex:1;min-width:12px;border-bottom:2px dotted color-mix(in srgb,var(--ana) 30%,transparent);transform:translateY(-4px)}
+.qt-fiyat{flex-shrink:0;font-size:15px;font-weight:800;color:var(--ana);white-space:nowrap}
+.qt-satir p{font-size:12.5px;line-height:1.45;color:#7a716b;margin-top:3px}
+.qt-olcu{display:flex;justify-content:flex-end;gap:0;margin:-4px 0 2px}
+.qt-olcu span,.qt-sutunlar b{width:66px;text-align:right;flex-shrink:0}
+.qt-olcu span{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ana)}
+.qt-sutunlar{display:flex;margin-left:auto}
+.qt-sutunlar b{font-size:13.5px;font-weight:800;color:var(--ana);white-space:nowrap}
+.qt-satir-ust:has(.qt-sutunlar) h3{flex:1}
+.qt-satir.tukendi h3,.qt-satir.tukendi p,.qt-satir.tukendi .qt-fiyat,.qt-satir.tukendi img{opacity:.45}
+/* Fotoğraflı kartlar */
+.qt-kartlar{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.qt-kart{display:flex;flex-direction:column;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 6px 18px -12px rgba(0,0,0,.35);border:1px solid color-mix(in srgb,var(--ana) 10%,transparent)}
+.qt-gorsel{aspect-ratio:4/3;background:color-mix(in srgb,var(--ana) 14%,#fff);display:flex;align-items:center;justify-content:center}
+.qt-gorsel img{width:100%;height:100%;object-fit:cover;display:block}
+.qt-gorsel span{font-family:var(--kbaslik);font-size:34px;font-weight:700;color:color-mix(in srgb,var(--ana) 55%,#fff)}
+.qt-kart-metin{display:flex;flex-direction:column;flex:1;padding:10px 11px 12px}
+.qt-kart h3{font-family:var(--urun);font-size:14px;font-weight:700;line-height:1.25;color:#26211e}
+.qt-kart p{font-size:11.5px;line-height:1.4;color:#7a716b;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.qt-kart-fiyat{margin-top:auto;padding-top:8px;display:flex;flex-wrap:wrap;gap:4px 10px}
+.qt-kart-fiyat span{font-size:15px;font-weight:800;color:var(--ana);white-space:nowrap}
+.qt-kart-fiyat small{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#8b827c;margin-right:4px}
+.qt-kart.tukendi{opacity:.55}
+@media (min-width:1000px){
+  .qm-genis .qt{max-width:1100px}
+  .qm-genis .qt-kartlar{grid-template-columns:repeat(4,1fr)}
+  .qm-genis .qt-satirlar{display:grid;grid-template-columns:1fr 1fr;column-gap:48px}
+}
 `;
