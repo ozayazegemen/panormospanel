@@ -293,6 +293,7 @@ export function SiteUst({ onEnter, onek = "" }) {
         <a href={`${onek}#lp-hizmetler`} onClick={kapat}>Hizmetler</a>
         <a href={`${onek}#lp-isler`} onClick={kapat}>İşlerimiz</a>
         <a href={`${onek}#lp-surec`} onClick={kapat}>Nasıl çalışırız</a>
+        <a href="/qr-menu" onClick={kapat}>QR Menü</a>
         <a href="/blog" onClick={kapat}>Blog</a>
         <a href={`${onek}#lp-iletisim`} onClick={kapat}>İletişim</a>
         <a href="https://instagram.com/panormosmedya" target="_blank" rel="noopener" className="ig" aria-label="Instagram">{ig}<span> Instagram</span></a>
@@ -315,6 +316,7 @@ export function SiteAlt({ onEnter, onek = "" }) {
             <a href={`${onek}#lp-hizmetler`}>Hizmetler</a>
             <a href={`${onek}#lp-isler`}>İşlerimiz</a>
             <a href={`${onek}#lp-surec`}>Nasıl çalışırız</a>
+            <a href="/qr-menu">QR Menü</a>
             <a href="/blog">Blog</a>
             <a href={`${onek}#lp-iletisim`}>İletişim</a>
             <a onClick={onEnter} role="button" tabIndex={0}>Çalışan girişi</a>
@@ -461,7 +463,7 @@ export default function Site({ onEnter }) {
                   <ul>{p.maddeler.map((m) => <li key={m}>{m}</li>)}</ul>
                   {p.demolar && (
                     <div className="is-demolar">
-                      <span>Farklı tasarımlarla örnek menüler:</span>
+                      <span>Farklı tasarımlarla örnek menüler (<a href="/qr-menu" className="is-demo-sayfa">hepsi bir arada →</a>):</span>
                       {p.demolar.map(([ad, adres]) => <a key={adres} href={adres} target="_blank" rel="noopener">{ad} demosu</a>)}
                     </div>
                   )}
@@ -658,6 +660,197 @@ export function BlogSayfasi({ Icerik }) {
     </div>
   );
 }
+
+// panormosmedya.com/qr-menu: QR menü ürününün satış sayfası. Demolar canlı menünün kendisi (iframe), yanında telefonla okutulacak QR kod.
+const QR_DEMOLAR = [
+  { slug: "restoran", tur: "Restoran", ad: "MAISON", sablon: "Zarif şablon", metin: "Kemerli kategori kartları, kâğıt menü düzeni, şarapta kadeh ve şişe fiyatı." },
+  { slug: "cafe", tur: "Kafe", ad: "Kahve Durağı", sablon: "Fotoğraflı şablon", metin: "Ürün fotoğraflı kartlar, menüde arama, kahvaltı ve fırın ürünleri." },
+  { slug: "burger", tur: "Burger & pizza", ad: "Ateş Burger", sablon: "Fotoğraflı şablon", metin: "İştah açan büyük fotoğraflar, \"Çok satan\" ve \"Acı\" etiketleri." },
+  { slug: "lokanta", tur: "Lokanta", ad: "Usta Lokanta", sablon: "Klasik liste", metin: "Fotoğraf gerektirmeyen sade liste, tükenen yemek işareti, hızlı arama." },
+  { slug: "bar", tur: "Bar", ad: "NOCTURNE", sablon: "Gece şablonu", metin: "Koyu zemin; rakıda Tek, Duble, 35 cl, 70 cl ve şarapta kadeh, şişe sütunları." },
+];
+const QR_OZELLIKLER = [
+  ["Anında güncel", "Fiyatı ya da ürünü değiştirdiğiniz an menü güncellenir. Yeni baskı ve PDF gerekmez."],
+  ["Türkçe ve İngilizce", "Misafir tek dokunuşla dil değiştirir; turist sezonunda ayrı menü bastırmazsınız."],
+  ["Dört tasarım", "Zarif, klasik liste, fotoğraflı kartlar ve koyu zeminli gece şablonu; renkler ve logo sizin."],
+  ["Rakı ve şarap sütunları", "Tek, Duble, 35 cl, 70 cl ya da kadeh ve şişe fiyatları yan yana, düzenli."],
+  ["Alerjen ve etiketler", "Gluten, süt, kuruyemiş, vegan bilgisi; \"Yeni\", \"Şefin önerisi\" ve \"Tükendi\" işaretleri."],
+  ["Kendi paneliniz", "Size özel girişle ürün, fiyat ve fotoğrafı kendiniz değiştirirsiniz. İsterseniz biz yaparız."],
+  ["Excel ile yükleme", "Elinizdeki fiyat listesini Excel'den tek seferde yükleriz; yüzlerce ürün dakikalar içinde menüde."],
+  ["Rezervasyon ve WhatsApp", "Menünün altında rezervasyon ve WhatsApp düğmesi; Instagram ve adresiniz de görünür."],
+  ["Menü fotoğraf çekimi", "Ürünlerinizi prodüksiyon ekibimiz çeker, fotoğraflar doğrudan menünüze yüklenir."],
+];
+const QR_ADIMLAR = [
+  ["Menünüzü gönderin", "Excel, PDF ya da kâğıt menünün fotoğrafı yeterli."],
+  ["Tasarımı seçin", "Mekânınıza uygun şablonu, renklerinizi ve logonuzu birlikte belirleriz."],
+  ["QR kodu masaya koyun", "Baskıya hazır QR kodunuzu veririz; masa kartı ve afiş tasarımı da yapabiliriz."],
+  ["Gerisini siz yönetin", "Fiyat ya da ürün değişince panelden güncellersiniz, menü anında yenilenir."],
+];
+const QR_SSS = [
+  ["Misafirin uygulama indirmesi gerekir mi?", "Hayır. Telefon kamerasıyla QR kodu okutması yeterli; menü tarayıcıda açılır."],
+  ["Fiyatları kim günceller?", "Size özel bir giriş açıyoruz; ürün, fiyat ve fotoğrafı kendiniz değiştirebilirsiniz. İsterseniz bu işi biz üstleniriz."],
+  ["Ürün fotoğrafım yok, olur mu?", "Olur. Zarif ve klasik liste şablonları fotoğrafsız da şık görünür. Fotoğraf isterseniz çekimi ekibimiz yapar."],
+  ["Menüyü web sitemde ve Instagram'da kullanabilir miyim?", "Evet. Menünüzün bağlantısını web sitenize, Google İşletme profilinize ve Instagram'a ekleyebilirsiniz."],
+];
+const QR_WA = "https://wa.me/905364716012?text=" + encodeURIComponent("Merhaba, QR menü hakkında bilgi almak istiyorum.");
+
+function QrKod({ adres }) {
+  const [resim, setResim] = useState("");
+  useEffect(() => {
+    let iptal = false;
+    import("qrcode").then(({ default: QR }) => QR.toDataURL(adres, { width: 360, margin: 1, color: { dark: "#0E0E14", light: "#FFFFFF" } }))
+      .then((u) => { if (!iptal) setResim(u); }).catch(() => {});
+    return () => { iptal = true; };
+  }, [adres]);
+  return resim ? <img className="qrs-qr" src={resim} alt="Telefonla okutun" width="120" height="120" /> : <span className="qrs-qr" />;
+}
+
+export function QrMenuSayfasi() {
+  const girisYap = () => { window.location.href = "/#giris"; };
+  useEffect(() => {
+    const html = document.documentElement, body = document.body, root = document.getElementById("root");
+    html.style.height = "auto"; html.style.overflow = "auto";
+    body.style.height = "auto"; body.style.overflow = "auto"; body.style.position = "static";
+    if (root) { root.style.height = "auto"; root.style.overflow = "visible"; }
+    document.title = "QR Menü: Restoran, Kafe ve Barlar için Dijital Menü | Panormos Medya";
+    const m = document.querySelector('meta[name="description"]'); const eski = m?.content;
+    if (m) m.content = "Masadaki QR koddan açılan, fiyatı anında güncellenen dijital menü. Türkçe ve İngilizce, dört tasarım, rakı ve şarap sütunları. Restoran, kafe, lokanta ve bar demolarını inceleyin.";
+    return () => { if (m && eski) m.content = eski; };
+  }, []);
+  return (
+    <div className="pm-site">
+      <style>{SITE_CSS + BLOG_SAYFA_CSS + QR_SAYFA_CSS}</style>
+      <SiteUst onEnter={girisYap} onek="/" />
+
+      <header className="blog-ust krem qrs-ust">
+        <div className="kap qrs-ust-izgara">
+          <div>
+          <div className="no">QR Menü</div>
+          <h1 className="dev koyu-yazi"><span className="dolu">MENÜNÜZ</span><span className="cizgi">CEPLERDE.</span></h1>
+          <p className="blog-giris">Restoran, kafe, lokanta ve barlar için masadaki QR koddan açılan dijital menü. Fiyatı panelden değiştirdiğiniz anda menü güncellenir; baskı ve PDF derdi biter.</p>
+          <div className="ilet-dugmeler qrs-dugmeler">
+            <a href="#demolar" className="dugme koyu buyuk">Demoları incele ↓</a>
+            <a href={QR_WA} target="_blank" rel="noopener" className="dugme pembe buyuk">{wa} Teklif al</a>
+          </div>
+          </div>
+          <img className="qrs-ust-gorsel" src="/isler/qr-menu.jpg?v=1" alt="QR menü: üç telefonda restoran ve bar menüsü" width="1600" height="1000" />
+        </div>
+      </header>
+
+      <section className="bolum beyaz qrs-demolar" id="demolar">
+        <div className="kap">
+          <div className="no">Demolar</div>
+          <h2 className="qrs-baslik">Mekânınıza uygun tasarımı seçin</h2>
+          <p className="qrs-alt">Aşağıdaki menüler gerçek sistemin kendisi: kaydırın, kategorilere dokunun, dili değiştirin. Telefonunuzla QR kodu okutup kendi telefonunuzda da açabilirsiniz.</p>
+          <div className="qrs-izgara">
+            {QR_DEMOLAR.map((d) => {
+              const adres = `https://panormosmedya.com/m/${d.slug}`;
+              return (
+                <article key={d.slug} className="qrs-kart">
+                  <div className="qrs-telefon"><iframe src={`/m/${d.slug}`} title={`${d.tur} demo menüsü`} loading="lazy" /></div>
+                  <div className="qrs-bilgi">
+                    <span className="qrs-tur">{d.tur}</span>
+                    <h3>{d.ad}</h3>
+                    <small>{d.sablon}</small>
+                    <p>{d.metin}</p>
+                    <div className="qrs-ac">
+                      <QrKod adres={adres} />
+                      <a href={adres} target="_blank" rel="noopener" className="dugme koyu">Menüyü aç →</a>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="bolum koyu">
+        <div className="kap">
+          <div className="no">Neler var?</div>
+          <h2 className="qrs-baslik acik">Kâğıt menünün yapamadığı her şey</h2>
+          <div className="qrs-ozellikler">
+            {QR_OZELLIKLER.map(([b, m]) => <div key={b}><h3>{b}</h3><p>{m}</p></div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="bolum krem">
+        <div className="kap">
+          <div className="no">Nasıl başlarız?</div>
+          <div className="qrs-adimlar">
+            {QR_ADIMLAR.map(([b, m], i) => <div key={b}><span>0{i + 1}</span><h3>{b}</h3><p>{m}</p></div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="bolum beyaz">
+        <div className="kap dar">
+          <div className="no">Sık sorulanlar</div>
+          <div className="qrs-sss">
+            {QR_SSS.map(([s, c]) => <details key={s}><summary>{s}</summary><p>{c}</p></details>)}
+          </div>
+          <div className="yazi-cta">
+            <h3>Menünüzü birlikte hazırlayalım</h3>
+            <p>Menünüzü gönderin, size uygun tasarımla örnek menünüzü hazırlayıp gösterelim.</p>
+            <div className="ilet-dugmeler">
+              <a href={QR_WA} target="_blank" rel="noopener" className="dugme beyaz-d buyuk">{wa} WhatsApp</a>
+              <a href="/#lp-iletisim" className="dugme koyu buyuk">İletişim bilgileri →</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <SiteAlt onEnter={girisYap} onek="/" />
+      <a href={QR_WA} target="_blank" rel="noopener" className="wa-sabit" aria-label="WhatsApp'tan yaz">{wa}</a>
+    </div>
+  );
+}
+
+const QR_SAYFA_CSS = `
+.pm-site .qrs-dugmeler{margin-top:30px}
+.pm-site .qrs-ust-izgara{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
+.pm-site .qrs-ust .dev{font-size:clamp(40px,6.2vw,92px)}
+.pm-site .qrs-ust-gorsel{display:block;width:100%;height:auto;border-radius:26px;border:3px solid var(--murekkep);box-shadow:8px 8px 0 var(--murekkep);transform:rotate(1.5deg)}
+.pm-site .qrs-baslik{font-family:'Unbounded',sans-serif;font-weight:800;font-size:clamp(26px,3.6vw,44px);line-height:1.08;letter-spacing:-.03em;margin:22px 0 14px}
+.pm-site .qrs-baslik.acik{color:#fff;margin-bottom:40px}
+.pm-site .qrs-alt{font-size:17px;font-weight:600;color:#3a3a46;max-width:700px;margin-bottom:46px}
+.pm-site .qrs-izgara{display:grid;grid-template-columns:repeat(auto-fill,minmax(520px,1fr));gap:30px}
+.pm-site .qrs-kart{display:flex;gap:26px;align-items:center;padding:24px;border-radius:28px;border:3px solid var(--murekkep);background:var(--krem);box-shadow:8px 8px 0 var(--murekkep)}
+.pm-site .qrs-telefon{flex:0 0 236px;height:470px;border-radius:34px;border:8px solid var(--murekkep);overflow:hidden;background:#fff;position:relative}
+.pm-site .qrs-telefon iframe{position:absolute;top:0;left:0;width:390px;height:780px;border:0;transform:scale(.564);transform-origin:0 0}
+.pm-site .qrs-bilgi{flex:1;min-width:0}
+.pm-site .qrs-tur{display:inline-block;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border-radius:100px;background:var(--sari);border:2px solid var(--murekkep);margin-bottom:12px}
+.pm-site .qrs-bilgi h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:26px;line-height:1.1;letter-spacing:-.02em}
+.pm-site .qrs-bilgi small{display:block;font-weight:800;font-size:13px;color:var(--pembe);margin:6px 0 10px}
+.pm-site .qrs-bilgi p{font-size:15px;color:#3a3a46;margin-bottom:18px}
+.pm-site .qrs-ac{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pm-site .qrs-qr{display:block;width:96px;height:96px;border-radius:12px;border:2px solid var(--murekkep);background:#fff}
+.pm-site .qrs-ozellikler{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.pm-site .qrs-ozellikler div{padding:22px;border-radius:20px;border:2px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04)}
+.pm-site .qrs-ozellikler h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:17px;color:var(--sari);margin-bottom:8px}
+.pm-site .qrs-ozellikler p{font-size:15px;color:rgba(255,255,255,.82)}
+.pm-site .qrs-adimlar{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:34px}
+.pm-site .qrs-adimlar div{padding:24px;border-radius:22px;border:3px solid var(--murekkep);background:#fff;box-shadow:6px 6px 0 var(--murekkep)}
+.pm-site .qrs-adimlar span{font-family:'Unbounded',sans-serif;font-weight:900;font-size:30px;color:var(--turuncu)}
+.pm-site .qrs-adimlar h3{font-family:'Unbounded',sans-serif;font-weight:800;font-size:18px;margin:10px 0 8px}
+.pm-site .qrs-adimlar p{font-size:15px;color:#3a3a46}
+.pm-site .qrs-sss{display:grid;gap:12px;margin:30px 0 10px}
+.pm-site .qrs-sss details{border:2px solid var(--murekkep);border-radius:16px;padding:16px 20px;background:var(--krem)}
+.pm-site .qrs-sss summary{cursor:pointer;font-weight:800;font-size:17px}
+.pm-site .qrs-sss p{margin-top:10px;font-size:16px;color:#3a3a46}
+@media (max-width:1100px){
+  .pm-site .qrs-ust-izgara{grid-template-columns:1fr}
+  .pm-site .qrs-ozellikler{grid-template-columns:1fr 1fr}
+  .pm-site .qrs-adimlar{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .pm-site .qrs-izgara{grid-template-columns:1fr}
+  .pm-site .qrs-kart{flex-direction:column;align-items:stretch;padding:18px;box-shadow:5px 5px 0 var(--murekkep)}
+  .pm-site .qrs-telefon{flex-basis:auto;width:236px;align-self:center}
+  .pm-site .qrs-ozellikler,.pm-site .qrs-adimlar{grid-template-columns:1fr}
+}
+`;
 
 const BLOG_SAYFA_CSS = `
 .pm-site .blog-ust{padding:150px 0 70px;position:relative;overflow:hidden}
@@ -858,6 +1051,7 @@ const SITE_CSS = `
 .pm-site .is-demolar{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 24px}
 .pm-site .is-demolar span{flex-basis:100%;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#3a3a46}
 .pm-site .is-demolar a{font-weight:700;font-size:14px;padding:8px 14px;border-radius:100px;border:2px solid var(--murekkep);background:#efe3c8;color:var(--murekkep);transition:transform .2s,box-shadow .2s}
+.pm-site .is-demolar span a.is-demo-sayfa{display:inline;padding:0;border:none;background:none;box-shadow:none;text-decoration:underline;font-size:inherit}
 .pm-site .is-demolar a:hover{transform:translate(-2px,-2px);box-shadow:3px 3px 0 var(--murekkep)}
 
 /* Süreç */

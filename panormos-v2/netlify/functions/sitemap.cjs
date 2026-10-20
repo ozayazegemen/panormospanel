@@ -4,7 +4,7 @@ const { SUPABASE_URL, SUPABASE_ANON_KEY } = require("../lib/auth.cjs");
 const SITE = "https://panormosmedya.com";
 
 exports.handler = async () => {
-  const adresler = [{ loc: SITE + "/" }, { loc: SITE + "/blog" }];
+  const adresler = [{ loc: SITE + "/" }, { loc: SITE + "/qr-menu" }, { loc: SITE + "/blog" }];
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/blog_yazilari?yayinda=eq.true&select=slug,guncellenme&order=yayin_tarihi.desc`, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },

@@ -1,4 +1,4 @@
-import Site, { BlogSayfasi } from "./Site.jsx";
+import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa } from "./QrMusteri.jsx";
@@ -12733,7 +12733,7 @@ export default function App() {
 
   useEffect(() => {
     // Herkese açık sayfalarda (QR menü, blog) adrese panel sayfası eklenmesin
-    if (/^\/(m|blog)(\/|$)/.test(window.location.pathname)) return;
+    if (/^\/(m|blog|qr-menu)(\/|$)/.test(window.location.pathname)) return;
     localStorage.setItem('currentPage', page);
     if (window.location.hash.replace('#', '') !== page) {
       window.location.hash = page;
@@ -12908,6 +12908,7 @@ export default function App() {
   if (window.location.pathname === "/menu-panel") return <QrMusteriPanelSayfa />;
   // Sitedeki blog: giriş durumundan bağımsız, herkese açık
   if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSayfasi Icerik={BlogIcerik} />;
+  if (/^\/qr-menu\/?$/.test(window.location.pathname)) return <QrMenuSayfasi />;
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;
   if (!session) {
     if (showLogin) return <Login onLogin={() => {}} />;
