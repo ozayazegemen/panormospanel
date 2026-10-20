@@ -12897,7 +12897,12 @@ export default function App() {
 
   // Restoran ve barların QR menüsü: panormosmedya.com/m/<slug> (herkese açık)
   const qrYol = window.location.pathname.match(/^\/m\/([a-z0-9-]+)\/?$/);
-  if (qrYol) return <QrMenu slug={qrYol[1]} />;
+  if (qrYol) {
+    // Demo menülerin eski adresleri (20.10.2026'da sadeleştirildi) yenisine yönlenir
+    const yeniAd = { "ornek-menu": "restoran", "demo-kafe": "cafe", "demo-burger": "burger", "demo-lokanta": "lokanta", "demo-bar": "bar" }[qrYol[1]];
+    if (yeniAd) window.history.replaceState({}, "", `/m/${yeniAd}${window.location.search}`);
+    return <QrMenu slug={yeniAd || qrYol[1]} />;
+  }
   // QR Menü müşteri girişi: restoran/bar sahibi kendi menüsünü burada düzenler (panel personelinden ayrı)
   if (window.location.pathname === "/menu-giris") return <QrMusteriGiris />;
   if (window.location.pathname === "/menu-panel") return <QrMusteriPanelSayfa />;

@@ -33,15 +33,15 @@ const ISLER = [
     maddeler: ["Otomatik kira artış oranı", "Bankaların güncel kredi oranları", "Canlı altın ve döviz", "Panelden yönetilen blog"],
   },
   {
-    renk: "zumrut", etiket: "Restoran ve barlara özel", baslik: "QR Menü", adres: "https://panormosmedya.com/m/ornek-menu", adresYazi: "Örnek menüyü aç", gorsel: "/isler/qr-menu.jpg?v=1",
+    renk: "zumrut", etiket: "Restoran ve barlara özel", baslik: "QR Menü", adres: "https://panormosmedya.com/m/restoran", adresYazi: "Örnek menüyü aç", gorsel: "/isler/qr-menu.jpg?v=1",
     metin: "Masadaki QR koddan açılan, mekânın renklerine göre tasarladığımız dijital menü. Fiyatı ya da ürünü panelden değiştirdiğiniz anda menü güncellenir; her değişiklikte yeni PDF ya da baskı gerekmez.",
     maddeler: ["Türkçe ve İngilizce, tek dokunuşla geçiş", "Rakıda Tek'ten 100 cl'ye ölçü ve fiyat sütunları", "Şarap menüsünde kadeh ve şişe fiyatı, bölge ve üzüm", "Alerjen bilgisi, tükendi işareti, rezervasyon ve WhatsApp"],
     demolar: [
-      ["Restoran", "https://panormosmedya.com/m/ornek-menu"],
-      ["Kafe", "https://panormosmedya.com/m/demo-kafe"],
-      ["Burger & pizza", "https://panormosmedya.com/m/demo-burger"],
-      ["Esnaf lokantası", "https://panormosmedya.com/m/demo-lokanta"],
-      ["Kokteyl bar", "https://panormosmedya.com/m/demo-bar"],
+      ["Restoran", "https://panormosmedya.com/m/restoran"],
+      ["Kafe", "https://panormosmedya.com/m/cafe"],
+      ["Burger & pizza", "https://panormosmedya.com/m/burger"],
+      ["Lokanta", "https://panormosmedya.com/m/lokanta"],
+      ["Bar", "https://panormosmedya.com/m/bar"],
     ],
   },
 ];
