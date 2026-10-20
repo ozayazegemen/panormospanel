@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "./supabaseClient";
 import { T, THEME } from "./theme";
+import { excelOku, sablonIndir } from "./excel";
 
 // Panel → QR Menü: çalıştığımız restoran ve barların dijital menülerini yönetir.
 // Her menü panormosmedya.com/m/<slug> adresinde yayınlanır; masadaki QR kod bu adrese açılır.
@@ -24,6 +25,41 @@ const sluglastir = (s) => String(s || "").toLocaleLowerCase("tr")
   .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
 const sayiOku = (v) => { const s = String(v ?? "").replace(/[^\d.,]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", "."); return s === "" ? null : Number(s); };
 const fiyatYaz = (n) => (n === null || n === undefined ? "" : `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(Number(n))} ₺`);
+
+// Excel'den okunan metinleri eşleştirmek için: büyük/küçük harf ve Türkçe karakter farkı önemsiz
+const sade = (s) => String(s ?? "").toLocaleLowerCase("tr")
+  .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c")
+  .replace(/[^a-z0-9]/g, "");
+const evetMi = (v) => /^(evet|var|e|x|1|true)$/i.test(sade(v));
+
+// Excel sütun adları esnek okunur: "Ürün Adı" = "urun adi" = "ad"
+const URUN_ALANLARI = [
+  ["kategori", "Kategori", ["kategori", "bolum", "menu"]],
+  ["ad", "Ürün Adı", ["urun adi", "urun", "ad", "isim"]],
+  ["ad_en", "Ürün Adı (EN)", ["urun adi en", "ingilizce ad", "ad en", "name"]],
+  ["aciklama", "Açıklama", ["aciklama", "icindekiler", "detay"]],
+  ["aciklama_en", "Açıklama (EN)", ["aciklama en", "description"]],
+  ["fiyat", "Fiyat", ["fiyat", "fiyati", "tutar", "price"]],
+  ["alerjenler", "Alerjenler", ["alerjenler", "alerjen"]],
+  ["etiket", "Etiket", ["etiket", "not"]],
+  ["tukendi", "Tükendi", ["tukendi", "stokta yok"]],
+];
+function excelSutunEsle(basliklar) {
+  const esleme = {};
+  const kullanilan = new Set();
+  const sadeBasliklar = basliklar.map((b) => [b, sade(b)]);
+  for (const tur of ["tam", "diger"]) {
+    for (const [anahtar, ad, digerleri] of URUN_ALANLARI) {
+      if (esleme[anahtar]) continue;
+      const adaylar = tur === "tam" ? [sade(ad)] : digerleri.map(sade);
+      for (const aday of adaylar) {
+        const bulunan = sadeBasliklar.find(([b, s]) => s === aday && !kullanilan.has(b));
+        if (bulunan) { esleme[anahtar] = bulunan[0]; kullanilan.add(bulunan[0]); break; }
+      }
+    }
+  }
+  return esleme;
+}
 
 // ---- Küçük ortak parçalar (panelin görünümüyle uyumlu) ----
 const kart = { background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, borderRadius: 18, boxShadow: T.shadow, padding: 20, marginBottom: 18 };
@@ -256,6 +292,72 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
     catch (err) { setHata("Fotoğraf yüklenemedi: " + (err?.message || err)); }
   }
 
+  // ---- Excel ile toplu ürün yükleme ----
+  function excelSablonIndir() {
+    const basliklar = URUN_ALANLARI.map(([, ad]) => ad);
+    sablonIndir(basliklar, [
+      ["Kahvaltı", "Serpme Kahvaltı", "Village Breakfast", "Kaşar, zeytin, bal, kaymak…", "Cheese, olives, honey, clotted cream…", "450", "", "", ""],
+      ["Şaraplar", "Kavaklıdere Çankaya", "", "", "", "650", "VG", "Şefin önerisi", ""],
+    ], `qr-menu-sablon-${menu?.slug || "urunler"}`);
+  }
+  async function excelSec(e) {
+    const dosya = e.target.files?.[0]; e.target.value = "";
+    if (!dosya) return;
+    setHata(""); setBekle(true);
+    try {
+      const satirlar = await excelOku(dosya);
+      if (satirlar.length === 0) { setHata("Dosyada satır bulunamadı."); setBekle(false); return; }
+      const esleme = excelSutunEsle(Object.keys(satirlar[0]));
+      if (!esleme.ad) { setHata('Excel\'de "Ürün Adı" sütunu bulunamadı. Şablonu indirip o düzeni kullanın.'); setBekle(false); return; }
+
+      // Mevcut kategori/ürün listesinin çalışma kopyası: aynı dosya içinde tekrar eden kategoriler ikinci kez oluşturulmaz
+      let katCalisma = kategoriler.map((k) => ({ ...k }));
+      let urunCalisma = urunler.map((u) => ({ ...u }));
+      let yeniKategori = 0, eklenen = 0, guncellenen = 0, atlanan = 0;
+
+      for (const satir of satirlar) {
+        const al = (anahtar) => String(satir[esleme[anahtar]] ?? "").trim();
+        const ad = al("ad");
+        if (!ad) { atlanan++; continue; }
+        const katAdi = al("kategori") || seciliKat?.ad || katCalisma[0]?.ad || "";
+        if (!katAdi) { atlanan++; continue; }
+
+        let kat = katCalisma.find((k) => sade(k.ad) === sade(katAdi) || (k.ad_en && sade(k.ad_en) === sade(katAdi)));
+        if (!kat) {
+          const { data: yk, error: ek } = await supabase.from("qr_kategoriler").insert({ menu_id: menuId, ad: katAdi, sira: katCalisma.length, aktif: true }).select().single();
+          if (ek) { atlanan++; continue; }
+          kat = yk; katCalisma.push(kat); yeniKategori++;
+        }
+
+        const fiyat = sayiOku(al("fiyat"));
+        const alerjenKodlari = al("alerjenler").split(/[,/،]/).map((x) => x.trim().toLocaleUpperCase("en")).filter((x) => ALERJENLER.some(([kod]) => kod === x));
+        const kayit = {
+          ad, ad_en: al("ad_en"), aciklama: al("aciklama"), aciklama_en: al("aciklama_en"),
+          fiyat, fiyat2: null, fiyatlar: fiyat !== null ? [fiyat] : [],
+          alerjenler: alerjenKodlari, etiket: al("etiket"), tukendi: evetMi(al("tukendi")), aktif: true,
+        };
+
+        const mevcutUrun = urunCalisma.find((u) => u.kategori_id === kat.id && sade(u.ad) === sade(ad));
+        if (mevcutUrun) {
+          const { error: eu } = await supabase.from("qr_urunler").update(kayit).eq("id", mevcutUrun.id);
+          if (eu) { atlanan++; continue; }
+          Object.assign(mevcutUrun, kayit); guncellenen++;
+        } else {
+          const sirasi = urunCalisma.filter((u) => u.kategori_id === kat.id).length;
+          const { data: yu, error: eu } = await supabase.from("qr_urunler").insert({ ...kayit, kategori_id: kat.id, sira: sirasi }).select().single();
+          if (eu) { atlanan++; continue; }
+          urunCalisma.push(yu); eklenen++;
+        }
+      }
+
+      await yukle();
+      bildir(`Excel yüklendi: ${eklenen} yeni ürün, ${guncellenen} güncellendi${yeniKategori ? `, ${yeniKategori} yeni kategori` : ""}${atlanan ? `, ${atlanan} satır atlandı` : ""}.`);
+    } catch (err) {
+      setHata("Excel okunamadı: " + (err?.message || err));
+    }
+    setBekle(false);
+  }
+
   if (!menu) return <div style={{ color: T.textMuted }}>Yükleniyor…</div>;
 
   return (
@@ -372,7 +474,15 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
       {/* Ürünler */}
       {seciliKat && (
         <div style={kart}>
-          <Baslik sag={<Dugme tur="ana" onClick={() => setUrunForm({ ad: "", alerjenler: [], aktif: true })}>+ Ürün</Dugme>}>{seciliKat.ad} — ürünler</Baslik>
+          <Baslik sag={<>
+            <Dugme onClick={excelSablonIndir}>Excel şablonu indir</Dugme>
+            <label style={{ cursor: "pointer" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, padding: "7px 13px", borderRadius: 10, color: T.textSecondary, border: `1px solid ${T.border}`, display: "inline-flex", alignItems: "center" }}>{bekle ? "Yükleniyor…" : "Excel ile yükle"}</span>
+              <input type="file" accept=".xlsx,.xls,.csv" onChange={excelSec} style={{ display: "none" }} disabled={bekle} />
+            </label>
+            <Dugme tur="ana" onClick={() => setUrunForm({ ad: "", alerjenler: [], aktif: true })}>+ Ürün</Dugme>
+          </>}>{seciliKat.ad} — ürünler</Baslik>
+          <div style={{ fontSize: 11.5, color: T.textMuted, margin: "-6px 0 12px" }}>Excel'deki "Kategori" sütunu bu menüdeki bir kategoriyle eşleşirse oraya eklenir, eşleşmezse yeni kategori açılır. Aynı kategoride aynı isimli ürün varsa üzerine yazılır (fiyat günceller), tekrar oluşturmaz.</div>
           {katUrunleri.length === 0 && <div style={{ color: T.textMuted, fontSize: 13 }}>Bu kategoride ürün yok. "+ Ürün" ile ekleyin.</div>}
           {katUrunleri.map((u, i) => (
             <div key={u.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i ? `1px solid ${T.border}` : "none", opacity: u.aktif ? 1 : .5 }}>

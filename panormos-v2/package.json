@@ -15,7 +15,8 @@
     "nodemailer": "^6.9.14",
     "imapflow": "^1.0.164",
     "mailparser": "^3.7.1",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
