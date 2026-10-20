@@ -7,6 +7,14 @@ export async function excelOku(dosya) {
   return XLSX.utils.sheet_to_json(sayfa, { defval: '', raw: false })
 }
 
+// Aynı dosyayı sütun konumuna göre (başlık eşlemesi olmadan) satır dizisi olarak okur: [[hücre, hücre, ...], ...]
+// Yan yana birden fazla kategori bloğu içeren (menü kartı görünümündeki) tablolar için kullanılır.
+export async function excelOkuDizi(dosya) {
+  const kitap = XLSX.read(await dosya.arrayBuffer(), { type: 'array' })
+  const sayfa = kitap.Sheets[kitap.SheetNames[0]]
+  return XLSX.utils.sheet_to_json(sayfa, { header: 1, defval: '', raw: false })
+}
+
 // Başlıkları ve örnek satırları olan boş şablon indirir
 export function sablonIndir(basliklar, ornekler, dosyaAdi) {
   const sayfa = XLSX.utils.aoa_to_sheet([basliklar, ...ornekler])

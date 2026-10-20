@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "./supabaseClient";
 import { T, THEME } from "./theme";
-import { excelOku, sablonIndir } from "./excel";
+import { excelOku, excelOkuDizi, sablonIndir } from "./excel";
 
 // Panel → QR Menü: çalıştığımız restoran ve barların dijital menülerini yönetir.
 // Her menü panormosmedya.com/m/<slug> adresinde yayınlanır; masadaki QR kod bu adrese açılır.
@@ -59,6 +59,35 @@ function excelSutunEsle(basliklar) {
     }
   }
   return esleme;
+}
+
+// "Menü kartı" düzeni: ilanlarını kendileri hazırlayan restoranların Excel'i genelde tek sütunlu tablo değil,
+// yan yana birkaç kategori bloğu şeklinde olur (ör. KAHVALTILAR | GÖZLEMELER | TATLILAR), her blok bir
+// "ad" sütunu + hemen sağındaki "fiyat" sütunundan oluşur. Başlık satırında kategori adı yalnızca bloğun ilk
+// sütununda yazar. Fiyatı boş olan bir satır (ör. "TOSTLAR") o bloktaki sonraki satırlar için yeni bir alt
+// kategori adı sayılır, ürün olarak eklenmez.
+function genisFormatSatirlariCikar(diziler) {
+  if (!diziler || diziler.length < 2) return [];
+  const basliklar = diziler[0] || [];
+  const bloklar = [];
+  basliklar.forEach((deger, sutun) => {
+    const metin = String(deger ?? "").trim();
+    if (metin) bloklar.push({ sutun, kategori: metin });
+  });
+  if (bloklar.length === 0) return [];
+  const sonuc = [];
+  for (const blok of bloklar) {
+    let guncelKategori = blok.kategori;
+    for (let i = 1; i < diziler.length; i++) {
+      const satir = diziler[i] || [];
+      const ad = String(satir[blok.sutun] ?? "").trim();
+      if (!ad) continue;
+      const fiyat = sayiOku(String(satir[blok.sutun + 1] ?? "").trim());
+      if (fiyat === null) { guncelKategori = ad; continue; } // fiyatsız satır: alt başlık, ürün değil
+      sonuc.push({ kategori: guncelKategori, ad, fiyat });
+    }
+  }
+  return sonuc;
 }
 
 // ---- Küçük ortak parçalar (panelin görünümüyle uyumlu) ----
@@ -339,21 +368,37 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
     if (!dosya) return;
     setHata(""); setBekle(true);
     try {
+      // 1) Önce bizim şablonumuzdaki gibi düz tablo mu diye bakılır ("Kategori", "Ürün Adı", "Fiyat" sütunları)
       const satirlar = await excelOku(dosya);
-      if (satirlar.length === 0) { setHata("Dosyada satır bulunamadı."); setBekle(false); return; }
-      const esleme = excelSutunEsle(Object.keys(satirlar[0]));
-      if (!esleme.ad) { setHata('Excel\'de "Ürün Adı" sütunu bulunamadı. Şablonu indirip o düzeni kullanın.'); setBekle(false); return; }
+      const esleme = satirlar.length ? excelSutunEsle(Object.keys(satirlar[0])) : {};
+      let normalListe;
+      if (esleme.ad && satirlar.some((s) => String(s[esleme.ad] ?? "").trim())) {
+        normalListe = satirlar.map((satir) => {
+          const al = (anahtar) => String(satir[esleme[anahtar]] ?? "").trim();
+          return {
+            kategori: al("kategori"), ad: al("ad"), ad_en: al("ad_en"), aciklama: al("aciklama"), aciklama_en: al("aciklama_en"),
+            fiyat: sayiOku(al("fiyat")), etiket: al("etiket"), tukendi: evetMi(al("tukendi")),
+            alerjenler: al("alerjenler").split(/[,/،]/).map((x) => x.trim().toLocaleUpperCase("en")).filter((x) => ALERJENLER.some(([kod]) => kod === x)),
+          };
+        });
+      } else {
+        // 2) Düz tablo değilse: restoranların elle hazırladığı "menü kartı" düzeni denenir — yan yana birden
+        // fazla kategori bloğu (her biri ad+fiyat sütunu), başlık satırında kategori adları. Fiyatsız bir
+        // hücre o bloktaki alt başlık sayılır (ör. "TOSTLAR"), o noktadan sonraki ürünler o alt başlığa yazılır.
+        const diziler = await excelOkuDizi(dosya);
+        normalListe = genisFormatSatirlariCikar(diziler);
+        if (normalListe.length === 0) { setHata('Excel okunamadı. Sütunlarda "Ürün Adı" ve "Fiyat" olmalı; menü kartı düzeniyse her kategori bir ad + fiyat sütunu olarak yan yana durmalı.'); setBekle(false); return; }
+      }
 
       // Mevcut kategori/ürün listesinin çalışma kopyası: aynı dosya içinde tekrar eden kategoriler ikinci kez oluşturulmaz
       let katCalisma = kategoriler.map((k) => ({ ...k }));
       let urunCalisma = urunler.map((u) => ({ ...u }));
       let yeniKategori = 0, eklenen = 0, guncellenen = 0, atlanan = 0;
 
-      for (const satir of satirlar) {
-        const al = (anahtar) => String(satir[esleme[anahtar]] ?? "").trim();
-        const ad = al("ad");
+      for (const satir of normalListe) {
+        const ad = satir.ad;
         if (!ad) { atlanan++; continue; }
-        const katAdi = al("kategori") || seciliKat?.ad || katCalisma[0]?.ad || "";
+        const katAdi = satir.kategori || seciliKat?.ad || katCalisma[0]?.ad || "";
         if (!katAdi) { atlanan++; continue; }
 
         let kat = katCalisma.find((k) => sade(k.ad) === sade(katAdi) || (k.ad_en && sade(k.ad_en) === sade(katAdi)));
@@ -363,12 +408,11 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
           kat = yk; katCalisma.push(kat); yeniKategori++;
         }
 
-        const fiyat = sayiOku(al("fiyat"));
-        const alerjenKodlari = al("alerjenler").split(/[,/،]/).map((x) => x.trim().toLocaleUpperCase("en")).filter((x) => ALERJENLER.some(([kod]) => kod === x));
+        const fiyat = satir.fiyat;
         const kayit = {
-          ad, ad_en: al("ad_en"), aciklama: al("aciklama"), aciklama_en: al("aciklama_en"),
+          ad, ad_en: satir.ad_en || "", aciklama: satir.aciklama || "", aciklama_en: satir.aciklama_en || "",
           fiyat, fiyat2: null, fiyatlar: fiyat !== null ? [fiyat] : [],
-          alerjenler: alerjenKodlari, etiket: al("etiket"), tukendi: evetMi(al("tukendi")), aktif: true,
+          alerjenler: satir.alerjenler || [], etiket: satir.etiket || "", tukendi: !!satir.tukendi, aktif: true,
         };
 
         const mevcutUrun = urunCalisma.find((u) => u.kategori_id === kat.id && sade(u.ad) === sade(ad));
