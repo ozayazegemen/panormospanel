@@ -1,6 +1,7 @@
 import Site, { BlogSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
+import { QrMusteriGiris, QrMusteriPanelSayfa } from "./QrMusteri.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -12897,6 +12898,9 @@ export default function App() {
   // Restoran ve barların QR menüsü: panormosmedya.com/m/<slug> (herkese açık)
   const qrYol = window.location.pathname.match(/^\/m\/([a-z0-9-]+)\/?$/);
   if (qrYol) return <QrMenu slug={qrYol[1]} />;
+  // QR Menü müşteri girişi: restoran/bar sahibi kendi menüsünü burada düzenler (panel personelinden ayrı)
+  if (window.location.pathname === "/menu-giris") return <QrMusteriGiris />;
+  if (window.location.pathname === "/menu-panel") return <QrMusteriPanelSayfa />;
   // Sitedeki blog: giriş durumundan bağımsız, herkese açık
   if (/^\/blog(\/|$)/.test(window.location.pathname)) return <BlogSayfasi Icerik={BlogIcerik} />;
   if (authLoading) return <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,color:T.textMuted}}>Yükleniyor...</div>;

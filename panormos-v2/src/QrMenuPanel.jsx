@@ -161,7 +161,7 @@ export default function QrMenuPage({ clients }) {
   );
 }
 
-function MenuDuzenle({ menuId, clients, onGeri }) {
+export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
   const [menu, setMenu] = useState(null);
   const [kategoriler, setKategoriler] = useState([]);
   const [urunler, setUrunler] = useState([]);
@@ -172,6 +172,8 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
   const [qr, setQr] = useState("");
   const [urunForm, setUrunForm] = useState(null);
   const [katForm, setKatForm] = useState(null);
+  const [musteriEposta, setMusteriEposta] = useState("");
+  const [musteriBekle, setMusteriBekle] = useState(false);
 
   async function yukle() {
     const [{ data: m }, { data: k }] = await Promise.all([
@@ -220,6 +222,38 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
     const { error } = await supabase.from("qr_menuler").delete().eq("id", menuId);
     if (error) { setHata("Silinemedi: " + error.message); return; }
     onGeri();
+  }
+
+  // ---- Müşteri girişi (restoran/bar sahibinin kendi menüsünü düzenlemesi) ----
+  async function musteriDavetGonder() {
+    if (!/^\S+@\S+\.\S+$/.test(musteriEposta)) { setHata("Geçerli bir e-posta girin."); return; }
+    setMusteriBekle(true); setHata("");
+    try {
+      const { data: oturum } = await supabase.auth.getSession();
+      const r = await fetch("/.netlify/functions/qr-menu-musteri-davet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${oturum?.session?.access_token ?? ""}` },
+        body: JSON.stringify({ menuId, eposta: musteriEposta.trim() }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setHata(j.error || "Giriş oluşturulamadı."); setMusteriBekle(false); return; }
+      setMenu((m) => ({ ...m, sahip_user_id: "beklemede", sahip_eposta: musteriEposta.trim() }));
+      await yukle();
+      setMusteriEposta("");
+      bildir(j.yeniHesap ? "Davet e-postası gönderildi." : "Bu e-posta zaten kayıtlıydı, menüye bağlandı.");
+    } catch (err) { setHata("Giriş oluşturulamadı: " + (err?.message || err)); }
+    setMusteriBekle(false);
+  }
+  async function musteriSifreGonder() {
+    const { error } = await supabase.auth.resetPasswordForEmail(menu.sahip_eposta, { redirectTo: `${SITE}/menu-giris` });
+    if (error) { setHata("Gönderilemedi: " + error.message); return; }
+    bildir("Şifre belirleme bağlantısı yeniden gönderildi.");
+  }
+  async function musteriGirisiKaldir() {
+    if (!window.confirm("Bu müşterinin menüyü kendi düzenlemesi kapatılsın mı? Giriş hesabı silinmez, sadece bu menüyle bağlantısı kesilir.")) return;
+    const { error } = await supabase.from("qr_menuler").update({ sahip_user_id: null, sahip_eposta: null }).eq("id", menuId);
+    if (error) { setHata("Kaldırılamadı: " + error.message); return; }
+    await yukle();
   }
 
   // ---- Kategoriler ----
@@ -363,7 +397,7 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <Dugme onClick={onGeri}>‹ Tüm menüler</Dugme>
+        <Dugme onClick={onGeri}>{musteriModu ? "Çıkış yap" : "‹ Tüm menüler"}</Dugme>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <a href={adres} target="_blank" rel="noopener" style={{ textDecoration: "none" }}><Dugme>Menüyü aç ↗</Dugme></a>
           <Dugme onClick={() => navigator.clipboard?.writeText(adres).then(() => bildir("Bağlantı kopyalandı."))}>Bağlantıyı kopyala</Dugme>
@@ -380,12 +414,14 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
             <Alan etiket="Restoran / bar adı"><input style={girdi} {...alan("ad")} /></Alan>
             <Alan etiket="Adın altındaki yazı"><input style={girdi} placeholder="ör. 1772, Bandırma" {...alan("alt_yazi")} /></Alan>
             <Alan etiket="Bağlantı (panormosmedya.com/m/…)"><input style={girdi} {...alan("slug")} onBlur={() => setMenu((m) => ({ ...m, slug: sluglastir(m.slug) }))} /></Alan>
-            <Alan etiket="Müşteri (isteğe bağlı)">
-              <select style={girdi} value={menu.client_id || ""} onChange={(e) => setMenu((m) => ({ ...m, client_id: e.target.value }))}>
-                <option value="">Seçilmedi</option>
-                {(clients || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </Alan>
+            {!musteriModu && (
+              <Alan etiket="Müşteri (isteğe bağlı)">
+                <select style={girdi} value={menu.client_id || ""} onChange={(e) => setMenu((m) => ({ ...m, client_id: e.target.value }))}>
+                  <option value="">Seçilmedi</option>
+                  {(clients || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </Alan>
+            )}
             <Alan etiket="Logo">
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {menu.logo && <img src={menu.logo} alt="" style={{ height: 36, maxWidth: 90, objectFit: "contain", background: menu.zemin_renk, borderRadius: 6, padding: 3 }} />}
@@ -434,6 +470,33 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
           <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>Bağlantı adını değiştirirseniz eski QR kodlar çalışmaz; masadakileri yenilemek gerekir.</div>
         </div>
       </div>
+
+      {!musteriModu && (
+        <div style={kart}>
+          <Baslik>Müşteri girişi</Baslik>
+          {menu.sahip_user_id ? (
+            <div style={{ fontSize: 13.5, color: T.textPrimary }}>
+              <div style={{ marginBottom: 10 }}>
+                Açık — <b>{menu.sahip_eposta}</b> kendi menüsünü <code>panormosmedya.com/menu-giris</code> adresinden düzenleyebiliyor.
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Dugme onClick={musteriSifreGonder}>Şifre bağlantısını yeniden gönder</Dugme>
+                <Dugme tur="tehlike" onClick={musteriGirisiKaldir}>Girişi kaldır</Dugme>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 10 }}>
+                Restoran/bar sahibi kendi ürün ve fiyatlarını düzenlesin isterseniz e-postasını girin; "şifreni belirle" bağlantısı gönderilir.
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input style={{ ...girdi, maxWidth: 280 }} type="email" placeholder="ornek@eposta.com" value={musteriEposta} onChange={(e) => setMusteriEposta(e.target.value)} />
+                <Dugme tur="ana" onClick={musteriDavetGonder} disabled={musteriBekle}>{musteriBekle ? "Gönderiliyor…" : "Giriş Oluştur"}</Dugme>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Kategoriler */}
       <div style={kart}>
@@ -566,9 +629,11 @@ function MenuDuzenle({ menuId, clients, onGeri }) {
         </div>
       )}
 
-      <div style={{ textAlign: "right", marginTop: 6 }}>
-        <Dugme tur="tehlike" onClick={menuSil}>Bu menüyü sil</Dugme>
-      </div>
+      {!musteriModu && (
+        <div style={{ textAlign: "right", marginTop: 6 }}>
+          <Dugme tur="tehlike" onClick={menuSil}>Bu menüyü sil</Dugme>
+        </div>
+      )}
       <style>{`@media (max-width: 900px) { .qmp-ust { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
