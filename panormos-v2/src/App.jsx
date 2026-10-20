@@ -6624,6 +6624,47 @@ function EmlakPanelimPage() {
                       <div key={i} style={{ fontSize: 12, color: T.textSecondary, padding: "4px 0" }}>{k.ad_soyad || "-"} · {k.eposta} · {k.rol === "yonetici" ? "Yönetici" : "Danışman"} · {k.onayli ? "Açık" : "Kapalı"}</div>
                     ))}
                   </div>
+                  <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Sözleşme</div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                    <a href="https://emlakpanelim.com/mesafeli-satis" target="_blank" rel="noopener" style={{ fontSize: 12, color: T.indigoText, textDecoration: "none" }}>Mesafeli Satış Sözleşmesi →</a>
+                    <a href="https://emlakpanelim.com/teslimat-iade" target="_blank" rel="noopener" style={{ fontSize: 12, color: T.indigoText, textDecoration: "none" }}>Teslimat ve İade Şartları →</a>
+                    <a href="https://emlakpanelim.com/otomatik-odeme-sozlesmesi" target="_blank" rel="noopener" style={{ fontSize: 12, color: T.indigoText, textDecoration: "none" }}>Otomatik Ödeme Sözleşmesi →</a>
+                  </div>
+                  <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10 }}>
+                    Otomatik ödeme: <b style={{ color: f.otomatik_odeme ? T.greenText : T.textMuted }}>{f.otomatik_odeme ? "Açık" : "Kapalı"}</b>
+                    {f.otomatik_odeme && f.kart_son4 ? ` · kart •••• ${f.kart_son4}${f.kart_marka ? ` (${f.kart_marka})` : ""}` : ""}
+                    {f.sozlesme_onay_tarihi ? <> · en son onay: {new Date(f.sozlesme_onay_tarihi).toLocaleDateString("tr-TR")} {new Date(f.sozlesme_onay_tarihi).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</> : ""}
+                  </div>
+                  {(d.odemeler || []).length > 0 && (
+                    <div style={{ overflowX: "auto", marginBottom: 16 }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11.5 }}>
+                        <thead>
+                          <tr style={{ color: T.textMuted, textAlign: "left" }}>
+                            <th style={{ padding: "4px 8px 4px 0" }}>Tarih</th>
+                            <th style={{ padding: "4px 8px" }}>Paket</th>
+                            <th style={{ padding: "4px 8px" }}>Yöntem</th>
+                            <th style={{ padding: "4px 8px" }}>Durum</th>
+                            <th style={{ padding: "4px 8px" }}>Sözleşme onayı</th>
+                            <th style={{ padding: "4px 8px" }}>Otomatik ödeme onayı</th>
+                            <th style={{ padding: "4px 8px" }}>IP</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(d.odemeler || []).map((o) => (
+                            <tr key={o.id} style={{ borderTop: `1px solid ${T.border}`, color: T.textSecondary }}>
+                              <td style={{ padding: "4px 8px 4px 0", whiteSpace: "nowrap" }}>{new Date(o.created_at).toLocaleDateString("tr-TR")}</td>
+                              <td style={{ padding: "4px 8px" }}>{o.plan_ad} · {o.donem === "yillik" ? "yıllık" : "aylık"}{o.otomatik_mi ? " · otomatik yenileme" : ""}</td>
+                              <td style={{ padding: "4px 8px" }}>{o.yontem === "kart" ? "Kart" : "Havale"}</td>
+                              <td style={{ padding: "4px 8px" }}>{{ bekliyor: "Bekliyor", odendi: "Ödendi", basarisiz: "Başarısız", reddedildi: "Reddedildi" }[o.durum]}</td>
+                              <td style={{ padding: "4px 8px" }}>{o.sozlesme_onay ? "✓" : "—"}</td>
+                              <td style={{ padding: "4px 8px" }}>{o.otomatik_odeme_onay ? "✓" : "—"}</td>
+                              <td style={{ padding: "4px 8px" }}>{o.sozlesme_ip || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                   <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Fatura Bilgileri</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
                     <FormField label="Fatura Unvanı"><Input value={t.fatura_unvani || ""} onChange={(e) => setTaslaklar((ts) => ({ ...ts, [f.id]: { ...ts[f.id], fatura_unvani: e.target.value } }))} /></FormField>

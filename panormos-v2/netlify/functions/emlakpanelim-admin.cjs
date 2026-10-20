@@ -28,7 +28,7 @@ exports.handler = async (event) => {
 
   try {
     if (event.httpMethod === "GET") {
-      const [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes, ayarRes] = await Promise.all([
+      const [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes, ayarRes, odemelerRes] = await Promise.all([
         supabase.from("firmalar").select("*").order("created_at", { ascending: false }),
         supabase.from("ilanlar").select("firma_id").is("silinme_tarihi", null),
         supabase.from("musteriler").select("firma_id").is("silinme_tarihi", null),
@@ -38,8 +38,9 @@ exports.handler = async (event) => {
         supabase.from("profiller").select("id, firma_id, ad_soyad, eposta, rol, onayli, created_at"),
         supabase.from("fiyat_planlari").select("*").order("sira", { ascending: true }),
         supabase.from("sistem_ayarlari").select("deneme_suresi_gun").eq("id", true).single(),
+        supabase.from("odemeler").select("id, firma_id, plan_ad, donem, tutar, toplam, yontem, durum, sozlesme_onay, otomatik_odeme_onay, sozlesme_ip, otomatik_mi, created_at, sonuc_tarihi").order("created_at", { ascending: false }),
       ]);
-      for (const r of [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes]) {
+      for (const r of [firmalarRes, ilanlarRes, musterilerRes, kiralarRes, satislarRes, talepRes, profillerRes, planlarRes, odemelerRes]) {
         if (r.error) throw r.error;
       }
 
@@ -53,6 +54,7 @@ exports.handler = async (event) => {
           satis_sayisi: say(satislarRes.data, f.id),
           talep_sayisi: say(talepRes.data, f.id),
           kullanicilar: (profillerRes.data || []).filter((p) => p.firma_id === f.id),
+          odemeler: (odemelerRes.data || []).filter((o) => o.firma_id === f.id),
         };
       }
 
