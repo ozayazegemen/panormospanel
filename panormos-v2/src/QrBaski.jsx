@@ -72,7 +72,8 @@ export async function baskiCiz(menu, adres, { bicim = "kart", masa = "" } = {}) 
   const c = tuval.getContext("2d");
   const ana = menu.ana_renk || "#2b2b2b", zemin = menu.zemin_renk || "#F4EFE4";
   const yazi = (agirlik, piksel, aile = "'Manrope', system-ui, sans-serif") => { c.font = `${agirlik} ${piksel * k}px ${aile}`; };
-  await document.fonts?.ready;
+  // Yazı tipleri kullanılmadan önce yüklenmiş olsun (yoksa ilk kartta yedek yazı tipi çıkar)
+  try { await Promise.all(["800 76px Unbounded", "800 40px Manrope", "600 30px Manrope"].map((f) => document.fonts.load(f))); } catch (e) {}
 
   c.fillStyle = zemin;
   c.fillRect(0, 0, en, boy);
@@ -114,7 +115,7 @@ export async function baskiCiz(menu, adres, { bicim = "kart", masa = "" } = {}) 
   if (menu.iki_dil) { y += 66 * k; yazi(600, 38); c.globalAlpha = 0.7; c.fillText("Scan for our menu", en / 2, y); c.globalAlpha = 1; }
 
   // QR: beyaz, köşeleri yuvarlak, ana renkte çerçeveli kutu
-  const qrBoyut = 640 * k;
+  const qrBoyut = 520 * k;
   const qx = (en - qrBoyut) / 2, qy = y + 60 * k;
   c.fillStyle = "#FFFFFF";
   c.shadowColor = "rgba(0,0,0,.18)"; c.shadowBlur = 40 * k; c.shadowOffsetY = 14 * k;
@@ -126,14 +127,13 @@ export async function baskiCiz(menu, adres, { bicim = "kart", masa = "" } = {}) 
   c.drawImage(qr, qx, qy, qrBoyut, qrBoyut);
 
   // Masa numarası
-  let altY = qy + qrBoyut + 130 * k;
+  let altY = qy + qrBoyut + 125 * k;
   if (masa) {
     yazi(800, 44);
     const metin = `MASA ${masa}`;
     const g = c.measureText(metin).width + 90 * k;
     c.fillStyle = ana; yuvarlak(c, (en - g) / 2, altY - 62 * k, g, 88 * k, 44 * k); c.fill();
     c.fillStyle = "#FFFFFF"; c.textBaseline = "middle"; c.fillText(metin, en / 2, altY - 18 * k); c.textBaseline = "alphabetic";
-    altY += 80 * k;
   }
 
   // Alt bilgi: Wi-Fi yerine adres ve menü bağlantısı
