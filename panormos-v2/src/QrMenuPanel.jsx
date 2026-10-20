@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import QRCode from "qrcode";
+import { logoluQr, baskiCiz, tuvalPng, kartlariYazdir } from "./QrBaski";
 import { supabase } from "./supabaseClient";
 import { T, THEME } from "./theme";
 import { excelOku, excelOkuDizi, sablonIndir } from "./excel";
@@ -192,6 +192,43 @@ export default function QrMenuPage({ clients }) {
   );
 }
 
+// Tasarım şablonu seçici: her şablonun küçük çizimi; tıklanınca seçilir
+const SABLON_CIZIM = {
+  zarif: (a, z) => (
+    <svg viewBox="0 0 60 90" width="100%"><rect width="60" height="90" fill={z} /><circle cx="30" cy="17" r="9" fill="none" stroke={a} strokeWidth="1.2" />
+      {[0, 1, 2, 3].map((i) => <path key={i} d={`M${6 + (i % 2) * 25} ${50 + Math.floor(i / 2) * 20} v-8 a11 11 0 0 1 22 0 v8 z`} fill="#fff" stroke={a} strokeWidth=".6" opacity=".9" />)}
+      <rect x="18" y="31" width="24" height="2" rx="1" fill={a} opacity=".6" /></svg>
+  ),
+  klasik: (a, z) => (
+    <svg viewBox="0 0 60 90" width="100%"><rect width="60" height="90" fill={z} /><rect width="60" height="20" fill={a} opacity=".18" /><rect x="5" y="24" width="50" height="5" rx="2.5" fill="#fff" />
+      {[0, 1, 2, 3, 4, 5].map((i) => <g key={i}><rect x="5" y={36 + i * 8} width="22" height="2.4" rx="1" fill="#333" opacity=".7" /><line x1="29" y1={37.2 + i * 8} x2="47" y2={37.2 + i * 8} stroke={a} strokeDasharray="1 1.4" strokeWidth=".6" /><rect x="48" y={36 + i * 8} width="7" height="2.4" rx="1" fill={a} /></g>)}</svg>
+  ),
+  fotografli: (a, z) => (
+    <svg viewBox="0 0 60 90" width="100%"><rect width="60" height="90" fill={z} /><rect width="60" height="22" fill={a} opacity=".55" />
+      {[0, 1, 2, 3].map((i) => <g key={i}><rect x={5 + (i % 2) * 26} y={30 + Math.floor(i / 2) * 28} width="24" height="25" rx="3" fill="#fff" /><rect x={5 + (i % 2) * 26} y={30 + Math.floor(i / 2) * 28} width="24" height="14" rx="3" fill={a} opacity=".35" /><rect x={8 + (i % 2) * 26} y={47 + Math.floor(i / 2) * 28} width="12" height="2" rx="1" fill="#333" opacity=".6" /></g>)}</svg>
+  ),
+  gece: () => (
+    <svg viewBox="0 0 60 90" width="100%"><rect width="60" height="90" fill="#14110F" /><circle cx="30" cy="17" r="9" fill="none" stroke="#D4B26A" strokeWidth="1.2" />
+      {[0, 1, 2, 3].map((i) => <path key={i} d={`M${6 + (i % 2) * 25} ${50 + Math.floor(i / 2) * 20} v-8 a11 11 0 0 1 22 0 v8 z`} fill="#211d1a" stroke="#D4B26A" strokeWidth=".6" />)}
+      <rect x="18" y="31" width="24" height="2" rx="1" fill="#D4B26A" opacity=".7" /></svg>
+  ),
+};
+function SablonSecici({ secili, sec, ana, zemin }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
+      {SABLONLAR.map(([d, a]) => {
+        const aktif = secili === d;
+        return (
+          <button key={d} type="button" onClick={() => sec(d)} title={a} style={{ padding: 6, borderRadius: 12, cursor: "pointer", background: T.bgInput, border: `2px solid ${aktif ? T.amber : T.border}`, boxShadow: aktif ? `0 0 0 3px ${T.amberDim || "rgba(242,81,36,.15)"}` : "none", fontFamily: "inherit", textAlign: "center" }}>
+            <div style={{ borderRadius: 8, overflow: "hidden", lineHeight: 0 }}>{SABLON_CIZIM[d](ana || "#5C1A1B", zemin || "#F3F1EC")}</div>
+            <div style={{ fontSize: 11.5, fontWeight: 800, color: aktif ? T.amberText || T.textPrimary : T.textPrimary, marginTop: 6 }}>{a.split(":")[0]}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
   const [menu, setMenu] = useState(null);
   const [kategoriler, setKategoriler] = useState([]);
@@ -205,6 +242,9 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
   const [katForm, setKatForm] = useState(null);
   const [musteriEposta, setMusteriEposta] = useState("");
   const [musteriBekle, setMusteriBekle] = useState(false);
+  const [masaSayisi, setMasaSayisi] = useState("");
+  const [baskiBekle, setBaskiBekle] = useState("");
+  const [onizlemeAnahtari, setOnizlemeAnahtari] = useState(0); // kaydedince canlı önizleme yenilensin
 
   async function yukle() {
     const [{ data: m }, { data: k }] = await Promise.all([
@@ -219,10 +259,36 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
   useEffect(() => { yukle(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [menuId]);
 
   const adres = menu ? `${SITE}/m/${menu.slug}` : "";
+  // QR menünün ana renginde, ortasında logosuyla
   useEffect(() => {
     if (!adres) return;
-    QRCode.toDataURL(adres, { width: 1000, margin: 2, errorCorrectionLevel: "M", color: { dark: "#111111", light: "#FFFFFF" } }).then(setQr).catch(() => setQr(""));
-  }, [adres]);
+    let iptal = false;
+    logoluQr(adres, { renk: menu?.ana_renk || "#111111", logo: menu?.logo, ad: menu?.ad }).then((t) => { if (!iptal) setQr(tuvalPng(t)); }).catch(() => setQr(""));
+    return () => { iptal = true; };
+  }, [adres, menu?.ana_renk, menu?.logo, menu?.ad]);
+
+  function pngIndir(veri, ad) {
+    const a = document.createElement("a");
+    a.href = veri; a.download = ad; document.body.appendChild(a); a.click(); a.remove();
+  }
+  async function baskiIndir(bicim) {
+    setBaskiBekle(bicim);
+    try { pngIndir(tuvalPng(await baskiCiz(menu, adres, { bicim })), `${bicim === "afis" ? "afis" : "masa-karti"}-${menu.slug}.png`); }
+    catch (e) { setHata("Hazırlanamadı: " + (e?.message || e)); }
+    setBaskiBekle("");
+  }
+  // Numaralı masa kartları: her kartın QR'ı ?masa=N ile açılır; menüden gelen siparişte masa numarası yazar
+  async function masaKartlariYazdir() {
+    const n = Math.min(60, Math.max(1, parseInt(masaSayisi, 10) || 0));
+    if (!n) { setHata("Kaç masa olduğunu yazın."); return; }
+    setBaskiBekle("masalar");
+    try {
+      const resimler = [];
+      for (let i = 1; i <= n; i++) resimler.push(tuvalPng(await baskiCiz(menu, `${adres}?masa=${i}`, { bicim: "kart", masa: i })));
+      if (!kartlariYazdir(resimler, "kart")) setHata("Yazdırma penceresi açılamadı; tarayıcının açılır pencere iznini verin.");
+    } catch (e) { setHata("Hazırlanamadı: " + (e?.message || e)); }
+    setBaskiBekle("");
+  }
 
   const alan = (ad) => ({ value: menu?.[ad] ?? "", onChange: (e) => setMenu((m) => ({ ...m, [ad]: e.target.value })) });
   const bildir = (t) => { setBilgi(t); setTimeout(() => setBilgi(""), 2500); };
@@ -238,6 +304,7 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
     setBekle(false);
     if (error) { setHata(error.code === "23505" ? "Bu bağlantı adı başka bir menüde kullanılıyor." : "Kaydedilemedi: " + error.message); return; }
     setMenu((m) => ({ ...m, slug }));
+    setOnizlemeAnahtari((x) => x + 1);
     bildir("Kaydedildi. Menü güncel.");
   }
 
@@ -503,10 +570,8 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
             {"duyuru_en" in menu && menu.iki_dil && <Alan etiket="Duyuru (İngilizce)"><input style={girdi} {...alan("duyuru_en")} /></Alan>}
             {/* Şablon sütunu veritabanına eklenmeden önce açılmış menülerde seçici görünmez (kaydetme hata vermesin) */}
             {"sablon" in menu && (
-              <Alan etiket="Tasarım şablonu">
-                <select style={girdi} value={menu.sablon || "zarif"} onChange={(e) => setMenu((m) => ({ ...m, sablon: e.target.value }))}>
-                  {SABLONLAR.map(([d, a]) => <option key={d} value={d}>{a}</option>)}
-                </select>
+              <Alan etiket="Tasarım şablonu" genis>
+                <SablonSecici secili={menu.sablon || "zarif"} ana={menu.ana_renk} zemin={menu.zemin_renk} sec={(d) => setMenu((m) => ({ ...m, sablon: d, ...(d === "gece" && !/^#[0-3]/.test(m.zemin_renk || "") ? { ana_renk: "#D4B26A", zemin_renk: "#14110F" } : {}) }))} />
               </Alan>
             )}
             <Alan etiket="Yazı tipi">
@@ -538,16 +603,38 @@ export function MenuDuzenle({ menuId, clients, onGeri, musteriModu }) {
           <div style={{ display: "flex", gap: 18, flexWrap: "wrap", marginTop: 14, fontSize: 13.5, color: T.textPrimary }}>
             <label style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={menu.iki_dil} onChange={(e) => setMenu((m) => ({ ...m, iki_dil: e.target.checked }))} /> Türkçe + İngilizce</label>
             <label style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer" }}><input type="checkbox" checked={menu.aktif} onChange={(e) => setMenu((m) => ({ ...m, aktif: e.target.checked }))} /> Yayında</label>
+            {"whatsapp_siparis" in menu && (
+              <label style={{ display: "flex", gap: 7, alignItems: "center", cursor: "pointer" }} title="Misafir ürünleri sepete ekler; sipariş, yukarıdaki WhatsApp numarasına hazır mesaj olarak gider">
+                <input type="checkbox" checked={!!menu.whatsapp_siparis} onChange={(e) => setMenu((m) => ({ ...m, whatsapp_siparis: e.target.checked }))} /> WhatsApp'tan sipariş al (sepet)
+              </label>
+            )}
           </div>
         </div>
 
-        {/* QR kod */}
+        {/* QR kod, baskı malzemeleri ve canlı önizleme (sağ sütun) */}
+        <div>
         <div style={{ ...kart, textAlign: "center" }}>
           <Baslik>QR kod</Baslik>
           {qr ? <img src={qr} alt="Menü QR kodu" style={{ width: "100%", maxWidth: 220, borderRadius: 10, border: `1px solid ${T.border}` }} /> : <div style={{ color: T.textMuted, fontSize: 13 }}>Hazırlanıyor…</div>}
           <div style={{ fontSize: 12, color: T.textMuted, margin: "8px 0 12px", wordBreak: "break-all" }}>{adres}</div>
           {qr && <a href={qr} download={`qr-menu-${menu.slug}.png`} style={{ textDecoration: "none" }}><Dugme tur="ana" style={{ width: "100%", justifyContent: "center" }}>QR kodu indir (PNG)</Dugme></a>}
-          <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>Bağlantı adını değiştirirseniz eski QR kodlar çalışmaz; masadakileri yenilemek gerekir.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+            <Dugme onClick={() => baskiIndir("kart")} disabled={!!baskiBekle} style={{ justifyContent: "center" }}>{baskiBekle === "kart" ? "Hazırlanıyor…" : "Masa kartı (A6)"}</Dugme>
+            <Dugme onClick={() => baskiIndir("afis")} disabled={!!baskiBekle} style={{ justifyContent: "center" }}>{baskiBekle === "afis" ? "Hazırlanıyor…" : "Afiş (A4)"}</Dugme>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input style={{ ...girdi, width: 90 }} type="number" min="1" max="60" placeholder="Masa" value={masaSayisi} onChange={(e) => setMasaSayisi(e.target.value)} title="Kaç masa var? Her masaya kendi numaralı QR kartı" />
+            <Dugme onClick={masaKartlariYazdir} disabled={!!baskiBekle} style={{ flex: 1, justifyContent: "center" }}>{baskiBekle === "masalar" ? "Hazırlanıyor…" : "Numaralı kartları yazdır"}</Dugme>
+          </div>
+          <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 10, lineHeight: 1.5 }}>Numaralı kartlarda QR kod masa numarasını bilir; WhatsApp siparişinde "Masa 4" kendiliğinden yazar. Bağlantı adını değiştirirseniz eski QR kodlar çalışmaz.</div>
+        </div>
+        <div style={{ ...kart, textAlign: "center" }}>
+          <Baslik sag={<a href={adres} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: T.textMuted }}>Yeni sekmede aç ↗</a>}>Canlı önizleme</Baslik>
+          <div style={{ width: 228, height: 456, margin: "0 auto", borderRadius: 24, border: `5px solid ${T.textPrimary}`, overflow: "hidden", position: "relative", background: "#fff" }}>
+            <iframe key={onizlemeAnahtari} src={`/m/${menu.slug}`} title="Menü önizlemesi" style={{ position: "absolute", top: 0, left: 0, width: 390, height: 780, border: 0, transform: "scale(.5590)", transformOrigin: "0 0" }} />
+          </div>
+          <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 8 }}>Kaydettiğiniz değişiklikler burada görünür.</div>
+        </div>
         </div>
       </div>
 

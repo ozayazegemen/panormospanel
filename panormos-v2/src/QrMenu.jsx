@@ -34,6 +34,14 @@ export default function QrMenu({ slug }) {
   const genis = new URLSearchParams(window.location.search).get("genis") === "1";
   const [secili, setSecili] = useState(() => new URLSearchParams(window.location.search).get("k") || "");
   const [detay, setDetay] = useState(null); // dokunulan ürün: { u, k } (büyük fotoğraf ve açıklama penceresi)
+  // WhatsApp siparişi: sepet bu sekmede saklanır (sayfa yenilense de kaybolmasın); masa numarası masadaki QR'dan (?masa=4) gelir
+  const masa = String(new URLSearchParams(window.location.search).get("masa") || "").replace(/[^0-9A-Za-zğüşıöçĞÜŞİÖÇ -]/g, "").slice(0, 12);
+  const sepetAnahtari = `qrsepet_${slug}`;
+  const [sepet, setSepet] = useState(() => { try { return JSON.parse(sessionStorage.getItem(sepetAnahtari) || "[]"); } catch (e) { return []; } });
+  const [sepetAcik, setSepetAcik] = useState(false);
+  const [bildirim, setBildirim] = useState("");
+  useEffect(() => { try { sessionStorage.setItem(sepetAnahtari, JSON.stringify(sepet)); } catch (e) {} }, [sepet, sepetAnahtari]);
+  useEffect(() => { if (!bildirim) return; const t = setTimeout(() => setBildirim(""), 1600); return () => clearTimeout(t); }, [bildirim]);
 
   useEffect(() => {
     // Panel html/body'ye taşma kilidi koymuş olabilir: menü sayfası kaydırılabilsin
@@ -97,6 +105,7 @@ export default function QrMenu({ slug }) {
     return () => clearTimeout(t);
   }, [secili, menu]);
   const kategori = kategoriler.find((k) => k.id === secili);
+  const siparisAcik = !!(menu?.whatsapp_siparis && menu?.whatsapp);
   // Tasarım şablonu: zarif (kemerli kartlar + kâğıt menü), gece (zarif'in koyu zeminlisi),
   // klasik (tek sayfa liste + arama) ve fotografli (tek sayfa fotoğraflı kartlar)
   const sablon = ["zarif", "gece", "klasik", "fotografli"].includes(menu?.sablon) ? menu.sablon : "zarif";
@@ -116,6 +125,26 @@ export default function QrMenu({ slug }) {
   const rez = menu.rezervasyon ? (/^https?:/i.test(menu.rezervasyon) ? menu.rezervasyon : `tel:+${telLink(menu.rezervasyon)}`) : "";
 
   const olcuAdi = (e) => (en ? OLCU_EN[e.toLocaleLowerCase("tr")] || e : e);
+  // Sepete ekleme: ürün + ölçü (Tek/Duble, Kadeh/Şişe) aynı satırda toplanır
+  const sepeteEkle = (u, k, i = 0, adet = 1) => {
+    const et = fiyatEtiketleri(k);
+    const fiyat = Number(fiyatAl(u, i));
+    if (!siparisAcik || u.tukendi || !(fiyat > 0)) return;
+    const anahtar = `${u.id}|${i}`;
+    setSepet((s) => {
+      const var_ = s.find((x) => x.anahtar === anahtar);
+      if (var_) return s.map((x) => (x.anahtar === anahtar ? { ...x, adet: x.adet + adet } : x));
+      return [...s, { anahtar, ad: yaz(u.ad, u.ad_en), olcu: et.length > 1 ? olcuAdi(et[i]) : "", fiyat, adet }];
+    });
+    setBildirim(yaz("Sepete eklendi", "Added to cart"));
+  };
+  // Tek fiyatlı ürün kartın üstündeki + ile doğrudan eklenir; çok ölçülüde önce ölçü seçilsin diye detay açılır
+  const hizliEkle = (u, k) => {
+    const dolu = (fiyatEtiketleri(k).length ? fiyatEtiketleri(k) : [""]).map((_, i) => fiyatAl(u, i)).filter((f) => Number(f) > 0);
+    if (dolu.length > 1) setDetay({ u, k }); else sepeteEkle(u, k, (fiyatEtiketleri(k).length ? fiyatEtiketleri(k) : [""]).findIndex((_, i) => Number(fiyatAl(u, i)) > 0));
+  };
+  const sepetAdet = sepet.reduce((t, x) => t + x.adet, 0);
+  const sepetToplam = sepet.reduce((t, x) => t + x.adet * x.fiyat, 0);
   // Giriş sayfasında kategoriler bölüm adına göre gruplanır (ör. İçki Menüsü / Şarap Menüsü); bölümsüzler tek grup
   const bolumler = [];
   kategoriler.forEach((k, i) => {
@@ -137,7 +166,7 @@ export default function QrMenu({ slug }) {
       {tekSayfa && <style>{QT_CSS}</style>}
 
       {tekSayfa ? (
-        <TekSayfa menu={menu} kategoriler={kategoriler} urunler={urunler} yaz={yaz} olcuAdi={olcuAdi} dilAnahtari={dilAnahtari} fotografli={sablon === "fotografli"} ac={setDetay} />
+        <TekSayfa menu={menu} kategoriler={kategoriler} urunler={urunler} yaz={yaz} olcuAdi={olcuAdi} dilAnahtari={dilAnahtari} fotografli={sablon === "fotografli"} ac={setDetay} hizliEkle={siparisAcik ? hizliEkle : null} />
       ) : !kategori ? (
         <main className="qm-giris">
           {menu.kapak ? (
@@ -233,7 +262,14 @@ export default function QrMenu({ slug }) {
         </main>
       )}
 
-      {detay && <UrunDetay {...detay} yaz={yaz} olcuAdi={olcuAdi} kapat={() => setDetay(null)} />}
+      {detay && <UrunDetay {...detay} yaz={yaz} olcuAdi={olcuAdi} kapat={() => setDetay(null)} ekle={siparisAcik ? (i, adet) => { sepeteEkle(detay.u, detay.k, i, adet); setDetay(null); } : null} />}
+      {siparisAcik && sepetAdet > 0 && !sepetAcik && (
+        <button className={`qs-cubuk${rez || wa ? " yukari" : ""}`} onClick={() => setSepetAcik(true)}>
+          <span className="qs-adet">{sepetAdet}</span>{yaz("Sepeti gör", "View cart")}<b>{fiyatYaz(sepetToplam)}</b>
+        </button>
+      )}
+      {sepetAcik && <Sepet menu={menu} sepet={sepet} setSepet={setSepet} toplam={sepetToplam} masa={masa} yaz={yaz} en={en} kapat={() => setSepetAcik(false)} />}
+      {bildirim && <div className="qs-bildirim" role="status">{bildirim}</div>}
 
       {(rez || wa) && (
         <div className="qm-alt-dugmeler">
@@ -248,7 +284,10 @@ export default function QrMenu({ slug }) {
 // Klasik ve fotoğraflı şablonlar: bütün kategoriler tek sayfada alt alta, üstte arama ve kategori çubuğu
 const fiyatEtiketleri = (k) => String(k.fiyat_etiketleri || "").split(/[,|/]/).map((x) => x.trim()).filter(Boolean);
 
-function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotografli, ac }) {
+function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotografli, ac, hizliEkle }) {
+  const ekleDugmesi = (u, k) => hizliEkle && !u.tukendi && (
+    <button className="qs-ekle" aria-label={yaz("Sepete ekle", "Add to cart")} onClick={(e) => { e.stopPropagation(); hizliEkle(u, k); }}>+</button>
+  );
   const [ara, setAra] = useState("");
   const [aktif, setAktif] = useState(kategoriler[0]?.id || "");
   const q = ara.trim().toLocaleLowerCase("tr");
@@ -335,7 +374,7 @@ function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotog
                           <h3>{yaz(u.ad, u.ad_en)}</h3>
                           <div className="qt-isaret">{isaretler(u)}</div>
                           {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
-                          <div className="qt-kart-fiyat">{fl.map((x) => <span key={x.e || "f"}>{x.e && et.length > 1 ? <small>{olcuAdi(x.e)}</small> : null}{fiyatYaz(x.f)}</span>)}</div>
+                          <div className="qt-kart-fiyat">{fl.map((x) => <span key={x.e || "f"}>{x.e && et.length > 1 ? <small>{olcuAdi(x.e)}</small> : null}{fiyatYaz(x.f)}</span>)}{ekleDugmesi(u, k)}</div>
                         </div>
                       </article>
                     );
@@ -352,6 +391,7 @@ function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotog
                         <div className="qt-isaret">{isaretler(u)}</div>
                         {yaz(u.aciklama, u.aciklama_en) && <p>{yaz(u.aciklama, u.aciklama_en)}</p>}
                       </div>
+                      {ekleDugmesi(u, k)}
                     </article>
                   );
                 })}
@@ -367,7 +407,9 @@ function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotog
 }
 
 // Ürüne dokununca açılan pencere: büyük fotoğraf, açıklama, bütün ölçülerin fiyatı ve alerjenlerin açık adı
-function UrunDetay({ u, k, yaz, olcuAdi, kapat }) {
+function UrunDetay({ u, k, yaz, olcuAdi, kapat, ekle }) {
+  const [olcu, setOlcu] = useState(() => Math.max(0, (fiyatEtiketleri(k).length ? fiyatEtiketleri(k) : [""]).findIndex((_, i) => Number(fiyatAl(u, i)) > 0)));
+  const [adet, setAdet] = useState(1);
   useEffect(() => {
     const tus = (e) => { if (e.key === "Escape") kapat(); };
     window.addEventListener("keydown", tus);
@@ -397,6 +439,91 @@ function UrunDetay({ u, k, yaz, olcuAdi, kapat }) {
             </div>
           )}
           {(u.alerjenler || []).length > 0 && <p className="qd-alerjen">{yaz("İçerik bilgisi", "Allergens")}: {u.alerjenler.map((a) => ALERJEN_ADLARI[a] || a).join(", ")}</p>}
+          {ekle && !u.tukendi && fiyatlar.length > 0 && (
+            <div className="qd-siparis">
+              {et.length > 1 && (
+                <div className="qd-olcuSec">
+                  {et.map((e, i) => Number(fiyatAl(u, i)) > 0 && <button key={e} className={olcu === i ? "secili" : ""} onClick={() => setOlcu(i)}>{olcuAdi(e)}</button>)}
+                </div>
+              )}
+              <div className="qd-ekle">
+                <div className="qs-sayac"><button onClick={() => setAdet((a) => Math.max(1, a - 1))} aria-label="-">−</button><span>{adet}</span><button onClick={() => setAdet((a) => Math.min(50, a + 1))} aria-label="+">+</button></div>
+                <button className="qd-sepete" onClick={() => ekle(olcu, adet)}>{yaz("Sepete ekle", "Add to cart")} · {fiyatYaz(Number(fiyatAl(u, olcu)) * adet)}</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Sepet: adetler, sipariş türü ve not; "WhatsApp'tan gönder" siparişi işletmenin WhatsApp'ına hazır mesaj olarak açar
+function Sepet({ menu, sepet, setSepet, toplam, masa, yaz, en, kapat }) {
+  const [tur, setTur] = useState("masa");
+  const [masaNo, setMasaNo] = useState(masa);
+  const [adres, setAdres] = useState("");
+  const [isim, setIsim] = useState("");
+  const [not_, setNot] = useState("");
+  const [gonderildi, setGonderildi] = useState(false);
+  useEffect(() => {
+    const tus = (e) => { if (e.key === "Escape") kapat(); };
+    window.addEventListener("keydown", tus);
+    return () => window.removeEventListener("keydown", tus);
+  }, [kapat]);
+  const degistir = (anahtar, fark) => setSepet((s) => s.map((x) => (x.anahtar === anahtar ? { ...x, adet: x.adet + fark } : x)).filter((x) => x.adet > 0));
+  const eksik = tur === "masa" ? !masaNo.trim() : tur === "paket" ? !adres.trim() : false;
+  function gonder() {
+    const satirlar = sepet.map((x) => `${x.adet} x ${x.ad}${x.olcu ? ` (${x.olcu})` : ""} - ${fiyatYaz(x.adet * x.fiyat)}`);
+    const turYazi = tur === "masa" ? yaz(`Masa ${masaNo.trim()}`, `Table ${masaNo.trim()}`) : tur === "paket" ? yaz(`Paket servis, adres: ${adres.trim()}`, `Delivery, address: ${adres.trim()}`) : yaz("Gel-al", "Pick-up");
+    const metin = [
+      yaz(`Merhaba, ${menu.ad} menüsünden sipariş vermek istiyorum.`, `Hello, I would like to order from the ${menu.ad} menu.`),
+      "",
+      ...satirlar,
+      "",
+      `${yaz("Toplam", "Total")}: ${fiyatYaz(toplam)}`,
+      `${yaz("Sipariş", "Order")}: ${turYazi}`,
+      isim.trim() ? `${yaz("İsim", "Name")}: ${isim.trim()}` : null,
+      not_.trim() ? `${yaz("Not", "Note")}: ${not_.trim()}` : null,
+    ].filter((x) => x !== null).join("\n");
+    window.open(`https://wa.me/${telLink(menu.whatsapp)}?text=${encodeURIComponent(metin)}`, "_blank", "noopener");
+    setGonderildi(true);
+  }
+  return (
+    <div className="qd-arka" onClick={kapat}>
+      <div className="qd qs" role="dialog" aria-modal="true" aria-label={yaz("Sepet", "Cart")} onClick={(e) => e.stopPropagation()}>
+        <button className="qd-kapat" onClick={kapat} aria-label={yaz("Kapat", "Close")}>✕</button>
+        <div className="qd-metin">
+          <h3>{yaz("Sepetiniz", "Your cart")}</h3>
+          {sepet.length === 0 ? <p>{yaz("Sepetiniz boş.", "Your cart is empty.")}</p> : (
+            <>
+              <div className="qs-liste">
+                {sepet.map((x) => (
+                  <div key={x.anahtar} className="qs-satir">
+                    <div><b>{x.ad}</b>{x.olcu && <small>{x.olcu}</small>}</div>
+                    <div className="qs-sayac"><button onClick={() => degistir(x.anahtar, -1)} aria-label="-">−</button><span>{x.adet}</span><button onClick={() => degistir(x.anahtar, 1)} aria-label="+">+</button></div>
+                    <b className="qs-tutar">{fiyatYaz(x.adet * x.fiyat)}</b>
+                  </div>
+                ))}
+              </div>
+              <div className="qs-toplam"><span>{yaz("Toplam", "Total")}</span><b>{fiyatYaz(toplam)}</b></div>
+              <div className="qd-olcuSec qs-tur">
+                {[["masa", yaz("Masada", "At table")], ["paket", yaz("Paket servis", "Delivery")], ["gelal", yaz("Gel-al", "Pick-up")]].map(([d, a]) => <button key={d} className={tur === d ? "secili" : ""} onClick={() => setTur(d)}>{a}</button>)}
+              </div>
+              {tur === "masa" && <input className="qs-girdi" value={masaNo} onChange={(e) => setMasaNo(e.target.value)} placeholder={yaz("Masa numarası", "Table number")} inputMode="numeric" />}
+              {tur === "paket" && <textarea className="qs-girdi" value={adres} onChange={(e) => setAdres(e.target.value)} placeholder={yaz("Teslimat adresi", "Delivery address")} rows={2} />}
+              <input className="qs-girdi" value={isim} onChange={(e) => setIsim(e.target.value)} placeholder={yaz("Adınız (isteğe bağlı)", "Your name (optional)")} />
+              <input className="qs-girdi" value={not_} onChange={(e) => setNot(e.target.value)} placeholder={yaz("Not: ör. az şekerli, acısız", "Note: e.g. no sugar")} />
+              <button className="qs-gonder" disabled={eksik} onClick={gonder}>{yaz("WhatsApp'tan sipariş gönder", "Send order via WhatsApp")}</button>
+              {eksik && <p className="qs-uyari">{tur === "masa" ? yaz("Masa numarasını yazın.", "Enter your table number.") : yaz("Teslimat adresini yazın.", "Enter the delivery address.")}</p>}
+              {gonderildi && (
+                <p className="qs-uyari tamam">
+                  {yaz("WhatsApp açıldı. Mesajı gönderdiyseniz siparişiniz işletmeye ulaştı.", "WhatsApp opened. Once you send the message, your order is placed.")}{" "}
+                  <button onClick={() => { setSepet([]); kapat(); }}>{yaz("Sepeti temizle", "Clear cart")}</button>
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -537,6 +664,43 @@ const QM_CSS = `
 .qm-kb-gorsel{height:120px;border-radius:14px;background-size:cover;background-position:center;margin:0 0 14px;box-shadow:0 10px 24px -16px rgba(0,0,0,.5)}
 .qm-u{cursor:pointer;border-radius:8px;transition:background .2s}
 .qm-u:active{background:color-mix(in srgb,var(--ana) 7%,transparent)}
+/* WhatsApp siparişi: sepet çubuğu, ekle düğmeleri, sepet penceresi */
+.qs-cubuk{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:12;display:flex;align-items:center;gap:10px;padding:12px 18px 12px 12px;border-radius:100px;background:var(--ana)!important;color:#fff!important;font-family:var(--govde);font-size:14px;font-weight:800;box-shadow:0 14px 30px -10px rgba(0,0,0,.45);animation:qdAc .3s both;white-space:nowrap}
+.qs-cubuk.yukari{bottom:78px}
+.qs-cubuk b{margin-left:6px;padding-left:12px;border-left:1px solid rgba(255,255,255,.35)}
+.qs-adet{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 6px;border-radius:100px;background:#fff;color:var(--ana);font-size:13px}
+.qm-gece .qs-cubuk,.qm-gece .qs-gonder{color:#14110f!important}.qm-gece .qs-cubuk b{border-left-color:rgba(0,0,0,.25)}.qm-gece .qs-adet{background:#14110f;color:var(--ana)}
+.qs-ekle{flex-shrink:0;align-self:center;width:32px;height:32px;border-radius:50%;background:var(--ana)!important;color:#fff!important;font-size:20px!important;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 6px 14px -8px var(--ana);margin-left:auto}
+.qt-kart-fiyat{align-items:center}
+.qt-kart .qs-ekle{width:30px;height:30px}
+.qs-bildirim{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:60;padding:10px 18px;border-radius:100px;background:#1f1b18;color:#fff;font-size:13px;font-weight:700;box-shadow:0 10px 24px -10px rgba(0,0,0,.5);animation:qdAc .25s both}
+.qd-siparis{margin-top:16px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--ana) 15%,transparent)}
+.qd-olcuSec{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.qd-olcuSec button{padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;border:1.5px solid color-mix(in srgb,var(--ana) 30%,transparent)!important;color:var(--ana)!important}
+.qd-olcuSec button.secili{background:var(--ana)!important;color:#fff!important;border-color:var(--ana)!important}
+.qm-gece .qd-olcuSec button.secili{color:#14110f!important}
+.qd-ekle{display:flex;gap:10px;align-items:center}
+.qs-sayac{display:inline-flex;align-items:center;border-radius:100px;border:1.5px solid color-mix(in srgb,var(--ana) 25%,transparent)}
+.qs-sayac button{width:34px;height:34px;font-size:18px!important;font-weight:700;color:var(--ana)!important}
+.qs-sayac span{min-width:22px;text-align:center;font-weight:800;color:var(--ana)}
+.qd-sepete,.qs-gonder{flex:1;padding:13px 16px;border-radius:100px;background:var(--ana)!important;color:#fff!important;font-size:14.5px;font-weight:800;box-shadow:0 10px 22px -12px var(--ana)}
+.qm-gece .qd-sepete{color:#14110f!important}
+.qs .qd-metin{padding-top:22px}
+.qs-liste{display:flex;flex-direction:column;gap:2px;margin:10px 0 6px}
+.qs-satir{display:grid;grid-template-columns:1fr auto 74px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px dashed color-mix(in srgb,var(--ana) 18%,transparent)}
+.qs-satir b{font-size:14px;color:#26211e}.qs-satir small{display:block;font-size:11.5px;color:#8b827c}
+.qm-gece .qs-satir b{color:#f4efe8}
+.qs-tutar{text-align:right;color:var(--ana)!important}
+.qs-sayac.kucuk button{width:28px;height:28px}
+.qs-toplam{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 14px;font-weight:800;color:var(--ana)}
+.qs-toplam b{font-size:20px}
+.qs-tur{margin-bottom:8px}
+.qs-girdi{width:100%;margin-bottom:8px;padding:11px 13px;border-radius:12px;border:1px solid color-mix(in srgb,var(--ana) 20%,transparent);background:#fff;font:inherit;font-size:14px;color:#26211e;outline:none;resize:vertical}
+.qs-gonder{width:100%;margin-top:4px;background:#25D366!important}
+.qs-gonder:disabled{opacity:.5}
+.qs-uyari{margin-top:10px;font-size:12.5px!important;color:#b4472a!important}
+.qs-uyari.tamam{color:#2e7d4f!important}
+.qs-uyari button{text-decoration:underline;font-weight:700;color:inherit!important}
 /* Ürün detay penceresi */
 .qd-arka{position:fixed;inset:0;z-index:50;background:rgba(10,8,6,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;animation:qdArka .2s both}
 .qd{position:relative;width:100%;max-width:480px;max-height:88vh;overflow:auto;background:var(--zemin);border-radius:24px 24px 0 0;box-shadow:0 -20px 60px -20px rgba(0,0,0,.5);animation:qdAc .32s cubic-bezier(.2,.8,.3,1) both}
