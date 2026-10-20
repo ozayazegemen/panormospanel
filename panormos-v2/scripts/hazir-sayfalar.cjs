@@ -58,7 +58,10 @@ function sayfaYaz(sablon, { yol, baslik, aciklama, govde, veri = [], resim = "",
   veri = [TEMEL_VERI, ...veri];
   if (veri.length) h = h.replace("</head>", veri.map((v) => `    <script type="application/ld+json">${JSON.stringify(v).replace(/</g, "\\u003c")}</script>`).join("\n") + "\n  </head>");
   // Yazılar #root'un içine gömülür; uygulama açılınca bunların yerini alır
-  h = h.replace('<div id="root"></div>', `<div id="root"><div class="hazir-sayfa">\n${govde}\n</div></div>`);
+  // Ziyaretçinin tarayıcısında (JavaScript çalışıyorsa) bu yazılar hiç görünmez, uygulama açılınca yerine gerçek sayfa gelir;
+  // JavaScript çalıştırmayan okuyucular (Google'ın ilk okuması, paylaşım önizlemeleri) yazıları görür.
+  const gizle = '<script>document.documentElement.classList.add("js-var")</script><style>.js-var .hazir-sayfa{display:none}</style>';
+  h = h.replace('<div id="root"></div>', `${gizle}<div id="root"><div class="hazir-sayfa">\n${govde}\n</div></div>`);
   // /qr-menu → dist/qr-menu.html: Netlify bunu /qr-menu adresinde yönlendirmesiz sunar (klasör/index.html olsaydı /qr-menu/'e yönlendirirdi)
   const hedef = yol === "/" ? path.join(DIST, "index.html") : path.join(DIST, ...yol.split("/").filter(Boolean)) + ".html";
   fs.mkdirSync(path.dirname(hedef), { recursive: true });
