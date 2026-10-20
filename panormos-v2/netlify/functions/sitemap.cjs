@@ -14,6 +14,12 @@ exports.handler = async () => {
       if (y.slug) adresler.push({ loc: `${SITE}/blog/${encodeURIComponent(y.slug)}`, lastmod: String(y.guncellenme || "").slice(0, 10) });
     });
   } catch (e) { /* blog okunamazsa ana adreslerle yetin */ }
+  try {
+    // Yayındaki QR menüler (işletmenin adı aratılınca menüsü bulunsun)
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/qr_menuler?aktif=eq.true&select=slug`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } });
+    const menuler = r.ok ? await r.json() : [];
+    (Array.isArray(menuler) ? menuler : []).forEach(m => { if (/^[a-z0-9-]+$/.test(m.slug || "")) adresler.push({ loc: `${SITE}/m/${m.slug}` }); });
+  } catch (e) { /* menüler okunamazsa atla */ }
   const govde = adresler.map(a => `  <url><loc>${a.loc}</loc>${a.lastmod ? `<lastmod>${a.lastmod}</lastmod>` : ""}</url>`).join("\n");
   return {
     statusCode: 200,
