@@ -248,7 +248,8 @@ function TekSayfa({ menu, kategoriler, urunler, yaz, olcuAdi, dilAnahtari, fotog
   const gorunen = kategoriler
     .map((k) => ({ k, liste: urunler.filter((u) => u.kategori_id === k.id && eslesir(u)) }))
     .filter((x) => x.liste.length > 0);
-  const kapak = fotografli ? urunler.find((u) => u.gorsel)?.gorsel : "";
+  // Kapak: menüdeki ilk kategorinin fotoğraflı ilk ürünü (kafede kahve, burgercide burger)
+  const kapak = fotografli ? kategoriler.map((k) => urunler.find((u) => u.kategori_id === k.id && u.gorsel)).find(Boolean)?.gorsel || "" : "";
 
   const kay = (id) => {
     setAktif(id);

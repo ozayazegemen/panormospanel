@@ -36,6 +36,13 @@ const ISLER = [
     renk: "zumrut", etiket: "Restoran ve barlara özel", baslik: "QR Menü", adres: "https://panormosmedya.com/m/ornek-menu", adresYazi: "Örnek menüyü aç", gorsel: "/isler/qr-menu.jpg?v=1",
     metin: "Masadaki QR koddan açılan, mekânın renklerine göre tasarladığımız dijital menü. Fiyatı ya da ürünü panelden değiştirdiğiniz anda menü güncellenir; her değişiklikte yeni PDF ya da baskı gerekmez.",
     maddeler: ["Türkçe ve İngilizce, tek dokunuşla geçiş", "Rakıda Tek'ten 100 cl'ye ölçü ve fiyat sütunları", "Şarap menüsünde kadeh ve şişe fiyatı, bölge ve üzüm", "Alerjen bilgisi, tükendi işareti, rezervasyon ve WhatsApp"],
+    demolar: [
+      ["Restoran", "https://panormosmedya.com/m/ornek-menu"],
+      ["Kafe", "https://panormosmedya.com/m/demo-kafe"],
+      ["Burger & pizza", "https://panormosmedya.com/m/demo-burger"],
+      ["Esnaf lokantası", "https://panormosmedya.com/m/demo-lokanta"],
+      ["Kokteyl bar", "https://panormosmedya.com/m/demo-bar"],
+    ],
   },
 ];
 
@@ -452,6 +459,12 @@ export default function Site({ onEnter }) {
                   <h3>{p.baslik}</h3>
                   <p>{p.metin}</p>
                   <ul>{p.maddeler.map((m) => <li key={m}>{m}</li>)}</ul>
+                  {p.demolar && (
+                    <div className="is-demolar">
+                      <span>Farklı tasarımlarla örnek menüler:</span>
+                      {p.demolar.map(([ad, adres]) => <a key={adres} href={adres} target="_blank" rel="noopener">{ad} demosu</a>)}
+                    </div>
+                  )}
                   <a href={p.adres} target="_blank" rel="noopener" className="dugme koyu">{p.adresYazi} →</a>
                 </div>
               </article>
@@ -842,6 +855,10 @@ const SITE_CSS = `
 .pm-site .is li::before{content:"";flex:0 0 12px;height:12px;margin-top:6px;border-radius:4px;transform:rotate(45deg)}
 .pm-site .is.zumrut li::before{background:#0E3B2F}.pm-site .is.mavi li::before{background:var(--mavi)}.pm-site .is.sari li::before{background:#e8b400}.pm-site .is.pembe li::before{background:var(--pembe)}
 .pm-site .is-cta{margin-top:80px;text-align:center}
+.pm-site .is-demolar{display:flex;flex-wrap:wrap;gap:8px;margin:-6px 0 24px}
+.pm-site .is-demolar span{flex-basis:100%;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#3a3a46}
+.pm-site .is-demolar a{font-weight:700;font-size:14px;padding:8px 14px;border-radius:100px;border:2px solid var(--murekkep);background:#efe3c8;color:var(--murekkep);transition:transform .2s,box-shadow .2s}
+.pm-site .is-demolar a:hover{transform:translate(-2px,-2px);box-shadow:3px 3px 0 var(--murekkep)}
 
 /* Süreç */
 .pm-site .surec{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
