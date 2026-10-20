@@ -29,6 +29,21 @@
   status = 301
   force = true
 
+# Hazır (Google'a dönük) sayfalar: /qr-menu ve /qr-menu/ ikisi de yönlendirmesiz aynı sayfayı verir.
+# 20.10.2026'daki bir ara sürüm bazı tarayıcılara "/qr-menu → /qr-menu/" yönlendirmesini kalıcı kaydettirdi;
+# Netlify'ın sondaki eğik çizgiyi kaldırmasıyla döngü olmasın diye bu adresler doğrudan dosyaya bağlanır.
+[[redirects]]
+  from = "/qr-menu/"
+  to = "/qr-menu/index.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/blog/"
+  to = "/blog/index.html"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
