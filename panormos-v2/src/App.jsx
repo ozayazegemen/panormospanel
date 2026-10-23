@@ -4650,8 +4650,31 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     setModal(true);
   };
   const openEdit = (s) => {
-    setForm({ id: s.id, client_id: s.client_id || "", title: s.title || "", shoot_date: s.shoot_date || "", shoot_time: s.shoot_time || "", location: s.location || "", assigned_to: s.assigned_to || "", repeat_type: "once", note: s.note || "", status: s.status || "planned" });
+    setForm({ id: s.id, client_id: s.client_id || "", title: s.title || "", shoot_date: s.shoot_date || "", shoot_time: s.shoot_time || "", location: s.location || "", assigned_to: s.assigned_to || "", repeat_type: "once", note: s.note || "", status: s.status || "planned", eskiTarih: s.shoot_date || "", eskiSaat: s.shoot_time || "" });
     setModal(true);
+  };
+
+  // Müşteriye WhatsApp bilgi mesajı (emoji yok; WhatsApp'ta bozuk çıkıyor)
+  const GUNLER = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+  const tarihMetni = (d) => { const t = new Date(d + "T00:00:00"); return `${t.getDate()} ${TR_MONTHS[t.getMonth()]} ${GUNLER[t.getDay()]}`; };
+  const cekimMesaji = (cli, title, dates, time, location, degisti) => {
+    const satirlar = dates.map(d => tarihMetni(d) + (time ? `, saat ${time}` : ""));
+    const giris = degisti
+      ? `${title} çekimimizin zamanı değişti. Yeni çekim ${dates.length > 1 ? "günlerimiz" : "günümüz"}:`
+      : `${title} için çekim ${dates.length > 1 ? "günlerimizi" : "günümüzü"} planladık:`;
+    return `Merhaba ${cli?.name || ""},\n\n${giris}\n${satirlar.join("\n")}${location ? `\nKonum: ${location}` : ""}\n\nÇekimden önce hazırlamamızı istediğiniz bir şey ya da bir değişiklik olursa buradan yazabilirsiniz.\n\nİyi çalışmalar,\nPanormos Medya`;
+  };
+  const whatsappAc = (cli, metin) => {
+    const tel = leadWaPhone(cli?.phone);
+    if (!tel) return false;
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(metin)}`, "_blank");
+    return true;
+  };
+  const whatsappSor = async (clientId, title, dates, time, location, degisti) => {
+    const cli = clients.find(c => c.id === clientId);
+    if (!leadWaPhone(cli?.phone)) return;
+    if (!await swalConfirm(`${degisti ? "Çekim güncellendi" : "Çekim planlandı"}. ${cli.name} müşterisine WhatsApp'tan bilgi mesajı gönderilsin mi?`)) return;
+    whatsappAc(cli, cekimMesaji(cli, title, dates, time, location, degisti));
   };
 
   // Tekrarlı çekimler için tarih listesi üret
@@ -4683,8 +4706,11 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
       }).eq('id', form.id);
       setSaving(false);
       if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
+      const f = form;
       setModal(false); setForm({}); load();
       if (refreshData) refreshData();
+      if (f.status !== "done" && (f.shoot_date !== f.eskiTarih || (f.shoot_time || "") !== f.eskiSaat))
+        await whatsappSor(f.client_id, f.title, [f.shoot_date], f.shoot_time, f.location, true);
       return;
     }
     const dates = buildDates(form.shoot_date, form.repeat_type, form.repeat_count);
@@ -4696,9 +4722,11 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
     const { error } = await supabase.from('shoots').insert(rows);
     setSaving(false);
     if (error) { swalAlert("Çekim kaydedilemedi: " + error.message + "\n\nCEKIM-PLANLAMA-SQL kodunu Supabase'de çalıştırın."); return; }
+    const f = form;
     setModal(false); setForm({});
     load();
     if (refreshData) refreshData();
+    await whatsappSor(f.client_id, f.title, dates, f.shoot_time, f.location, false);
   };
 
   const toggleDone = async (s) => {
@@ -4869,7 +4897,7 @@ function ShootsPage({ clients, staff, currentStaff, refreshData }) {
                           </div>
                           {s.note && <div style={{ fontSize: 11, color: T.textMuted, marginTop: 3, fontStyle: "italic" }}>📝 {s.note}</div>}
                         </div>
-                        {cli?.phone && <a href={`https://wa.me/${(cli.phone || "").replace(/\D/g, "").replace(/^0/, "90")}`} target="_blank" rel="noopener" style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#25D366", padding: "5px 10px", borderRadius: 6, textDecoration: "none" }}>WhatsApp</a>}
+                        {leadWaPhone(cli?.phone) && !done && <button onClick={() => whatsappAc(cli, cekimMesaji(cli, s.title, [s.shoot_date], s.shoot_time, s.location, false))} title="Müşteriye çekim bilgisini WhatsApp'tan gönder" style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: "#25D366", padding: "5px 10px", borderRadius: 6, border: "none", cursor: "pointer" }}>WhatsApp</button>}
                         <button onClick={() => openEdit(s)} style={{ background: "none", border: "none", color: T.textMuted, cursor: "pointer", fontSize: 14 }}>✏️</button>
                         <button onClick={() => del(s.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 15 }}>✕</button>
                       </div>
