@@ -356,6 +356,18 @@ footer .logo{color:#fff}
   .sd-satir{grid-template-columns:52px minmax(0,1fr)}
   .sd-satir .g{display:none}
 }
+
+/* Fotoğraf büyütme */
+.buyutec{position:fixed;inset:0;z-index:300;background:rgba(5,5,8,.94);display:none;align-items:center;justify-content:center;touch-action:pan-y}
+.buyutec.acik{display:flex}
+.buyutec img{max-width:92vw;max-height:84vh;object-fit:contain;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.5);user-select:none}
+.buyutec .ok{position:absolute;top:50%;transform:translateY(-50%);width:54px;height:54px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:30px;line-height:1;display:grid;place-items:center}
+.buyutec .ok:hover{background:var(--kirmizi)}
+.buyutec .ok.sol{left:18px}.buyutec .ok.sag{right:18px}
+.buyutec .kapa{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:20px}
+.buyutec .kapa:hover{background:var(--kirmizi)}
+.buyutec .sayac{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font:700 14px Inter;background:rgba(255,255,255,.12);padding:6px 14px;border-radius:999px}
+@media (max-width:720px){.buyutec .ok{width:44px;height:44px;font-size:24px}.buyutec .ok.sol{left:8px}.buyutec .ok.sag{right:8px}}
 </style>
 </head>
 <body>
@@ -531,6 +543,7 @@ footer .logo{color:#fff}
   </div>
 </div>
 
+<div class="buyutec" id="buyutec" aria-hidden="true"><img alt="" id="buyutecResim"><button class="ok sol" id="buyutecSol" aria-label="Önceki">‹</button><button class="ok sag" id="buyutecSag" aria-label="Sonraki">›</button><button class="kapa" id="buyutecKapa" aria-label="Kapat">✕</button><span class="sayac" id="buyutecSayac"></span></div>
 <script type="module">
 // ÖRNEK İÇERİK — gerçek haberler panelden (Haber Masası) gelecek
 const RENK = [['#0f2a4a','#2f6fb3'],['#5a0a0e','#e30613'],['#123d26','#4c9a2a'],['#2a1d5c','#6d4bd8'],['#0b3b52','#1aa3d9'],['#6b2a07','#e88a12'],['#2f2f36','#8f8f99'],['#5b1035','#d6336c'],['#0f3f3b','#22b3a3'],['#1b2230','#e30613']];
@@ -722,14 +735,14 @@ function gercekGovde(r){
     if (b.startsWith('## ')) return `<h2>${kac(b.slice(3))}</h2>`;
     if (b.startsWith('> ')) return `<blockquote>${kac(b.slice(2))}</blockquote>`;
     const f = b.match(/^!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)$/);
-    if (f) return `<figure style="margin:6px 0 20px"><img src="${kac(f[2])}" alt="${kac(f[1])}" loading="lazy" style="width:100%;border-radius:4px;display:block">${f[1] ? `<figcaption>${kac(f[1])}</figcaption>` : ''}</figure>`;
+    if (f) return `<figure style="margin:6px 0 20px"><img src="${kac(f[2])}" alt="${kac(f[1])}" loading="lazy" data-buyut style="width:100%;border-radius:4px;display:block;cursor:zoom-in">${f[1] ? `<figcaption>${kac(f[1])}</figcaption>` : ''}</figure>`;
     return `<p>${kac(b).replace(/\n/g, '<br>')}</p>`;
   });
   if (html.length > 2) html.splice(2, 0, '<div class="reklam" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>');
   let son = html.join('');
   if (!videoKondu && r.video) son += videoGom(r.video);
   const galeri = Array.isArray(r.galeri) ? r.galeri : [];
-  if (galeri.length) son += `<h2>Fotoğraf galerisi</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${galeri.map((u) => `<a href="${kac(u)}" target="_blank" rel="noopener"><img src="${kac(u)}" alt="" loading="lazy" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block"></a>`).join('')}</div>`;
+  if (galeri.length) son += `<h2>Fotoğraf galerisi</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${galeri.map((u) => `<img src="${kac(u)}" alt="" loading="lazy" data-buyut style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block;cursor:zoom-in">`).join('')}</div>`;
   return son;
 }
 function haberAc(i){
@@ -744,7 +757,7 @@ function haberAc(i){
       ${r.spot ? `<p class="spot">${kac(r.spot)}</p>` : ''}
       <div class="kunye"><span><b>${kac(r.yazar_ad || '266digitale Haber Merkezi')}</b></span><span>${tarih}</span>
         <span class="paylas"><a href="https://wa.me/?text=${encodeURIComponent(r.baslik + ' ' + adres)}" target="_blank" rel="noopener" style="background:#25d366">W</a><a href="https://x.com/intent/post?text=${encodeURIComponent(r.baslik)}&url=${encodeURIComponent(adres)}" target="_blank" rel="noopener" style="background:#111">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(adres)}" target="_blank" rel="noopener" style="background:#1877f2">f</a></span></div>
-      ${r.kapak ? `${g(i)}<figcaption>Fotoğraf: 266digitale</figcaption>` : ''}
+      ${r.kapak ? `<img src="${kac(r.kapak)}" alt="" data-buyut style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:4px;display:block;cursor:zoom-in"><figcaption>Fotoğraf: 266digitale</figcaption>` : ''}
       <div class="govde">${gercekGovde(r)}</div>
       <div class="etiketler"><a href="#/${SAYFA_YOLU[r.kategori] || ''}">${kac(r.kategori)}</a><a href="#/balikesir">Balıkesir</a></div>`;
     document.title = `${r.baslik} — 266digitale`;
@@ -838,6 +851,32 @@ window.addEventListener('hashchange', sayfaGoster);
 document.addEventListener('click', (e) => { if (e.target.classList.contains('daha')) bildirDaha(e.target); });
 function bildirDaha(b){ b.textContent = 'Örnek sayfa — gerçek sitede daha eski haberler yüklenir'; }
 sayfaGoster();
+
+// Haber fotoğraflarını sayfada büyüt: oklarla, klavyeyle ve kaydırarak ilerle
+let buyutecListe = [], buyutecNo = 0;
+function buyutecGoster(){
+  $('#buyutecResim').src = buyutecListe[buyutecNo];
+  $('#buyutecSayac').textContent = `${buyutecNo + 1} / ${buyutecListe.length}`;
+  const tek = buyutecListe.length < 2;
+  $('#buyutecSol').hidden = tek; $('#buyutecSag').hidden = tek; $('#buyutecSayac').hidden = tek;
+}
+function buyutecAc(liste, no){ buyutecListe = liste; buyutecNo = no; buyutecGoster(); $('#buyutec').classList.add('acik'); $('#buyutec').setAttribute('aria-hidden', 'false'); }
+function buyutecKapat(){ $('#buyutec').classList.remove('acik'); $('#buyutec').setAttribute('aria-hidden', 'true'); }
+const buyutecGit = (y) => { buyutecNo = (buyutecNo + y + buyutecListe.length) % buyutecListe.length; buyutecGoster(); };
+document.addEventListener('click', (e) => {
+  const r = e.target.closest('img[data-buyut]');
+  if (r) { e.preventDefault(); const hepsi = [...document.querySelectorAll('#makale img[data-buyut]')]; buyutecAc(hepsi.map((x) => x.src), Math.max(0, hepsi.indexOf(r))); return; }
+  if (e.target.id === 'buyutecSol') buyutecGit(-1);
+  else if (e.target.id === 'buyutecSag') buyutecGit(1);
+  else if (e.target.id === 'buyutecKapa' || e.target.id === 'buyutec') buyutecKapat();
+});
+document.addEventListener('keydown', (e) => {
+  if (!$('#buyutec').classList.contains('acik')) return;
+  if (e.key === 'ArrowLeft') buyutecGit(-1); else if (e.key === 'ArrowRight') buyutecGit(1); else if (e.key === 'Escape') { e.stopImmediatePropagation(); buyutecKapat(); }
+}, true);
+let dokunX = null;
+$('#buyutec').addEventListener('touchstart', (e) => { dokunX = e.touches[0].clientX; }, { passive: true });
+$('#buyutec').addEventListener('touchend', (e) => { if (dokunX == null) return; const fark = e.changedTouches[0].clientX - dokunX; if (Math.abs(fark) > 40 && buyutecListe.length > 1) buyutecGit(fark < 0 ? 1 : -1); dokunX = null; });
 </script>
 </body>
 </html>
