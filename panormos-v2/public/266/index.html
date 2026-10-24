@@ -42,9 +42,6 @@ button{font:inherit;cursor:pointer}
 .arama input{width:100%;border:1px solid var(--cizgi);background:#f7f7f8;border-radius:999px;padding:11px 16px 11px 42px;font:inherit}
 .arama svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--acik-gri)}
 .baslik-sag{display:flex;gap:10px;align-items:center}
-.canli-yayin{display:inline-flex;align-items:center;gap:8px;background:var(--kirmizi);color:#fff;font:800 13px Archivo;letter-spacing:.06em;padding:11px 16px;border-radius:6px}
-.canli-yayin i{width:9px;height:9px;border-radius:50%;background:#fff;animation:nabiz 1.4s infinite}
-@keyframes nabiz{0%{box-shadow:0 0 0 0 rgba(255,255,255,.8)}70%{box-shadow:0 0 0 8px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
 .bulten-d{border:1px solid var(--cizgi);background:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:13px}
 .hamburger{display:none;border:1px solid var(--cizgi);background:#fff;border-radius:6px;width:42px;height:42px;place-items:center}
 
@@ -304,8 +301,7 @@ footer .logo{color:#fff}
   .ust-band .sag{display:none}
   .baslik-alani .ic{height:66px}
   .logo{font-size:26px}
-  .canli-yayin span{display:none}
-  .hamburger{display:grid}
+    .hamburger{display:grid}
   .manset{aspect-ratio:4/5}
   .manset h1{font-size:26px}
   .manset p{display:none}
@@ -346,7 +342,6 @@ footer .logo{color:#fff}
     <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input placeholder="Haber, ilçe ya da konu ara"></label>
     <div class="baslik-sag">
       <a href="#" class="bulten-d">WhatsApp Kanalı</a>
-      <a href="#video" class="canli-yayin"><i></i><span>CANLI</span></a>
       <button class="hamburger" id="hamburger" aria-label="Menü"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
     </div>
   </div>
