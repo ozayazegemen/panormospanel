@@ -322,6 +322,40 @@ footer .logo{color:#fff}
   .f-menu{grid-template-columns:repeat(2,minmax(0,1fr))}
   .yazar{flex-direction:column;text-align:center}
 }
+
+/* Kategori sayfası */
+.kat-baslik{background:#fff;border-bottom:1px solid var(--cizgi);padding:18px 0 14px}
+.kat-baslik .kirinti{font-size:12.5px;color:var(--gri)}
+.kat-baslik .kirinti a{color:var(--kirmizi);font-weight:600}
+.kat-baslik h1{font:900 38px/1.1 Archivo;letter-spacing:-1px;text-transform:uppercase;margin:6px 0 4px;display:flex;align-items:center;gap:12px}
+.kat-baslik h1::before{content:"";width:8px;height:32px;background:var(--kirmizi);border-radius:2px}
+.kat-alt{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.kat-alt a{border:1px solid var(--cizgi);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;color:var(--gri)}
+.kat-alt a:hover,.kat-alt a.secili{border-color:var(--kirmizi);color:#fff;background:var(--kirmizi)}
+.uclu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}
+.uclu .kart h3{font-size:15.5px}
+.uclu .kart p{color:var(--gri);font-size:13.5px;margin-top:4px}
+.daha{display:block;margin:22px auto 0;border:2px solid var(--murekkep);background:#fff;font:800 14px Archivo;letter-spacing:.04em;text-transform:uppercase;padding:12px 26px;border-radius:4px}
+.daha:hover{background:var(--murekkep);color:#fff}
+.sd-liste{background:#fff;border-radius:4px}
+.sd-satir{display:grid;grid-template-columns:70px 140px minmax(0,1fr);gap:14px;align-items:center;padding:12px 14px;border-top:1px solid var(--cizgi)}
+.sd-satir:first-child{border-top:0}
+.sd-satir .zaman{font:900 18px Archivo;color:var(--kirmizi)}
+.sd-satir .g{aspect-ratio:16/10;border-radius:3px}
+.sd-satir h3{font:800 17px/1.25 Archivo;margin-top:2px}
+.sd-satir:hover h3{color:var(--kirmizi)}
+.video-sayfa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.video-sayfa .vk{aspect-ratio:16/10}
+.reel-izgara{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.yazar-sayfa{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:720px){
+  .kat-baslik h1{font-size:28px}
+  .uclu,.video-sayfa{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .reel-izgara{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .yazar-sayfa{grid-template-columns:minmax(0,1fr)}
+  .sd-satir{grid-template-columns:52px minmax(0,1fr)}
+  .sd-satir .g{display:none}
+}
 </style>
 </head>
 <body>
@@ -338,7 +372,7 @@ footer .logo{color:#fff}
 
 <div class="baslik-alani">
   <div class="ic">
-    <a href="#" class="logo" aria-label="266digitale ana sayfa"><span class="kod">266</span><span>digitale</span><span class="nokta">.</span></a>
+    <a href="#/" class="logo" aria-label="266digitale ana sayfa"><span class="kod">266</span><span>digitale</span><span class="nokta">.</span></a>
     <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input placeholder="Haber, ilçe ya da konu ara"></label>
     <div class="baslik-sag">
       <a href="#" class="bulten-d">WhatsApp Kanalı</a>
@@ -349,14 +383,14 @@ footer .logo{color:#fff}
 
 <nav class="kategoriler" id="kategoriler">
   <div class="ic">
-    <a href="#" class="mini-logo">266</a>
-    <a href="#" class="aktif">Son Dakika</a><a href="#gundem">Gündem</a><a href="#balikesir">Balıkesir</a><a href="#ekonomi">Ekonomi</a><a href="#spor">Spor</a><a href="#video">266 Sokakta</a><a href="#foto">Foto Galeri</a><a href="#yazarlar">Yazarlar</a><a href="#yasam">Yaşam</a><a href="#">Sağlık</a><a href="#">Eğitim</a><a href="#">Teknoloji</a>
+    <a href="#/" class="mini-logo">266</a>
+    <span id="navLinkler"></span>
   </div>
 </nav>
 
 <div class="mobil-menu" id="mobilMenu">
   <div class="ust"><span class="logo"><span class="kod">266</span>digitale<span class="nokta">.</span></span><button class="kapat" id="mobilKapat">✕</button></div>
-  <a class="m" href="#">Son Dakika</a><a class="m" href="#gundem">Gündem</a><a class="m" href="#balikesir">Balıkesir</a><a class="m" href="#ekonomi">Ekonomi</a><a class="m" href="#spor">Spor</a><a class="m" href="#video">266 Sokakta</a><a class="m" href="#foto">Foto Galeri</a><a class="m" href="#yazarlar">Yazarlar</a><a class="m" href="#yasam">Yaşam</a>
+  <div id="mobilLinkler"></div>
 </div>
 
 <div class="son-dakika">
@@ -366,6 +400,7 @@ footer .logo{color:#fff}
   </div>
 </div>
 
+<div id="anasayfa">
 <main class="ic">
   <div class="reklam billboard">Reklam alanı · 970×250</div>
 
@@ -454,6 +489,16 @@ footer .logo{color:#fff}
   </section>
 </main>
 
+</div>
+
+<div id="katSayfa" hidden>
+  <div class="kat-baslik"><div class="ic"><div class="kirinti"><a href="#/">Ana sayfa</a> › <span id="katKirinti"></span></div><h1 id="katAd"></h1><div class="kat-alt" id="katAlt"></div></div></div>
+  <div class="ic duzen" style="margin-top:22px">
+    <div id="katIcerik"></div>
+    <aside class="yan-sutun"><div class="reklam kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan3"></ol></div><div class="reklam dikey">Reklam alanı · 300×600</div></aside>
+  </div>
+</div>
+
 <footer>
   <div class="ic">
     <div class="f-ust">
@@ -461,10 +506,10 @@ footer .logo{color:#fff}
       <div class="f-sosyal"><a href="#">Instagram</a><a href="#">TikTok</a><a href="#">YouTube</a><a href="#">X</a><a href="#">Facebook</a><a href="#">WhatsApp</a></div>
     </div>
     <div class="f-menu">
-      <div><h5>Haberler</h5><a href="#">Son Dakika</a><a href="#">Gündem</a><a href="#">Balıkesir</a><a href="#">Ekonomi</a><a href="#">Spor</a></div>
+      <div><h5>Haberler</h5><a href="#/son-dakika">Son Dakika</a><a href="#/gundem">Gündem</a><a href="#/balikesir">Balıkesir</a><a href="#/ekonomi">Ekonomi</a><a href="#/spor">Spor</a></div>
       <div><h5>İlçeler</h5><a href="#">Altıeylül</a><a href="#">Karesi</a><a href="#">Bandırma</a><a href="#">Edremit</a><a href="#">Ayvalık</a></div>
       <div><h5>İlçeler</h5><a href="#">Gönen</a><a href="#">Burhaniye</a><a href="#">Erdek</a><a href="#">Susurluk</a><a href="#">Tümü →</a></div>
-      <div><h5>Multimedya</h5><a href="#">266 Sokakta</a><a href="#">Video</a><a href="#">Foto Galeri</a><a href="#">Yazarlar</a></div>
+      <div><h5>Multimedya</h5><a href="#/266-sokakta">266 Sokakta</a><a href="#/266-sokakta">Video</a><a href="#/foto-galeri">Foto Galeri</a><a href="#/yazarlar">Yazarlar</a></div>
       <div><h5>Hizmetler</h5><a href="#">Hava durumu</a><a href="#">Namaz vakitleri</a><a href="#">Nöbetçi eczaneler</a><a href="#">Döviz</a></div>
       <div><h5>Kurumsal</h5><a href="#">Künye</a><a href="#">Yayın ilkeleri</a><a href="#">Reklam</a><a href="#">Gizlilik</a><a href="#">İletişim</a></div>
     </div>
@@ -516,7 +561,16 @@ const H = [
   ['Gündem','Gönen','Kaplıca bölgesine yeni yürüyüş parkuru','','4 sa'],
   ['Gündem','Havran','Köy yollarında asfalt çalışması başladı','','5 sa'],
   ['Balıkesir','Savaştepe','Hayvan pazarında kış hazırlığı','','6 sa'],
-  ['Balıkesir','İvrindi','Sağlık ocağına yeni doktor ataması','','7 sa']
+  ['Balıkesir','İvrindi','Sağlık ocağına yeni doktor ataması','','7 sa'],
+  ['Sağlık','Balıkesir','Grip aşısı randevuları başladı: kimler öncelikli?','Aile sağlığı merkezlerinde aşı takvimi açıklandı.','3 sa'],
+  ['Sağlık','Bandırma','Devlet hastanesine yeni MR cihazı','Bekleme sürelerinin kısalması bekleniyor.','6 sa'],
+  ['Sağlık','Edremit','Kış öncesi uzmanlardan solunum yolu uyarısı','','1 gün'],
+  ['Eğitim','Balıkesir','Üniversitede yeni bölümler için kayıtlar sürüyor','Öğrenciler kampüse yerleşmeye başladı.','2 sa'],
+  ['Eğitim','Karesi','Okullarda ara tatil takvimi belli oldu','','5 sa'],
+  ['Eğitim','Gönen','Köy okuluna gönüllü kütüphane','','1 gün'],
+  ['Teknoloji','Balıkesir','Kent merkezinde ücretsiz internet noktaları artıyor','','4 sa'],
+  ['Teknoloji','Bandırma','Gençlerden yazılım kampı: 3 günde uygulama geliştirdiler','','1 gün'],
+  ['Teknoloji','Altıeylül','Tarımda dron dönemi: ilaçlama artık havadan','','2 gün']
 ];
 const N = (i) => ({ k: H[i][0], y: H[i][1], b: H[i][2], s: H[i][3], z: H[i][4] });
 const ILCELER = ['Altıeylül','Karesi','Bandırma','Edremit','Ayvalık','Gönen'];
@@ -680,6 +734,56 @@ new IntersectionObserver(([x]) => kat.classList.toggle('yapisik', !x.isIntersect
 $('#hamburger').addEventListener('click', () => $('#mobilMenu').classList.add('acik'));
 $('#mobilKapat').addEventListener('click', () => $('#mobilMenu').classList.remove('acik'));
 $('#mobilMenu').addEventListener('click', (e) => { if (e.target.classList.contains('m')) $('#mobilMenu').classList.remove('acik'); });
+
+// Sayfalar: her menü sekmesi kendi sayfasında açılır (#/gundem gibi)
+const SAYFALAR = [
+  ['son-dakika','Son Dakika'],['gundem','Gündem'],['balikesir','Balıkesir'],['ekonomi','Ekonomi'],['spor','Spor'],
+  ['266-sokakta','266 Sokakta'],['foto-galeri','Foto Galeri'],['yazarlar','Yazarlar'],['yasam','Yaşam'],['saglik','Sağlık'],['egitim','Eğitim'],['teknoloji','Teknoloji']
+];
+$('#navLinkler').outerHTML = SAYFALAR.map(([y, a]) => `<a href="#/${y}" data-sayfa="${y}">${a}</a>`).join('');
+$('#mobilLinkler').outerHTML = `<a class="m" href="#/">Ana sayfa</a>` + SAYFALAR.map(([y, a]) => `<a class="m" href="#/${y}">${a}</a>`).join('');
+$('#cokOkunan3').innerHTML = coklar;
+const kartUc = (liste) => `<div class="uclu">${liste.map((i) => { const h = N(i); return `<a href="#" class="kart" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3>${h.s ? `<p>${kac(h.s)}</p>` : ''}<span class="saat">${h.z} önce</span></span></a>`; }).join('')}</div>`;
+const tumHaberler = H.map((_, i) => i);
+function sayfaGoster(){
+  const yol = location.hash.replace(/^#\/?/, '');
+  const bulunan = SAYFALAR.find(([y]) => y === yol.split('/')[0]);
+  document.querySelectorAll('nav.kategoriler a[data-sayfa]').forEach((a) => a.classList.toggle('aktif', bulunan && a.dataset.sayfa === bulunan[0]));
+  if (!bulunan) { $('#anasayfa').hidden = false; $('#katSayfa').hidden = true; document.title = '266digitale — Balıkesir\'in haber sitesi | Son dakika Balıkesir haberleri'; return; }
+  const [slug, ad] = bulunan, ilce = decodeURIComponent(yol.split('/')[1] || '');
+  $('#anasayfa').hidden = true; $('#katSayfa').hidden = false;
+  $('#katAd').textContent = ilce || ad; $('#katKirinti').innerHTML = ilce ? `<a href="#/${slug}">${ad}</a> › ${kac(ilce)}` : ad;
+  document.title = `${ilce || ad} Haberleri — 266digitale`;
+  $('#katAlt').innerHTML = '';
+  let html = '';
+  if (slug === 'son-dakika') {
+    html = `<div class="sd-liste">${tumHaberler.slice(0, 20).map((i) => { const h = N(i); return `<a href="#" class="sd-satir" data-haber="${i}"><span class="zaman">${h.z}</span>${g(i)}<span><span class="etk">${kac(h.k)} · ${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('')}</div><button class="daha">Daha fazla haber</button>`;
+  } else if (slug === '266-sokakta') {
+    html = `<a href="#" class="video-buyuk" data-haber="20" style="margin-bottom:14px">${$('#videoBuyuk').innerHTML}</a><div class="video-sayfa">${$('#videoKucuk').innerHTML}${$('#videoKucuk').innerHTML.replace(/class="vk"/g, 'class="vk"')}</div><div class="bb" style="margin-top:26px"><h2>Reels</h2></div><div class="reel-izgara">${$('#reels').innerHTML}</div>`;
+  } else if (slug === 'foto-galeri') {
+    html = `<div class="foto-izgara" style="grid-template-columns:repeat(2,minmax(0,1fr))">${$('#fotoGaleri').innerHTML}${$('#fotoGaleri').innerHTML}</div><button class="daha">Daha fazla galeri</button>`;
+  } else if (slug === 'yazarlar') {
+    html = `<div class="yazar-sayfa">${$('#yazarListe').innerHTML}</div>`;
+  } else {
+    const KAT = { gundem: 'Gündem', balikesir: 'Balıkesir', ekonomi: 'Ekonomi', spor: 'Spor', yasam: 'Yaşam', saglik: 'Sağlık', egitim: 'Eğitim', teknoloji: 'Teknoloji' }[slug];
+    let liste = tumHaberler.filter((i) => slug === 'balikesir' ? (H[i][0] === 'Balıkesir' || H[i][1] !== 'Balıkesir') : H[i][0] === KAT);
+    if (slug === 'balikesir') {
+      const ilceler = [...new Set(H.map((x) => x[1]).filter((x) => x !== 'Balıkesir'))].sort((a, b) => a.localeCompare(b, 'tr'));
+      $('#katAlt').innerHTML = `<a href="#/balikesir" class="${ilce ? '' : 'secili'}">Tümü</a>` + ilceler.map((x) => `<a href="#/balikesir/${encodeURIComponent(x)}" class="${x === ilce ? 'secili' : ''}">${x}</a>`).join('');
+      if (ilce) liste = tumHaberler.filter((i) => H[i][1] === ilce);
+    }
+    const diger = tumHaberler.filter((i) => !liste.includes(i)).slice(0, 6);
+    html = !liste.length ? '<div class="kutu">Bu bölümde henüz haber yok.</div>'
+      : `<div class="kat-blok">${katBlok(liste[0], liste.slice(1, 5))}</div>` + (liste.length > 5 ? kartUc(liste.slice(5)) : '');
+    html += `<div class="reklam" style="height:110px;margin-top:22px">Reklam alanı · 728×90</div><div class="bb" style="margin-top:26px"><h2>Diğer haberler</h2></div>` + kartUc(diger) + '<button class="daha">Daha fazla haber</button>';
+  }
+  $('#katIcerik').innerHTML = html;
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', sayfaGoster);
+document.addEventListener('click', (e) => { if (e.target.classList.contains('daha')) bildirDaha(e.target); });
+function bildirDaha(b){ b.textContent = 'Örnek sayfa — gerçek sitede daha eski haberler yüklenir'; }
+sayfaGoster();
 </script>
 </body>
 </html>
