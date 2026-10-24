@@ -12182,6 +12182,15 @@ function Reklam266() {
     if (error) { swalAlert("Kaldırılamadı: " + error.message); return; }
     yukle();
   };
+  const gorselSil = async (yer) => {
+    if (!kayitlar[yer]?.guncellenme) { guncelle(yer, { gorsel: "" }); return; }
+    if (!(await swalConfirm("Görsel silinecek, bu alandaki reklam sitede görünmeyecek. Emin misiniz?"))) return;
+    setBekle(yer);
+    const { error } = await supabase.from("reklam266").update({ gorsel: null, guncellenme: new Date().toISOString() }).eq("yer", yer);
+    setBekle("");
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
+    yukle();
+  };
   const gorselSec = async (yer, e) => {
     const dosya = e.target.files && e.target.files[0]; e.target.value = "";
     if (!dosya) return;
@@ -12211,7 +12220,10 @@ function Reklam266() {
               {r.gorsel
                 ? <img src={r.gorsel} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "contain", background: T.bgInput, borderRadius: 8, display: "block", marginBottom: 10 }} />
                 : <div style={{ height: 90, borderRadius: 8, background: T.bgInput, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: T.textMuted, marginBottom: 10 }}>Görsel yok</div>}
-              <label style={dugme}>{bekle === yer + "-gorsel" ? "Yükleniyor..." : r.gorsel ? "Görseli Değiştir" : "Reklam Görseli Seç"}<input type="file" accept="image/*" hidden disabled={!!bekle} onChange={e => gorselSec(yer, e)} /></label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <label style={dugme}>{bekle === yer + "-gorsel" ? "Yükleniyor..." : r.gorsel ? "Görseli Değiştir" : "Reklam Görseli Seç"}<input type="file" accept="image/*" hidden disabled={!!bekle} onChange={e => gorselSec(yer, e)} /></label>
+                {r.gorsel && <Btn style={{ color: T.redText }} disabled={!!bekle} onClick={() => gorselSil(yer)}>Görseli Sil</Btn>}
+              </div>
               <div style={{ marginTop: 10 }}><Input value={r.baglanti || ""} onChange={e => guncelle(yer, { baglanti: e.target.value })} placeholder="Tıklanınca açılacak adres (https://...)" /></div>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.textSecondary, marginTop: 10, cursor: "pointer" }}>
                 <input type="checkbox" checked={r.aktif !== false} onChange={e => guncelle(yer, { aktif: e.target.checked })} /> Sitede göster
@@ -12387,7 +12399,7 @@ function Haber266Page({ perms, currentStaff }) {
               {taslak.kapak && <img src={taslak.kapak} alt="" style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}`, display: "block", marginBottom: 8 }} />}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <label style={dugme}>{gorselBekle === "kapak" ? "Yükleniyor..." : taslak.kapak ? "Değiştir" : "Fotoğraf Seç ya da Çek"}<input type="file" accept="image/*" hidden disabled={kilit} onChange={kapakSec} /></label>
-                {taslak.kapak && <Btn onClick={() => setTaslak(t => ({ ...t, kapak: "" }))}>Kaldır</Btn>}
+                {taslak.kapak && <Btn style={{ color: T.redText }} onClick={() => setTaslak(t => ({ ...t, kapak: "" }))}>Görseli Sil</Btn>}
               </div>
             </div>
             <div style={yanKart}>
