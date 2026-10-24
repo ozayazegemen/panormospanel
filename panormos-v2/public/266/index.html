@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>266digitale — Balıkesir'in haber sitesi | Son dakika Balıkesir haberleri</title>
-<meta name="description" content="266digitale: Balıkesir ve ilçelerinden son dakika haberler, sokak röportajları, video ve foto galeriler.">
+<meta name="description" content="266digitale: Balıkesir ve Türkiye'den son dakika haberler, sokak röportajları, video ve foto galeriler.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -246,7 +246,7 @@ footer .logo{color:#fff}
 .f-sosyal{display:flex;gap:8px;flex-wrap:wrap}
 .f-sosyal a{border:1px solid #2c3446;border-radius:6px;padding:8px 12px;color:#fff;font-weight:600;font-size:13px}
 .f-sosyal a:hover{background:var(--kirmizi);border-color:var(--kirmizi)}
-.f-menu{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:20px;padding:26px 0}
+.f-menu{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px;padding:26px 0}
 .f-menu h5{color:#fff;font:800 13px Archivo;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
 .f-menu a{display:block;padding:3px 0}
 .f-menu a:hover{color:#fff}
@@ -373,7 +373,7 @@ footer .logo{color:#fff}
 <div class="baslik-alani">
   <div class="ic">
     <a href="#/" class="logo" aria-label="266digitale ana sayfa"><span class="kod">266</span><span>digitale</span><span class="nokta">.</span></a>
-    <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input placeholder="Haber, ilçe ya da konu ara"></label>
+    <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input placeholder="Haber ya da konu ara"></label>
     <div class="baslik-sag">
       <a href="#" class="bulten-d">WhatsApp Kanalı</a>
       <button class="hamburger" id="hamburger" aria-label="Menü"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
@@ -421,7 +421,7 @@ footer .logo{color:#fff}
       </section>
 
       <section class="bolum" id="balikesir">
-        <div class="bb kirmizi"><h2>Balıkesir</h2><div class="alt-menu" id="ilceler"></div></div>
+        <div class="bb kirmizi"><h2>Balıkesir</h2><div class="alt-menu"><a href="#/balikesir">Tümü →</a></div></div>
         <div class="kat-blok" id="balikesirBlok"></div>
         <div class="dortlu" id="balikesirDortlu"></div>
       </section>
@@ -444,7 +444,7 @@ footer .logo{color:#fff}
       <div class="reklam kare">Reklam alanı · 300×250</div>
       <div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar <small>Son 24 saat</small></h3><ol id="cokOkunan"></ol></div>
       <div class="kutu">
-        <div class="hava-ust"><h3 class="kb">Hava durumu</h3><select id="havaIlce" aria-label="İlçe seç"></select></div>
+        <h3 class="kb">Hava durumu <small>Balıkesir</small></h3>
         <div id="hava"><p class="saat" style="margin-top:10px">Yükleniyor…</p></div>
       </div>
       <div class="kutu piyasa"><h3 class="kb">Döviz <small id="piyasaSaat"></small></h3><table id="piyasaTablo"><tr><td>Yükleniyor…</td></tr></table></div>
@@ -507,8 +507,7 @@ footer .logo{color:#fff}
     </div>
     <div class="f-menu">
       <div><h5>Haberler</h5><a href="#/son-dakika">Son Dakika</a><a href="#/gundem">Gündem</a><a href="#/balikesir">Balıkesir</a><a href="#/ekonomi">Ekonomi</a><a href="#/spor">Spor</a></div>
-      <div><h5>İlçeler</h5><a href="#">Altıeylül</a><a href="#">Karesi</a><a href="#">Bandırma</a><a href="#">Edremit</a><a href="#">Ayvalık</a></div>
-      <div><h5>İlçeler</h5><a href="#">Gönen</a><a href="#">Burhaniye</a><a href="#">Erdek</a><a href="#">Susurluk</a><a href="#">Tümü →</a></div>
+      <div><h5>Gündem</h5><a href="#/yasam">Yaşam</a><a href="#/saglik">Sağlık</a><a href="#/egitim">Eğitim</a><a href="#/teknoloji">Teknoloji</a></div>
       <div><h5>Multimedya</h5><a href="#/266-sokakta">266 Sokakta</a><a href="#/266-sokakta">Video</a><a href="#/foto-galeri">Foto Galeri</a><a href="#/yazarlar">Yazarlar</a></div>
       <div><h5>Hizmetler</h5><a href="#">Hava durumu</a><a href="#">Namaz vakitleri</a><a href="#">Nöbetçi eczaneler</a><a href="#">Döviz</a></div>
       <div><h5>Kurumsal</h5><a href="#">Künye</a><a href="#">Yayın ilkeleri</a><a href="#">Reklam</a><a href="#">Gizlilik</a><a href="#">İletişim</a></div>
@@ -536,45 +535,43 @@ footer .logo{color:#fff}
 // ÖRNEK İÇERİK — gerçek haberler panelden (Haber Masası) gelecek
 const RENK = [['#0f2a4a','#2f6fb3'],['#5a0a0e','#e30613'],['#123d26','#4c9a2a'],['#2a1d5c','#6d4bd8'],['#0b3b52','#1aa3d9'],['#6b2a07','#e88a12'],['#2f2f36','#8f8f99'],['#5b1035','#d6336c'],['#0f3f3b','#22b3a3'],['#1b2230','#e30613']];
 const H = [
-  ['Gündem','Bandırma','Sahil yolunda yeni düzenleme: yürüyüş ve bisiklet yolu genişliyor','Belediye, kıyı boyunca yaya ve bisiklet yolunun genişletilmesi için çalışma başlattı. Esnaf ve vatandaşlar ne düşünüyor?','12 dk'],
-  ['Balıkesir','Altıeylül','Kent merkezinde trafik düzenlemesi: hangi yollar tek yön oluyor?','Yeni düzenleme pazartesi günü yürürlüğe giriyor.','35 dk'],
-  ['Ekonomi','Gönen','Gönen pirincinde hasat sona yaklaştı: üretici fiyattan memnun mu?','Çiftçiler bu yılki rekolteyi değerlendirdi.','1 sa'],
+  ['Gündem','Balıkesir','Sahil ve şehir parklarında yeni düzenleme: yürüyüş ve bisiklet yolları genişliyor','Belediye, yaya ve bisiklet yollarının genişletilmesi için çalışma başlattı. Vatandaşlar ne düşünüyor?','12 dk'],
+  ['Balıkesir','Balıkesir','Kent merkezinde trafik düzenlemesi: hangi yollar tek yön oluyor?','Yeni düzenleme pazartesi günü yürürlüğe giriyor.','35 dk'],
+  ['Ekonomi','Balıkesir','Pirinç ve zeytinde hasat sona yaklaştı: üretici fiyattan memnun mu?','Çiftçiler bu yılki rekolteyi değerlendirdi.','1 sa'],
   ['Spor','Balıkesir','Hafta sonu kritik maç: taraftar tribünleri dolduracak','Biletler satışa çıktı, yoğunluk bekleniyor.','2 sa'],
-  ['Yaşam','Ayvalık','Cunda\'da sezon kapanırken esnafın yüzü gülüyor mu?','Turizmciler sezonu değerlendirdi.','3 sa'],
-  ['Balıkesir','Edremit','Zeytin hasadı için işçi arayışı başladı: yevmiyeler ne kadar?','Körfez bölgesinde hasat hazırlıkları sürüyor.','4 sa'],
-  ['Balıkesir','Erdek','Kış öncesi iskele bakımı tamamlandı','Feribot ve tekne seferlerinin aksamaması için yapılan bakım bitti.','5 sa'],
-  ['Balıkesir','Susurluk','Ayran festivali için geri sayım başladı','Organizasyon komitesi programı açıkladı.','6 sa'],
-  ['Balıkesir','Burhaniye','Pazar yeri yenileniyor: tezgâhlar nereye taşınacak?','Yenileme süresince pazar geçici alanda kurulacak.','7 sa'],
-  ['Spor','Bandırma','Basketbolda Avrupa heyecanı: salon kapalı gişe','Takım maç öncesi son antrenmanını yaptı.','2 sa'],
-  ['Spor','Edremit','Amatör ligde derbi günü: ilçe ayakta','','5 sa'],
+  ['Yaşam','Balıkesir','Sezon kapanırken turizmcinin yüzü gülüyor mu?','Turizmciler sezonu değerlendirdi.','3 sa'],
+  ['Balıkesir','Balıkesir','Zeytin hasadı için işçi arayışı başladı: yevmiyeler ne kadar?','Hasat hazırlıkları sürüyor.','4 sa'],
+  ['Balıkesir','Balıkesir','Kış öncesi iskele ve liman bakımları tamamlandı','Feribot ve tekne seferlerinin aksamaması için yapılan bakım bitti.','5 sa'],
+  ['Balıkesir','Balıkesir','Ayran ve yöresel lezzetler festivali için geri sayım başladı','Organizasyon komitesi programı açıkladı.','6 sa'],
+  ['Balıkesir','Balıkesir','Semt pazarları yenileniyor: tezgâhlar nereye taşınacak?','Yenileme süresince pazarlar geçici alanda kurulacak.','7 sa'],
+  ['Spor','Balıkesir','Basketbolda Avrupa heyecanı: salon kapalı gişe','Takım maç öncesi son antrenmanını yaptı.','2 sa'],
+  ['Spor','Balıkesir','Amatör ligde derbi günü: şehir ayakta','','5 sa'],
   ['Spor','Balıkesir','Yüzme şampiyonasında gençlerden 6 madalya','','8 sa'],
-  ['Ekonomi','Bandırma','Liman bölgesinde ihracat hareketliliği: yük trafiği artıyor','Konteyner sayısındaki artış kente nasıl yansıyor?','3 sa'],
-  ['Ekonomi','Balıkesir','Kira fiyatları ilçe ilçe: en çok hangisinde arttı?','','6 sa'],
-  ['Ekonomi','Bigadiç','Bor madenine yeni yatırım: istihdam beklentisi','','9 sa'],
-  ['Yaşam','Kepsut','Köy kahvesinden dijitale: 80 yaşında YouTuber oldu','','1 gün'],
-  ['Yaşam','Marmara','Adada mermer atölyesi: ustalar mesleği gençlere öğretiyor','','1 gün'],
-  ['Yaşam','Manyas','Kuş cenneti göçmen misafirlerini ağırlıyor','','1 gün'],
-  ['Yaşam','Sındırgı','Yağcıbedir halısı yeniden tezgâhta','','2 gün'],
-  ['Gündem','Karesi','Okul servislerine yeni denetim: veliler ne diyor?','Denetimler dönem boyunca sürecek.','1 sa'],
-  ['266 Sokakta','Bandırma','"Asgari ücretle kira nasıl ödenir?" Sokağa sorduk','Mikrofonu uzattık, Bandırmalılar anlattı.','2 sa'],
+  ['Ekonomi','Balıkesir','Limanda ihracat hareketliliği: yük trafiği artıyor','Konteyner sayısındaki artış kente nasıl yansıyor?','3 sa'],
+  ['Ekonomi','Türkiye','Kira fiyatları: son bir yılda ne kadar arttı?','','6 sa'],
+  ['Ekonomi','Balıkesir','Madencilik sektörüne yeni yatırım: istihdam beklentisi','','9 sa'],
+  ['Yaşam','Balıkesir','Köy kahvesinden dijitale: 80 yaşında YouTuber oldu','','1 gün'],
+  ['Yaşam','Balıkesir','Mermer atölyesi: ustalar mesleği gençlere öğretiyor','','1 gün'],
+  ['Yaşam','Balıkesir','Kuş cenneti göçmen misafirlerini ağırlıyor','','1 gün'],
+  ['Yaşam','Balıkesir','Geleneksel halı dokuması yeniden tezgâhta','','2 gün'],
+  ['Gündem','Türkiye','Okul servislerine yeni denetim: veliler ne diyor?','Denetimler dönem boyunca sürecek.','1 sa'],
+  ['266 Sokakta','Balıkesir','"Asgari ücretle kira nasıl ödenir?" Sokağa sorduk','Mikrofonu uzattık, Balıkesirliler anlattı.','2 sa'],
   ['Gündem','Balıkesir','Şehirlerarası otobüs terminalinde yenileme çalışması','','2 sa'],
-  ['Gündem','Gönen','Kaplıca bölgesine yeni yürüyüş parkuru','','4 sa'],
-  ['Gündem','Havran','Köy yollarında asfalt çalışması başladı','','5 sa'],
-  ['Balıkesir','Savaştepe','Hayvan pazarında kış hazırlığı','','6 sa'],
-  ['Balıkesir','İvrindi','Sağlık ocağına yeni doktor ataması','','7 sa'],
-  ['Sağlık','Balıkesir','Grip aşısı randevuları başladı: kimler öncelikli?','Aile sağlığı merkezlerinde aşı takvimi açıklandı.','3 sa'],
-  ['Sağlık','Bandırma','Devlet hastanesine yeni MR cihazı','Bekleme sürelerinin kısalması bekleniyor.','6 sa'],
-  ['Sağlık','Edremit','Kış öncesi uzmanlardan solunum yolu uyarısı','','1 gün'],
+  ['Gündem','Balıkesir','Kaplıca bölgesine yeni yürüyüş parkuru','','4 sa'],
+  ['Gündem','Balıkesir','Köy yollarında asfalt çalışması başladı','','5 sa'],
+  ['Balıkesir','Balıkesir','Hayvan pazarında kış hazırlığı','','6 sa'],
+  ['Balıkesir','Balıkesir','Sağlık ocaklarına yeni doktor ataması','','7 sa'],
+  ['Sağlık','Türkiye','Grip aşısı randevuları başladı: kimler öncelikli?','Aile sağlığı merkezlerinde aşı takvimi açıklandı.','3 sa'],
+  ['Sağlık','Balıkesir','Şehir hastanesine yeni MR cihazı','Bekleme sürelerinin kısalması bekleniyor.','6 sa'],
+  ['Sağlık','Türkiye','Kış öncesi uzmanlardan solunum yolu uyarısı','','1 gün'],
   ['Eğitim','Balıkesir','Üniversitede yeni bölümler için kayıtlar sürüyor','Öğrenciler kampüse yerleşmeye başladı.','2 sa'],
-  ['Eğitim','Karesi','Okullarda ara tatil takvimi belli oldu','','5 sa'],
-  ['Eğitim','Gönen','Köy okuluna gönüllü kütüphane','','1 gün'],
+  ['Eğitim','Türkiye','Okullarda ara tatil takvimi belli oldu','','5 sa'],
+  ['Eğitim','Balıkesir','Köy okuluna gönüllü kütüphane','','1 gün'],
   ['Teknoloji','Balıkesir','Kent merkezinde ücretsiz internet noktaları artıyor','','4 sa'],
-  ['Teknoloji','Bandırma','Gençlerden yazılım kampı: 3 günde uygulama geliştirdiler','','1 gün'],
-  ['Teknoloji','Altıeylül','Tarımda dron dönemi: ilaçlama artık havadan','','2 gün']
+  ['Teknoloji','Balıkesir','Gençlerden yazılım kampı: 3 günde uygulama geliştirdiler','','1 gün'],
+  ['Teknoloji','Türkiye','Tarımda dron dönemi: ilaçlama artık havadan','','2 gün']
 ];
 const N = (i) => ({ k: H[i][0], y: H[i][1], b: H[i][2], s: H[i][3], z: H[i][4] });
-const ILCELER = ['Altıeylül','Karesi','Bandırma','Edremit','Ayvalık','Gönen'];
-const HAVA_ILCE = {Balıkesir:[39.65,27.88],Bandırma:[40.35,27.98],Edremit:[39.6,27.02],Ayvalık:[39.32,26.69],Gönen:[40.1,27.65],Burhaniye:[39.5,26.97],Erdek:[40.4,27.79],Susurluk:[39.91,28.16],Bigadiç:[39.39,28.13],Dursunbey:[39.58,28.63],Sındırgı:[39.24,28.18]};
 
 const $ = (s) => document.querySelector(s);
 const kac = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -585,7 +582,6 @@ function g(i, etiket = ''){
 
 $('#tarih').textContent = new Date().toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric', weekday:'long' });
 $('#yil').textContent = new Date().getFullYear();
-$('#ilceler').innerHTML = ILCELER.map((d) => `<a href="#">${d}</a>`).join('') + '<a href="#">Tümü →</a>';
 
 // Son dakika
 const sd = [0,19,1,5,12,9,21].map((i) => `<a href="#" data-haber="${i}">${kac(N(i).y)}: ${kac(N(i).b)}</a>`).join('');
@@ -632,13 +628,13 @@ $('#cokOkunan').innerHTML = coklar; $('#cokOkunan2').innerHTML = coklar;
 // Video bandı
 const vb = N(20);
 $('#videoBuyuk').innerHTML = `${g(13)}<span class="karart"></span><span class="sure">2:14</span><span class="oynat"><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span><span class="yazi"><span class="etk kutu">266 Sokakta</span><h3>${kac(vb.b)}</h3></span>`;
-const VK = [['Zeytin işçisiyle bir gün','3:40'],['"Turist gidince Ayvalık nasıl?"','1:48'],['Kaplıcada sabah 6\'da kimler var?','2:02'],['Balıkçılar ağlarını topladı','2:31']];
+const VK = [['Zeytin işçisiyle bir gün','3:40'],['"Turist gidince sahil nasıl?"','1:48'],['Kaplıcada sabah 6\'da kimler var?','2:02'],['Balıkçılar ağlarını topladı','2:31']];
 $('#videoKucuk').innerHTML = VK.map(([b, s], i) => `<a href="#" class="vk" data-haber="20">${g(i + 4)}<span class="karart"></span><span class="sure">${s}</span><span class="oynat"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span><h4>${kac(b)}</h4></a>`).join('');
 const RL = ['Öğrencilere sorduk: en iyi tost nerede?','"Bu kış doğalgaz faturası ne gelir?"','Pazarcı esnafı ne diyor?','Gençler Balıkesir\'de kalmak istiyor mu?','Emekliye sorduk: geçinebiliyor musun?','Sahilde akşam yürüyüşü'];
 $('#reels').innerHTML = RL.map((b, i) => `<a href="#" class="reel" data-haber="20">${g(i + 2)}<span class="karart"></span><span class="rozet">REELS</span><b>${kac(b)}</b></a>`).join('');
 
 // Foto galeri
-const FG = [['Manyas Kuş Cenneti\'nde sonbahar','24'],['Ayvalık\'ta gün batımı','18'],['Bandırma Limanı havadan','12'],['Kazdağları\'nda sis','30']];
+const FG = [['Kuş Cenneti\'nde sonbahar','24'],['Kıyıda gün batımı','18'],['Balıkesir havadan','12'],['Kazdağları\'nda sis','30']];
 $('#fotoGaleri').innerHTML = FG.map(([b, a], i) => `<a href="#" class="foto" data-haber="17">${g(i + 6)}<span class="karart"></span><span class="adet">${a} fotoğraf</span><h4>${kac(b)}</h4></a>`).join('');
 
 // Yazarlar (örnek)
@@ -646,23 +642,21 @@ const YZ = [['Yazar Adı 1','Balıkesir\'in ulaşım sorunu nasıl çözülür?'
 $('#yazarListe').innerHTML = YZ.map(([a, b, r], i) => `<a href="#" class="yazar"><span class="avatar" style="background:${r}">Y${i + 1}</span><span><b>${a}</b><span class="yb">${kac(b)}</span></span></a>`).join('');
 
 // Nöbetçi eczane ve puan durumu (örnek; gerçekte günlük güncellenecek)
-$('#eczane').innerHTML = [['Örnek Eczanesi','Altıeylül · Atatürk Cad.'],['Merkez Eczanesi','Karesi · Milli Kuvvetler Cad.'],['Sağlık Eczanesi','Bandırma · Hal Sok.']].map(([a, b]) => `<li><b>${a}</b><span>${b}</span></li>`).join('');
+$('#eczane').innerHTML = [['Örnek Eczanesi','Atatürk Cad. No: 1'],['Merkez Eczanesi','Milli Kuvvetler Cad. No: 2'],['Sağlık Eczanesi','Hal Sok. No: 3']].map(([a, b]) => `<li><b>${a}</b><span>${b}</span></li>`).join('');
 $('#puan').innerHTML = '<tr><th></th><th>Takım</th><th>O</th><th>Av</th><th>P</th></tr>' + [['Takım A',10,12,24],['Takım B',10,8,21],['Balıkesir takımı',10,6,19],['Takım D',10,3,17],['Takım E',10,1,15],['Takım F',10,-2,13]].map(([t, o, a, p], i) => `<tr class="${/Balıkesir/.test(t) ? 'biz' : ''}"><td>${i + 1}</td><td>${t}</td><td>${o}</td><td>${a > 0 ? '+' + a : a}</td><td>${p}</td></tr>`).join('');
 
 // Canlı veriler: hava (Open-Meteo), döviz (Frankfurter / Avrupa Merkez Bankası), namaz vakitleri (Aladhan, Diyanet yöntemi)
 const HAVA_KOD = (k) => k === 0 ? ['☀️','Açık'] : k <= 2 ? ['🌤️','Az bulutlu'] : k === 3 ? ['☁️','Bulutlu'] : k <= 48 ? ['🌫️','Sisli'] : k <= 67 ? ['🌧️','Yağmurlu'] : k <= 77 ? ['🌨️','Karlı'] : k <= 82 ? ['🌦️','Sağanak'] : ['⛈️','Gök gürültülü'];
-$('#havaIlce').innerHTML = Object.keys(HAVA_ILCE).map((i) => `<option>${i}</option>`).join('');
-async function havaGetir(ilce){
-  const [lat, lon] = HAVA_ILCE[ilce];
+async function havaGetir(){
+  const [lat, lon] = [39.65, 27.88];
   try {
     const v = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FIstanbul&forecast_days=5`).then((r) => r.json());
     const [ikon, ad] = HAVA_KOD(v.current.weather_code);
     $('#hava').innerHTML = `<div class="hava-simdi"><span class="ikon">${ikon}</span><span class="derece">${Math.round(v.current.temperature_2m)}°</span><span><b>${ad}</b><small>Rüzgâr ${Math.round(v.current.wind_speed_10m)} km/s · Nem %${v.current.relative_humidity_2m}</small></span></div>` +
       `<div class="hava-gunler">${v.daily.time.map((t, i) => `<div><b>${i ? new Date(t).toLocaleDateString('tr-TR', { weekday: 'short' }) : 'Bugün'}</b><span>${HAVA_KOD(v.daily.weather_code[i])[0]}</span>${Math.round(v.daily.temperature_2m_max[i])}° / ${Math.round(v.daily.temperature_2m_min[i])}°</div>`).join('')}</div>`;
-    if (ilce === 'Balıkesir') bandHava(ikon, v.current.temperature_2m);
+    bandHava(ikon, v.current.temperature_2m);
   } catch (e) { $('#hava').innerHTML = '<p class="saat" style="margin-top:10px">Hava durumu şu an alınamadı.</p>'; }
 }
-$('#havaIlce').addEventListener('change', (e) => havaGetir(e.target.value));
 
 let bandHavaHtml = '';
 function bandHava(ikon, derece){ bandHavaHtml = `<span>BALIKESİR<b>${ikon} ${Math.round(derece)}°</b></span>`; const b = $('#bandHavaYer'); if (b) b.innerHTML = bandHavaHtml; }
@@ -680,7 +674,7 @@ async function piyasaGetir(){
     $('#piyasaBand').innerHTML = satir.map((s) => `<span>${s.ad.toLocaleUpperCase('tr')}<b>${yaz2(s.d)}</b> <span class="${s.f >= 0 ? 'yuk' : 'dus'}">${s.f >= 0 ? '▲' : '▼'}</span></span>`).join('') + `<span id="bandHavaYer">${bandHavaHtml}</span>`;
   } catch (e) { $('#piyasaTablo').innerHTML = '<tr><td>Kurlar şu an alınamadı.</td></tr>'; $('#piyasaBand').innerHTML = `<span id="bandHavaYer">${bandHavaHtml}</span>`; }
 }
-havaGetir('Balıkesir');
+havaGetir();
 piyasaGetir();
 
 async function namazGetir(){
@@ -708,7 +702,7 @@ function haberAc(i){
     <figcaption>Fotoğraf: 266digitale</figcaption>
     <div class="govde">
       <p>Bu bir örnek haber metnidir. Gerçek haberler yayına girdiğinde bu alanda muhabirin yazdığı metin, röportajlar ve fotoğraflar yer alacak.</p>
-      <p>Haber sayfaları telefonda rahat okunacak şekilde hazırlandı. Her haber Google Haberler'e uygun işaretlenir, böylece "${kac(h.y)} haberleri" arayan biri haberi doğrudan bulur.</p>
+      <p>Haber sayfaları telefonda rahat okunacak şekilde hazırlandı. Her haber Google Haberler'e uygun işaretlenir, böylece "Balıkesir haberleri" arayan biri haberi doğrudan bulur.</p>
       <div class="reklam" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>
       <blockquote>"Sokaktaki insanın sesini duyurmak için buradayız."</blockquote>
       <h2>Ara başlık</h2>
@@ -750,10 +744,10 @@ function sayfaGoster(){
   const bulunan = SAYFALAR.find(([y]) => y === yol.split('/')[0]);
   document.querySelectorAll('nav.kategoriler a[data-sayfa]').forEach((a) => a.classList.toggle('aktif', bulunan && a.dataset.sayfa === bulunan[0]));
   if (!bulunan) { $('#anasayfa').hidden = false; $('#katSayfa').hidden = true; document.title = '266digitale — Balıkesir\'in haber sitesi | Son dakika Balıkesir haberleri'; return; }
-  const [slug, ad] = bulunan, ilce = decodeURIComponent(yol.split('/')[1] || '');
+  const [slug, ad] = bulunan;
   $('#anasayfa').hidden = true; $('#katSayfa').hidden = false;
-  $('#katAd').textContent = ilce || ad; $('#katKirinti').innerHTML = ilce ? `<a href="#/${slug}">${ad}</a> › ${kac(ilce)}` : ad;
-  document.title = `${ilce || ad} Haberleri — 266digitale`;
+  $('#katAd').textContent = ad; $('#katKirinti').textContent = ad;
+  document.title = `${ad} Haberleri — 266digitale`;
   $('#katAlt').innerHTML = '';
   let html = '';
   if (slug === 'son-dakika') {
@@ -766,12 +760,7 @@ function sayfaGoster(){
     html = `<div class="yazar-sayfa">${$('#yazarListe').innerHTML}</div>`;
   } else {
     const KAT = { gundem: 'Gündem', balikesir: 'Balıkesir', ekonomi: 'Ekonomi', spor: 'Spor', yasam: 'Yaşam', saglik: 'Sağlık', egitim: 'Eğitim', teknoloji: 'Teknoloji' }[slug];
-    let liste = tumHaberler.filter((i) => slug === 'balikesir' ? (H[i][0] === 'Balıkesir' || H[i][1] !== 'Balıkesir') : H[i][0] === KAT);
-    if (slug === 'balikesir') {
-      const ilceler = [...new Set(H.map((x) => x[1]).filter((x) => x !== 'Balıkesir'))].sort((a, b) => a.localeCompare(b, 'tr'));
-      $('#katAlt').innerHTML = `<a href="#/balikesir" class="${ilce ? '' : 'secili'}">Tümü</a>` + ilceler.map((x) => `<a href="#/balikesir/${encodeURIComponent(x)}" class="${x === ilce ? 'secili' : ''}">${x}</a>`).join('');
-      if (ilce) liste = tumHaberler.filter((i) => H[i][1] === ilce);
-    }
+    const liste = tumHaberler.filter((i) => H[i][0] === KAT);
     const diger = tumHaberler.filter((i) => !liste.includes(i)).slice(0, 6);
     html = !liste.length ? '<div class="kutu">Bu bölümde henüz haber yok.</div>'
       : `<div class="kat-blok">${katBlok(liste[0], liste.slice(1, 5))}</div>` + (liste.length > 5 ? kartUc(liste.slice(5)) : '');

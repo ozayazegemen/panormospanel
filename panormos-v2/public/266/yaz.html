@@ -163,7 +163,7 @@ textarea{min-height:220px;resize:vertical;line-height:1.7}
         <button class="ornek" id="ornekDoldur">Örnek haberle doldur (hızlı denemek için)</button>
 
         <label>Başlık</label>
-        <input class="baslik-girdi" id="baslik" placeholder="Örn: Bandırma sahilinde yeni yürüyüş yolu açıldı">
+        <input class="baslik-girdi" id="baslik" placeholder="Örn: Sahil yolunda yeni yürüyüş yolu açıldı">
 
         <label>Spot <small>(başlığın altındaki kısa özet)</small></label>
         <input id="spot" placeholder="Haberin en önemli bilgisi: ne, nerede, ne zaman?">
@@ -199,8 +199,6 @@ textarea{min-height:220px;resize:vertical;line-height:1.7}
           <h3>Yayın</h3>
           <label style="margin-top:8px">Kategori</label>
           <select id="kategori"><option>Gündem</option><option>Balıkesir</option><option>266 Sokakta</option><option>Spor</option><option>Ekonomi</option><option>Yaşam</option></select>
-          <label>Yer</label>
-          <input id="yer" placeholder="Örn: Bandırma">
           <div style="height:10px"></div>
           <div class="anahtar"><div><b>Son dakika</b><small>Sitenin üstündeki kayan şeride ekler</small></div><button class="dugme-anahtar" id="sonDakika" aria-label="Son dakika"></button></div>
           <div class="anahtar"><div><b>Manşet</b><small>Ana sayfada en büyük haber olur</small></div><button class="dugme-anahtar" id="manset" aria-label="Manşet"></button></div>
@@ -323,10 +321,10 @@ $('#video').addEventListener('input', () => {
 
 // Örnek doldur
 $('#ornekDoldur').addEventListener('click', () => {
-  $('#baslik').value = 'Bandırma sahilinde yeni yürüyüş yolu açıldı';
+  $('#baslik').value = 'Sahil yolunda yeni yürüyüş yolu açıldı';
   $('#spot').value = 'Kıyı boyunca 2 kilometrelik yürüyüş ve bisiklet yolu hafta sonu kullanıma açıldı. Vatandaşlar ilk günden yoğun ilgi gösterdi.';
-  $('#metin').value = 'Bandırma sahilinde aylardır süren çalışma tamamlandı. Yeni yol, liman bölgesinden başlayıp sahil boyunca uzanıyor.\n\n## Vatandaşlar ne diyor?\n\n> "Akşamları çocuklarla rahatça yürüyebileceğimiz bir yer olmuştu, artık var."\n\n[VİDEO]\n\nYol boyunca oturma alanları ve aydınlatma da yenilendi. Bisiklet kullanıcıları için ayrı bir şerit ayrıldı.\n\n[FOTOĞRAF]\n\nBelediye, ikinci etabın baharda başlayacağını açıkladı.';
-  $('#kategori').value = 'Gündem'; $('#yer').value = 'Bandırma';
+  $('#metin').value = 'Sahil yolunda aylardır süren çalışma tamamlandı. Yeni yol, liman bölgesinden başlayıp sahil boyunca uzanıyor.\n\n## Vatandaşlar ne diyor?\n\n> "Akşamları çocuklarla rahatça yürüyebileceğimiz bir yer olmuştu, artık var."\n\n[VİDEO]\n\nYol boyunca oturma alanları ve aydınlatma da yenilendi. Bisiklet kullanıcıları için ayrı bir şerit ayrıldı.\n\n[FOTOĞRAF]\n\nBelediye, ikinci etabın baharda başlayacağını açıkladı.';
+  $('#kategori').value = 'Gündem';
   $('#video').value = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'; $('#video').dispatchEvent(new Event('input'));
   $('#sonDakika').classList.add('acik'); $('#manset').classList.add('acik');
   if (!kapakUrl) { kapakUrl = ornekResim(0, 'KAPAK'); kapakCiz(); }
@@ -346,13 +344,13 @@ function formOku(){
   return {
     baslik: $('#baslik').value.trim(), spot: $('#spot').value.trim(), metin: $('#metin').value,
     kapak: kapakUrl, galeri: [...galeri], video: videoBul($('#video').value),
-    kategori: $('#kategori').value, yer: $('#yer').value.trim() || 'Balıkesir',
+    kategori: $('#kategori').value, yer: 'Balıkesir',
     sonDakika: $('#sonDakika').classList.contains('acik'), manset: $('#manset').classList.contains('acik'),
     yazar: rol === 'yonetici' ? 'Egemen Özayaz' : 'Muhabir', zaman: new Date()
   };
 }
 function formTemizle(){
-  ['baslik', 'spot', 'metin', 'yer', 'video'].forEach((id) => { $('#' + id).value = ''; });
+  ['baslik', 'spot', 'metin', 'video'].forEach((id) => { $('#' + id).value = ''; });
   $('#videoOn').style.display = 'none';
   kapakUrl = ''; galeri = []; kapakCiz(); galeriCiz();
   $('#sonDakika').classList.remove('acik'); $('#manset').classList.remove('acik');
@@ -526,7 +524,7 @@ async function igCiz(h){
     if (!img || img.tagName !== 'IMG') { img = document.createElement('img'); img.draggable = true; img.alt = ''; img.style.cssText = 'width:100%;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);display:block;cursor:grab'; c.after(img); c.style.display = 'none'; }
     img.src = c.toDataURL('image/jpeg', .92);
   });
-  $('#igMetin').value = `${h.sonDakika ? 'SON DAKİKA | ' : ''}${h.baslik}\n\n${h.spot || ''}\n\nHaberin tamamı ve video: profildeki bağlantıda.\n\n${yerEtiket} #balıkesir #266digitale #haber #${h.kategori.toLocaleLowerCase('tr').replace(/\s+/g, '')}`;
+  $('#igMetin').value = `${h.sonDakika ? 'SON DAKİKA | ' : ''}${h.baslik}\n\n${h.spot || ''}\n\nHaberin tamamı ve video: profildeki bağlantıda.\n\n#balıkesir #266digitale #haber #${h.kategori.toLocaleLowerCase('tr').replace(/\s+/g, '')}`;
   $('#igLink').textContent = adres;
 }
 function canvasDosya(id){ return new Promise((ok) => $('#' + id).toBlob((b) => ok(new File([b], `266digitale-${id === 'igHikaye' ? 'hikaye' : 'gonderi'}.jpg`, { type: 'image/jpeg' })), 'image/jpeg', .92)); }
