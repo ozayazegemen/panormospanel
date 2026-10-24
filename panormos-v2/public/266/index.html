@@ -368,6 +368,11 @@ footer .logo{color:#fff}
 .buyutec .kapa:hover{background:var(--kirmizi)}
 .buyutec .sayac{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font:700 14px Inter;background:rgba(255,255,255,.12);padding:6px 14px;border-radius:999px}
 @media (max-width:720px){.buyutec .ok{width:44px;height:44px;font-size:24px}.buyutec .ok.sol{left:8px}.buyutec .ok.sag{right:8px}}
+
+.reklam.dolu{background:none;border:0;height:auto!important;display:block;text-align:center}
+.reklam.dolu a{display:block}
+.reklam.dolu img{max-width:100%;height:auto;display:block;margin:0 auto;border-radius:4px}
+.reklam.dolu .rk-etiket{display:block;font:600 10px Inter;letter-spacing:.12em;color:#9a9aa3;text-transform:uppercase;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -414,7 +419,7 @@ footer .logo{color:#fff}
 
 <div id="anasayfa">
 <main class="ic">
-  <div class="reklam billboard">Reklam alanı · 970×250</div>
+  <div class="reklam billboard" data-yer="ust">Reklam alanı · 970×250</div>
 
   <section class="manset-alani">
     <div class="manset-izgara">
@@ -438,7 +443,7 @@ footer .logo{color:#fff}
         <div class="dortlu" id="balikesirDortlu"></div>
       </section>
 
-      <div class="reklam" style="height:110px;margin-top:26px">Reklam alanı · 728×90</div>
+      <div class="reklam" data-yer="ara" style="height:110px;margin-top:26px">Reklam alanı · 728×90</div>
 
       <section class="bolum" id="ekonomi">
         <div class="bb"><h2>Ekonomi</h2><div class="alt-menu"><a href="#">Piyasalar</a><a href="#">Tarım</a><a href="#">Emlak</a><a href="#">Tümü →</a></div></div>
@@ -453,7 +458,7 @@ footer .logo{color:#fff}
     </div>
 
     <aside class="yan-sutun">
-      <div class="reklam kare">Reklam alanı · 300×250</div>
+      <div class="reklam kare" data-yer="yan_kare">Reklam alanı · 300×250</div>
       <div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar <small>Son 24 saat</small></h3><ol id="cokOkunan"></ol></div>
       <div class="kutu">
         <h3 class="kb">Hava durumu <small>Balıkesir</small></h3>
@@ -463,7 +468,7 @@ footer .logo{color:#fff}
       <div class="kutu"><h3 class="kb">Namaz vakitleri <small>Balıkesir</small></h3><div class="vakitler" id="vakitler"><div>Yükleniyor…</div></div></div>
       <div class="kutu eczane"><h3 class="kb">Nöbetçi eczaneler <small>Örnek</small></h3><ul id="eczane"></ul></div>
       <div class="kutu puan"><h3 class="kb">Puan durumu <small>Örnek</small></h3><table id="puan"></table></div>
-      <div class="reklam dikey">Reklam alanı · 300×600</div>
+      <div class="reklam dikey" data-yer="yan_dikey">Reklam alanı · 300×600</div>
     </aside>
   </div>
 </main>
@@ -507,7 +512,7 @@ footer .logo{color:#fff}
   <div class="kat-baslik"><div class="ic"><div class="kirinti"><a href="#/">Ana sayfa</a> › <span id="katKirinti"></span></div><h1 id="katAd"></h1><div class="kat-alt" id="katAlt"></div></div></div>
   <div class="ic duzen" style="margin-top:22px">
     <div id="katIcerik"></div>
-    <aside class="yan-sutun"><div class="reklam kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan3"></ol></div><div class="reklam dikey">Reklam alanı · 300×600</div></aside>
+    <aside class="yan-sutun"><div class="reklam kare" data-yer="yan_kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan3"></ol></div><div class="reklam dikey" data-yer="yan_dikey">Reklam alanı · 300×600</div></aside>
   </div>
 </div>
 
@@ -539,7 +544,7 @@ footer .logo{color:#fff}
   </div></div>
   <div class="ic makale-duzen">
     <div><article class="makale" id="makale"></article><div class="ilgili"><div class="bb"><h2>İlgili haberler</h2></div><div class="dortlu" id="ilgili" style="margin-top:0"></div></div></div>
-    <aside class="yan-sutun"><div class="reklam kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan2"></ol></div><div class="reklam dikey">Reklam alanı · 300×600</div></aside>
+    <aside class="yan-sutun"><div class="reklam kare" data-yer="yan_kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan2"></ol></div><div class="reklam dikey" data-yer="yan_dikey">Reklam alanı · 300×600</div></aside>
   </div>
 </div>
 
@@ -738,7 +743,7 @@ function gercekGovde(r){
     if (f) return `<figure style="margin:6px 0 20px"><img src="${kac(f[2])}" alt="${kac(f[1])}" loading="lazy" data-buyut style="width:100%;border-radius:4px;display:block;cursor:zoom-in">${f[1] ? `<figcaption>${kac(f[1])}</figcaption>` : ''}</figure>`;
     return `<p>${kac(b).replace(/\n/g, '<br>')}</p>`;
   });
-  if (html.length > 2) html.splice(2, 0, '<div class="reklam" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>');
+  if (html.length > 2) html.splice(2, 0, '<div class="reklam" data-yer="haber_ici" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>');
   let son = html.join('');
   if (!videoKondu && r.video) son += videoGom(r.video);
   const galeri = Array.isArray(r.galeri) ? r.galeri : [];
@@ -779,7 +784,7 @@ function haberAc(i){
     <div class="govde">
       <p>Bu bir örnek haber metnidir. Gerçek haberler yayına girdiğinde bu alanda muhabirin yazdığı metin, röportajlar ve fotoğraflar yer alacak.</p>
       <p>Haber sayfaları telefonda rahat okunacak şekilde hazırlandı. Her haber Google Haberler'e uygun işaretlenir, böylece "Balıkesir haberleri" arayan biri haberi doğrudan bulur.</p>
-      <div class="reklam" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>
+      <div class="reklam" data-yer="haber_ici" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>
       <blockquote>"Sokaktaki insanın sesini duyurmak için buradayız."</blockquote>
       <h2>Ara başlık</h2>
       <p>Videolu haberlerde Instagram ya da YouTube videosu metnin içine yerleşir ve sayfadan çıkmadan izlenir. Galerili haberlerde fotoğraflar kaydırılarak gezilir.</p>
@@ -842,7 +847,7 @@ function sayfaGoster(){
     const diger = tumHaberler.filter((i) => !liste.includes(i)).slice(0, 6);
     html = !liste.length ? '<div class="kutu">Bu bölümde henüz haber yok.</div>'
       : `<div class="kat-blok">${katBlok(liste[0], liste.slice(1, 5))}</div>` + (liste.length > 5 ? kartUc(liste.slice(5)) : '');
-    html += `<div class="reklam" style="height:110px;margin-top:22px">Reklam alanı · 728×90</div><div class="bb" style="margin-top:26px"><h2>Diğer haberler</h2></div>` + kartUc(diger) + '<button class="daha">Daha fazla haber</button>';
+    html += `<div class="reklam" data-yer="ara" style="height:110px;margin-top:22px">Reklam alanı · 728×90</div><div class="bb" style="margin-top:26px"><h2>Diğer haberler</h2></div>` + kartUc(diger) + '<button class="daha">Daha fazla haber</button>';
   }
   $('#katIcerik').innerHTML = html;
   window.scrollTo(0, 0);
@@ -877,6 +882,26 @@ document.addEventListener('keydown', (e) => {
 let dokunX = null;
 $('#buyutec').addEventListener('touchstart', (e) => { dokunX = e.touches[0].clientX; }, { passive: true });
 $('#buyutec').addEventListener('touchend', (e) => { if (dokunX == null) return; const fark = e.changedTouches[0].clientX - dokunX; if (Math.abs(fark) > 40 && buyutecListe.length > 1) buyutecGit(fark < 0 ? 1 : -1); dokunX = null; });
+
+// Reklamlar: panelden (266 Haber Masası → Reklamlar) yüklenen görseller yerlerine konur
+let REKLAMLAR = {};
+function reklamUygula(kok = document){
+  kok.querySelectorAll('.reklam[data-yer]:not(.dolu)').forEach((el) => {
+    const r = REKLAMLAR[el.dataset.yer];
+    if (!r || !r.gorsel) return;
+    const resim = `<img src="${kac(r.gorsel)}" alt="Reklam" loading="lazy">`;
+    el.classList.add('dolu');
+    el.innerHTML = `<span class="rk-etiket">Reklam</span>` + (r.baglanti ? `<a href="${kac(r.baglanti)}" target="_blank" rel="sponsored noopener">${resim}</a>` : resim);
+  });
+}
+(async () => {
+  try {
+    const liste = await fetch(`${SUPA}/rest/v1/reklam266?aktif=eq.true&select=yer,gorsel,baglanti`, { headers: { apikey: SUPA_ANAHTAR } }).then((r) => (r.ok ? r.json() : []));
+    REKLAMLAR = Object.fromEntries((Array.isArray(liste) ? liste : []).map((r) => [r.yer, r]));
+    reklamUygula();
+    new MutationObserver(() => reklamUygula()).observe(document.body, { childList: true, subtree: true });
+  } catch (e) { /* reklam alınamazsa yer tutucular kalır */ }
+})();
 </script>
 </body>
 </html>

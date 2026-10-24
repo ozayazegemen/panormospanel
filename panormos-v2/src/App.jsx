@@ -12137,6 +12137,97 @@ function Haber266Instagram({ haber, onClose }) {
   );
 }
 
+// 266digitale reklam alanları (yalnızca yönetici): her alana bir görsel ve bağlantı; sitede kendiliğinden görünür
+const REKLAM266_YERLERI = [
+  ["ust", "Üst geniş reklam", "Ana sayfanın en üstünde, menünün altında", "970 × 250"],
+  ["ara", "Ara reklam", "Ana sayfada bölümler arasında ve kategori sayfalarında", "728 × 90"],
+  ["yan_kare", "Yan kare reklam", "Sağ sütunun en üstünde (ana sayfa, kategori ve haber sayfaları)", "300 × 250"],
+  ["yan_dikey", "Yan uzun reklam", "Sağ sütunun altında (bilgisayarda görünür)", "300 × 600"],
+  ["haber_ici", "Haber içi reklam", "Haber metninin ortasında", "728 × 250 ya da 300 × 250"],
+];
+async function reklam266GorselYukle(dosya) {
+  if (!/^image\//.test(dosya.type)) throw new Error("Yalnızca görsel seçin (JPG, PNG, GIF).");
+  if (dosya.size > 5 * 1024 * 1024) throw new Error("Görsel en çok 5 MB olabilir.");
+  const uzanti = (dosya.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const yol = `reklam/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${uzanti}`;
+  const { error } = await supabase.storage.from("haber266").upload(yol, dosya, { contentType: dosya.type, cacheControl: "31536000" });
+  if (error) throw new Error(error.message);
+  return supabase.storage.from("haber266").getPublicUrl(yol).data.publicUrl;
+}
+function Reklam266() {
+  const [kayitlar, setKayitlar] = useState(null);
+  const [kurulumYok, setKurulumYok] = useState(false);
+  const [bekle, setBekle] = useState("");
+  const yukle = async () => {
+    const { data, error } = await supabase.from("reklam266").select("*");
+    setKurulumYok(!!error);
+    setKayitlar(Object.fromEntries((data || []).map(r => [r.yer, r])));
+  };
+  useEffect(() => { yukle(); }, []);
+  const guncelle = (yer, alan) => setKayitlar(k => ({ ...k, [yer]: { yer, aktif: true, gorsel: "", baglanti: "", ...k[yer], ...alan } }));
+  const kaydet = async (yer) => {
+    const r = kayitlar[yer] || {};
+    const baglanti = (r.baglanti || "").trim();
+    if (baglanti && !/^https?:\/\//i.test(baglanti)) { swalAlert("Bağlantı http:// ya da https:// ile başlamalı."); return; }
+    setBekle(yer);
+    const { error } = await supabase.from("reklam266").upsert({ yer, gorsel: r.gorsel || null, baglanti: baglanti || null, aktif: r.aktif !== false, guncellenme: new Date().toISOString() });
+    setBekle("");
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    swalAlert("Reklam kaydedildi. Sitede birkaç saniye içinde görünür.");
+    yukle();
+  };
+  const kaldir = async (yer) => {
+    if (!(await swalConfirm("Bu alandaki reklam kaldırılacak. Emin misiniz?"))) return;
+    const { error } = await supabase.from("reklam266").delete().eq("yer", yer);
+    if (error) { swalAlert("Kaldırılamadı: " + error.message); return; }
+    yukle();
+  };
+  const gorselSec = async (yer, e) => {
+    const dosya = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!dosya) return;
+    setBekle(yer + "-gorsel");
+    try { const adres = await reklam266GorselYukle(dosya); guncelle(yer, { gorsel: adres }); }
+    catch (h) { swalAlert("Görsel yüklenemedi: " + h.message); }
+    setBekle("");
+  };
+  const kart = { background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 18 };
+  const dugme = { fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 9, cursor: "pointer", color: T.textSecondary, border: `1px solid ${T.border}`, display: "inline-flex", alignItems: "center", gap: 6 };
+  if (!kayitlar) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+  if (kurulumYok) return <div style={{ ...kart, color: T.textSecondary, fontSize: 13.5 }}>Reklam alanları henüz kurulmamış: supabase/reklam266-kurulum.sql dosyası Supabase SQL Editor'de çalıştırılınca bu bölüm açılır.</div>;
+  return (
+    <div>
+      <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 14, lineHeight: 1.6, maxWidth: 720 }}>Her alana reklam görselini yükle ve tıklanınca açılacak adresi yaz, "Kaydet"e bas. Görseli belirtilen ölçüde hazırlarsan en iyi görünür. Boş bıraktığın alanlar sitede görünmez.</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 14 }}>
+        {REKLAM266_YERLERI.map(([yer, ad, nerede, olcu]) => {
+          const r = kayitlar[yer] || {};
+          const kayitli = !!kayitlar[yer]?.guncellenme;
+          return (
+            <div key={yer} style={kart}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary }}>{ad}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: T.textMuted }}>{olcu}</div>
+              </div>
+              <div style={{ fontSize: 12, color: T.textMuted, margin: "4px 0 12px" }}>{nerede}</div>
+              {r.gorsel
+                ? <img src={r.gorsel} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "contain", background: T.bgInput, borderRadius: 8, display: "block", marginBottom: 10 }} />
+                : <div style={{ height: 90, borderRadius: 8, background: T.bgInput, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: T.textMuted, marginBottom: 10 }}>Görsel yok</div>}
+              <label style={dugme}>{bekle === yer + "-gorsel" ? "Yükleniyor..." : r.gorsel ? "Görseli Değiştir" : "Reklam Görseli Seç"}<input type="file" accept="image/*" hidden disabled={!!bekle} onChange={e => gorselSec(yer, e)} /></label>
+              <div style={{ marginTop: 10 }}><Input value={r.baglanti || ""} onChange={e => guncelle(yer, { baglanti: e.target.value })} placeholder="Tıklanınca açılacak adres (https://...)" /></div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: T.textSecondary, marginTop: 10, cursor: "pointer" }}>
+                <input type="checkbox" checked={r.aktif !== false} onChange={e => guncelle(yer, { aktif: e.target.checked })} /> Sitede göster
+              </label>
+              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                <Btn variant="primary" disabled={!!bekle || !r.gorsel} onClick={() => kaydet(yer)}>{bekle === yer ? "Kaydediliyor..." : "Kaydet"}</Btn>
+                {kayitli && <Btn style={{ color: T.redText }} disabled={!!bekle} onClick={() => kaldir(yer)}>Reklamı Kaldır</Btn>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Panel → 266 Haber Masası
 function Haber266Page({ perms, currentStaff }) {
   const yonetici = !!perms.isAdmin;
@@ -12237,6 +12328,91 @@ function Haber266Page({ perms, currentStaff }) {
   const liste = filtre === "hepsi" ? haberler : haberler.filter(h => h.durum === filtre);
   const videoTur = taslak ? haber266Video(taslak.video) : "";
 
+  // Haber yazma: tam sayfa (solda yazı, sağda yayın ayarları ve fotoğraflar)
+  if (taslak) {
+    const kilit = bekle || !!gorselBekle;
+    const buyukGirdi = { width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 10, color: T.textPrimary, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+    const yanKart = { ...kart, padding: 16, marginBottom: 14 };
+    const yanBaslik = { fontSize: 12, fontWeight: 700, color: T.textPrimary, letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: 10 };
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+          <button type="button" onClick={() => { if (!kilit) setTaslak(null); }} style={{ ...dugme }}>← Haberlere dön</button>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{taslak.id ? "Haberi düzenle" : "Yeni haber"}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Btn onClick={() => kaydet("taslak")} disabled={kilit}>Taslak Olarak Kaydet</Btn>
+            {yonetici
+              ? <Btn variant="primary" onClick={() => kaydet("yayinda")} disabled={kilit}>{bekle ? "Kaydediliyor..." : "Yayınla"}</Btn>
+              : <Btn variant="primary" onClick={() => kaydet("onay")} disabled={kilit}>{bekle ? "Gönderiliyor..." : "Onaya Gönder"}</Btn>}
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(260px,340px)", gap: 18, alignItems: "start" }} className="haber266-duzen">
+          <style>{`@media(max-width:900px){.haber266-duzen{grid-template-columns:minmax(0,1fr)!important}}`}</style>
+          <div style={{ ...kart, padding: 22 }}>
+            <label style={etiket}>Başlık</label>
+            <textarea value={taslak.baslik} onChange={e => setTaslak(t => ({ ...t, baslik: e.target.value.replace(/\n/g, " ") }))} rows={2} placeholder="Haberin başlığı" style={{ ...buyukGirdi, padding: "12px 14px", fontSize: 24, fontWeight: 800, lineHeight: 1.25, resize: "none", marginTop: 6 }} />
+            <div style={{ height: 14 }} />
+            <label style={etiket}>Spot (başlığın altındaki kısa özet)</label>
+            <textarea value={taslak.spot} onChange={e => setTaslak(t => ({ ...t, spot: e.target.value.slice(0, 280) }))} rows={2} placeholder="Ne, nerede, ne zaman? 1–2 cümle" style={{ ...buyukGirdi, padding: "10px 14px", fontSize: 16, lineHeight: 1.5, resize: "vertical", marginTop: 6 }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, margin: "18px 0 6px", flexWrap: "wrap" }}>
+              <label style={etiket}>Haber metni</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("## Ara başlık")}>Ara başlık</button>
+                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("> \"Alıntı\"")}>Alıntı</button>
+                <label style={{ ...dugme, ...kucuk }}>{gorselBekle === "metin" ? "Yükleniyor..." : "+ Metne fotoğraf"}<input type="file" accept="image/*" hidden disabled={kilit} onChange={metneFotoEkle} /></label>
+                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("[VİDEO]")}>+ Metne video</button>
+              </div>
+            </div>
+            <textarea ref={metinKutusu} value={taslak.metin} onChange={e => setTaslak(t => ({ ...t, metin: e.target.value }))} placeholder={"Haberi buraya yaz. Paragrafları boş bir satırla ayır."} style={{ ...buyukGirdi, padding: "14px 16px", fontSize: 16, lineHeight: 1.75, minHeight: "62vh", resize: "vertical" }} />
+            <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6, lineHeight: 1.5 }}>Fotoğraf ya da video koymak için imleci yazıda istediğin yere koyup düğmeye bas. "[VİDEO]" satırı sağdaki videoyu metnin o yerine yerleştirir.</div>
+          </div>
+
+          <div>
+            <div style={yanKart}>
+              <div style={yanBaslik}>Yayın</div>
+              <FormField label="Kategori">
+                <Select value={taslak.kategori} onChange={e => setTaslak(t => ({ ...t, kategori: e.target.value }))}>
+                  {[...new Set([...HABER266_KATEGORILER, taslak.kategori])].map(k => <option key={k} value={k}>{k}</option>)}
+                </Select>
+              </FormField>
+              {[["son_dakika", "Son dakika", "Kayan şeride ekler"], ["manset", "Manşet", "Ana sayfada büyük manşette"]].map(([k, ad, acik]) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                  <button type="button" aria-label={ad} onClick={() => setTaslak(t => ({ ...t, [k]: !t[k] }))} style={anahtar(taslak[k])}><span style={{ position: "absolute", top: 3, left: taslak[k] ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: ".2s" }} /></button>
+                  <div><div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{ad}</div><div style={{ fontSize: 11.5, color: T.textMuted }}>{acik}</div></div>
+                </div>
+              ))}
+            </div>
+            <div style={yanKart}>
+              <div style={yanBaslik}>Kapak fotoğrafı</div>
+              {taslak.kapak && <img src={taslak.kapak} alt="" style={{ width: "100%", aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}`, display: "block", marginBottom: 8 }} />}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <label style={dugme}>{gorselBekle === "kapak" ? "Yükleniyor..." : taslak.kapak ? "Değiştir" : "Fotoğraf Seç ya da Çek"}<input type="file" accept="image/*" hidden disabled={kilit} onChange={kapakSec} /></label>
+                {taslak.kapak && <Btn onClick={() => setTaslak(t => ({ ...t, kapak: "" }))}>Kaldır</Btn>}
+              </div>
+            </div>
+            <div style={yanKart}>
+              <div style={yanBaslik}>Fotoğraf galerisi</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginBottom: taslak.galeri.length ? 8 : 0 }}>
+                {taslak.galeri.map((g, i) => (
+                  <div key={g} style={{ position: "relative" }}>
+                    <img src={g} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 6, display: "block" }} />
+                    <button type="button" aria-label="Kaldır" onClick={() => setTaslak(t => ({ ...t, galeri: t.galeri.filter((_, k) => k !== i) }))} style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 11, cursor: "pointer" }}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <label style={dugme}>{gorselBekle === "galeri" ? "Yükleniyor..." : "+ Fotoğraf Ekle"}<input type="file" accept="image/*" multiple hidden disabled={kilit} onChange={galeriSec} /></label>
+            </div>
+            <div style={yanKart}>
+              <div style={yanBaslik}>Video</div>
+              <Input value={taslak.video} onChange={e => setTaslak(t => ({ ...t, video: e.target.value }))} placeholder="YouTube, Instagram ya da TikTok bağlantısı" />
+              {taslak.video.trim() && <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: videoTur ? T.greenText : T.redText }}>{videoTur ? `✓ ${videoTur} videosu tanındı` : "Bu bağlantı tanınmadı"}</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
@@ -12248,12 +12424,13 @@ function Haber266Page({ perms, currentStaff }) {
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-        {[["hepsi", "Tümü", haberler.length], ["yayinda", "Yayında", sayi("yayinda")], ["onay", "Onay bekleyen", sayi("onay")], ["taslak", "Taslak", sayi("taslak")]].map(([k, ad, n]) => (
+        {[["hepsi", "Tümü", haberler.length], ["yayinda", "Yayında", sayi("yayinda")], ["onay", "Onay bekleyen", sayi("onay")], ["taslak", "Taslak", sayi("taslak")], ...(yonetici ? [["reklam", "Reklamlar", ""]] : [])].map(([k, ad, n]) => (
           <button key={k} onClick={() => setFiltre(k)} style={{ ...dugme, ...(filtre === k ? { background: T.textPrimary, color: T.bgCard, borderColor: T.textPrimary } : {}) }}>{ad}<span style={{ fontSize: 11, opacity: .75 }}>{n}</span></button>
         ))}
       </div>
 
-      {kurulumYok ? (
+      {filtre === "reklam" ? <Reklam266 /> : kurulumYok ? (
+
         <div style={{ ...kart, padding: 24, color: T.textSecondary, fontSize: 13.5, lineHeight: 1.6 }}>Haber masası henüz kurulmamış: veritabanında haber tablosu yok. Kurulum için supabase/haber266-kurulum.sql dosyası Supabase SQL Editor'de çalıştırılınca bu sayfa açılır.</div>
       ) : liste.length === 0 ? (
         <div style={{ ...kart, padding: "36px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>{haberler.length ? "Bu sekmede haber yok." : "Henüz haber yok. \"+ Yeni Haber\" ile ilk haberi yaz."}</div>
@@ -12286,70 +12463,6 @@ function Haber266Page({ perms, currentStaff }) {
             );
           })}
         </div>
-      )}
-
-      {taslak && (
-        <Modal title={taslak.id ? "Haberi Düzenle" : "Yeni Haber"} onClose={() => { if (!bekle && !gorselBekle) setTaslak(null); }} width={820}>
-          <FormField label="Başlık"><Input value={taslak.baslik} onChange={e => setTaslak(t => ({ ...t, baslik: e.target.value }))} placeholder="Örn: Sahil yolunda yeni yürüyüş yolu açıldı" /></FormField>
-          <FormField label="Spot (başlığın altındaki kısa özet)"><Input value={taslak.spot} onChange={e => setTaslak(t => ({ ...t, spot: e.target.value.slice(0, 280) }))} placeholder="Ne, nerede, ne zaman? 1–2 cümle" /></FormField>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
-            <FormField label="Kategori">
-              <Select value={taslak.kategori} onChange={e => setTaslak(t => ({ ...t, kategori: e.target.value }))}>
-                {[...new Set([...HABER266_KATEGORILER, taslak.kategori])].map(k => <option key={k} value={k}>{k}</option>)}
-              </Select>
-            </FormField>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 18 }}>
-              {[["son_dakika", "Son dakika", "Sitenin üstündeki kayan şeride ekler"], ["manset", "Manşet", "Ana sayfada büyük manşette gösterir"]].map(([k, ad, acik]) => (
-                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <button type="button" aria-label={ad} onClick={() => setTaslak(t => ({ ...t, [k]: !t[k] }))} style={anahtar(taslak[k])}><span style={{ position: "absolute", top: 3, left: taslak[k] ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: ".2s" }} /></button>
-                  <div><div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{ad}</div><div style={{ fontSize: 11.5, color: T.textMuted }}>{acik}</div></div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <FormField label="Kapak fotoğrafı (haberin başında ve ana sayfada görünür)">
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-              {taslak.kapak && <img src={taslak.kapak} alt="" style={{ width: 180, aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}` }} />}
-              <label style={dugme}>{gorselBekle === "kapak" ? "Yükleniyor..." : taslak.kapak ? "Fotoğrafı Değiştir" : "Fotoğraf Seç ya da Çek"}<input type="file" accept="image/*" hidden disabled={!!gorselBekle} onChange={kapakSec} /></label>
-              {taslak.kapak && <Btn onClick={() => setTaslak(t => ({ ...t, kapak: "" }))}>Kaldır</Btn>}
-            </div>
-          </FormField>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
-              <label style={etiket}>Haber metni</label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("## Ara başlık")}>Ara başlık</button>
-                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("> \"Alıntı\"")}>Alıntı</button>
-                <label style={{ ...dugme, ...kucuk }}>{gorselBekle === "metin" ? "Yükleniyor..." : "+ Metne fotoğraf"}<input type="file" accept="image/*" hidden disabled={!!gorselBekle} onChange={metneFotoEkle} /></label>
-                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("[VİDEO]")}>+ Metne video</button>
-              </div>
-            </div>
-            <textarea ref={metinKutusu} value={taslak.metin} onChange={e => setTaslak(t => ({ ...t, metin: e.target.value }))} placeholder={"Haberi buraya yaz. Paragrafları boş bir satırla ayır."} style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "10px 12px", fontSize: 14, color: T.textPrimary, outline: "none", boxSizing: "border-box", minHeight: 260, fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 }} />
-            <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6, lineHeight: 1.5 }}>Fotoğraf ya da video koymak için imleci yazıda istediğin yere koyup düğmeye bas. "[VİDEO]" satırı aşağıdaki videoyu metnin o yerine yerleştirir.</div>
-          </div>
-          <FormField label="Fotoğraf galerisi (isteğe bağlı, birden çok fotoğraf)">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              {taslak.galeri.map((g, i) => (
-                <div key={g} style={{ position: "relative" }}>
-                  <img src={g} alt="" style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}`, display: "block" }} />
-                  <button type="button" aria-label="Kaldır" onClick={() => setTaslak(t => ({ ...t, galeri: t.galeri.filter((_, k) => k !== i) }))} style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 11, cursor: "pointer" }}>✕</button>
-                </div>
-              ))}
-              <label style={dugme}>{gorselBekle === "galeri" ? "Yükleniyor..." : "+ Fotoğraf Ekle"}<input type="file" accept="image/*" multiple hidden disabled={!!gorselBekle} onChange={galeriSec} /></label>
-            </div>
-          </FormField>
-          <FormField label="Video bağlantısı (YouTube, Instagram ya da TikTok)">
-            <Input value={taslak.video} onChange={e => setTaslak(t => ({ ...t, video: e.target.value }))} placeholder="https://www.instagram.com/reel/..." />
-            {taslak.video.trim() && <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: videoTur ? T.greenText : T.redText }}>{videoTur ? `✓ ${videoTur} videosu tanındı, haberin içinde oynayacak` : "Bu bağlantı tanınmadı"}</div>}
-          </FormField>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20, flexWrap: "wrap" }}>
-            <Btn onClick={() => setTaslak(null)} disabled={bekle || !!gorselBekle}>Vazgeç</Btn>
-            <Btn onClick={() => kaydet("taslak")} disabled={bekle || !!gorselBekle}>Taslak Olarak Kaydet</Btn>
-            {yonetici
-              ? <Btn variant="primary" onClick={() => kaydet("yayinda")} disabled={bekle || !!gorselBekle}>{bekle ? "Kaydediliyor..." : "Yayınla"}</Btn>
-              : <Btn variant="primary" onClick={() => kaydet("onay")} disabled={bekle || !!gorselBekle}>{bekle ? "Gönderiliyor..." : "Onaya Gönder"}</Btn>}
-          </div>
-        </Modal>
       )}
 
       {igHaber && <Haber266Instagram haber={igHaber} onClose={() => setIgHaber(null)} />}
