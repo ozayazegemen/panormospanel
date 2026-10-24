@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Haber Masası — 266digitale</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--kagit:#f6f4ef;--kart:#fff;--murekkep:#0f0f12;--gri:#5d5d66;--cizgi:#e3e0d8;--kirmizi:#e8261b;--yesil:#16a34a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--kagit);color:var(--murekkep);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:hidden}
+.onizleme{background:#ffd23f;color:#111;font-size:13px;font-weight:600;text-align:center;padding:6px 12px}
+header{background:var(--murekkep);color:#fff}
+header .ic{display:flex;align-items:center;justify-content:space-between;height:60px}
+.ic{max-width:1100px;margin:0 auto;padding:0 16px}
+.logo{font:900 22px Archivo;letter-spacing:-1px}
+.logo .kod{background:var(--kirmizi);padding:4px 6px;border-radius:5px;margin-right:5px}
+header a{color:#fff;font-size:14px;opacity:.8;text-decoration:none}
+h1{font:900 30px Archivo;letter-spacing:-1px;margin:26px 0 4px}
+.alt{color:var(--gri);margin-bottom:20px}
+.duzen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;padding-bottom:60px}
+.kutu{background:var(--kart);border:1px solid var(--cizgi);border-radius:16px;padding:20px}
+label{display:block;font-weight:700;font-size:13px;margin:16px 0 6px}
+label:first-child{margin-top:0}
+label small{font-weight:500;color:var(--gri)}
+input,textarea,select{width:100%;border:1px solid var(--cizgi);border-radius:10px;padding:11px 12px;font:inherit;background:#fff;color:inherit}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--kirmizi);border-color:transparent}
+.baslik-girdi{font:800 22px Archivo;padding:12px}
+textarea{min-height:240px;resize:vertical;line-height:1.7}
+.yukle{border:2px dashed var(--cizgi);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--gri);transition:.2s}
+.yukle:hover{border-color:var(--kirmizi);color:var(--kirmizi)}
+.yukle b{display:block;color:var(--murekkep);font-size:16px;margin-bottom:4px}
+.kapak{margin-top:10px;border-radius:12px;overflow:hidden;display:none;position:relative}
+.kapak img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.kapak span{position:absolute;left:10px;top:10px;background:var(--kirmizi);color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px}
+.galeri{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.galeri img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
+.arac{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.arac button{border:1px solid var(--cizgi);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer}
+.yan .kutu{margin-bottom:16px}
+.yan h3{font:900 16px Archivo;margin-bottom:10px}
+.yayinla{width:100%;background:var(--kirmizi);color:#fff;border:0;border-radius:12px;padding:14px;font:700 16px Inter;cursor:pointer}
+.taslak{width:100%;background:#fff;border:1px solid var(--cizgi);border-radius:12px;padding:12px;font:600 15px Inter;margin-top:8px;cursor:pointer}
+.onay{display:flex;gap:8px;align-items:center;font-size:14px;margin-top:8px}
+.onay input{width:auto}
+.ipucu{font-size:13px;color:var(--gri);margin-top:6px}
+.adim{display:grid;grid-template-columns:28px 1fr;gap:10px;margin-bottom:12px;font-size:14px}
+.adim b{width:28px;height:28px;border-radius:50%;background:var(--murekkep);color:#fff;display:grid;place-items:center;font-size:13px}
+.bildirim{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--yesil);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;display:none}
+@media (max-width:820px){.duzen{grid-template-columns:minmax(0,1fr)}.galeri{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="onizleme">Örnek ekran — gerçek haber masası Panormos panelinde olacak, buradan bir şey kaydedilmez</div>
+<header><div class="ic"><span class="logo"><span class="kod">266</span>Haber Masası</span><a href="./">← Siteye dön</a></div></header>
+
+<div class="ic">
+  <h1>Yeni haber</h1>
+  <p class="alt">Telefondan ya da bilgisayardan yaz, fotoğrafı yükle, "Yayınla"ya bas. Haber birkaç saniyede sitede.</p>
+
+  <div class="duzen">
+    <div class="kutu">
+      <label>Başlık</label>
+      <input class="baslik-girdi" placeholder="Örn: Bandırma sahilinde yeni yürüyüş yolu açıldı">
+
+      <label>Spot <small>(başlığın altındaki kısa özet, 1–2 cümle)</small></label>
+      <input placeholder="Haberin en önemli bilgisi: ne, nerede, ne zaman?">
+
+      <label>Kapak fotoğrafı <small>(haberin en üstünde ve ana sayfada görünür)</small></label>
+      <div class="yukle" onclick="document.getElementById('kapakDosya').click()">
+        <b>Fotoğraf seç ya da çek</b>
+        Telefonda kamera açılır. Büyük fotoğraflar otomatik küçültülür.
+      </div>
+      <input type="file" id="kapakDosya" accept="image/*" hidden>
+      <div class="kapak" id="kapak"><span>Kapak</span><img alt=""></div>
+
+      <label>Haber metni</label>
+      <div class="arac"><button type="button">Ara başlık</button><button type="button">Alıntı</button><button type="button">+ Fotoğraf ekle</button><button type="button">+ Video ekle</button></div>
+      <textarea placeholder="Haberi buraya yaz. Paragraf için bir satır boşluk bırak.&#10;&#10;Metnin arasına fotoğraf ya da Instagram/YouTube videosu eklemek için üstteki düğmeleri kullan."></textarea>
+
+      <label>Fotoğraf galerisi <small>(isteğe bağlı, birden çok fotoğraf)</small></label>
+      <div class="yukle" onclick="document.getElementById('galeriDosya').click()"><b>+ Fotoğraf ekle</b>Birden fazla seçebilirsin</div>
+      <input type="file" id="galeriDosya" accept="image/*" multiple hidden>
+      <div class="galeri" id="galeri"></div>
+
+      <label>Video bağlantısı <small>(Instagram, TikTok ya da YouTube)</small></label>
+      <input placeholder="https://www.instagram.com/reel/...">
+      <p class="ipucu">Bağlantıyı yapıştırman yeterli; video haberin içinde oynar.</p>
+    </div>
+
+    <div class="yan">
+      <div class="kutu">
+        <h3>Yayın</h3>
+        <label>Kategori</label>
+        <select><option>Gündem</option><option>Balıkesir</option><option>266 Sokakta</option><option>Spor</option><option>Ekonomi</option><option>Yaşam</option></select>
+        <label>Yer</label>
+        <input placeholder="Örn: Bandırma">
+        <div class="onay"><input type="checkbox" id="sd"><label for="sd" style="margin:0;font-weight:600">Son dakika şeridine ekle</label></div>
+        <div class="onay"><input type="checkbox" id="ms"><label for="ms" style="margin:0;font-weight:600">Manşete koy</label></div>
+        <div style="height:14px"></div>
+        <button class="yayinla" onclick="goster()">Yayınla</button>
+        <button class="taslak" onclick="goster('Taslak kaydedildi (örnek)')">Taslak olarak kaydet</button>
+      </div>
+      <div class="kutu">
+        <h3>Nasıl çalışır?</h3>
+        <div class="adim"><b>1</b><span>Başlığı ve kısa özeti yaz.</span></div>
+        <div class="adim"><b>2</b><span>Kapak fotoğrafını telefondan seç ya da çek.</span></div>
+        <div class="adim"><b>3</b><span>Metni yaz; istersen fotoğraf ve video ekle.</span></div>
+        <div class="adim"><b>4</b><span>Kategoriyi seç, "Yayınla"ya bas.</span></div>
+        <p class="ipucu">Yayınlanan haber Google Haberler'e otomatik bildirilir. Muhabir hesabı açarsan, onun yazdıkları senin onayından sonra yayına girer.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="bildirim" id="bildirim"></div>
+
+<script>
+function goster(m){
+  const b = document.getElementById('bildirim');
+  b.textContent = m || 'Bu örnek ekran — gerçek panelde haber burada yayına girer';
+  b.style.display = 'block';
+  setTimeout(() => { b.style.display = 'none' }, 2600);
+}
+document.getElementById('kapakDosya').addEventListener('change', (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const k = document.getElementById('kapak');
+  k.querySelector('img').src = URL.createObjectURL(f);
+  k.style.display = 'block';
+});
+document.getElementById('galeriDosya').addEventListener('change', (e) => {
+  const g = document.getElementById('galeri');
+  [...e.target.files].forEach((f) => { const i = document.createElement('img'); i.src = URL.createObjectURL(f); g.appendChild(i); });
+});
+</script>
+</body>
+</html>

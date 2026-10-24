@@ -15,10 +15,6 @@
   --kirmizi:#e8261b; --kirmizi-koyu:#b81a11; --sari:#ffd23f;
   --golge:0 1px 2px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.06);
 }
-:root[data-tema="koyu"]{
-  --kagit:#0d0d10; --kart:#17171c; --murekkep:#f2f1ee; --gri:#a3a3ad; --cizgi:#2a2a31;
-  --golge:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.35);
-}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{overflow-x:hidden;background:var(--kagit);color:var(--murekkep);font:16px/1.55 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -64,12 +60,6 @@ nav.menu a:hover,nav.menu a.aktif{background:var(--murekkep);color:var(--kagit)}
 .kayan:hover .kayan-ic{animation-play-state:paused}
 @keyframes kay{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
-/* İlçe şeridi */
-.ilceler{border-bottom:1px solid var(--cizgi)}
-.ilceler .ic{display:flex;gap:8px;overflow-x:auto;padding-top:12px;padding-bottom:12px;scrollbar-width:none}
-.ilceler .ic::-webkit-scrollbar{display:none}
-.ilceler a{flex:none;font-size:13px;font-weight:600;padding:6px 12px;border:1px solid var(--cizgi);border-radius:999px;color:var(--gri)}
-.ilceler a:hover{border-color:var(--kirmizi);color:var(--kirmizi)}
 
 /* Görsel yer tutucu (fotoğraflar gelince değişecek) */
 .gorsel{position:relative;overflow:hidden;border-radius:14px;background:#222;aspect-ratio:16/10}
@@ -232,7 +222,7 @@ footer .alt-cizgi{border-top:1px solid #2b2b33;margin-top:36px;padding-top:18px;
 <div class="ust-bar">
   <div class="ic">
     <span class="tarih-yer" id="tarih"></span>
-    <span>Balıkesir · 20 ilçe · 7/24</span>
+    <span>Balıkesir · 7/24</span>
     <div class="sosyal">
       <a href="#" aria-label="Instagram">Instagram</a>
       <a href="#" aria-label="TikTok">TikTok</a>
@@ -253,9 +243,6 @@ footer .alt-cizgi{border-top:1px solid #2b2b33;margin-top:36px;padding-top:18px;
       <a href="#yasam">Yaşam</a>
     </nav>
     <div class="sag">
-      <button class="dugme-ikon" id="tema" aria-label="Koyu / açık tema">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-      </button>
       <a href="#sokak" class="canli"><i></i><span>Videolar</span></a>
       <button class="dugme-ikon hamburger" id="hamburger" aria-label="Menü">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -274,8 +261,6 @@ footer .alt-cizgi{border-top:1px solid #2b2b33;margin-top:36px;padding-top:18px;
     <div class="kayan"><div class="kayan-ic" id="kayan"></div></div>
   </div>
 </div>
-
-<div class="ilceler"><div class="ic" id="ilceler"></div></div>
 
 <main>
   <section class="manset">
@@ -416,7 +401,6 @@ const VIDEOLAR = [
   ['Gönen','Kaplıcada sabah 6\'da kimler var?','2:02','7 B izlenme'],
   ['Erdek','Balıkçılar ağlarını topladı: "Bu sezon nasıldı?"','2:31','12 B izlenme']
 ];
-const ILCELER = ['Altıeylül','Karesi','Ayvalık','Balya','Bandırma','Bigadiç','Burhaniye','Dursunbey','Edremit','Erdek','Gömeç','Gönen','Havran','İvrindi','Kepsut','Manyas','Marmara','Savaştepe','Sındırgı','Susurluk'];
 
 const $ = (s) => document.querySelector(s);
 const kac = (v) => String(v).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -428,7 +412,6 @@ function gorsel(i, yer){
 
 $('#tarih').textContent = new Date().toLocaleDateString('tr-TR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 $('#yil').textContent = new Date().getFullYear();
-$('#ilceler').innerHTML = ILCELER.map((d) => `<a href="#">${d}</a>`).join('');
 
 const sonDakika = HABERLER.slice(0, 6).map((h) => `<span>${kac(h.y)}: ${kac(h.b)}</span>`).join('');
 $('#kayan').innerHTML = sonDakika + sonDakika;
@@ -499,14 +482,6 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') haberKapat
 $('#detay').addEventListener('scroll', (e) => {
   const d = e.target, oran = d.scrollTop / (d.scrollHeight - d.clientHeight || 1);
   $('#ilerleme').style.width = (oran * 100).toFixed(1) + '%';
-});
-
-// Tema
-const kok = document.documentElement;
-try { const t = localStorage.getItem('tema266'); if (t) kok.dataset.tema = t; } catch (e) {}
-$('#tema').addEventListener('click', () => {
-  kok.dataset.tema = kok.dataset.tema === 'koyu' ? '' : 'koyu';
-  try { localStorage.setItem('tema266', kok.dataset.tema); } catch (e) {}
 });
 
 // Mobil menü
