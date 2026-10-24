@@ -234,9 +234,7 @@ textarea{min-height:220px;resize:vertical;line-height:1.7}
   <p class="alt" style="margin:0">Görseli indir ya da telefonda "Paylaş"a bas, Instagram'ı seç. Açıklamayı kopyalayıp yapıştır.</p>
   <div class="ig-izgara">
     <div><h4>Gönderi (4:5)</h4><canvas id="igGonderi" width="1080" height="1350"></canvas>
-      <div class="ig-satir"><button class="ana" data-paylas="igGonderi">Paylaş</button><button data-indir="igGonderi">İndir</button></div>
-      <div class="ig-satir"><button data-igac="1" style="background:linear-gradient(45deg,#f9a825,#e1306c 45%,#833ab4);color:#fff;border:0">Bilgisayarda Instagram'ı aç</button></div>
-      <p class="ipucu" id="igIpucu" style="display:none">Instagram yeni sekmede açıldı ve açıklama kopyalandı. Instagram'da "Oluştur"a bas, sonra bu görseli fareyle tutup Instagram penceresine sürükle.</p></div>
+      <div class="ig-satir"><button class="ana" data-paylas="igGonderi">Paylaş</button><button data-indir="igGonderi">İndir</button></div></div>
     <div><h4>Hikâye (9:16)</h4><canvas id="igHikaye" width="1080" height="1920"></canvas>
       <div class="ig-satir"><button class="ana" data-paylas="igHikaye">Paylaş</button><button data-indir="igHikaye">İndir</button></div></div>
     <div><h4>Açıklama</h4><textarea id="igMetin"></textarea>
@@ -536,13 +534,6 @@ document.addEventListener('click', async (e) => {
   if (e.target.id === 'igHazirla') { if (!gosterilen) return; await igCiz(gosterilen); $('#igPerde').classList.add('acik'); return; }
   if (e.target.id === 'igKapat' || e.target.id === 'igPerde') { $('#igPerde').classList.remove('acik'); return; }
   if (e.target.id === 'igKopyala') { try { await navigator.clipboard.writeText($('#igMetin').value); bildir('Açıklama kopyalandı. Instagram\'da yapıştır.'); } catch (_) { $('#igMetin').select(); bildir('Metni seçtim, kopyala de'); } return; }
-  if (e.target.dataset.igac) {
-    try { await navigator.clipboard.writeText($('#igMetin').value); } catch (_) {}
-    window.open('https://www.instagram.com/', '_blank', 'noopener');
-    $('#igIpucu').style.display = 'block';
-    bildir('Açıklama kopyalandı, Instagram açıldı. Görseli Instagram penceresine sürükle.');
-    return;
-  }
   const ind = e.target.dataset.indir, pay = e.target.dataset.paylas;
   if (ind) { const f = await canvasDosya(ind); const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); bildir('Görsel indirildi'); }
   if (pay) {
