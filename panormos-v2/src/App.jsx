@@ -12195,8 +12195,17 @@ function Reklam266() {
     const dosya = e.target.files && e.target.files[0]; e.target.value = "";
     if (!dosya) return;
     setBekle(yer + "-gorsel");
-    try { const adres = await reklam266GorselYukle(dosya); guncelle(yer, { gorsel: adres }); }
-    catch (h) { swalAlert("Görsel yüklenemedi: " + h.message); }
+    try {
+      // Görsel seçilince reklam hemen kaydedilir ve sitede yayına girer
+      const adres = await reklam266GorselYukle(dosya);
+      const r = kayitlar[yer] || {};
+      const baglanti = (r.baglanti || "").trim();
+      const { error } = await supabase.from("reklam266").upsert({ yer, gorsel: adres, baglanti: /^https?:\/\//i.test(baglanti) ? baglanti : null, aktif: r.aktif !== false, guncellenme: new Date().toISOString() });
+      if (error) throw new Error(error.message);
+      await yukle();
+      swalAlert(r.aktif === false ? "Görsel kaydedildi. \"Sitede göster\" kapalı olduğu için sitede görünmüyor." : "Reklam kaydedildi ve sitede yayında.");
+    }
+    catch (h) { swalAlert("Reklam kaydedilemedi: " + h.message); }
     setBekle("");
   };
   const kart = { background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18, padding: 18 };
@@ -12205,7 +12214,7 @@ function Reklam266() {
   if (kurulumYok) return <div style={{ ...kart, color: T.textSecondary, fontSize: 13.5 }}>Reklam alanları henüz kurulmamış: supabase/reklam266-kurulum.sql dosyası Supabase SQL Editor'de çalıştırılınca bu bölüm açılır.</div>;
   return (
     <div>
-      <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 14, lineHeight: 1.6, maxWidth: 720 }}>Her alana reklam görselini yükle ve tıklanınca açılacak adresi yaz, "Kaydet"e bas. Görseli belirtilen ölçüde hazırlarsan en iyi görünür. Boş bıraktığın alanlar sitede görünmez.</div>
+      <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 14, lineHeight: 1.6, maxWidth: 720 }}>Reklam görselini seçtiğin anda reklam kaydedilir ve sitede yayına girer. Tıklanınca açılacak adresi yazdıktan ya da "Sitede göster"i değiştirdikten sonra "Kaydet"e bas. Görseli belirtilen ölçüde hazırlarsan en iyi görünür.</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: 14 }}>
         {REKLAM266_YERLERI.map(([yer, ad, nerede, olcu]) => {
           const r = kayitlar[yer] || {};
@@ -12230,6 +12239,7 @@ function Reklam266() {
               </label>
               <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                 <Btn variant="primary" disabled={!!bekle || !r.gorsel} onClick={() => kaydet(yer)}>{bekle === yer ? "Kaydediliyor..." : "Kaydet"}</Btn>
+                {kayitli && r.gorsel && <span style={{ fontSize: 12, fontWeight: 700, alignSelf: "center", color: r.aktif !== false ? T.greenText : T.textMuted }}>{r.aktif !== false ? "● Sitede yayında" : "Sitede gizli"}</span>}
                 {kayitli && <Btn style={{ color: T.redText }} disabled={!!bekle} onClick={() => kaldir(yer)}>Reklamı Kaldır</Btn>}
               </div>
             </div>
