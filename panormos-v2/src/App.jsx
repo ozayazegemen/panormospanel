@@ -6763,7 +6763,7 @@ function canAccessPage(id, perms) {
   if (id === 'reports') return perms.reports;
   if (id === 'accounting') return perms.accounting;
   if (id === 'mail') return perms.mail;
-  if (id === 'yearly' || id === 'emlakpanelim' || id === 'blog') return perms.isAdmin;
+  if (id === 'yearly' || id === 'emlakpanelim' || id === 'blog' || id === 'haber266') return perms.isAdmin;
   return true;
 }
 
@@ -6784,6 +6784,7 @@ const NAV=[
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"mail",label:"E-posta",icon:"📧"},
   {id:"blog",label:"Blog",icon:"✍️"},
+  {id:"haber266",label:"266 Haber Masası",icon:"📰"},
   {id:"qrmenu",label:"QR Menü",icon:"🍽️"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"inventory",label:"Envanter",icon:"🎒"},
@@ -6796,7 +6797,7 @@ const NAV=[
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "ideas"] },
-  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog", "qrmenu"] },
+  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog", "haber266", "qrmenu"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
   { label: "Yönetim", ids: ["inventory", "staff", "emlakpanelim"] },
 ];
@@ -6817,6 +6818,7 @@ const NAV_ICON_PATHS = {
   messages: <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
   blog: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4M12 20h8" />,
+  haber266: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h4M7 16h4M14 12h3v4h-3z" /></>,
   qrmenu: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18v2h2M18 18h2v2" />,
   accounting: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></>,
   inventory: <><path d="M3 8l9-5 9 5v8l-9 5-9-5z" /><path d="M3 8l9 5 9-5M12 13v8" /></>,
@@ -12010,6 +12012,17 @@ function BlogIcerik({ metin }) {
 }
 
 // Panel → Blog (yalnızca yönetici)
+// 266digitale haber masası — şimdilik örnek ekran (public/266/yaz.html); kaydetmez.
+// Onaylanınca gerçek tablolar ve görsel deposuyla bu sayfanın içine taşınacak.
+function Haber266Page() {
+  return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div style={{ fontSize: 13, color: "var(--text-muted, #888)" }}>
+      Örnek ekran: deneyebilirsin ama hiçbir şey kaydedilmez. Sitenin önizlemesi: <a href="/266/" target="_blank" rel="noreferrer">panormosmedya.com/266</a>
+    </div>
+    <iframe title="266 Haber Masası" src="/266/yaz.html?panel=1" style={{ width: "100%", height: "calc(100vh - 150px)", border: "1px solid rgba(128,128,128,.25)", borderRadius: 14, background: "#f6f4ef" }} />
+  </div>;
+}
+
 function BlogPage() {
   const [yazilar, setYazilar] = useState(null);
   const [kurulumYok, setKurulumYok] = useState(false);
@@ -13074,6 +13087,7 @@ export default function App() {
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
         {page==="emlakpanelim"&&<EmlakPanelimPage/>}
         {page==="blog"&&<BlogPage/>}
+        {page==="haber266"&&<Haber266Page/>}
         {page==="qrmenu"&&<QrMenuPage clients={allClients||clients}/>}
       </div>
     </div>
