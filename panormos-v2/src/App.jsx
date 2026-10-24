@@ -12012,15 +12012,348 @@ function BlogIcerik({ metin }) {
 }
 
 // Panel → Blog (yalnızca yönetici)
-// 266digitale haber masası — şimdilik örnek ekran (public/266/yaz.html); kaydetmez.
-// Onaylanınca gerçek tablolar ve görsel deposuyla bu sayfanın içine taşınacak.
-function Haber266Page() {
-  return <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-    <div style={{ fontSize: 13, color: "var(--text-muted, #888)" }}>
-      Örnek ekran: deneyebilirsin ama hiçbir şey kaydedilmez. Sitenin önizlemesi: <a href="/266/" target="_blank" rel="noreferrer">panormosmedya.com/266</a>
+// ═══════════════════════════════════════════════════════════
+// 266DIGITALE HABER MASASI — haberler panelden yazılır, panormosmedya.com/266 (ileride 266digitale.com) sitesinde yayınlanır.
+// Haberler haber266 tablosunda, fotoğraflar herkese açık "haber266" deposunda (supabase/haber266-kurulum.sql).
+// Metin biçimi blogdaki gibi düz metindir; ayrıca "> " alıntı ve tek başına "[VİDEO]" satırı (videoyu metnin o yerine koyar).
+// ═══════════════════════════════════════════════════════════
+const HABER266_KATEGORILER = ["Gündem", "Balıkesir", "Ekonomi", "Spor", "266 Sokakta", "Yaşam", "Sağlık", "Eğitim", "Teknoloji"];
+const BOS_HABER266 = { id: null, baslik: "", spot: "", metin: "", kategori: "Gündem", kapak: "", galeri: [], video: "", son_dakika: false, manset: false, durum: "taslak" };
+const HABER266_DURUM = { taslak: ["Taslak", "bgInput", "textMuted"], onay: ["Onay bekliyor", "amberDim", "amberText"], yayinda: ["Yayında", "greenDim", "greenText"] };
+
+// Fotoğrafı en çok 1600 piksele küçültüp "haber266" deposuna yükler, adresini döner
+async function haber266GorselYukle(dosya) {
+  if (!/^image\//.test(dosya.type)) throw new Error("Yalnızca fotoğraf seçin (JPG, PNG).");
+  const adres = URL.createObjectURL(dosya);
+  let blob;
+  try {
+    const r = await new Promise((coz, reddet) => { const g = new Image(); g.onload = () => coz(g); g.onerror = () => reddet(new Error("Fotoğraf açılamadı.")); g.src = adres; });
+    const oran = Math.min(1, 1600 / Math.max(r.width, r.height));
+    const tuval = document.createElement("canvas");
+    tuval.width = Math.round(r.width * oran); tuval.height = Math.round(r.height * oran);
+    const c = tuval.getContext("2d");
+    c.fillStyle = "#fff"; c.fillRect(0, 0, tuval.width, tuval.height);
+    c.drawImage(r, 0, 0, tuval.width, tuval.height);
+    blob = await new Promise(coz => tuval.toBlob(coz, "image/jpeg", 0.85));
+  } finally { URL.revokeObjectURL(adres); }
+  if (!blob) throw new Error("Fotoğraf hazırlanamadı.");
+  const yol = `${new Date().toISOString().slice(0, 7)}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await supabase.storage.from("haber266").upload(yol, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
+  if (error) throw new Error(/bucket not found/i.test(error.message) ? "Fotoğraf deposu henüz kurulmamış (Supabase SQL adımı yapılmalı)." : error.message);
+  return supabase.storage.from("haber266").getPublicUrl(yol).data.publicUrl;
+}
+// YouTube / Instagram / TikTok bağlantısını tanır
+function haber266Video(url) {
+  const u = String(url || "").trim();
+  if (/(youtube\.com\/(watch\?v=|shorts\/|embed\/)|youtu\.be\/)[\w-]{6,}/.test(u)) return "YouTube";
+  if (/instagram\.com\/(reel|p|tv)\/[\w-]+/.test(u)) return "Instagram";
+  if (/tiktok\.com\/.*\/video\/\d+/.test(u)) return "TikTok";
+  return "";
+}
+
+// Instagram gönderi (1080×1350) ve hikâye (1080×1920) görselini çizer
+async function haber266InstagramCiz(tuval, h, hikaye) {
+  if (!document.getElementById("archivo-yazi")) {
+    const l = document.createElement("link"); l.id = "archivo-yazi"; l.rel = "stylesheet";
+    l.href = "https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&family=Inter:wght@600;800&display=swap";
+    document.head.appendChild(l);
+  }
+  try { await Promise.all([document.fonts.load("900 60px Archivo"), document.fonts.load("800 60px Archivo"), document.fonts.load("600 30px Inter")]); } catch (e) { /* yazı tipi gelmezse sistem yazısıyla çizilir */ }
+  const W = 1080, H = hikaye ? 1920 : 1350, boy = hikaye ? 86 : 76, alt = hikaye ? 330 : 150;
+  tuval.width = W; tuval.height = H;
+  const x = tuval.getContext("2d");
+  const img = h.kapak ? await new Promise(ok => { const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => ok(i); i.onerror = () => ok(null); i.src = h.kapak; }) : null;
+  if (img) { const o = Math.max(W / img.width, H / img.height); x.drawImage(img, (W - img.width * o) / 2, (H - img.height * o) / 2, img.width * o, img.height * o); }
+  else { const g = x.createLinearGradient(0, 0, W, H); g.addColorStop(0, "#1e293b"); g.addColorStop(1, "#e30613"); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+  const g = x.createLinearGradient(0, H * .25, 0, H); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(.55, "rgba(0,0,0,.72)"); g.addColorStop(1, "rgba(0,0,0,.94)");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const ust = x.createLinearGradient(0, 0, 0, 260); ust.addColorStop(0, "rgba(0,0,0,.55)"); ust.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = ust; x.fillRect(0, 0, W, 260);
+  // Logo
+  const lx = 64, ly = hikaye ? 120 : 64, lb = 54, pad = lb * .22;
+  x.font = `900 ${lb}px Archivo`; const kw = x.measureText("266").width;
+  x.fillStyle = "#e30613"; x.beginPath(); x.roundRect(lx, ly, kw + pad * 2, lb * 1.18, lb * .18); x.fill();
+  x.fillStyle = "#fff"; x.fillText("266", lx + pad, ly + lb * .98);
+  x.font = `800 ${lb}px Archivo`; x.fillText("digitale", lx + kw + pad * 2 + lb * .2, ly + lb * .98);
+  const dw = x.measureText("digitale").width; x.fillStyle = "#e30613"; x.fillText(".", lx + kw + pad * 2 + lb * .2 + dw, ly + lb * .98);
+  // Başlık
+  x.font = `900 ${boy}px Archivo`;
+  const satirlar = []; let s = "";
+  for (const k of String(h.baslik).split(/\s+/)) { const d = s ? s + " " + k : k; if (x.measureText(d).width > W - 128 && s) { satirlar.push(s); s = k; } else s = d; }
+  if (s) satirlar.push(s);
+  const gorunen = satirlar.slice(0, 5), sy = boy * 1.08, bas = H - alt - gorunen.length * sy;
+  const etiket = h.son_dakika ? "SON DAKİKA" : String(h.kategori).toLocaleUpperCase("tr");
+  x.font = "800 30px Archivo"; const ew = x.measureText(etiket).width;
+  x.fillStyle = "#e30613"; x.beginPath(); x.roundRect(64, bas - boy - 40, ew + 36, 52, 8); x.fill();
+  x.fillStyle = "#fff"; x.fillText(etiket, 82, bas - boy - 4);
+  x.font = `900 ${boy}px Archivo`; gorunen.forEach((t, i) => x.fillText(t, 64, bas + i * sy));
+  x.font = "600 32px Inter"; x.fillStyle = "rgba(255,255,255,.82)"; x.fillText("Haberin tamamı 266digitale.com", 64, H - alt + 70);
+  if (hikaye) {
+    x.fillStyle = "rgba(255,255,255,.95)"; x.beginPath(); x.roundRect(W / 2 - 230, H - 190, 460, 84, 42); x.fill();
+    x.fillStyle = "#111"; x.font = "800 34px Inter"; x.textAlign = "center"; x.fillText("Habere git  ↗", W / 2, H - 135); x.textAlign = "left";
+  }
+}
+function haber266Aciklama(h) {
+  const kat = "#" + String(h.kategori).toLocaleLowerCase("tr").replace(/\s+/g, "");
+  return `${h.son_dakika ? "SON DAKİKA | " : ""}${h.baslik}\n\n${h.spot || ""}\n\nHaberin tamamı ve video: profildeki bağlantıda.\n\n#balıkesir #266digitale #haber ${kat}`.replace(/\n{3,}/g, "\n\n");
+}
+
+function Haber266Instagram({ haber, onClose }) {
+  const gonderi = useRef(null), hikaye = useRef(null);
+  const [hazir, setHazir] = useState(false);
+  const aciklama = haber266Aciklama(haber);
+  useEffect(() => {
+    let iptal = false;
+    (async () => { await haber266InstagramCiz(gonderi.current, haber, false); await haber266InstagramCiz(hikaye.current, haber, true); if (!iptal) setHazir(true); })();
+    return () => { iptal = true; };
+  }, [haber]);
+  const dosya = (tuval, ad) => new Promise((ok, red) => {
+    try { tuval.toBlob(b => b ? ok(new File([b], ad, { type: "image/jpeg" })) : red(new Error("Görsel hazırlanamadı")), "image/jpeg", 0.92); } catch (e) { red(e); }
+  });
+  const kopyala = async () => { try { await navigator.clipboard.writeText(aciklama); return true; } catch (e) { return false; } };
+  const paylas = async (tuval, ad) => {
+    try {
+      const f = await dosya(tuval, ad);
+      await kopyala();
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { try { await navigator.share({ files: [f], text: aciklama }); } catch (e) { /* vazgeçildi */ } return; }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = ad; a.click();
+      swalAlert("Görsel indirildi, açıklama kopyalandı. Telefonda \"Paylaş\" doğrudan Instagram'ı açar.");
+    } catch (e) { swalAlert("Görsel hazırlanamadı: kapak fotoğrafı farklı bir siteden geliyorsa telefonda indirip paylaşın."); }
+  };
+  const kutu = { width: "100%", height: "auto", borderRadius: 10, boxShadow: T.shadow, display: "block", background: "#111" };
+  return (
+    <Modal title="Instagram için hazır" onClose={onClose} width={980}>
+      <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 14 }}>Telefonda "Paylaş"a bas, Instagram'ı seç; açıklama kendiliğinden kopyalanır, yapıştırman yeterli.</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16, alignItems: "start" }}>
+        <div><div style={{ fontSize: 11, fontWeight: 700, color: T.textSecondary, marginBottom: 6 }}>GÖNDERİ (4:5)</div><canvas ref={gonderi} style={kutu} />
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}><Btn variant="primary" disabled={!hazir} onClick={() => paylas(gonderi.current, "266digitale-gonderi.jpg")}>Paylaş</Btn></div></div>
+        <div><div style={{ fontSize: 11, fontWeight: 700, color: T.textSecondary, marginBottom: 6 }}>HİKÂYE (9:16)</div><canvas ref={hikaye} style={kutu} />
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}><Btn variant="primary" disabled={!hazir} onClick={() => paylas(hikaye.current, "266digitale-hikaye.jpg")}>Paylaş</Btn></div></div>
+        <div><div style={{ fontSize: 11, fontWeight: 700, color: T.textSecondary, marginBottom: 6 }}>AÇIKLAMA</div>
+          <textarea readOnly value={aciklama} style={{ width: "100%", minHeight: 240, background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: 10, fontSize: 13, color: T.textPrimary, fontFamily: "inherit", boxSizing: "border-box" }} />
+          <Btn style={{ marginTop: 8 }} onClick={async () => swalAlert((await kopyala()) ? "Açıklama kopyalandı." : "Kopyalanamadı, metni seçip kopyalayın.")}>Açıklamayı Kopyala</Btn></div>
+      </div>
+    </Modal>
+  );
+}
+
+// Panel → 266 Haber Masası
+function Haber266Page({ perms, currentStaff }) {
+  const yonetici = !!perms.isAdmin;
+  const [haberler, setHaberler] = useState(null);
+  const [kurulumYok, setKurulumYok] = useState(false);
+  const [filtre, setFiltre] = useState("hepsi");
+  const [taslak, setTaslak] = useState(null);
+  const [bekle, setBekle] = useState(false);
+  const [gorselBekle, setGorselBekle] = useState("");
+  const [igHaber, setIgHaber] = useState(null);
+  const metinKutusu = useRef(null);
+
+  const yukle = async () => {
+    const { data, error } = await supabase.from("haber266").select("*").order("yayin_tarihi", { ascending: false });
+    setKurulumYok(!!error);
+    setHaberler(data || []);
+  };
+  useEffect(() => { yukle(); }, []);
+
+  const kaydet = async (durum) => {
+    if (!taslak.baslik.trim()) { swalAlert("Başlık yazın"); return; }
+    if (taslak.video.trim() && !haber266Video(taslak.video)) { swalAlert("Video bağlantısı tanınmadı. YouTube, Instagram ya da TikTok bağlantısı yapıştırın veya kutuyu boş bırakın."); return; }
+    setBekle(true);
+    const kayit = {
+      baslik: taslak.baslik.trim(), spot: taslak.spot.trim(), metin: taslak.metin, kategori: taslak.kategori, kapak: taslak.kapak || null,
+      galeri: taslak.galeri, video: taslak.video.trim() || null, son_dakika: taslak.son_dakika, manset: taslak.manset, durum, guncellenme: new Date().toISOString()
+    };
+    if (durum === "yayinda" && taslak.durum !== "yayinda") kayit.yayin_tarihi = new Date().toISOString();
+    let sonuc;
+    if (taslak.id) sonuc = await supabase.from("haber266").update(kayit).eq("id", taslak.id);
+    else {
+      const temel = blogSlug(taslak.baslik) || "haber";
+      const cakisan = (haberler || []).some(h => h.slug === temel);
+      sonuc = await supabase.from("haber266").insert({ ...kayit, slug: cakisan ? `${temel}-${Date.now().toString(36)}` : temel, yazar_ad: currentStaff?.name || "" });
+    }
+    setBekle(false);
+    if (sonuc.error) { swalAlert("Kaydedilemedi: " + sonuc.error.message); return; }
+    setTaslak(null);
+    yukle();
+    if (durum === "onay") swalAlert("Haber onaya gönderildi. Yönetici onaylayınca yayına girer.");
+  };
+  const durumDegistir = async (h, durum) => {
+    const { error } = await supabase.from("haber266").update({ durum, guncellenme: new Date().toISOString(), ...(durum === "yayinda" ? { yayin_tarihi: new Date().toISOString() } : {}) }).eq("id", h.id);
+    if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
+    yukle();
+  };
+  const sil = async (h) => {
+    if (!(await swalConfirm(`"${h.baslik}" haberi kalıcı olarak silinecek. Emin misiniz?`))) return;
+    const { error } = await supabase.from("haber266").delete().eq("id", h.id);
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
+    yukle();
+  };
+  const kapakSec = async (e) => {
+    const dosya = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!dosya) return;
+    setGorselBekle("kapak");
+    try { const adres = await haber266GorselYukle(dosya); setTaslak(t => ({ ...t, kapak: adres })); }
+    catch (h) { swalAlert("Fotoğraf yüklenemedi: " + h.message); }
+    setGorselBekle("");
+  };
+  const galeriSec = async (e) => {
+    const dosyalar = [...(e.target.files || [])]; e.target.value = "";
+    if (!dosyalar.length) return;
+    setGorselBekle("galeri");
+    for (const d of dosyalar) {
+      try { const adres = await haber266GorselYukle(d); setTaslak(t => ({ ...t, galeri: [...t.galeri, adres] })); }
+      catch (h) { swalAlert("Bir fotoğraf yüklenemedi: " + h.message); }
+    }
+    setGorselBekle("");
+  };
+  // İmlecin olduğu yere ayrı bir satır ekler
+  const satirEkle = (ek) => setTaslak(t => {
+    const metin = t.metin || "", yer = metinKutusu.current ? metinKutusu.current.selectionStart : metin.length;
+    const k = Math.min(yer ?? metin.length, metin.length);
+    const once = metin.slice(0, k).replace(/\s+$/, ""), sonra = metin.slice(k).replace(/^\s+/, "");
+    return { ...t, metin: `${once}${once ? "\n\n" : ""}${ek}${sonra ? "\n\n" : ""}${sonra}` };
+  });
+  const metneFotoEkle = async (e) => {
+    const dosya = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!dosya) return;
+    setGorselBekle("metin");
+    try {
+      const adres = await haber266GorselYukle(dosya);
+      const aciklama = (window.prompt("Fotoğrafın altında görünecek kısa açıklama (boş bırakabilirsiniz):", "") || "").replace(/[\[\]\n]/g, " ").trim();
+      satirEkle(`![${aciklama}](${adres})`);
+    } catch (h) { swalAlert("Fotoğraf yüklenemedi: " + h.message); }
+    setGorselBekle("");
+  };
+
+  const dugme = { fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 9, cursor: "pointer", color: T.textSecondary, border: `1px solid ${T.border}`, display: "inline-flex", alignItems: "center", gap: 6, background: "transparent" };
+  const kucuk = { fontSize: 11.5, padding: "5px 10px" };
+  const kart = { background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18 };
+  const anahtar = (acik) => ({ width: 42, height: 24, borderRadius: 99, border: "none", cursor: "pointer", position: "relative", background: acik ? "#e30613" : T.bgInput, flexShrink: 0 });
+  const etiket = { fontSize: 11, color: T.textSecondary, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" };
+
+  if (!haberler) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+  const sayi = (d) => haberler.filter(h => h.durum === d).length;
+  const liste = filtre === "hepsi" ? haberler : haberler.filter(h => h.durum === filtre);
+  const videoTur = taslak ? haber266Video(taslak.video) : "";
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, maxWidth: 640 }}>Buradan yazdığın haberler 266digitale sitesinde yayınlanır. {yonetici ? "Muhabirlerin gönderdiği haberler \"Onay bekleyen\" sekmesine düşer." : "Gönderdiğin haberler yönetici onaylayınca yayına girer."}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="/266/" target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: "none" }}>Siteyi Aç ↗</a>
+          <Btn variant="primary" onClick={() => setTaslak({ ...BOS_HABER266 })} disabled={kurulumYok}>+ Yeni Haber</Btn>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {[["hepsi", "Tümü", haberler.length], ["yayinda", "Yayında", sayi("yayinda")], ["onay", "Onay bekleyen", sayi("onay")], ["taslak", "Taslak", sayi("taslak")]].map(([k, ad, n]) => (
+          <button key={k} onClick={() => setFiltre(k)} style={{ ...dugme, ...(filtre === k ? { background: T.textPrimary, color: T.bgCard, borderColor: T.textPrimary } : {}) }}>{ad}<span style={{ fontSize: 11, opacity: .75 }}>{n}</span></button>
+        ))}
+      </div>
+
+      {kurulumYok ? (
+        <div style={{ ...kart, padding: 24, color: T.textSecondary, fontSize: 13.5, lineHeight: 1.6 }}>Haber masası henüz kurulmamış: veritabanında haber tablosu yok. Kurulum için supabase/haber266-kurulum.sql dosyası Supabase SQL Editor'de çalıştırılınca bu sayfa açılır.</div>
+      ) : liste.length === 0 ? (
+        <div style={{ ...kart, padding: "36px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>{haberler.length ? "Bu sekmede haber yok." : "Henüz haber yok. \"+ Yeni Haber\" ile ilk haberi yaz."}</div>
+      ) : (
+        <div style={{ ...kart, overflow: "hidden" }}>
+          {liste.map((h, i) => {
+            const [dAd, dZemin, dYazi] = HABER266_DURUM[h.durum] || HABER266_DURUM.taslak;
+            return (
+              <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderTop: i ? `1px solid ${T.border}` : "none", flexWrap: "wrap" }}>
+                {h.kapak ? <img src={h.kapak} alt="" style={{ width: 96, height: 60, objectFit: "cover", borderRadius: 8, flexShrink: 0 }} /> : <div style={{ width: 96, height: 60, borderRadius: 8, background: T.bgInput, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, color: T.textMuted }}>Fotoğraf yok</div>}
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{h.baslik}</div>
+                  <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 3 }}>
+                    {h.kategori} · {blogTarih(h.yayin_tarihi)}{h.yazar_ad ? ` · ${h.yazar_ad}` : ""}
+                    {h.son_dakika && <span style={{ marginLeft: 6, color: "#e30613", fontWeight: 700 }}>SON DAKİKA</span>}
+                    {h.manset && <span style={{ marginLeft: 6, fontWeight: 700 }}>MANŞET</span>}
+                  </div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: T[dZemin] || T.bgInput, color: T[dYazi] || T.textMuted }}>{dAd}</span>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {h.durum === "yayinda" && <a href={`/266/#/haber/${h.slug}`} target="_blank" rel="noreferrer" style={{ ...dugme, ...kucuk, textDecoration: "none" }}>Gör ↗</a>}
+                  <Btn style={kucuk} onClick={() => setIgHaber(h)}>Instagram</Btn>
+                  {(yonetici || h.durum !== "yayinda") && <Btn style={kucuk} onClick={() => setTaslak({ ...BOS_HABER266, ...h, spot: h.spot || "", metin: h.metin || "", kapak: h.kapak || "", galeri: Array.isArray(h.galeri) ? h.galeri : [], video: h.video || "" })}>Düzenle</Btn>}
+                  {yonetici && h.durum === "onay" && <Btn variant="primary" style={kucuk} onClick={() => durumDegistir(h, "yayinda")}>Onayla ve Yayınla</Btn>}
+                  {yonetici && h.durum === "taslak" && <Btn style={kucuk} onClick={() => durumDegistir(h, "yayinda")}>Yayınla</Btn>}
+                  {yonetici && h.durum === "yayinda" && <Btn style={kucuk} onClick={() => durumDegistir(h, "taslak")}>Yayından Kaldır</Btn>}
+                  {(yonetici || h.durum !== "yayinda") && <Btn style={{ ...kucuk, color: T.redText }} onClick={() => sil(h)}>Sil</Btn>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {taslak && (
+        <Modal title={taslak.id ? "Haberi Düzenle" : "Yeni Haber"} onClose={() => { if (!bekle && !gorselBekle) setTaslak(null); }} width={820}>
+          <FormField label="Başlık"><Input value={taslak.baslik} onChange={e => setTaslak(t => ({ ...t, baslik: e.target.value }))} placeholder="Örn: Sahil yolunda yeni yürüyüş yolu açıldı" /></FormField>
+          <FormField label="Spot (başlığın altındaki kısa özet)"><Input value={taslak.spot} onChange={e => setTaslak(t => ({ ...t, spot: e.target.value.slice(0, 280) }))} placeholder="Ne, nerede, ne zaman? 1–2 cümle" /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>
+            <FormField label="Kategori">
+              <Select value={taslak.kategori} onChange={e => setTaslak(t => ({ ...t, kategori: e.target.value }))}>
+                {[...new Set([...HABER266_KATEGORILER, taslak.kategori])].map(k => <option key={k} value={k}>{k}</option>)}
+              </Select>
+            </FormField>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 18 }}>
+              {[["son_dakika", "Son dakika", "Sitenin üstündeki kayan şeride ekler"], ["manset", "Manşet", "Ana sayfada büyük manşette gösterir"]].map(([k, ad, acik]) => (
+                <div key={k} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button type="button" aria-label={ad} onClick={() => setTaslak(t => ({ ...t, [k]: !t[k] }))} style={anahtar(taslak[k])}><span style={{ position: "absolute", top: 3, left: taslak[k] ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: ".2s" }} /></button>
+                  <div><div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{ad}</div><div style={{ fontSize: 11.5, color: T.textMuted }}>{acik}</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <FormField label="Kapak fotoğrafı (haberin başında ve ana sayfada görünür)">
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              {taslak.kapak && <img src={taslak.kapak} alt="" style={{ width: 180, aspectRatio: "16 / 9", objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}` }} />}
+              <label style={dugme}>{gorselBekle === "kapak" ? "Yükleniyor..." : taslak.kapak ? "Fotoğrafı Değiştir" : "Fotoğraf Seç ya da Çek"}<input type="file" accept="image/*" hidden disabled={!!gorselBekle} onChange={kapakSec} /></label>
+              {taslak.kapak && <Btn onClick={() => setTaslak(t => ({ ...t, kapak: "" }))}>Kaldır</Btn>}
+            </div>
+          </FormField>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
+              <label style={etiket}>Haber metni</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("## Ara başlık")}>Ara başlık</button>
+                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("> \"Alıntı\"")}>Alıntı</button>
+                <label style={{ ...dugme, ...kucuk }}>{gorselBekle === "metin" ? "Yükleniyor..." : "+ Metne fotoğraf"}<input type="file" accept="image/*" hidden disabled={!!gorselBekle} onChange={metneFotoEkle} /></label>
+                <button type="button" style={{ ...dugme, ...kucuk }} onClick={() => satirEkle("[VİDEO]")}>+ Metne video</button>
+              </div>
+            </div>
+            <textarea ref={metinKutusu} value={taslak.metin} onChange={e => setTaslak(t => ({ ...t, metin: e.target.value }))} placeholder={"Haberi buraya yaz. Paragrafları boş bir satırla ayır."} style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "10px 12px", fontSize: 14, color: T.textPrimary, outline: "none", boxSizing: "border-box", minHeight: 260, fontFamily: "inherit", resize: "vertical", lineHeight: 1.6 }} />
+            <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6, lineHeight: 1.5 }}>Fotoğraf ya da video koymak için imleci yazıda istediğin yere koyup düğmeye bas. "[VİDEO]" satırı aşağıdaki videoyu metnin o yerine yerleştirir.</div>
+          </div>
+          <FormField label="Fotoğraf galerisi (isteğe bağlı, birden çok fotoğraf)">
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              {taslak.galeri.map((g, i) => (
+                <div key={g} style={{ position: "relative" }}>
+                  <img src={g} alt="" style={{ width: 84, height: 64, objectFit: "cover", borderRadius: 8, border: `1px solid ${T.border}`, display: "block" }} />
+                  <button type="button" aria-label="Kaldır" onClick={() => setTaslak(t => ({ ...t, galeri: t.galeri.filter((_, k) => k !== i) }))} style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 11, cursor: "pointer" }}>✕</button>
+                </div>
+              ))}
+              <label style={dugme}>{gorselBekle === "galeri" ? "Yükleniyor..." : "+ Fotoğraf Ekle"}<input type="file" accept="image/*" multiple hidden disabled={!!gorselBekle} onChange={galeriSec} /></label>
+            </div>
+          </FormField>
+          <FormField label="Video bağlantısı (YouTube, Instagram ya da TikTok)">
+            <Input value={taslak.video} onChange={e => setTaslak(t => ({ ...t, video: e.target.value }))} placeholder="https://www.instagram.com/reel/..." />
+            {taslak.video.trim() && <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: videoTur ? T.greenText : T.redText }}>{videoTur ? `✓ ${videoTur} videosu tanındı, haberin içinde oynayacak` : "Bu bağlantı tanınmadı"}</div>}
+          </FormField>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 20, flexWrap: "wrap" }}>
+            <Btn onClick={() => setTaslak(null)} disabled={bekle || !!gorselBekle}>Vazgeç</Btn>
+            <Btn onClick={() => kaydet("taslak")} disabled={bekle || !!gorselBekle}>Taslak Olarak Kaydet</Btn>
+            {yonetici
+              ? <Btn variant="primary" onClick={() => kaydet("yayinda")} disabled={bekle || !!gorselBekle}>{bekle ? "Kaydediliyor..." : "Yayınla"}</Btn>
+              : <Btn variant="primary" onClick={() => kaydet("onay")} disabled={bekle || !!gorselBekle}>{bekle ? "Gönderiliyor..." : "Onaya Gönder"}</Btn>}
+          </div>
+        </Modal>
+      )}
+
+      {igHaber && <Haber266Instagram haber={igHaber} onClose={() => setIgHaber(null)} />}
     </div>
-    <iframe title="266 Haber Masası" src="/266/yaz.html?panel=1" style={{ width: "100%", height: "calc(100vh - 150px)", border: "1px solid rgba(128,128,128,.25)", borderRadius: 14, background: "#f6f4ef" }} />
-  </div>;
+  );
 }
 
 function BlogPage() {
@@ -13087,7 +13420,7 @@ export default function App() {
         {page==="staff"&&<StaffPage staff={staff} setStaff={setStaff} allStaff={allStaff} perms={perms}/>}
         {page==="emlakpanelim"&&<EmlakPanelimPage/>}
         {page==="blog"&&<BlogPage/>}
-        {page==="haber266"&&<Haber266Page/>}
+        {page==="haber266"&&<Haber266Page perms={perms} currentStaff={currentStaff}/>}
         {page==="qrmenu"&&<QrMenuPage clients={allClients||clients}/>}
       </div>
     </div>

@@ -531,7 +531,7 @@ footer .logo{color:#fff}
   </div>
 </div>
 
-<script>
+<script type="module">
 // ÖRNEK İÇERİK — gerçek haberler panelden (Haber Masası) gelecek
 const RENK = [['#0f2a4a','#2f6fb3'],['#5a0a0e','#e30613'],['#123d26','#4c9a2a'],['#2a1d5c','#6d4bd8'],['#0b3b52','#1aa3d9'],['#6b2a07','#e88a12'],['#2f2f36','#8f8f99'],['#5b1035','#d6336c'],['#0f3f3b','#22b3a3'],['#1b2230','#e30613']];
 const H = [
@@ -575,7 +575,24 @@ const N = (i) => ({ k: H[i][0], y: H[i][1], b: H[i][2], s: H[i][3], z: H[i][4] }
 
 const $ = (s) => document.querySelector(s);
 const kac = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Panelden (266 Haber Masası) yayınlanan gerçek haberler; örneklerin önüne geçer
+const SUPA = 'https://kmxhsyjtyukrxrzoowag.supabase.co', SUPA_ANAHTAR = 'sb_publishable_8FkJ2hortwsLn57lLZMEwQ_vS29JgwT';
+async function gercekHaberler(){
+  try {
+    const istek = fetch(`${SUPA}/rest/v1/haber266?durum=eq.yayinda&select=*&order=yayin_tarihi.desc&limit=60`, { headers: { apikey: SUPA_ANAHTAR } }).then((r) => (r.ok ? r.json() : []));
+    const r = await Promise.race([istek, new Promise((ok) => setTimeout(() => ok([]), 3500))]);
+    return Array.isArray(r) ? r : [];
+  } catch (e) { return []; }
+}
+const sureOnce = (t) => { const dk = Math.max(1, Math.round((Date.now() - new Date(t)) / 60000)); return dk < 60 ? `${dk} dk` : dk < 1440 ? `${Math.round(dk / 60)} sa` : `${Math.round(dk / 1440)} gün`; };
+const GERCEK = await gercekHaberler();
+const GI = GERCEK.map((r) => { const a = [r.kategori, 'Balıkesir', r.baslik, r.spot || '', sureOnce(r.yayin_tarihi)]; a.gercek = r; H.push(a); return H.length - 1; });
+const ilkler = (once, varsayilan, adet) => [...new Set([...once, ...varsayilan])].slice(0, adet);
+const katGercek = (ad) => GI.filter((i) => H[i][0] === ad);
+
 function g(i, etiket = ''){
+  const kapak = H[i] && H[i].gercek && H[i].gercek.kapak;
+  if (kapak) return `<span class="g"><img class="z" src="${kac(kapak)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover"></span>`;
   const [a, b] = RENK[i % RENK.length], aci = (i * 53) % 360;
   return `<span class="g"><span class="z" style="background:linear-gradient(${aci}deg,${a},${b})"></span><span class="d"></span>${etiket ? `<span class="y">${kac(etiket)}</span>` : ''}</span>`;
 }
@@ -584,12 +601,12 @@ $('#tarih').textContent = new Date().toLocaleDateString('tr-TR', { day:'numeric'
 $('#yil').textContent = new Date().getFullYear();
 
 // Son dakika
-const sd = [0,19,1,5,12,9,21].map((i) => `<a href="#" data-haber="${i}">${kac(N(i).y)}: ${kac(N(i).b)}</a>`).join('');
+const sd = ilkler([...GI.filter((i) => H[i].gercek.son_dakika), ...GI.slice(0, 3)], [0,19,1,5,12,9,21], 8).map((i) => `<a href="#" data-haber="${i}">${kac(N(i).y)}: ${kac(N(i).b)}</a>`).join('');
 $('#kayan').innerHTML = sd + sd;
 
 // Manşet (numaralı)
-const MANSET = [0,19,12,5,9,20,1,13,15,6];
-$('#manset').innerHTML = MANSET.map((i, n) => { const h = N(i); return `<a href="#" class="slayt${n ? '' : ' aktif'}" data-haber="${i}">${g(i + 3, 'Fotoğraf')}<span class="karart"></span><span class="yazi"><span class="etk kutu">${kac(h.k)}</span><h1>${kac(h.b)}</h1>${h.s ? `<p>${kac(h.s)}</p>` : ''}</span></a>`; }).join('') +
+const MANSET = ilkler([...GI.filter((i) => H[i].gercek.manset), ...GI.slice(0, 2)], [0,19,12,5,9,20,1,13,15,6], 10);
+$('#manset').innerHTML = MANSET.map((i, n) => { const h = N(i); return `<a href="#" class="slayt${n ? '' : ' aktif'}" data-haber="${i}">${g(i, 'Fotoğraf')}<span class="karart"></span><span class="yazi"><span class="etk kutu">${kac(h.k)}</span><h1>${kac(h.b)}</h1>${h.s ? `<p>${kac(h.s)}</p>` : ''}</span></a>`; }).join('') +
   `<span class="tumu">${MANSET.length} manşet</span><div class="numaralar">${MANSET.map((_, n) => `<button data-no="${n}" class="${n ? '' : 'aktif'}">${n + 1}</button>`).join('')}</div>`;
 let mansetNo = 0, mansetZaman;
 function mansetGit(n){
@@ -604,8 +621,8 @@ document.querySelectorAll('#manset .numaralar button').forEach((b) => {
 });
 mansetBaslat();
 
-$('#surmanset').innerHTML = [3, 4, 2].map((i) => { const h = N(i); return `<a href="#" class="sm" data-haber="${i}">${g(i + 1)}<span class="karart"></span><span class="yazi"><span class="etk kutu">${kac(h.k)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
-$('#oneCikan').innerHTML = [21, 7, 10, 16].map((i) => { const h = N(i); return `<a href="#" class="oc" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
+$('#surmanset').innerHTML = [3, 4, 2].map((i) => { const h = N(i); return `<a href="#" class="sm" data-haber="${i}">${g(i)}<span class="karart"></span><span class="yazi"><span class="etk kutu">${kac(h.k)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
+$('#oneCikan').innerHTML = ilkler(GI.filter((i) => !MANSET.includes(i)), [21, 7, 10, 16], 4).map((i) => { const h = N(i); return `<a href="#" class="oc" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
 
 // Kategori blokları
 function katBlok(ana, liste){
@@ -614,14 +631,16 @@ function katBlok(ana, liste){
     `<div class="liste">${liste.map((i) => { const x = N(i); return `<a href="#" class="yatay" data-haber="${i}">${g(i)}<span><span class="etk">${kac(x.y)}</span><h4>${kac(x.b)}</h4><span class="saat">${x.z} önce</span></span></a>`; }).join('')}</div>`;
 }
 const dortlu = (liste) => liste.map((i) => { const h = N(i); return `<a href="#" class="kart" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
-$('#gundemBlok').innerHTML = katBlok(19, [21, 22, 23, 0]);
-$('#gundemDortlu').innerHTML = dortlu([1, 24, 25, 7]);
-$('#balikesirBlok').innerHTML = katBlok(5, [6, 7, 8, 24]);
-$('#balikesirDortlu').innerHTML = dortlu([25, 22, 23, 21]);
-$('#ekonomiBlok').innerHTML = katBlok(12, [13, 14, 2, 5]);
-$('#sporBlok').innerHTML = katBlok(9, [10, 11, 3, 9]);
-$('#sporDortlu').innerHTML = dortlu([3, 10, 11, 9]);
-$('#yasamDortlu').innerHTML = dortlu([15, 16, 17, 18]);
+function blokCiz(kat, varsayilan, blokId, dortluId){
+  const l = ilkler(katGercek(kat), varsayilan, dortluId ? 9 : 5);
+  $(blokId).innerHTML = katBlok(l[0], l.slice(1, 5));
+  if (dortluId) $(dortluId).innerHTML = dortlu(l.slice(5, 9));
+}
+blokCiz('Gündem', [19, 21, 22, 23, 0, 1, 24, 25, 7], '#gundemBlok', '#gundemDortlu');
+blokCiz('Balıkesir', [5, 6, 7, 8, 24, 25, 22, 23, 21], '#balikesirBlok', '#balikesirDortlu');
+blokCiz('Ekonomi', [12, 13, 14, 2, 5], '#ekonomiBlok');
+blokCiz('Spor', [9, 10, 11, 3, 0, 3, 10, 11, 9], '#sporBlok', '#sporDortlu');
+$('#yasamDortlu').innerHTML = dortlu(ilkler(katGercek('Yaşam'), [15, 16, 17, 18], 4));
 const coklar = [13, 0, 15, 1, 9, 20, 5].map((i) => `<li><a href="#" data-haber="${i}">${kac(N(i).b)}</a></li>`).join('');
 $('#cokOkunan').innerHTML = coklar; $('#cokOkunan2').innerHTML = coklar;
 
@@ -689,8 +708,52 @@ async function namazGetir(){
 namazGetir();
 
 // Haber detayı
+function videoGom(url){
+  const u = String(url || '').trim(); let m;
+  if ((m = u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/))) return `<div style="margin:6px 0 20px;border-radius:4px;overflow:hidden;background:#000;${/shorts\//.test(u) ? 'max-width:360px;margin-left:auto;margin-right:auto' : ''}"><iframe src="https://www.youtube.com/embed/${m[1]}" style="width:100%;border:0;display:block;aspect-ratio:${/shorts\//.test(u) ? '9/16' : '16/9'}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+  if ((m = u.match(/instagram\.com\/(?:reel|p|tv)\/([\w-]+)/))) return `<div style="margin:6px auto 20px;max-width:400px"><iframe src="https://www.instagram.com/p/${m[1]}/embed" style="width:100%;height:720px;border:0;display:block" loading="lazy"></iframe></div>`;
+  if ((m = u.match(/tiktok\.com\/.*\/video\/(\d+)/))) return `<div style="margin:6px auto 20px;max-width:340px"><iframe src="https://www.tiktok.com/embed/v2/${m[1]}" style="width:100%;height:740px;border:0;display:block" loading="lazy"></iframe></div>`;
+  return '';
+}
+function gercekGovde(r){
+  let videoKondu = false;
+  const html = String(r.metin || '').replace(/\r/g, '').split(/\n{2,}/).map((b) => b.trim()).filter(Boolean).map((b) => {
+    if (b === '[VİDEO]') { videoKondu = true; return videoGom(r.video); }
+    if (b.startsWith('## ')) return `<h2>${kac(b.slice(3))}</h2>`;
+    if (b.startsWith('> ')) return `<blockquote>${kac(b.slice(2))}</blockquote>`;
+    const f = b.match(/^!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)$/);
+    if (f) return `<figure style="margin:6px 0 20px"><img src="${kac(f[2])}" alt="${kac(f[1])}" loading="lazy" style="width:100%;border-radius:4px;display:block">${f[1] ? `<figcaption>${kac(f[1])}</figcaption>` : ''}</figure>`;
+    return `<p>${kac(b).replace(/\n/g, '<br>')}</p>`;
+  });
+  if (html.length > 2) html.splice(2, 0, '<div class="reklam" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>');
+  let son = html.join('');
+  if (!videoKondu && r.video) son += videoGom(r.video);
+  const galeri = Array.isArray(r.galeri) ? r.galeri : [];
+  if (galeri.length) son += `<h2>Fotoğraf galerisi</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${galeri.map((u) => `<a href="${kac(u)}" target="_blank" rel="noopener"><img src="${kac(u)}" alt="" loading="lazy" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block"></a>`).join('')}</div>`;
+  return son;
+}
 function haberAc(i){
-  const h = N(i);
+  const h = N(i), r = H[i].gercek;
+  if (r) {
+    const tarih = new Date(r.yayin_tarihi).toLocaleString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const adres = `${location.origin}${location.pathname}#/haber/${r.slug}`;
+    $('#makale').innerHTML = `
+      <div class="kirinti"><a href="#/">Ana sayfa</a> › <a href="#/${SAYFA_YOLU[r.kategori] || ''}">${kac(r.kategori)}</a></div>
+      <span class="etk kutu">${r.son_dakika ? 'Son dakika' : kac(r.kategori)}</span>
+      <h1>${kac(r.baslik)}</h1>
+      ${r.spot ? `<p class="spot">${kac(r.spot)}</p>` : ''}
+      <div class="kunye"><span><b>${kac(r.yazar_ad || '266digitale Haber Merkezi')}</b></span><span>${tarih}</span>
+        <span class="paylas"><a href="https://wa.me/?text=${encodeURIComponent(r.baslik + ' ' + adres)}" target="_blank" rel="noopener" style="background:#25d366">W</a><a href="https://x.com/intent/post?text=${encodeURIComponent(r.baslik)}&url=${encodeURIComponent(adres)}" target="_blank" rel="noopener" style="background:#111">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(adres)}" target="_blank" rel="noopener" style="background:#1877f2">f</a></span></div>
+      ${r.kapak ? `${g(i)}<figcaption>Fotoğraf: 266digitale</figcaption>` : ''}
+      <div class="govde">${gercekGovde(r)}</div>
+      <div class="etiketler"><a href="#/${SAYFA_YOLU[r.kategori] || ''}">${kac(r.kategori)}</a><a href="#/balikesir">Balıkesir</a></div>`;
+    document.title = `${r.baslik} — 266digitale`;
+    if (location.hash !== `#/haber/${r.slug}`) history.replaceState(null, '', `#/haber/${r.slug}`);
+    $('#ilgili').innerHTML = dortlu(ilkler(katGercek(r.kategori).filter((x) => x !== i), [5, 6, 7], 3));
+    const d = $('#detay'); d.classList.add('acik'); d.scrollTop = 0; d.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
   $('#makale').innerHTML = `
     <div class="kirinti"><a href="#">Ana sayfa</a> › <a href="#">${kac(h.k)}</a> › ${kac(h.y)}</div>
     <span class="etk kutu">${kac(h.k)}</span>
@@ -698,7 +761,7 @@ function haberAc(i){
     <p class="spot">${kac(h.s || 'Haberin özeti burada yer alacak: ne, nerede, ne zaman sorularını cevaplayan kısa bir giriş.')}</p>
     <div class="kunye"><span><b>266digitale Haber Merkezi</b></span><span>${kac(h.y)}</span><span>${new Date().toLocaleDateString('tr-TR')} · ${h.z} önce</span>
       <span class="paylas"><a href="#" style="background:#25d366">W</a><a href="#" style="background:#111">X</a><a href="#" style="background:#1877f2">f</a><a href="#" style="background:#666">⧉</a></span></div>
-    ${g(i + 3, 'Fotoğraf')}
+    ${g(i, 'Fotoğraf')}
     <figcaption>Fotoğraf: 266digitale</figcaption>
     <div class="govde">
       <p>Bu bir örnek haber metnidir. Gerçek haberler yayına girdiğinde bu alanda muhabirin yazdığı metin, röportajlar ve fotoğraflar yer alacak.</p>
@@ -713,7 +776,7 @@ function haberAc(i){
   const d = $('#detay'); d.classList.add('acik'); d.scrollTop = 0; d.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
 }
-function haberKapat(){ const d = $('#detay'); d.classList.remove('acik'); d.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; }
+function haberKapat(){ const d = $('#detay'); d.classList.remove('acik'); d.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (location.hash.startsWith('#/haber/')) history.replaceState(null, '', location.pathname); document.title = '266digitale — Balıkesir\'in haber sitesi | Son dakika Balıkesir haberleri'; }
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-kapat]')) { e.preventDefault(); haberKapat(); return; }
   const a = e.target.closest('[data-haber]');
@@ -730,6 +793,7 @@ $('#mobilKapat').addEventListener('click', () => $('#mobilMenu').classList.remov
 $('#mobilMenu').addEventListener('click', (e) => { if (e.target.classList.contains('m')) $('#mobilMenu').classList.remove('acik'); });
 
 // Sayfalar: her menü sekmesi kendi sayfasında açılır (#/gundem gibi)
+const SAYFA_YOLU = { 'Gündem': 'gundem', 'Balıkesir': 'balikesir', 'Ekonomi': 'ekonomi', 'Spor': 'spor', '266 Sokakta': '266-sokakta', 'Yaşam': 'yasam', 'Sağlık': 'saglik', 'Eğitim': 'egitim', 'Teknoloji': 'teknoloji' };
 const SAYFALAR = [
   ['son-dakika','Son Dakika'],['gundem','Gündem'],['balikesir','Balıkesir'],['ekonomi','Ekonomi'],['spor','Spor'],
   ['266-sokakta','266 Sokakta'],['foto-galeri','Foto Galeri'],['yazarlar','Yazarlar'],['yasam','Yaşam'],['saglik','Sağlık'],['egitim','Eğitim'],['teknoloji','Teknoloji']
@@ -741,6 +805,7 @@ const kartUc = (liste) => `<div class="uclu">${liste.map((i) => { const h = N(i)
 const tumHaberler = H.map((_, i) => i);
 function sayfaGoster(){
   const yol = location.hash.replace(/^#\/?/, '');
+  if (yol.startsWith('haber/')) { const i = GI.find((x) => H[x].gercek.slug === decodeURIComponent(yol.slice(6))); if (i !== undefined) { haberAc(i); return; } }
   const bulunan = SAYFALAR.find(([y]) => y === yol.split('/')[0]);
   document.querySelectorAll('nav.kategoriler a[data-sayfa]').forEach((a) => a.classList.toggle('aktif', bulunan && a.dataset.sayfa === bulunan[0]));
   if (!bulunan) { $('#anasayfa').hidden = false; $('#katSayfa').hidden = true; document.title = '266digitale — Balıkesir\'in haber sitesi | Son dakika Balıkesir haberleri'; return; }
@@ -751,7 +816,7 @@ function sayfaGoster(){
   $('#katAlt').innerHTML = '';
   let html = '';
   if (slug === 'son-dakika') {
-    html = `<div class="sd-liste">${tumHaberler.slice(0, 20).map((i) => { const h = N(i); return `<a href="#" class="sd-satir" data-haber="${i}"><span class="zaman">${h.z}</span>${g(i)}<span><span class="etk">${kac(h.k)} · ${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('')}</div><button class="daha">Daha fazla haber</button>`;
+    html = `<div class="sd-liste">${ilkler(GI, tumHaberler.filter((i) => !H[i].gercek), 20).map((i) => { const h = N(i); return `<a href="#" class="sd-satir" data-haber="${i}"><span class="zaman">${h.z}</span>${g(i)}<span><span class="etk">${kac(h.k)} · ${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('')}</div><button class="daha">Daha fazla haber</button>`;
   } else if (slug === '266-sokakta') {
     html = `<a href="#" class="video-buyuk" data-haber="20" style="margin-bottom:14px">${$('#videoBuyuk').innerHTML}</a><div class="video-sayfa">${$('#videoKucuk').innerHTML}${$('#videoKucuk').innerHTML.replace(/class="vk"/g, 'class="vk"')}</div><div class="bb" style="margin-top:26px"><h2>Reels</h2></div><div class="reel-izgara">${$('#reels').innerHTML}</div>`;
   } else if (slug === 'foto-galeri') {
@@ -760,7 +825,7 @@ function sayfaGoster(){
     html = `<div class="yazar-sayfa">${$('#yazarListe').innerHTML}</div>`;
   } else {
     const KAT = { gundem: 'Gündem', balikesir: 'Balıkesir', ekonomi: 'Ekonomi', spor: 'Spor', yasam: 'Yaşam', saglik: 'Sağlık', egitim: 'Eğitim', teknoloji: 'Teknoloji' }[slug];
-    const liste = tumHaberler.filter((i) => H[i][0] === KAT);
+    const liste = [...katGercek(KAT), ...tumHaberler.filter((i) => H[i][0] === KAT && !H[i].gercek)];
     const diger = tumHaberler.filter((i) => !liste.includes(i)).slice(0, 6);
     html = !liste.length ? '<div class="kutu">Bu bölümde henüz haber yok.</div>'
       : `<div class="kat-blok">${katBlok(liste[0], liste.slice(1, 5))}</div>` + (liste.length > 5 ? kartUc(liste.slice(5)) : '');
