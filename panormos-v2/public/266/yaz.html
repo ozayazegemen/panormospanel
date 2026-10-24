@@ -9,130 +9,436 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--kagit:#f6f4ef;--kart:#fff;--murekkep:#0f0f12;--gri:#5d5d66;--cizgi:#e3e0d8;--kirmizi:#e8261b;--yesil:#16a34a}
+:root{--kagit:#f6f4ef;--kart:#fff;--murekkep:#0f0f12;--gri:#5d5d66;--cizgi:#e3e0d8;--kirmizi:#e8261b;--yesil:#16a34a;--sari:#ffd23f}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--kagit);color:var(--murekkep);font:15px/1.5 Inter,system-ui,sans-serif;overflow-x:hidden}
-.onizleme{background:#ffd23f;color:#111;font-size:13px;font-weight:600;text-align:center;padding:6px 12px}
-header{background:var(--murekkep);color:#fff}
-header .ic{display:flex;align-items:center;justify-content:space-between;height:60px}
-.ic{max-width:1100px;margin:0 auto;padding:0 16px}
-.logo{font:900 22px Archivo;letter-spacing:-1px}
+button{font:inherit;cursor:pointer}
+.onizleme{background:var(--sari);color:#111;font-size:13px;font-weight:600;text-align:center;padding:6px 12px}
+header{background:var(--murekkep);color:#fff;position:sticky;top:0;z-index:20}
+header .ic{display:flex;align-items:center;justify-content:space-between;height:60px;gap:10px}
+.ic{max-width:1180px;margin:0 auto;padding:0 16px}
+.logo{font:900 20px Archivo;letter-spacing:-1px;white-space:nowrap}
 .logo .kod{background:var(--kirmizi);padding:4px 6px;border-radius:5px;margin-right:5px}
-header a{color:#fff;font-size:14px;opacity:.8;text-decoration:none}
-h1{font:900 30px Archivo;letter-spacing:-1px;margin:26px 0 4px}
-.alt{color:var(--gri);margin-bottom:20px}
-.duzen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;padding-bottom:60px}
+.rol{display:flex;background:#24242b;border-radius:999px;padding:3px}
+.rol button{border:0;background:none;color:#bbb;padding:7px 14px;border-radius:999px;font-weight:600;font-size:13px}
+.rol button.secili{background:#fff;color:#111}
+.sekmeler{display:flex;gap:6px;margin:22px 0 16px;flex-wrap:wrap}
+.sekmeler button{border:1px solid var(--cizgi);background:#fff;border-radius:999px;padding:9px 16px;font-weight:700;font-size:14px}
+.sekmeler button.secili{background:var(--murekkep);color:#fff;border-color:var(--murekkep)}
+.sekmeler .sayi{background:var(--kirmizi);color:#fff;border-radius:999px;padding:1px 7px;font-size:12px;margin-left:6px}
+.alt{color:var(--gri);margin:-6px 0 16px}
+.duzen{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:20px;padding-bottom:60px}
 .kutu{background:var(--kart);border:1px solid var(--cizgi);border-radius:16px;padding:20px}
 label{display:block;font-weight:700;font-size:13px;margin:16px 0 6px}
-label:first-child{margin-top:0}
 label small{font-weight:500;color:var(--gri)}
 input,textarea,select{width:100%;border:1px solid var(--cizgi);border-radius:10px;padding:11px 12px;font:inherit;background:#fff;color:inherit}
 input:focus,textarea:focus,select:focus{outline:2px solid var(--kirmizi);border-color:transparent}
-.baslik-girdi{font:800 22px Archivo;padding:12px}
-textarea{min-height:240px;resize:vertical;line-height:1.7}
-.yukle{border:2px dashed var(--cizgi);border-radius:14px;padding:26px;text-align:center;cursor:pointer;color:var(--gri);transition:.2s}
+.baslik-girdi{font:800 21px Archivo;padding:12px}
+textarea{min-height:220px;resize:vertical;line-height:1.7}
+.yukle{border:2px dashed var(--cizgi);border-radius:14px;padding:22px;text-align:center;cursor:pointer;color:var(--gri)}
 .yukle:hover{border-color:var(--kirmizi);color:var(--kirmizi)}
-.yukle b{display:block;color:var(--murekkep);font-size:16px;margin-bottom:4px}
-.kapak{margin-top:10px;border-radius:12px;overflow:hidden;display:none;position:relative}
+.yukle b{display:block;color:var(--murekkep);font-size:15px;margin-bottom:4px}
+.kapak{margin-top:10px;border-radius:12px;overflow:hidden;display:none}
 .kapak img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
-.kapak span{position:absolute;left:10px;top:10px;background:var(--kirmizi);color:#fff;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px}
-.galeri{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
-.galeri img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
+.galeri{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
+.galeri div{position:relative}
+.galeri img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;display:block}
+.galeri button{position:absolute;top:4px;right:4px;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;width:22px;height:22px;font-size:12px}
 .arac{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
-.arac button{border:1px solid var(--cizgi);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;cursor:pointer}
-.yan .kutu{margin-bottom:16px}
-.yan h3{font:900 16px Archivo;margin-bottom:10px}
-.yayinla{width:100%;background:var(--kirmizi);color:#fff;border:0;border-radius:12px;padding:14px;font:700 16px Inter;cursor:pointer}
-.taslak{width:100%;background:#fff;border:1px solid var(--cizgi);border-radius:12px;padding:12px;font:600 15px Inter;margin-top:8px;cursor:pointer}
-.onay{display:flex;gap:8px;align-items:center;font-size:14px;margin-top:8px}
-.onay input{width:auto}
+.arac button{border:1px solid var(--cizgi);background:#fff;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600}
 .ipucu{font-size:13px;color:var(--gri);margin-top:6px}
-.adim{display:grid;grid-template-columns:28px 1fr;gap:10px;margin-bottom:12px;font-size:14px}
-.adim b{width:28px;height:28px;border-radius:50%;background:var(--murekkep);color:#fff;display:grid;place-items:center;font-size:13px}
-.bildirim{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--yesil);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;display:none}
-@media (max-width:820px){.duzen{grid-template-columns:minmax(0,1fr)}.galeri{grid-template-columns:repeat(3,1fr)}}
+.video-on{margin-top:10px;display:none}
+.video-on .etiket{font-size:12px;font-weight:700;color:var(--yesil);margin-bottom:6px}
+.yan .kutu{margin-bottom:16px}
+.yan h3{font:900 16px Archivo;margin-bottom:6px}
+.anahtar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--cizgi)}
+.anahtar:first-of-type{border-top:0}
+.anahtar b{display:block;font-size:14px}
+.anahtar small{color:var(--gri);font-size:12.5px}
+.dugme-anahtar{width:44px;height:26px;border-radius:999px;background:#d4d2cc;border:0;position:relative;flex:none;transition:.2s}
+.dugme-anahtar::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s}
+.dugme-anahtar.acik{background:var(--kirmizi)}
+.dugme-anahtar.acik::after{left:21px}
+.yayinla{width:100%;background:var(--kirmizi);color:#fff;border:0;border-radius:12px;padding:14px;font-weight:700;font-size:16px;margin-top:14px}
+.ikincil{width:100%;background:#fff;border:1px solid var(--cizgi);border-radius:12px;padding:11px;font-weight:600;margin-top:8px}
+.ornek{background:var(--sari);border:0;border-radius:10px;padding:10px;font-weight:700;width:100%}
+.bildirim{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--yesil);color:#fff;padding:12px 18px;border-radius:12px;font-weight:600;display:none;z-index:200;max-width:90vw;text-align:center}
+
+/* Onay listesi */
+.onay-satir{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 0;border-top:1px solid var(--cizgi)}
+.onay-satir:first-child{border-top:0}
+.onay-satir img,.onay-satir .bos{width:120px;aspect-ratio:16/10;object-fit:cover;border-radius:10px;background:linear-gradient(135deg,#1e293b,#e8261b)}
+.onay-satir h4{font:800 16px Archivo;margin:2px 0}
+.onay-satir .kim{font-size:12.5px;color:var(--gri)}
+.onay-satir .dugmeler{display:flex;gap:6px}
+.onay-satir .dugmeler button{border:0;border-radius:9px;padding:9px 12px;font-weight:700;font-size:13px}
+.yesil{background:var(--yesil);color:#fff}
+.gri-d{background:#eee;color:#333}
+.durum{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:5px}
+.durum.bekliyor{background:#fff3c4;color:#8a6a00}
+.durum.yayinda{background:#dcfce7;color:#166534}
+.bos-liste{color:var(--gri);text-align:center;padding:30px}
+
+/* Sitede önizleme */
+.site{background:#fff;border-radius:16px;overflow:hidden;border:1px solid var(--cizgi);margin-bottom:20px}
+.site-ust{display:flex;align-items:center;gap:10px;background:#efede7;padding:8px 12px;font-size:12px;color:var(--gri)}
+.site-ust i{width:10px;height:10px;border-radius:50%;background:#d4d2cc;display:inline-block}
+.site-ust span{background:#fff;border-radius:6px;padding:3px 10px;margin-left:8px;flex:1;max-width:340px}
+.sd{background:var(--murekkep);color:#fff;display:flex;gap:12px;align-items:center;padding:10px 14px;font-size:14px;overflow:hidden}
+.sd b{background:var(--kirmizi);font:800 11px Archivo;letter-spacing:.08em;padding:4px 8px;border-radius:4px;white-space:nowrap}
+.sd span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sd span.yeni{color:var(--sari);font-weight:700}
+.manset{position:relative;margin:14px;border-radius:14px;overflow:hidden;min-height:300px;background:linear-gradient(135deg,#1e293b,#e8261b)}
+.manset img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.manset .kar{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.85))}
+.manset .m{position:absolute;left:20px;right:20px;bottom:18px;color:#fff}
+.manset .m h2{font:900 28px/1.1 Archivo;letter-spacing:-.8px;margin:8px 0}
+.kat{display:inline-block;font:800 11px Archivo;letter-spacing:.1em;text-transform:uppercase;background:var(--kirmizi);color:#fff;padding:4px 8px;border-radius:4px}
+.kucuk-kart{display:grid;grid-template-columns:140px minmax(0,1fr);gap:14px;margin:14px;padding:10px;border:1px solid var(--cizgi);border-radius:12px;align-items:center}
+.kucuk-kart img,.kucuk-kart .bos{width:140px;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:linear-gradient(135deg,#1e293b,#e8261b)}
+.kucuk-kart h3{font:800 17px Archivo;margin-top:4px}
+.makale{padding:26px 22px 30px;max-width:760px;margin:0 auto}
+.makale h1{font:900 34px/1.1 Archivo;letter-spacing:-1px;margin:10px 0}
+.makale .spot{font-size:18px;color:var(--gri);margin-bottom:16px}
+.makale .kapak-b{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin-bottom:18px;display:block}
+.makale .govde p{font-size:17px;line-height:1.75;margin-bottom:16px}
+.makale .govde h2{font:900 22px Archivo;margin:24px 0 10px}
+.makale blockquote{border-left:5px solid var(--kirmizi);padding:4px 0 4px 16px;font:700 20px/1.4 Archivo;margin:20px 0}
+.makale .govde img{width:100%;border-radius:12px;margin:6px 0 18px;display:block}
+.makale .video{margin:6px 0 18px;border-radius:12px;overflow:hidden;background:#000}
+.makale .video iframe{width:100%;border:0;display:block}
+.m-galeri{margin:10px 0 20px}
+.m-galeri .buyuk{position:relative;border-radius:12px;overflow:hidden;background:#000}
+.m-galeri .buyuk img{width:100%;aspect-ratio:16/10;object-fit:contain;display:block}
+.m-galeri .ok{position:absolute;top:50%;transform:translateY(-50%);border:0;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.9);font-size:18px;font-weight:700}
+.m-galeri .sayac{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;padding:3px 8px;border-radius:999px}
+.m-galeri .kucukler{display:flex;gap:6px;margin-top:6px;overflow-x:auto}
+.m-galeri .kucukler img{width:70px;height:50px;object-fit:cover;border-radius:6px;opacity:.55;cursor:pointer;flex:none}
+.m-galeri .kucukler img.secili{opacity:1;outline:2px solid var(--kirmizi)}
+.paylas{display:flex;gap:8px;margin:18px 0 0}
+.paylas a{background:#25d366;color:#fff;font-weight:700;padding:10px 14px;border-radius:999px;text-decoration:none;font-size:14px}
+.paylas a.x{background:#111}
+.bolum-b{font:900 13px Archivo;letter-spacing:.08em;text-transform:uppercase;color:var(--gri);margin:24px 0 8px}
+@media (max-width:860px){.duzen{grid-template-columns:minmax(0,1fr)}.galeri{grid-template-columns:repeat(3,1fr)}.onay-satir{grid-template-columns:80px minmax(0,1fr)}.onay-satir img,.onay-satir .bos{width:80px}.onay-satir .dugmeler{grid-column:1/-1}.kucuk-kart{grid-template-columns:100px minmax(0,1fr)}.kucuk-kart img,.kucuk-kart .bos{width:100px}.manset .m h2{font-size:22px}.makale h1{font-size:26px}}
 </style>
 </head>
 <body>
-<div class="onizleme">Örnek ekran — gerçek haber masası Panormos panelinde olacak, buradan bir şey kaydedilmez</div>
-<header><div class="ic"><span class="logo"><span class="kod">266</span>Haber Masası</span><a href="./">← Siteye dön</a></div></header>
+<div class="onizleme">Örnek ekran — deneyebilirsin, hiçbir şey kaydedilmez ve yayına girmez</div>
+<header><div class="ic">
+  <span class="logo"><span class="kod">266</span>Haber Masası</span>
+  <div class="rol" title="Kim olarak giriş yapmış gibi denemek istersin?">
+    <button data-rol="yonetici" class="secili">Egemen (yönetici)</button>
+    <button data-rol="muhabir">Muhabir</button>
+  </div>
+</div></header>
 
 <div class="ic">
-  <h1>Yeni haber</h1>
-  <p class="alt">Telefondan ya da bilgisayardan yaz, fotoğrafı yükle, "Yayınla"ya bas. Haber birkaç saniyede sitede.</p>
-
-  <div class="duzen">
-    <div class="kutu">
-      <label>Başlık</label>
-      <input class="baslik-girdi" placeholder="Örn: Bandırma sahilinde yeni yürüyüş yolu açıldı">
-
-      <label>Spot <small>(başlığın altındaki kısa özet, 1–2 cümle)</small></label>
-      <input placeholder="Haberin en önemli bilgisi: ne, nerede, ne zaman?">
-
-      <label>Kapak fotoğrafı <small>(haberin en üstünde ve ana sayfada görünür)</small></label>
-      <div class="yukle" onclick="document.getElementById('kapakDosya').click()">
-        <b>Fotoğraf seç ya da çek</b>
-        Telefonda kamera açılır. Büyük fotoğraflar otomatik küçültülür.
-      </div>
-      <input type="file" id="kapakDosya" accept="image/*" hidden>
-      <div class="kapak" id="kapak"><span>Kapak</span><img alt=""></div>
-
-      <label>Haber metni</label>
-      <div class="arac"><button type="button">Ara başlık</button><button type="button">Alıntı</button><button type="button">+ Fotoğraf ekle</button><button type="button">+ Video ekle</button></div>
-      <textarea placeholder="Haberi buraya yaz. Paragraf için bir satır boşluk bırak.&#10;&#10;Metnin arasına fotoğraf ya da Instagram/YouTube videosu eklemek için üstteki düğmeleri kullan."></textarea>
-
-      <label>Fotoğraf galerisi <small>(isteğe bağlı, birden çok fotoğraf)</small></label>
-      <div class="yukle" onclick="document.getElementById('galeriDosya').click()"><b>+ Fotoğraf ekle</b>Birden fazla seçebilirsin</div>
-      <input type="file" id="galeriDosya" accept="image/*" multiple hidden>
-      <div class="galeri" id="galeri"></div>
-
-      <label>Video bağlantısı <small>(Instagram, TikTok ya da YouTube)</small></label>
-      <input placeholder="https://www.instagram.com/reel/...">
-      <p class="ipucu">Bağlantıyı yapıştırman yeterli; video haberin içinde oynar.</p>
-    </div>
-
-    <div class="yan">
-      <div class="kutu">
-        <h3>Yayın</h3>
-        <label>Kategori</label>
-        <select><option>Gündem</option><option>Balıkesir</option><option>266 Sokakta</option><option>Spor</option><option>Ekonomi</option><option>Yaşam</option></select>
-        <label>Yer</label>
-        <input placeholder="Örn: Bandırma">
-        <div class="onay"><input type="checkbox" id="sd"><label for="sd" style="margin:0;font-weight:600">Son dakika şeridine ekle</label></div>
-        <div class="onay"><input type="checkbox" id="ms"><label for="ms" style="margin:0;font-weight:600">Manşete koy</label></div>
-        <div style="height:14px"></div>
-        <button class="yayinla" onclick="goster()">Yayınla</button>
-        <button class="taslak" onclick="goster('Taslak kaydedildi (örnek)')">Taslak olarak kaydet</button>
-      </div>
-      <div class="kutu">
-        <h3>Nasıl çalışır?</h3>
-        <div class="adim"><b>1</b><span>Başlığı ve kısa özeti yaz.</span></div>
-        <div class="adim"><b>2</b><span>Kapak fotoğrafını telefondan seç ya da çek.</span></div>
-        <div class="adim"><b>3</b><span>Metni yaz; istersen fotoğraf ve video ekle.</span></div>
-        <div class="adim"><b>4</b><span>Kategoriyi seç, "Yayınla"ya bas.</span></div>
-        <p class="ipucu">Yayınlanan haber Google Haberler'e otomatik bildirilir. Muhabir hesabı açarsan, onun yazdıkları senin onayından sonra yayına girer.</p>
-      </div>
-    </div>
+  <div class="sekmeler">
+    <button data-sekme="yaz" class="secili">Yeni haber</button>
+    <button data-sekme="onay" id="onaySekme">Onay bekleyenler<span class="sayi" id="onaySayi">0</span></button>
+    <button data-sekme="site">Sitede nasıl görünür?</button>
   </div>
+
+  <!-- YAZ -->
+  <section id="s-yaz">
+    <p class="alt" id="rolAciklama">Yönetici olarak yazdığın haber "Yayınla" deyince doğrudan sitede.</p>
+    <div class="duzen">
+      <div class="kutu">
+        <button class="ornek" id="ornekDoldur">Örnek haberle doldur (hızlı denemek için)</button>
+
+        <label>Başlık</label>
+        <input class="baslik-girdi" id="baslik" placeholder="Örn: Bandırma sahilinde yeni yürüyüş yolu açıldı">
+
+        <label>Spot <small>(başlığın altındaki kısa özet)</small></label>
+        <input id="spot" placeholder="Haberin en önemli bilgisi: ne, nerede, ne zaman?">
+
+        <label>Kapak fotoğrafı</label>
+        <div class="yukle" data-sec="kapakDosya"><b>Fotoğraf seç ya da çek</b>Telefonda kamera ve galeri açılır</div>
+        <input type="file" id="kapakDosya" accept="image/*" hidden>
+        <div class="kapak" id="kapak"><img alt=""></div>
+
+        <label>Haber metni</label>
+        <div class="arac">
+          <button type="button" data-ekle="## ">Ara başlık</button>
+          <button type="button" data-ekle="> ">Alıntı</button>
+          <button type="button" data-ekle="[FOTOĞRAF]">Metne fotoğraf koy</button>
+          <button type="button" data-ekle="[VİDEO]">Metne video koy</button>
+        </div>
+        <textarea id="metin" placeholder="Haberi buraya yaz. Paragraf için bir satır boşluk bırak."></textarea>
+        <p class="ipucu">"Metne fotoğraf koy" galerideki ilk fotoğrafı, "Metne video koy" aşağıdaki videoyu metnin o noktasına yerleştirir.</p>
+
+        <label>Fotoğraf galerisi <small>(birden çok fotoğraf)</small></label>
+        <div class="yukle" data-sec="galeriDosya"><b>+ Fotoğraf ekle</b>Birden fazla seçebilirsin; okurlar kaydırarak bakar</div>
+        <input type="file" id="galeriDosya" accept="image/*" multiple hidden>
+        <div class="galeri" id="galeri"></div>
+
+        <label>Video bağlantısı <small>(YouTube, Instagram ya da TikTok)</small></label>
+        <input id="video" placeholder="https://www.youtube.com/watch?v=...  ya da  https://www.instagram.com/reel/...">
+        <div class="video-on" id="videoOn"><div class="etiket" id="videoEtiket"></div></div>
+        <p class="ipucu">Bağlantıyı yapıştırman yeterli. Videoyu siteye ayrıca yüklemene gerek yok.</p>
+      </div>
+
+      <div class="yan">
+        <div class="kutu">
+          <h3>Yayın</h3>
+          <label style="margin-top:8px">Kategori</label>
+          <select id="kategori"><option>Gündem</option><option>Balıkesir</option><option>266 Sokakta</option><option>Spor</option><option>Ekonomi</option><option>Yaşam</option></select>
+          <label>Yer</label>
+          <input id="yer" placeholder="Örn: Bandırma">
+          <div style="height:10px"></div>
+          <div class="anahtar"><div><b>Son dakika</b><small>Sitenin üstündeki kayan şeride ekler</small></div><button class="dugme-anahtar" id="sonDakika" aria-label="Son dakika"></button></div>
+          <div class="anahtar"><div><b>Manşet</b><small>Ana sayfada en büyük haber olur</small></div><button class="dugme-anahtar" id="manset" aria-label="Manşet"></button></div>
+          <button class="yayinla" id="yayinla">Yayınla</button>
+          <button class="ikincil" id="onizle">Yayınlamadan önizle</button>
+        </div>
+        <div class="kutu">
+          <h3>Muhabir nasıl çalışır?</h3>
+          <p class="ipucu" style="margin-top:0">Üstten "Muhabir"e geç ve bir haber yaz. "Yayınla" yerine "Onaya gönder" çıkar. Sonra "Egemen (yönetici)"ye dön: haber "Onay bekleyenler"de durur, sen onaylayınca yayına girer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ONAY -->
+  <section id="s-onay" hidden>
+    <p class="alt" id="onayAciklama"></p>
+    <div class="kutu" id="onayListe"></div>
+  </section>
+
+  <!-- SİTE -->
+  <section id="s-site" hidden>
+    <p class="alt">Yayınladığın haberin sitedeki yerleri. Üstte son dakika şeridi, ana sayfada manşet ya da haber kartı, altta haberin kendi sayfası.</p>
+    <div id="siteAlan"></div>
+  </section>
 </div>
 <div class="bildirim" id="bildirim"></div>
 
 <script>
-function goster(m){
-  const b = document.getElementById('bildirim');
-  b.textContent = m || 'Bu örnek ekran — gerçek panelde haber burada yayına girer';
-  b.style.display = 'block';
-  setTimeout(() => { b.style.display = 'none' }, 2600);
+const $ = (s) => document.querySelector(s);
+const kac = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let rol = 'yonetici';
+let kapakUrl = '';
+let galeri = [];
+const haberler = []; // {baslik, spot, metin, kapak, galeri, video, kategori, yer, sonDakika, manset, durum, yazar}
+let gosterilen = null;
+
+function bildir(m){ const b = $('#bildirim'); b.textContent = m; b.style.display = 'block'; clearTimeout(bildir.t); bildir.t = setTimeout(() => { b.style.display = 'none' }, 3200); }
+
+// Sekmeler ve rol
+function sekme(ad){
+  document.querySelectorAll('.sekmeler button').forEach((b) => b.classList.toggle('secili', b.dataset.sekme === ad));
+  ['yaz', 'onay', 'site'].forEach((s) => { $('#s-' + s).hidden = s !== ad; });
+  if (ad === 'onay') onayCiz();
+  if (ad === 'site') siteCiz();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-document.getElementById('kapakDosya').addEventListener('change', (e) => {
+document.querySelectorAll('.sekmeler button').forEach((b) => b.addEventListener('click', () => sekme(b.dataset.sekme)));
+document.querySelectorAll('.rol button').forEach((b) => b.addEventListener('click', () => {
+  rol = b.dataset.rol;
+  document.querySelectorAll('.rol button').forEach((x) => x.classList.toggle('secili', x === b));
+  $('#yayinla').textContent = rol === 'yonetici' ? 'Yayınla' : 'Onaya gönder';
+  $('#rolAciklama').textContent = rol === 'yonetici'
+    ? 'Yönetici olarak yazdığın haber "Yayınla" deyince doğrudan sitede.'
+    : 'Muhabir olarak yazıyorsun: haberin önce Egemen\'in onayına gider, onaylanınca yayına girer.';
+  bildir(rol === 'yonetici' ? 'Egemen (yönetici) olarak giriş yapmış gibisin' : 'Muhabir olarak giriş yapmış gibisin');
+  sekmeGuncelle();
+}));
+
+// Dosya seçimleri
+document.querySelectorAll('[data-sec]').forEach((d) => d.addEventListener('click', () => $('#' + d.dataset.sec).click()));
+$('#kapakDosya').addEventListener('change', (e) => {
   const f = e.target.files[0]; if (!f) return;
-  const k = document.getElementById('kapak');
-  k.querySelector('img').src = URL.createObjectURL(f);
-  k.style.display = 'block';
+  kapakUrl = URL.createObjectURL(f); kapakCiz();
 });
-document.getElementById('galeriDosya').addEventListener('change', (e) => {
-  const g = document.getElementById('galeri');
-  [...e.target.files].forEach((f) => { const i = document.createElement('img'); i.src = URL.createObjectURL(f); g.appendChild(i); });
+$('#galeriDosya').addEventListener('change', (e) => {
+  [...e.target.files].forEach((f) => galeri.push(URL.createObjectURL(f)));
+  galeriCiz(); e.target.value = '';
+});
+function kapakCiz(){ $('#kapak').style.display = kapakUrl ? 'block' : 'none'; $('#kapak img').src = kapakUrl; }
+function galeriCiz(){
+  $('#galeri').innerHTML = galeri.map((u, i) => `<div><img src="${u}" alt=""><button data-sil="${i}" aria-label="Kaldır">✕</button></div>`).join('');
+}
+$('#galeri').addEventListener('click', (e) => { const b = e.target.closest('[data-sil]'); if (b) { galeri.splice(+b.dataset.sil, 1); galeriCiz(); } });
+
+// Anahtarlar
+['sonDakika', 'manset'].forEach((id) => $('#' + id).addEventListener('click', (e) => e.currentTarget.classList.toggle('acik')));
+
+// Metin araçları
+document.querySelectorAll('[data-ekle]').forEach((b) => b.addEventListener('click', () => {
+  const t = $('#metin'), ek = b.dataset.ekle;
+  const blok = ek.startsWith('[') ? `\n\n${ek}\n\n` : `\n\n${ek}`;
+  const p = t.selectionStart ?? t.value.length;
+  t.value = t.value.slice(0, p) + blok + t.value.slice(p);
+  t.focus();
+}));
+
+// Video bağlantısı
+function videoBul(url){
+  const u = String(url || '').trim();
+  let m = u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/);
+  if (m) return { tur: 'YouTube', src: `https://www.youtube.com/embed/${m[1]}`, dikey: /shorts\//.test(u) };
+  m = u.match(/instagram\.com\/(?:reel|p|tv)\/([\w-]+)/);
+  if (m) return { tur: 'Instagram', src: `https://www.instagram.com/p/${m[1]}/embed`, dikey: true };
+  m = u.match(/tiktok\.com\/.*\/video\/(\d+)/);
+  if (m) return { tur: 'TikTok', src: `https://www.tiktok.com/embed/v2/${m[1]}`, dikey: true };
+  return null;
+}
+$('#video').addEventListener('input', () => {
+  const v = videoBul($('#video').value);
+  $('#videoOn').style.display = $('#video').value.trim() ? 'block' : 'none';
+  $('#videoEtiket').textContent = v ? `✓ ${v.tur} videosu tanındı, haberin içinde oynayacak` : 'Bu bağlantı tanınmadı — YouTube, Instagram ya da TikTok bağlantısı yapıştır';
+  $('#videoEtiket').style.color = v ? 'var(--yesil)' : 'var(--kirmizi)';
+});
+
+// Örnek doldur
+$('#ornekDoldur').addEventListener('click', () => {
+  $('#baslik').value = 'Bandırma sahilinde yeni yürüyüş yolu açıldı';
+  $('#spot').value = 'Kıyı boyunca 2 kilometrelik yürüyüş ve bisiklet yolu hafta sonu kullanıma açıldı. Vatandaşlar ilk günden yoğun ilgi gösterdi.';
+  $('#metin').value = 'Bandırma sahilinde aylardır süren çalışma tamamlandı. Yeni yol, liman bölgesinden başlayıp sahil boyunca uzanıyor.\n\n## Vatandaşlar ne diyor?\n\n> "Akşamları çocuklarla rahatça yürüyebileceğimiz bir yer olmuştu, artık var."\n\n[VİDEO]\n\nYol boyunca oturma alanları ve aydınlatma da yenilendi. Bisiklet kullanıcıları için ayrı bir şerit ayrıldı.\n\n[FOTOĞRAF]\n\nBelediye, ikinci etabın baharda başlayacağını açıkladı.';
+  $('#kategori').value = 'Gündem'; $('#yer').value = 'Bandırma';
+  $('#video').value = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'; $('#video').dispatchEvent(new Event('input'));
+  $('#sonDakika').classList.add('acik'); $('#manset').classList.add('acik');
+  if (!kapakUrl) { kapakUrl = ornekResim(0, 'KAPAK'); kapakCiz(); }
+  if (!galeri.length) { galeri = [1, 2, 3, 4].map((i) => ornekResim(i, 'FOTOĞRAF ' + i)); galeriCiz(); }
+  bildir('Örnek dolduruldu. Kendi fotoğrafını seçip değiştirebilirsin, sonra "' + $('#yayinla').textContent + '"a bas.');
+});
+function ornekResim(i, yazi){
+  const renk = [['#1d3557','#457b9d'],['#6a040f','#e85d04'],['#14532d','#65a30d'],['#312e81','#7c3aed'],['#0c4a6e','#0ea5e9']][i % 5];
+  const c = document.createElement('canvas'); c.width = 960; c.height = 600;
+  const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 960, 600);
+  g.addColorStop(0, renk[0]); g.addColorStop(1, renk[1]); x.fillStyle = g; x.fillRect(0, 0, 960, 600);
+  x.fillStyle = 'rgba(255,255,255,.85)'; x.font = '900 54px Archivo, sans-serif'; x.fillText(yazi, 48, 548);
+  return c.toDataURL('image/jpeg', .8);
+}
+
+function formOku(){
+  return {
+    baslik: $('#baslik').value.trim(), spot: $('#spot').value.trim(), metin: $('#metin').value,
+    kapak: kapakUrl, galeri: [...galeri], video: videoBul($('#video').value),
+    kategori: $('#kategori').value, yer: $('#yer').value.trim() || 'Balıkesir',
+    sonDakika: $('#sonDakika').classList.contains('acik'), manset: $('#manset').classList.contains('acik'),
+    yazar: rol === 'yonetici' ? 'Egemen Özayaz' : 'Muhabir', zaman: new Date()
+  };
+}
+function formTemizle(){
+  ['baslik', 'spot', 'metin', 'yer', 'video'].forEach((id) => { $('#' + id).value = ''; });
+  $('#videoOn').style.display = 'none';
+  kapakUrl = ''; galeri = []; kapakCiz(); galeriCiz();
+  $('#sonDakika').classList.remove('acik'); $('#manset').classList.remove('acik');
+}
+
+$('#yayinla').addEventListener('click', () => {
+  const h = formOku();
+  if (!h.baslik) { bildir('Önce başlık yaz (ya da "Örnek haberle doldur"a bas)'); $('#baslik').focus(); return; }
+  if (rol === 'yonetici') {
+    h.durum = 'yayinda'; haberler.unshift(h); gosterilen = h; formTemizle(); sekmeGuncelle();
+    bildir('Yayınlandı! Sitede nasıl göründüğüne bakıyorsun.'); sekme('site');
+  } else {
+    h.durum = 'bekliyor'; haberler.unshift(h); formTemizle(); sekmeGuncelle();
+    bildir('Onaya gönderildi. Şimdi üstten "Egemen (yönetici)"ye geçip "Onay bekleyenler"e bak.');
+  }
+});
+$('#onizle').addEventListener('click', () => {
+  const h = formOku();
+  if (!h.baslik) { bildir('Önce başlık yaz'); return; }
+  h.durum = 'onizleme'; gosterilen = h; sekme('site');
+});
+
+function sekmeGuncelle(){ $('#onaySayi').textContent = haberler.filter((h) => h.durum === 'bekliyor').length; }
+
+function onayCiz(){
+  const bekleyen = haberler.filter((h) => h.durum === 'bekliyor');
+  $('#onayAciklama').textContent = rol === 'yonetici'
+    ? 'Muhabirlerin gönderdiği haberler burada. Açıp okuyabilir, onaylarsan yayına girer.'
+    : 'Gönderdiğin haberler Egemen onaylayana kadar burada bekler. Onaylamak için üstten "Egemen (yönetici)"ye geç.';
+  if (!haberler.length) { $('#onayListe').innerHTML = '<div class="bos-liste">Henüz haber yok. Üstten "Muhabir"e geçip bir haber yaz ve "Onaya gönder"e bas.</div>'; return; }
+  $('#onayListe').innerHTML = haberler.map((h, i) => `
+    <div class="onay-satir">
+      ${h.kapak ? `<img src="${h.kapak}" alt="">` : '<div class="bos"></div>'}
+      <div><span class="durum ${h.durum}">${h.durum === 'bekliyor' ? 'Onay bekliyor' : 'Yayında'}</span>
+        <h4>${kac(h.baslik)}</h4><div class="kim">${kac(h.yazar)} · ${kac(h.kategori)} · ${kac(h.yer)}</div></div>
+      <div class="dugmeler">
+        <button class="gri-d" data-bak="${i}">Oku</button>
+        ${h.durum === 'bekliyor' && rol === 'yonetici' ? `<button class="yesil" data-onayla="${i}">Onayla ve yayınla</button><button class="gri-d" data-reddet="${i}">Geri gönder</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+$('#onayListe').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.bak) { gosterilen = haberler[+b.dataset.bak]; sekme('site'); }
+  if (b.dataset.onayla) { const h = haberler[+b.dataset.onayla]; h.durum = 'yayinda'; gosterilen = h; sekmeGuncelle(); bildir('Onaylandı ve yayına girdi.'); sekme('site'); }
+  if (b.dataset.reddet) { haberler.splice(+b.dataset.reddet, 1); sekmeGuncelle(); onayCiz(); bildir('Haber muhabire düzeltme için geri gönderildi.'); }
+});
+
+// Sitede görünüm
+function videoHtml(v){
+  if (!v) return '';
+  const yuk = v.dikey ? 640 : 400;
+  return `<div class="video" style="${v.dikey ? 'max-width:360px;margin-left:auto;margin-right:auto' : ''}"><iframe src="${v.src}" height="${yuk}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+}
+function govdeHtml(h){
+  let fotoKullanildi = false, videoKullanildi = false;
+  const bloklar = String(h.metin || '').split(/\n{2,}/).map((b) => b.trim()).filter(Boolean).map((b) => {
+    if (b === '[FOTOĞRAF]') { fotoKullanildi = true; return h.galeri[0] ? `<img src="${h.galeri[0]}" alt="">` : ''; }
+    if (b === '[VİDEO]') { videoKullanildi = true; return videoHtml(h.video); }
+    if (b.startsWith('## ')) return `<h2>${kac(b.slice(3))}</h2>`;
+    if (b.startsWith('> ')) return `<blockquote>${kac(b.slice(2))}</blockquote>`;
+    return `<p>${kac(b).replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+  return { html: bloklar, fotoKullanildi, videoKullanildi };
+}
+function galeriHtml(liste){
+  if (liste.length < 2) return '';
+  return `<div class="bolum-b">Fotoğraf galerisi</div><div class="m-galeri" data-i="0">
+    <div class="buyuk"><img src="${liste[0]}" alt=""><button class="ok" data-yon="-1" style="left:10px">‹</button><button class="ok" data-yon="1" style="right:10px">›</button><span class="sayac">1 / ${liste.length}</span></div>
+    <div class="kucukler">${liste.map((u, i) => `<img src="${u}" data-git="${i}" class="${i ? '' : 'secili'}" alt="">`).join('')}</div></div>`;
+}
+function siteCiz(){
+  const h = gosterilen;
+  if (!h) { $('#siteAlan').innerHTML = '<div class="kutu bos-liste">Önce "Yeni haber"den bir haber yayınla ya da "Yayınlamadan önizle"ye bas. Hızlı denemek için "Örnek haberle doldur" düğmesi var.</div>'; return; }
+  const kapak = h.kapak ? `<img src="${h.kapak}" alt="">` : '';
+  const g = govdeHtml(h);
+  const sonDk = h.sonDakika ? `<span class="yeni">● ${kac(h.yer)}: ${kac(h.baslik)}</span><span>● Altıeylül: Kent merkezinde trafik düzenlemesi</span>` : `<span>● Altıeylül: Kent merkezinde trafik düzenlemesi</span><span>● Gönen: Pirinç hasadı sona yaklaştı</span>`;
+  const anaSayfa = h.manset
+    ? `<div class="manset">${kapak}<div class="kar"></div><div class="m"><span class="kat">${kac(h.kategori)}</span><h2>${kac(h.baslik)}</h2><div style="font-size:13px;opacity:.8">${kac(h.yer)} · az önce</div></div></div>`
+    : `<div class="kucuk-kart">${h.kapak ? `<img src="${h.kapak}" alt="">` : '<div class="bos"></div>'}<div><span class="kat">${kac(h.kategori)}</span><h3>${kac(h.baslik)}</h3><div style="font-size:13px;color:var(--gri)">${kac(h.yer)} · az önce</div></div></div>`;
+  const durumYazi = h.durum === 'onizleme' ? 'Önizleme — henüz yayında değil' : h.durum === 'bekliyor' ? 'Onay bekliyor — henüz yayında değil' : 'Yayında';
+  const galeriKalan = g.fotoKullanildi ? h.galeri : h.galeri;
+  $('#siteAlan').innerHTML = `
+    <p class="alt"><b>${durumYazi}</b></p>
+    <div class="bolum-b">1 · Ana sayfa ${h.sonDakika ? '— son dakika şeridinde (sarı)' : ''} ${h.manset ? '— manşette' : '— haber kartı olarak'}</div>
+    <div class="site">
+      <div class="site-ust"><i></i><i></i><i></i><span>266digitale.com</span></div>
+      <div class="sd"><b>SON DAKİKA</b>${sonDk}</div>
+      ${anaSayfa}
+    </div>
+    <div class="bolum-b">2 · Haberin kendi sayfası</div>
+    <div class="site">
+      <div class="site-ust"><i></i><i></i><i></i><span>266digitale.com/haber/${kac(h.baslik.toLocaleLowerCase('tr').replace(/[^a-z0-9çğıöşü]+/g, '-').slice(0, 40))}</span></div>
+      <article class="makale">
+        <span class="kat">${kac(h.kategori)}</span>
+        <h1>${kac(h.baslik)}</h1>
+        ${h.spot ? `<p class="spot">${kac(h.spot)}</p>` : ''}
+        <div style="font-size:13px;color:var(--gri);margin-bottom:16px">${kac(h.yazar)} · ${kac(h.yer)} · ${h.zaman.toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</div>
+        ${h.kapak ? `<img class="kapak-b" src="${h.kapak}" alt="">` : ''}
+        <div class="govde">${g.html}</div>
+        ${!g.videoKullanildi && h.video ? `<div class="bolum-b">Video</div>${videoHtml(h.video)}` : ''}
+        ${galeriHtml(galeriKalan)}
+        <div class="paylas"><a href="#" onclick="return false">WhatsApp'ta paylaş</a><a href="#" class="x" onclick="return false">X'te paylaş</a></div>
+      </article>
+    </div>`;
+}
+$('#siteAlan').addEventListener('click', (e) => {
+  const kutu = e.target.closest('.m-galeri'); if (!kutu) return;
+  const liste = [...kutu.querySelectorAll('.kucukler img')];
+  let i = +kutu.dataset.i;
+  if (e.target.dataset.yon) i = (i + +e.target.dataset.yon + liste.length) % liste.length;
+  else if (e.target.dataset.git) i = +e.target.dataset.git;
+  else return;
+  kutu.dataset.i = i;
+  kutu.querySelector('.buyuk img').src = liste[i].src;
+  kutu.querySelector('.sayac').textContent = `${i + 1} / ${liste.length}`;
+  liste.forEach((x, k) => x.classList.toggle('secili', k === i));
 });
 </script>
 </body>
