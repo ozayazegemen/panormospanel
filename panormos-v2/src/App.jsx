@@ -6797,9 +6797,10 @@ const NAV=[
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "ideas"] },
-  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog", "haber266", "qrmenu"] },
+  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
+  { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "emlakpanelim"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
-  { label: "Yönetim", ids: ["inventory", "staff", "emlakpanelim"] },
+  { label: "Yönetim", ids: ["inventory", "staff"] },
 ];
 const PAGE_TITLES = { calendar: "Çekim Takvimi" };
 
