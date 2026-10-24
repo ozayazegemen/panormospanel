@@ -120,6 +120,22 @@ textarea{min-height:220px;resize:vertical;line-height:1.7}
 .paylas a.x{background:#111}
 .bolum-b{font:900 13px Archivo;letter-spacing:.08em;text-transform:uppercase;color:var(--gri);margin:24px 0 8px}
 @media (max-width:860px){.duzen{grid-template-columns:minmax(0,1fr)}.galeri{grid-template-columns:repeat(3,1fr)}.onay-satir{grid-template-columns:80px minmax(0,1fr)}.onay-satir img,.onay-satir .bos{width:80px}.onay-satir .dugmeler{grid-column:1/-1}.kucuk-kart{grid-template-columns:100px minmax(0,1fr)}.kucuk-kart img,.kucuk-kart .bos{width:100px}.manset .m h2{font-size:22px}.makale h1{font-size:26px}}
+
+/* Instagram */
+.ig-dugme{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;border:0;border-radius:14px;padding:15px;font-weight:800;font-size:16px;color:#fff;background:linear-gradient(45deg,#f9a825,#e1306c 45%,#833ab4);margin:0 0 20px}
+.ig-perde{position:fixed;inset:0;background:rgba(10,10,14,.72);z-index:150;display:none;overflow-y:auto;padding:24px 12px}
+.ig-perde.acik{display:block}
+.ig-kutu{background:#fff;max-width:980px;margin:0 auto;border-radius:18px;padding:22px}
+.ig-kutu h2{font:900 24px Archivo;margin-bottom:4px}
+.ig-izgara{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,1fr);gap:18px;margin-top:16px;align-items:start}
+.ig-izgara h4{font:800 13px Archivo;letter-spacing:.06em;text-transform:uppercase;color:var(--gri);margin-bottom:8px}
+.ig-izgara canvas{width:100%;height:auto;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.18);display:block}
+.ig-izgara textarea{min-height:300px;font-size:14px}
+.ig-satir{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.ig-satir button{flex:1;border:1px solid var(--cizgi);background:#fff;border-radius:10px;padding:10px;font-weight:700;font-size:13px;white-space:nowrap}
+.ig-satir button.ana{background:var(--murekkep);color:#fff;border-color:var(--murekkep)}
+.ig-kapat{float:right;border:0;background:#eee;border-radius:50%;width:36px;height:36px;font-size:16px}
+@media (max-width:860px){.ig-izgara{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -212,6 +228,20 @@ textarea{min-height:220px;resize:vertical;line-height:1.7}
   </section>
 </div>
 <div class="bildirim" id="bildirim"></div>
+<div class="ig-perde" id="igPerde"><div class="ig-kutu">
+  <button class="ig-kapat" id="igKapat" aria-label="Kapat">✕</button>
+  <h2>Instagram için hazır</h2>
+  <p class="alt" style="margin:0">Görseli indir ya da telefonda "Paylaş"a bas, Instagram'ı seç. Açıklamayı kopyalayıp yapıştır.</p>
+  <div class="ig-izgara">
+    <div><h4>Gönderi (4:5)</h4><canvas id="igGonderi" width="1080" height="1350"></canvas>
+      <div class="ig-satir"><button class="ana" data-paylas="igGonderi">Paylaş</button><button data-indir="igGonderi">İndir</button></div></div>
+    <div><h4>Hikâye (9:16)</h4><canvas id="igHikaye" width="1080" height="1920"></canvas>
+      <div class="ig-satir"><button class="ana" data-paylas="igHikaye">Paylaş</button><button data-indir="igHikaye">İndir</button></div></div>
+    <div><h4>Açıklama</h4><textarea id="igMetin"></textarea>
+      <div class="ig-satir"><button class="ana" id="igKopyala">Açıklamayı kopyala</button></div>
+      <p class="ipucu">Hikâyede habere bağlantı çıkartması (link sticker) ekle: <b id="igLink"></b></p></div>
+  </div>
+</div></div>
 
 <script>
 if (new URLSearchParams(location.search).has('panel')) document.querySelector('.onizleme').remove();
@@ -428,6 +458,7 @@ function siteCiz(){
         <div class="paylas"><a href="#" onclick="return false">WhatsApp'ta paylaş</a><a href="#" class="x" onclick="return false">X'te paylaş</a></div>
       </article>
     </div>`;
+  $('#siteAlan').insertAdjacentHTML('afterbegin', '<button class="ig-dugme" id="igHazirla">Instagram için hazırla</button>');
 }
 $('#siteAlan').addEventListener('click', (e) => {
   const kutu = e.target.closest('.m-galeri'); if (!kutu) return;
@@ -440,6 +471,73 @@ $('#siteAlan').addEventListener('click', (e) => {
   kutu.querySelector('.buyuk img').src = liste[i].src;
   kutu.querySelector('.sayac').textContent = `${i + 1} / ${liste.length}`;
   liste.forEach((x, k) => x.classList.toggle('secili', k === i));
+});
+
+// Instagram görselleri
+function resimYukle(src){ return new Promise((ok) => { if (!src) return ok(null); const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = src; }); }
+function satirlaraBol(x, metin, genislik){
+  const kelimeler = metin.split(/\s+/), satirlar = []; let s = '';
+  for (const k of kelimeler) { const dene = s ? s + ' ' + k : k; if (x.measureText(dene).width > genislik && s) { satirlar.push(s); s = k; } else s = dene; }
+  if (s) satirlar.push(s); return satirlar;
+}
+function kaplaCiz(x, img, w, h){
+  if (!img) { const g = x.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#1e293b'); g.addColorStop(1, '#e8261b'); x.fillStyle = g; x.fillRect(0, 0, w, h); return; }
+  const o = Math.max(w / img.width, h / img.height), iw = img.width * o, ih = img.height * o;
+  x.drawImage(img, (w - iw) / 2, (h - ih) / 2, iw, ih);
+}
+function logoCiz(x, sol, ust, boy){
+  x.font = `900 ${boy}px Archivo`; x.textBaseline = 'alphabetic';
+  const kw = x.measureText('266').width, pad = boy * .22;
+  x.fillStyle = '#e8261b'; x.beginPath(); x.roundRect(sol, ust, kw + pad * 2, boy * 1.18, boy * .18); x.fill();
+  x.fillStyle = '#fff'; x.fillText('266', sol + pad, ust + boy * .98);
+  x.font = `800 ${boy}px Archivo`; x.fillText('digitale', sol + kw + pad * 2 + boy * .2, ust + boy * .98);
+  const dw = x.measureText('digitale').width; x.fillStyle = '#e8261b'; x.fillText('.', sol + kw + pad * 2 + boy * .2 + dw, ust + boy * .98);
+}
+async function igCiz(h){
+  await Promise.all([document.fonts.load('900 60px Archivo'), document.fonts.load('800 60px Archivo'), document.fonts.load('600 30px Inter')]);
+  const img = await resimYukle(h.kapak);
+  for (const [id, W, H, boy, alt] of [['igGonderi', 1080, 1350, 76, 150], ['igHikaye', 1080, 1920, 86, 330]]) {
+    const c = $('#' + id), x = c.getContext('2d');
+    x.clearRect(0, 0, W, H); kaplaCiz(x, img, W, H);
+    const g = x.createLinearGradient(0, H * .25, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.55, 'rgba(0,0,0,.72)'); g.addColorStop(1, 'rgba(0,0,0,.94)');
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const ust = x.createLinearGradient(0, 0, 0, 260); ust.addColorStop(0, 'rgba(0,0,0,.55)'); ust.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = ust; x.fillRect(0, 0, W, 260);
+    logoCiz(x, 64, id === 'igHikaye' ? 120 : 64, 54);
+    x.font = `900 ${boy}px Archivo`;
+    const satirlar = satirlaraBol(x, h.baslik, W - 128).slice(0, 5);
+    const satirY = boy * 1.08, bas = H - alt - satirlar.length * satirY;
+    const etiket = (h.sonDakika ? 'SON DAKİKA' : h.kategori.toLocaleUpperCase('tr'));
+    x.font = '800 30px Archivo'; const ew = x.measureText(etiket).width;
+    x.fillStyle = '#e8261b'; x.beginPath(); x.roundRect(64, bas - boy - 40, ew + 36, 52, 8); x.fill();
+    x.fillStyle = '#fff'; x.fillText(etiket, 82, bas - boy - 4);
+    x.font = `900 ${boy}px Archivo`; x.fillStyle = '#fff';
+    satirlar.forEach((s, i) => x.fillText(s, 64, bas + i * satirY));
+    x.font = '600 32px Inter'; x.fillStyle = 'rgba(255,255,255,.82)';
+    x.fillText(`${h.yer} · Haberin tamamı 266digitale.com`, 64, H - alt + 70);
+    if (id === 'igHikaye') {
+      x.fillStyle = 'rgba(255,255,255,.95)'; x.beginPath(); x.roundRect(W / 2 - 230, H - 190, 460, 84, 42); x.fill();
+      x.fillStyle = '#111'; x.font = '800 34px Inter'; x.textAlign = 'center'; x.fillText('Habere git  ↗', W / 2, H - 135); x.textAlign = 'left';
+    }
+  }
+  const adres = '266digitale.com/haber/' + h.baslik.toLocaleLowerCase('tr').replace(/[^a-z0-9çğıöşü]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+  const yerEtiket = '#' + h.yer.toLocaleLowerCase('tr').replace(/\s+/g, '');
+  $('#igMetin').value = `${h.sonDakika ? 'SON DAKİKA | ' : ''}${h.baslik}\n\n${h.spot || ''}\n\nHaberin tamamı ve video: profildeki bağlantıda.\n\n${yerEtiket} #balıkesir #266digitale #haber #${h.kategori.toLocaleLowerCase('tr').replace(/\s+/g, '')}`;
+  $('#igLink').textContent = adres;
+}
+function canvasDosya(id){ return new Promise((ok) => $('#' + id).toBlob((b) => ok(new File([b], `266digitale-${id === 'igHikaye' ? 'hikaye' : 'gonderi'}.jpg`, { type: 'image/jpeg' })), 'image/jpeg', .92)); }
+document.addEventListener('click', async (e) => {
+  if (e.target.id === 'igHazirla') { if (!gosterilen) return; await igCiz(gosterilen); $('#igPerde').classList.add('acik'); return; }
+  if (e.target.id === 'igKapat' || e.target.id === 'igPerde') { $('#igPerde').classList.remove('acik'); return; }
+  if (e.target.id === 'igKopyala') { try { await navigator.clipboard.writeText($('#igMetin').value); bildir('Açıklama kopyalandı. Instagram\'da yapıştır.'); } catch (_) { $('#igMetin').select(); bildir('Metni seçtim, kopyala de'); } return; }
+  const ind = e.target.dataset.indir, pay = e.target.dataset.paylas;
+  if (ind) { const f = await canvasDosya(ind); const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); bildir('Görsel indirildi'); }
+  if (pay) {
+    const f = await canvasDosya(pay);
+    try { await navigator.clipboard.writeText($('#igMetin').value); } catch (_) {}
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      try { await navigator.share({ files: [f], text: $('#igMetin').value }); } catch (_) {}
+    } else { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); bildir('Bilgisayarda paylaşma menüsü yok, görsel indirildi. Telefonda "Paylaş" Instagram\'ı açar.'); }
+  }
 });
 </script>
 </body>
