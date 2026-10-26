@@ -6763,7 +6763,7 @@ function canAccessPage(id, perms) {
   if (id === 'reports') return perms.reports;
   if (id === 'accounting') return perms.accounting;
   if (id === 'mail') return perms.mail;
-  if (id === 'yearly' || id === 'emlakpanelim' || id === 'blog' || id === 'haber266') return perms.isAdmin;
+  if (id === 'yearly' || id === 'emlakpanelim' || id === 'blog' || id === 'haber266' || id === 'veteriner') return perms.isAdmin;
   return true;
 }
 
@@ -6785,6 +6785,7 @@ const NAV=[
   {id:"mail",label:"E-posta",icon:"📧"},
   {id:"blog",label:"Blog",icon:"✍️"},
   {id:"haber266",label:"266 Haber Masası",icon:"📰"},
+  {id:"veteriner",label:"Veteriner Market",icon:"🐾"},
   {id:"qrmenu",label:"QR Menü",icon:"🍽️"},
   {id:"accounting",label:"Muhasebe",icon:"🧮"},
   {id:"inventory",label:"Envanter",icon:"🎒"},
@@ -6798,7 +6799,7 @@ const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "ideas"] },
   { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
-  { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "emlakpanelim"] },
+  { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "veteriner", "emlakpanelim"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
   { label: "Yönetim", ids: ["inventory", "staff"] },
 ];
@@ -6819,6 +6820,7 @@ const NAV_ICON_PATHS = {
   messages: <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />,
   mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
   blog: <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4M12 20h8" />,
+  veteriner: <><circle cx="5.5" cy="9" r="2"/><circle cx="9.5" cy="5.2" r="2"/><circle cx="14.5" cy="5.2" r="2"/><circle cx="18.5" cy="9" r="2"/><path d="M12 11c-3 0-6 4.3-6 6.7 0 1.6 1.3 2.5 2.9 2.5 1.3 0 2-.8 3.1-.8s1.8.8 3.1.8c1.6 0 2.9-.9 2.9-2.5 0-2.4-3-6.7-6-6.7z"/></>,
   haber266: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 8h10M7 12h4M7 16h4M14 12h3v4h-3z" /></>,
   qrmenu: <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18v2h2M18 18h2v2" />,
   accounting: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></>,
@@ -12137,6 +12139,255 @@ function Haber266Instagram({ haber, onClose }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// VETERİNER MARKET — ürünler, siparişler ve mağaza ayarları (yalnızca yönetici).
+// Site: public/veteriner/index.html; tablolar ve sipariş işlevi: supabase/veteriner-kurulum.sql
+// ═══════════════════════════════════════════════════════════
+const VET_KATEGORILER = [["kedi", "Kedi"], ["kopek", "Köpek"], ["kus", "Kuş"], ["akvaryum", "Akvaryum"], ["bakim", "Bakım ve sağlık"], ["aksesuar", "Aksesuar"]];
+const VET_DURUMLAR = [["yeni", "Yeni", "#e30613"], ["hazirlaniyor", "Hazırlanıyor", "#d97706"], ["kargoda", "Kargoda", "#2563eb"], ["teslim", "Teslim edildi", "#16a34a"], ["iptal", "İptal", "#6b7280"]];
+const VET_ODEME = { havale: "Havale / EFT", kapida: "Kapıda ödeme", whatsapp: "WhatsApp" };
+const BOS_VET_URUN = { id: null, ad: "", marka: "", kategori: "kedi", fiyat: "", eski_fiyat: "", stok: "", gorsel: "", aciklama: "", aktif: true };
+const vetTl = (n) => Number(n || 0).toLocaleString("tr-TR", { maximumFractionDigits: 2 }) + " ₺";
+
+async function vetGorselYukle(dosya) {
+  if (!/^image\//.test(dosya.type)) throw new Error("Yalnızca fotoğraf seçin (JPG, PNG).");
+  const adres = URL.createObjectURL(dosya);
+  let blob;
+  try {
+    const r = await new Promise((coz, reddet) => { const g = new Image(); g.onload = () => coz(g); g.onerror = () => reddet(new Error("Fotoğraf açılamadı.")); g.src = adres; });
+    const oran = Math.min(1, 1200 / Math.max(r.width, r.height));
+    const tuval = document.createElement("canvas");
+    tuval.width = Math.round(r.width * oran); tuval.height = Math.round(r.height * oran);
+    const c = tuval.getContext("2d");
+    c.fillStyle = "#fff"; c.fillRect(0, 0, tuval.width, tuval.height);
+    c.drawImage(r, 0, 0, tuval.width, tuval.height);
+    blob = await new Promise(coz => tuval.toBlob(coz, "image/jpeg", 0.86));
+  } finally { URL.revokeObjectURL(adres); }
+  if (!blob) throw new Error("Fotoğraf hazırlanamadı.");
+  const yol = `urun/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await supabase.storage.from("veteriner").upload(yol, blob, { contentType: "image/jpeg", cacheControl: "31536000" });
+  if (error) throw new Error(/bucket not found/i.test(error.message) ? "Fotoğraf deposu henüz kurulmamış (Supabase SQL adımı yapılmalı)." : error.message);
+  return supabase.storage.from("veteriner").getPublicUrl(yol).data.publicUrl;
+}
+
+function VeterinerPage() {
+  const [sekme, setSekme] = useState("siparis");
+  const [urunler, setUrunler] = useState(null);
+  const [siparisler, setSiparisler] = useState(null);
+  const [ayar, setAyar] = useState(null);
+  const [kurulumYok, setKurulumYok] = useState(false);
+  const [taslak, setTaslak] = useState(null);
+  const [bekle, setBekle] = useState(false);
+  const [gorselBekle, setGorselBekle] = useState(false);
+  const [acikSiparis, setAcikSiparis] = useState(null);
+  const [durumFiltre, setDurumFiltre] = useState("aktif");
+
+  const yukle = async () => {
+    const [u, s, a] = await Promise.all([
+      supabase.from("vet_urunler").select("*").order("sira").order("id", { ascending: false }),
+      supabase.from("vet_siparisler").select("*").order("created_at", { ascending: false }).limit(300),
+      supabase.from("vet_ayarlar").select("*").eq("id", 1).maybeSingle(),
+    ]);
+    setKurulumYok(!!u.error);
+    setUrunler(u.data || []); setSiparisler(s.data || []); setAyar(a.data || null);
+  };
+  useEffect(() => { yukle(); }, []);
+
+  const urunKaydet = async () => {
+    const fiyat = Number(String(taslak.fiyat).replace(",", "."));
+    if (!taslak.ad.trim()) { swalAlert("Ürün adını yazın"); return; }
+    if (!(fiyat >= 0) || String(taslak.fiyat).trim() === "") { swalAlert("Fiyatı yazın"); return; }
+    const eski = String(taslak.eski_fiyat).trim() === "" ? null : Number(String(taslak.eski_fiyat).replace(",", "."));
+    const stok = String(taslak.stok).trim() === "" ? null : parseInt(taslak.stok, 10);
+    const kayit = { ad: taslak.ad.trim(), marka: taslak.marka.trim(), kategori: taslak.kategori, fiyat, eski_fiyat: eski && eski > fiyat ? eski : null, stok: Number.isFinite(stok) ? stok : null, gorsel: taslak.gorsel || null, aciklama: taslak.aciklama.trim(), aktif: taslak.aktif };
+    setBekle(true);
+    const sonuc = taslak.id ? await supabase.from("vet_urunler").update(kayit).eq("id", taslak.id) : await supabase.from("vet_urunler").insert(kayit);
+    setBekle(false);
+    if (sonuc.error) { swalAlert("Kaydedilemedi: " + sonuc.error.message); return; }
+    setTaslak(null); yukle();
+  };
+  const urunSil = async (u) => {
+    if (!(await swalConfirm(`"${u.ad}" ürünü silinecek. Emin misiniz? (Satıştan kaldırmak için "Satışta" işaretini kapatmanız yeterli.)`))) return;
+    const { error } = await supabase.from("vet_urunler").delete().eq("id", u.id);
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
+    yukle();
+  };
+  const aktifDegistir = async (u) => {
+    const { error } = await supabase.from("vet_urunler").update({ aktif: !u.aktif }).eq("id", u.id);
+    if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
+    yukle();
+  };
+  const gorselSec = async (e) => {
+    const dosya = e.target.files && e.target.files[0]; e.target.value = "";
+    if (!dosya) return;
+    setGorselBekle(true);
+    try { const adres = await vetGorselYukle(dosya); setTaslak(t => ({ ...t, gorsel: adres })); }
+    catch (h) { swalAlert("Fotoğraf yüklenemedi: " + h.message); }
+    setGorselBekle(false);
+  };
+  const durumDegistir = async (s, durum) => {
+    const { error } = await supabase.from("vet_siparisler").update({ durum }).eq("id", s.id);
+    if (error) { swalAlert("Güncellenemedi: " + error.message); return; }
+    setAcikSiparis(x => x && x.id === s.id ? { ...x, durum } : x);
+    yukle();
+  };
+  const ayarKaydet = async () => {
+    const sayi = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
+    const kayit = { whatsapp: String(ayar.whatsapp || "").replace(/\D/g, ""), kargo_ucreti: sayi(ayar.kargo_ucreti), bedava_kargo_siniri: sayi(ayar.bedava_kargo_siniri), havale_bilgisi: ayar.havale_bilgisi || "", kapida_odeme: !!ayar.kapida_odeme, guncellenme: new Date().toISOString() };
+    setBekle(true);
+    const { error } = await supabase.from("vet_ayarlar").update(kayit).eq("id", 1);
+    setBekle(false);
+    if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    swalAlert("Mağaza ayarları kaydedildi."); yukle();
+  };
+
+  const kart = { background: T.bgCard, border: `1.5px solid ${T.cardBorder}`, boxShadow: T.shadow, borderRadius: 18 };
+  const dugme = { fontSize: 12.5, fontWeight: 600, padding: "7px 14px", borderRadius: 9, cursor: "pointer", color: T.textSecondary, border: `1px solid ${T.border}`, display: "inline-flex", alignItems: "center", gap: 6, background: "transparent" };
+  const kucuk = { fontSize: 11.5, padding: "5px 10px" };
+  const wpLink = (tel) => `https://wa.me/${(String(tel).replace(/\D/g, "").replace(/^0/, "90"))}`;
+
+  if (!urunler) return <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>Yükleniyor...</div>;
+  if (kurulumYok) return <div style={{ ...kart, padding: 24, color: T.textSecondary, fontSize: 13.5 }}>Veteriner market henüz kurulmamış: supabase/veteriner-kurulum.sql Supabase SQL Editor'de çalıştırılınca bu sayfa açılır.</div>;
+  const yeniSayi = siparisler.filter(s => s.durum === "yeni").length;
+  const gorunenSiparis = siparisler.filter(s => durumFiltre === "hepsi" ? true : durumFiltre === "aktif" ? !["teslim", "iptal"].includes(s.durum) : s.durum === durumFiltre);
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[["siparis", `Siparişler${yeniSayi ? ` (${yeniSayi} yeni)` : ""}`], ["urun", `Ürünler (${urunler.length})`], ["ayar", "Mağaza ayarları"]].map(([k, ad]) => (
+            <button key={k} onClick={() => setSekme(k)} style={{ ...dugme, ...(sekme === k ? { background: T.textPrimary, color: T.bgCard, borderColor: T.textPrimary } : {}) }}>{ad}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <a href="/veteriner/" target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: "none" }}>Siteyi Aç ↗</a>
+          {sekme === "urun" && <Btn variant="primary" onClick={() => setTaslak({ ...BOS_VET_URUN })}>+ Yeni Ürün</Btn>}
+        </div>
+      </div>
+
+      {sekme === "siparis" && (
+        <div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+            {[["aktif", "Bekleyenler"], ...VET_DURUMLAR.map(([k, ad]) => [k, ad]), ["hepsi", "Tümü"]].map(([k, ad]) => (
+              <button key={k} onClick={() => setDurumFiltre(k)} style={{ ...dugme, ...kucuk, ...(durumFiltre === k ? { background: T.bgInput, color: T.textPrimary } : {}) }}>{ad}</button>
+            ))}
+          </div>
+          {gorunenSiparis.length === 0 ? <div style={{ ...kart, padding: "34px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>{siparisler.length ? "Bu filtrede sipariş yok." : "Henüz sipariş yok. Siteden verilen siparişler burada görünür."}</div> : (
+            <div style={{ ...kart, overflow: "hidden" }}>
+              {gorunenSiparis.map((s, i) => {
+                const d = VET_DURUMLAR.find(x => x[0] === s.durum) || VET_DURUMLAR[0];
+                return (
+                  <div key={s.id} onClick={() => setAcikSiparis(s)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderTop: i ? `1px solid ${T.border}` : "none", flexWrap: "wrap", cursor: "pointer" }}>
+                    <div style={{ fontWeight: 800, color: T.textPrimary, minWidth: 54 }}>#{s.id}</div>
+                    <div style={{ flex: 1, minWidth: 180 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{s.ad} · {s.telefon}</div>
+                      <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 2 }}>{new Date(s.created_at).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })} · {(s.kalemler || []).length} ürün · {VET_ODEME[s.odeme] || s.odeme}</div>
+                    </div>
+                    <div style={{ fontWeight: 800, color: T.textPrimary }}>{vetTl(s.toplam)}</div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 99, background: d[2] + "1f", color: d[2] }}>{d[1]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {sekme === "urun" && (urunler.length === 0 ? <div style={{ ...kart, padding: "34px 24px", textAlign: "center", color: T.textMuted, fontSize: 13.5 }}>Henüz ürün yok. "+ Yeni Ürün" ile ilk ürünü ekle. İlk ürün eklenince sitedeki örnek ürünler kalkar.</div> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 12 }}>
+          {urunler.map(u => (
+            <div key={u.id} style={{ ...kart, overflow: "hidden", opacity: u.aktif ? 1 : .55 }}>
+              {u.gorsel ? <img src={u.gorsel} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block", background: "#fff" }} /> : <div style={{ aspectRatio: "1", background: T.bgInput, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: T.textMuted }}>Fotoğraf yok</div>}
+              <div style={{ padding: 12 }}>
+                <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase" }}>{(VET_KATEGORILER.find(k => k[0] === u.kategori) || [0, u.kategori])[1]}{u.marka ? ` · ${u.marka}` : ""}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: T.textPrimary, margin: "3px 0 6px", lineHeight: 1.3 }}>{u.ad}</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}><b style={{ color: T.textPrimary }}>{vetTl(u.fiyat)}</b>{u.eski_fiyat && <s style={{ fontSize: 12, color: T.textMuted }}>{vetTl(u.eski_fiyat)}</s>}</div>
+                <div style={{ fontSize: 11.5, color: u.stok === 0 ? T.redText : T.textMuted, marginTop: 2 }}>{u.stok == null ? "Stok takibi yok" : `Stok: ${u.stok}`}</div>
+                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                  <Btn style={kucuk} onClick={() => setTaslak({ ...BOS_VET_URUN, ...u, fiyat: String(u.fiyat), eski_fiyat: u.eski_fiyat == null ? "" : String(u.eski_fiyat), stok: u.stok == null ? "" : String(u.stok), gorsel: u.gorsel || "", aciklama: u.aciklama || "", marka: u.marka || "" })}>Düzenle</Btn>
+                  <Btn style={kucuk} onClick={() => aktifDegistir(u)}>{u.aktif ? "Satıştan kaldır" : "Satışa al"}</Btn>
+                  <Btn style={{ ...kucuk, color: T.redText }} onClick={() => urunSil(u)}>Sil</Btn>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {sekme === "ayar" && ayar && (
+        <div style={{ ...kart, padding: 20, maxWidth: 620 }}>
+          <FormField label="WhatsApp sipariş numarası (ülke koduyla, örn. 905321234567)"><Input value={ayar.whatsapp || ""} onChange={e => setAyar(a => ({ ...a, whatsapp: e.target.value }))} placeholder="905xxxxxxxxx" /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FormField label="Kargo ücreti (₺)"><Input value={String(ayar.kargo_ucreti ?? "")} onChange={e => setAyar(a => ({ ...a, kargo_ucreti: e.target.value }))} placeholder="Örn: 59" /></FormField>
+            <FormField label="Bedava kargo sınırı (₺, 0: yok)"><Input value={String(ayar.bedava_kargo_siniri ?? "")} onChange={e => setAyar(a => ({ ...a, bedava_kargo_siniri: e.target.value }))} placeholder="Örn: 500" /></FormField>
+          </div>
+          <FormField label="Havale / EFT bilgisi (sipariş sonrası müşteriye gösterilir)">
+            <textarea value={ayar.havale_bilgisi || ""} onChange={e => setAyar(a => ({ ...a, havale_bilgisi: e.target.value }))} rows={3} placeholder={"Banka adı\nAlıcı: Firma unvanı\nIBAN: TR.."} style={{ width: "100%", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "10px 12px", fontSize: 13.5, color: T.textPrimary, fontFamily: "inherit", boxSizing: "border-box" }} />
+          </FormField>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: T.textSecondary, cursor: "pointer", marginBottom: 14 }}>
+            <input type="checkbox" checked={!!ayar.kapida_odeme} onChange={e => setAyar(a => ({ ...a, kapida_odeme: e.target.checked }))} /> Kapıda ödeme seçeneği açık
+          </label>
+          <Btn variant="primary" disabled={bekle} onClick={ayarKaydet}>{bekle ? "Kaydediliyor..." : "Kaydet"}</Btn>
+          <div style={{ fontSize: 12, color: T.textMuted, marginTop: 12, lineHeight: 1.5 }}>Kartla ödeme için firmanın iyzico ya da PayTR üye işyeri başvurusu onaylanınca bu bölüme eklenecek.</div>
+        </div>
+      )}
+
+      {taslak && (
+        <Modal title={taslak.id ? "Ürünü Düzenle" : "Yeni Ürün"} onClose={() => { if (!bekle && !gorselBekle) setTaslak(null); }} width={640}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+            {taslak.gorsel ? <img src={taslak.gorsel} alt="" style={{ width: 110, height: 110, objectFit: "cover", borderRadius: 12, border: `1px solid ${T.border}` }} /> : <div style={{ width: 110, height: 110, borderRadius: 12, background: T.bgInput, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, color: T.textMuted }}>Fotoğraf yok</div>}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <label style={dugme}>{gorselBekle ? "Yükleniyor..." : taslak.gorsel ? "Fotoğrafı Değiştir" : "Fotoğraf Seç ya da Çek"}<input type="file" accept="image/*" hidden disabled={gorselBekle} onChange={gorselSec} /></label>
+              {taslak.gorsel && <Btn style={{ color: T.redText }} onClick={() => setTaslak(t => ({ ...t, gorsel: "" }))}>Görseli Sil</Btn>}
+            </div>
+          </div>
+          <FormField label="Ürün adı"><Input value={taslak.ad} onChange={e => setTaslak(t => ({ ...t, ad: e.target.value }))} placeholder="Örn: Yetişkin Kedi Maması Tavuklu 10 kg" /></FormField>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <FormField label="Marka"><Input value={taslak.marka} onChange={e => setTaslak(t => ({ ...t, marka: e.target.value }))} /></FormField>
+            <FormField label="Kategori"><Select value={taslak.kategori} onChange={e => setTaslak(t => ({ ...t, kategori: e.target.value }))}>{VET_KATEGORILER.map(([k, a]) => <option key={k} value={k}>{a}</option>)}</Select></FormField>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <FormField label="Satış fiyatı (₺)"><Input value={taslak.fiyat} onChange={e => setTaslak(t => ({ ...t, fiyat: e.target.value }))} placeholder="Örn: 1249" /></FormField>
+            <FormField label="İndirimden önceki fiyat"><Input value={taslak.eski_fiyat} onChange={e => setTaslak(t => ({ ...t, eski_fiyat: e.target.value }))} placeholder="Boş bırakılabilir" /></FormField>
+            <FormField label="Stok adedi"><Input value={taslak.stok} onChange={e => setTaslak(t => ({ ...t, stok: e.target.value.replace(/\D/g, "") }))} placeholder="Boş: takip yok" /></FormField>
+          </div>
+          <FormField label="Kısa açıklama (isteğe bağlı)"><Input value={taslak.aciklama} onChange={e => setTaslak(t => ({ ...t, aciklama: e.target.value.slice(0, 300) }))} /></FormField>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: T.textSecondary, cursor: "pointer" }}>
+            <input type="checkbox" checked={taslak.aktif} onChange={e => setTaslak(t => ({ ...t, aktif: e.target.checked }))} /> Satışta (sitede görünsün)
+          </label>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>
+            <Btn onClick={() => setTaslak(null)} disabled={bekle || gorselBekle}>Vazgeç</Btn>
+            <Btn variant="primary" onClick={urunKaydet} disabled={bekle || gorselBekle}>{bekle ? "Kaydediliyor..." : "Kaydet"}</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {acikSiparis && (
+        <Modal title={`Sipariş #${acikSiparis.id}`} onClose={() => setAcikSiparis(null)} width={560}>
+          <div style={{ fontSize: 13.5, color: T.textSecondary, lineHeight: 1.7 }}>
+            <div><b style={{ color: T.textPrimary }}>{acikSiparis.ad}</b> · <a href={`tel:${acikSiparis.telefon}`}>{acikSiparis.telefon}</a></div>
+            <div>{acikSiparis.adres}</div>
+            <div>Ödeme: {VET_ODEME[acikSiparis.odeme] || acikSiparis.odeme} · {new Date(acikSiparis.created_at).toLocaleString("tr-TR")}</div>
+            {acikSiparis.musteri_notu && <div>Not: {acikSiparis.musteri_notu}</div>}
+          </div>
+          <div style={{ margin: "14px 0", border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+            {(acikSiparis.kalemler || []).map((k, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "9px 12px", borderTop: i ? `1px solid ${T.border}` : "none", fontSize: 13.5, color: T.textPrimary }}><span>{k.adet} × {k.ad}</span><b>{vetTl(k.tutar)}</b></div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "9px 12px", borderTop: `1px solid ${T.border}`, fontSize: 13, color: T.textMuted }}><span>Kargo</span><span>{Number(acikSiparis.kargo) ? vetTl(acikSiparis.kargo) : "Bedava"}</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", borderTop: `1px solid ${T.border}`, fontWeight: 800, color: T.textPrimary }}><span>Toplam</span><span>{vetTl(acikSiparis.toplam)}</span></div>
+          </div>
+          <div style={{ fontSize: 11, color: T.textSecondary, fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Durum</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+            {VET_DURUMLAR.map(([k, ad, renk]) => <button key={k} onClick={() => durumDegistir(acikSiparis, k)} style={{ ...dugme, ...kucuk, ...(acikSiparis.durum === k ? { background: renk, color: "#fff", borderColor: renk } : {}) }}>{ad}</button>)}
+          </div>
+          <a href={`${wpLink(acikSiparis.telefon)}?text=${encodeURIComponent(`Merhaba ${acikSiparis.ad}, #${acikSiparis.id} numaralı siparişiniz için yazıyoruz.`)}`} target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: "none", background: "#25d366", color: "#fff", borderColor: "#25d366" }}>Müşteriye WhatsApp'tan yaz</a>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // 266digitale reklam alanları (yalnızca yönetici): her alana bir görsel ve bağlantı; sitede kendiliğinden görünür
 const REKLAM266_YERLERI = [
   ["ust", "Üst geniş reklam", "Ana sayfanın en üstünde, menünün altında", "970 × 250"],
@@ -13557,6 +13808,7 @@ export default function App() {
         {page==="emlakpanelim"&&<EmlakPanelimPage/>}
         {page==="blog"&&<BlogPage/>}
         {page==="haber266"&&<Haber266Page perms={perms} currentStaff={currentStaff}/>}
+        {page==="veteriner"&&<VeterinerPage/>}
         {page==="qrmenu"&&<QrMenuPage clients={allClients||clients}/>}
       </div>
     </div>

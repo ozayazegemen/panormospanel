@@ -241,15 +241,15 @@ footer a:hover{color:#fff}
 </aside>
 
 <div class="odeme" id="odeme"><div class="odeme-kutu">
-  <div>
+  <form id="siparisFormu" onsubmit="return false">
     <h3>Teslimat ve ödeme</h3>
-    <div class="iki"><div><label>Ad soyad</label><input placeholder="Adınız soyadınız"></div><div><label>Telefon</label><input placeholder="05xx xxx xx xx" inputmode="tel"></div></div>
-    <label>Adres</label><textarea rows="3" placeholder="Mahalle, sokak, no, ilçe / il"></textarea>
+    <div class="iki"><div><label>Ad soyad</label><input id="sAd" required placeholder="Adınız soyadınız"></div><div><label>Telefon</label><input id="sTel" required placeholder="05xx xxx xx xx" inputmode="tel"></div></div>
+    <label>Adres</label><textarea id="sAdres" rows="3" required placeholder="Mahalle, sokak, no, ilçe / il"></textarea>
     <label>Ödeme yöntemi</label>
-    <select id="odemeYontem"><option>Kredi / banka kartı (taksit seçenekli)</option><option>Havale / EFT</option><option>Kapıda ödeme</option></select>
-    <div id="kartAlan"><div class="iki"><div><label>Kart numarası</label><input placeholder="0000 0000 0000 0000" disabled></div><div><label>Son kullanma / CVC</label><input placeholder="AA/YY · 000" disabled></div></div></div>
-    <p class="not">Bu bir tasarım önizlemesidir; ödeme alınmaz. Gerçek sitede kart bilgileri iyzico ya da PayTR'ın güvenli ödeme sayfasında girilir, bilgiler sitede saklanmaz.</p>
-  </div>
+    <select id="odemeYontem"><option value="havale">Havale / EFT</option><option value="kapida">Kapıda ödeme</option><option value="kart" disabled>Kredi / banka kartı (yakında)</option></select>
+    <label>Sipariş notu (isteğe bağlı)</label><input id="sNot" placeholder="Örn: Akşam 18:00'den sonra teslim">
+    <p class="not">Siparişinizi aldığımızda telefonla ya da WhatsApp'tan teyit ediyoruz. Havale seçerseniz banka bilgileri sipariş sonrasında gösterilir.</p>
+  </form>
   <div class="ozet">
     <h3>Sipariş özeti</h3>
     <div id="odemeOzet"></div>
@@ -258,14 +258,24 @@ footer a:hover{color:#fff}
     <button class="btn" style="width:100%;justify-content:center;margin-top:8px;background:#f4efe6" id="odemeKapat">Alışverişe dön</button>
   </div>
 </div></div>
+<div class="odeme" id="tesekkur"><div class="odeme-kutu" style="grid-template-columns:minmax(0,1fr);max-width:560px;text-align:center">
+  <div style="font-size:56px">🐾</div>
+  <h3 id="tesekkurBaslik">Siparişiniz alındı</h3>
+  <p id="tesekkurMetin" style="color:var(--gri)"></p>
+  <pre id="havaleBilgi" style="white-space:pre-wrap;background:#fbf8f3;border-radius:14px;padding:14px;text-align:left;font:600 14px Inter;display:none"></pre>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px"><button class="btn wp" id="tesekkurWp">WhatsApp'tan bilgi ver</button><button class="btn" style="background:#f4efe6" id="tesekkurKapat">Alışverişe devam et</button></div>
+</div></div>
 <div class="bildirim" id="bildirim"></div>
 
 <script>
 // ÖRNEK ÜRÜNLER — gerçek ürünler ve fiyatlar firmadan alınacak (panelden yönetilecek)
-const WP_NO = '905000000000'; // firmanın WhatsApp numarası gelecek
+// Ürünler ve mağaza ayarları panelden (Ürünlerimiz → Veteriner Market) gelir; panelde ürün yokken aşağıdaki örnekler görünür
+const SUPA = 'https://kmxhsyjtyukrxrzoowag.supabase.co', SUPA_ANAHTAR = 'sb_publishable_8FkJ2hortwsLn57lLZMEwQ_vS29JgwT';
+const istek = (yol, secenek = {}) => fetch(`${SUPA}/rest/v1/${yol}`, { ...secenek, headers: { apikey: SUPA_ANAHTAR, 'Content-Type': 'application/json', ...(secenek.headers || {}) } });
+let WP_NO = '905000000000', AYAR = { kargo_ucreti: 59, bedava_kargo_siniri: 500, havale_bilgisi: '', kapida_odeme: true }, GERCEK = false;
 const KATEGORILER = [['hepsi','Tümü'],['kedi','🐱 Kedi'],['kopek','🐶 Köpek'],['kus','🐦 Kuş'],['akvaryum','🐠 Akvaryum'],['bakim','🧴 Bakım ve sağlık'],['aksesuar','🎾 Aksesuar']];
 const RENK = {kedi:'#fff1e3',kopek:'#e8f4ff',kus:'#fdf6d8',akvaryum:'#e2f7f4',bakim:'#f2ecff',aksesuar:'#ffe9ef'};
-const URUNLER = [
+let URUNLER = [
   {id:1,k:'kedi',ad:'Yetişkin Kedi Maması Tavuklu 10 kg',marka:'Örnek Marka',f:1249,e:1449,i:'🐟',r:'%14'},
   {id:2,k:'kedi',ad:'Topaklanan Bentonit Kedi Kumu 10 L',marka:'Örnek Marka',f:189,i:'🪣'},
   {id:3,k:'kopek',ad:'Büyük Irk Köpek Maması Kuzulu 15 kg',marka:'Örnek Marka',f:1690,e:1890,i:'🦴',r:'%11'},
@@ -279,11 +289,12 @@ const URUNLER = [
   {id:11,k:'kedi',ad:'Yavru Kedi Yaş Maması 85 g × 12',marka:'Örnek Marka',f:399,i:'🥫'},
   {id:12,k:'bakim',ad:'Tüy Bakım Tarağı',marka:'Örnek Marka',f:179,i:'🪮'}
 ];
-const KARGO_LIMIT = 500, KARGO = 59;
+let KARGO_LIMIT = 500, KARGO = 59;
 const $ = (s) => document.querySelector(s);
 const tl = (n) => n.toLocaleString('tr-TR') + ' ₺';
 let kat = 'hepsi', sepet = {};
-try { sepet = JSON.parse(localStorage.getItem('vetSepet') || '{}'); } catch (e) {}
+let SEPET_ANAHTAR = 'vetSepetOrnek';
+try { sepet = JSON.parse(localStorage.getItem(SEPET_ANAHTAR) || '{}'); } catch (e) {}
 
 function bildir(m){ const b = $('#bildirim'); b.textContent = m; b.style.display = 'block'; clearTimeout(bildir.t); bildir.t = setTimeout(() => b.style.display = 'none', 2600); }
 const wpAc = (metin) => window.open(`https://wa.me/${WP_NO}?text=${encodeURIComponent(metin)}`, '_blank', 'noopener');
@@ -296,23 +307,25 @@ function listele(){
   if ($('#siralama').value === 'azalan') l = [...l].sort((a, b) => b.f - a.f);
   $('#listeBaslik').textContent = ara ? `"${$('#ara').value.trim()}" için sonuçlar` : kat === 'hepsi' ? 'Çok satanlar' : KATEGORILER.find(([k]) => k === kat)[1].replace(/^\S+\s/, '');
   $('#urunListe').innerHTML = l.length ? l.map((u) => `
-    <div class="urun"><div class="gorsel" style="background:${RENK[u.k]}">${u.i}${u.r ? `<span class="rozet">${u.r} indirim</span>` : ''}</div>
-      <div class="metin"><span class="marka">${u.marka}</span><h3>${u.ad}</h3>
+    <div class="urun"><div class="gorsel" style="background:${RENK[u.k] || '#f4efe6'}">${u.g ? `<img src="${u.g}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : u.i}${u.r ? `<span class="rozet">${u.r} indirim</span>` : ''}</div>
+      <div class="metin"><span class="marka">${u.marka || ''}</span><h3>${u.ad}</h3>
         <div class="fiyat"><b>${tl(u.f)}</b>${u.e ? `<s>${tl(u.e)}</s>` : ''}</div>
-        <div class="d"><button class="ekle" data-ekle="${u.id}">Sepete ekle</button><button class="wp-k" data-wp="${u.id}" aria-label="WhatsApp'tan sipariş ver" title="WhatsApp'tan sipariş ver"><svg width="20" height="20" viewBox="0 0 24 24" fill="#128c4a"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg></button></div>
+        <div class="d">${u.tukendi ? '<button class="ekle" disabled style="background:#c9c9c9;cursor:default">Tükendi</button>' : `<button class="ekle" data-ekle="${u.id}">Sepete ekle</button>`}<button class="wp-k" data-wp="${u.id}" aria-label="WhatsApp'tan sipariş ver" title="WhatsApp'tan sipariş ver"><svg width="20" height="20" viewBox="0 0 24 24" fill="#128c4a"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg></button></div>
       </div></div>`).join('') : '<div class="bos">Ürün bulunamadı. WhatsApp\'tan yazın, sizin için bulalım.</div>';
 }
-function sepetKaydet(){ try { localStorage.setItem('vetSepet', JSON.stringify(sepet)); } catch (e) {} sepetCiz(); }
-function sepetToplam(){ return Object.entries(sepet).reduce((t, [id, a]) => t + URUNLER.find((u) => u.id == id).f * a, 0); }
+const urunBul = (id) => URUNLER.find((u) => u.id == id);
+const kargoHesap = (ara) => (KARGO_LIMIT > 0 && ara >= KARGO_LIMIT ? 0 : KARGO);
+function sepetKaydet(){ try { localStorage.setItem(SEPET_ANAHTAR, JSON.stringify(sepet)); } catch (e) {} sepetCiz(); }
+function sepetToplam(){ return Object.entries(sepet).reduce((t, [id, a]) => t + (urunBul(id) ? urunBul(id).f * a : 0), 0); }
 function sepetCiz(){
-  const satirlar = Object.entries(sepet).filter(([, a]) => a > 0);
+  const satirlar = Object.entries(sepet).filter(([id, a]) => a > 0 && urunBul(id));
   $('#sepetAdet').textContent = satirlar.reduce((t, [, a]) => t + a, 0);
   if (!satirlar.length) { $('#sepetListe').innerHTML = '<div class="bos" style="margin-top:20px">Sepetiniz boş.</div>'; $('#sepetAlt').innerHTML = ''; return; }
   $('#sepetListe').innerHTML = satirlar.map(([id, a]) => { const u = URUNLER.find((x) => x.id == id); return `
-    <div class="s-satir"><div class="g" style="background:${RENK[u.k]}">${u.i}</div>
+    <div class="s-satir"><div class="g" style="background:${RENK[u.k] || '#f4efe6'};overflow:hidden">${u.g ? `<img src="${u.g}" alt="" style="width:100%;height:100%;object-fit:cover">` : u.i}</div>
       <div><b>${u.ad}</b><small>${tl(u.f)}</small><div class="adet-d"><button data-azalt="${id}">−</button><span>${a}</span><button data-ekle="${id}">+</button></div></div>
       <b>${tl(u.f * a)}</b></div>`; }).join('');
-  const ara = sepetToplam(), kargo = ara >= KARGO_LIMIT ? 0 : KARGO, kalan = Math.max(0, KARGO_LIMIT - ara);
+  const ara = sepetToplam(), kargo = kargoHesap(ara), kalan = KARGO_LIMIT > 0 ? Math.max(0, KARGO_LIMIT - ara) : 0;
   $('#sepetAlt').innerHTML = `
     <div class="toplam"><span>Ara toplam</span><span>${tl(ara)}</span></div>
     <div class="toplam"><span>Kargo</span><span>${kargo ? tl(kargo) : 'Bedava'}</span></div>
@@ -324,8 +337,8 @@ function sepetCiz(){
 function sepetAc(){ $('#sepet').classList.add('acik'); $('#perde').classList.add('acik'); }
 function sepetKapat(){ $('#sepet').classList.remove('acik'); $('#perde').classList.remove('acik'); }
 function sepetMetni(){
-  const s = Object.entries(sepet).filter(([, a]) => a > 0).map(([id, a]) => { const u = URUNLER.find((x) => x.id == id); return `- ${a} x ${u.ad} (${tl(u.f * a)})`; });
-  const ara = sepetToplam(), kargo = ara >= KARGO_LIMIT ? 0 : KARGO;
+  const s = Object.entries(sepet).filter(([id, a]) => a > 0 && urunBul(id)).map(([id, a]) => { const u = urunBul(id); return `- ${a} x ${u.ad} (${tl(u.f * a)})`; });
+  const ara = sepetToplam(), kargo = kargoHesap(ara);
   return `Merhaba, sipariş vermek istiyorum:\n${s.join('\n')}\nToplam: ${tl(ara + kargo)}${kargo ? ' (kargo dahil)' : ''}\n\nAd soyad:\nAdres:`;
 }
 
@@ -339,16 +352,58 @@ document.addEventListener('click', (e) => {
   else if ('wpGenel' in t.dataset) { e.preventDefault(); wpAc('Merhaba, ürünleriniz hakkında bilgi almak istiyorum.'); }
   else if (t.id === 'sepetAc') sepetAc();
   else if (t.id === 'sepetKapat') sepetKapat();
-  else if (t.id === 'odemeyeGec') { sepetKapat(); const ara = sepetToplam(), kargo = ara >= KARGO_LIMIT ? 0 : KARGO; $('#odemeOzet').innerHTML = Object.entries(sepet).map(([id, a]) => { const u = URUNLER.find((x) => x.id == id); return `<div class="toplam"><span>${a} × ${u.ad}</span><span>${tl(u.f * a)}</span></div>`; }).join('') + `<div class="toplam"><span>Kargo</span><span>${kargo ? tl(kargo) : 'Bedava'}</span></div><div class="toplam buyuk"><span>Toplam</span><span>${tl(ara + kargo)}</span></div>`; $('#odeme').classList.add('acik'); }
+  else if (t.id === 'odemeyeGec') { sepetKapat(); const ara = sepetToplam(), kargo = kargoHesap(ara); $('#odemeOzet').innerHTML = Object.entries(sepet).filter(([id]) => urunBul(id)).map(([id, a]) => { const u = urunBul(id); return `<div class="toplam"><span>${a} × ${u.ad}</span><span>${tl(u.f * a)}</span></div>`; }).join('') + `<div class="toplam"><span>Kargo</span><span>${kargo ? tl(kargo) : 'Bedava'}</span></div><div class="toplam buyuk"><span>Toplam</span><span>${tl(ara + kargo)}</span></div>`; $('#odeme').classList.add('acik'); }
   else if (t.id === 'odemeKapat') $('#odeme').classList.remove('acik');
-  else if (t.id === 'siparisVer') bildir('Tasarım önizlemesi: gerçek sitede burada güvenli ödeme sayfası açılır.');
+  else if (t.id === 'tesekkurKapat') $('#tesekkur').classList.remove('acik');
+  else if (t.id === 'tesekkurWp') wpAc(t.dataset.metin || 'Merhaba, siparişim hakkında bilgi vermek istiyorum.');
+  else if (t.id === 'siparisVer') siparisVer(t);
 });
+async function siparisVer(dugme){
+  const f = $('#siparisFormu');
+  if (!f.reportValidity()) return;
+  if ($('#sTel').value.replace(/\D/g, '').length < 10) { bildir('Telefon numarasını kontrol edin'); return; }
+  if (!GERCEK) { bildir('Tasarım önizlemesi: panelde ürün eklenince siparişler panele düşer.'); return; }
+  dugme.disabled = true; dugme.textContent = 'Gönderiliyor…';
+  try {
+    const odeme = $('#odemeYontem').value;
+    const r = await istek('rpc/vet_siparis_ver', { method: 'POST', body: JSON.stringify({ p_ad: $('#sAd').value, p_telefon: $('#sTel').value, p_adres: $('#sAdres').value, p_odeme: odeme, p_not: $('#sNot').value, p_sepet: Object.entries(sepet).map(([id, adet]) => ({ id: +id, adet })) }) });
+    const v = await r.json();
+    if (!r.ok) throw new Error(v.message || 'Sipariş alınamadı');
+    sepet = {}; sepetKaydet(); $('#odeme').classList.remove('acik');
+    $('#tesekkurBaslik').textContent = `Siparişiniz alındı (#${v.no})`;
+    $('#tesekkurMetin').textContent = `Toplam ${tl(+v.toplam)}. ${odeme === 'havale' ? 'Ödemenizi aşağıdaki hesaba yapabilirsiniz; açıklamaya sipariş numaranızı yazın.' : 'Teslimatta ödeme yapacaksınız.'} En kısa sürede sizi arayarak siparişinizi teyit edeceğiz.`;
+    const h = $('#havaleBilgi'); h.textContent = AYAR.havale_bilgisi || ''; h.style.display = odeme === 'havale' && AYAR.havale_bilgisi ? 'block' : 'none';
+    $('#tesekkurWp').dataset.metin = `Merhaba, #${v.no} numaralı siparişimi verdim.`;
+    $('#tesekkur').classList.add('acik');
+  } catch (e) { bildir(e.message || 'Sipariş alınamadı, lütfen tekrar deneyin'); }
+  dugme.disabled = false; dugme.textContent = 'Siparişi tamamla';
+}
 $('#perde').addEventListener('click', sepetKapat);
-$('#odemeYontem').addEventListener('change', (e) => { $('#kartAlan').style.display = e.target.selectedIndex === 0 ? '' : 'none'; });
 $('#ara').addEventListener('input', listele);
 $('#siralama').addEventListener('change', listele);
 $('#yil').textContent = new Date().getFullYear();
-listele(); sepetCiz();
+async function panelden(){
+  try {
+    const [u, a] = await Promise.all([
+      istek('vet_urunler?aktif=eq.true&select=id,ad,marka,kategori,fiyat,eski_fiyat,stok,gorsel&order=sira.asc,id.desc').then((r) => (r.ok ? r.json() : [])),
+      istek('vet_ayarlar?id=eq.1&select=*').then((r) => (r.ok ? r.json() : []))
+    ]);
+    if (a && a[0]) {
+      AYAR = a[0]; if (AYAR.whatsapp) WP_NO = AYAR.whatsapp;
+      KARGO = +AYAR.kargo_ucreti || 0; KARGO_LIMIT = +AYAR.bedava_kargo_siniri || 0;
+      if (!AYAR.kapida_odeme) { const o = $('#odemeYontem option[value=kapida]'); if (o) o.remove(); }
+    }
+    if (Array.isArray(u) && u.length) {
+      GERCEK = true;
+      SEPET_ANAHTAR = 'vetSepet'; try { sepet = JSON.parse(localStorage.getItem(SEPET_ANAHTAR) || '{}'); } catch (e) { sepet = {}; }
+      URUNLER = u.map((x) => ({ id: x.id, k: x.kategori, ad: x.ad, marka: x.marka, f: +x.fiyat, e: x.eski_fiyat ? +x.eski_fiyat : null, g: x.gorsel, i: '🐾', r: x.eski_fiyat && +x.eski_fiyat > +x.fiyat ? '%' + Math.round((1 - x.fiyat / x.eski_fiyat) * 100) : '', tukendi: x.stok === 0 }));
+      document.querySelector('.onizleme').textContent = 'Tasarım önizlemesi — Panormos Medya';
+    }
+  } catch (e) { /* panel verisi alınamazsa örnekler kalır */ }
+  const ust = $('.ust-serit span'); if (ust) ust.innerHTML = KARGO_LIMIT > 0 ? `<b>${tl(KARGO_LIMIT)}</b> ve üzeri siparişlerde <b>kargo bedava</b>` : 'Hızlı kargo';
+  listele(); sepetCiz();
+}
+listele(); sepetCiz(); panelden();
 </script>
 </body>
 </html>
