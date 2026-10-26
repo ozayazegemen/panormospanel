@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>İş Güvenliği ve İşyeri Hekimliği (OSGB) — Firma Adı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--zemin:#f5f7fa;--kart:#fff;--lacivert:#0b2545;--lacivert-2:#13315c;--murekkep:#0f1b2d;--gri:#5b6778;--cizgi:#e2e7ee;--turuncu:#ff7a00;--turuncu-koyu:#e06a00;--sari:#ffc72c;--yesil:#16a34a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--zemin);color:var(--murekkep);font:15.5px/1.6 Inter,system-ui,sans-serif;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+.ic{max-width:1200px;margin:0 auto;padding:0 18px}
+.af{font-family:Archivo,Inter,sans-serif}
+.onizleme{background:var(--sari);color:#111;font-size:12.5px;font-weight:700;text-align:center;padding:6px 12px}
+.ust{background:var(--lacivert);color:#c9d6ea;font-size:13px}
+.ust .ic{display:flex;justify-content:space-between;align-items:center;height:38px;gap:12px;white-space:nowrap;overflow:hidden}
+.ust b{color:#fff}
+header{background:#fff;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--cizgi)}
+header .ic{display:flex;align-items:center;gap:20px;height:78px}
+.logo{display:flex;align-items:center;gap:10px;font:900 22px/1 Archivo;color:var(--lacivert);white-space:nowrap}
+.logo .kalkan{width:44px;height:44px;border-radius:12px;background:var(--turuncu);display:grid;place-items:center}
+.logo small{display:block;font:700 11px Inter;color:var(--gri);letter-spacing:.08em;margin-top:3px}
+nav.menu{display:flex;gap:4px;margin-left:auto;font-weight:600;font-size:15px}
+nav.menu a{padding:9px 13px;border-radius:10px}
+nav.menu a:hover{background:#eef2f7;color:var(--lacivert)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:13px 22px;font-weight:700;font-size:15px}
+.btn.tur{background:var(--turuncu);color:#fff}.btn.tur:hover{background:var(--turuncu-koyu)}
+.btn.cizgili{border:2px solid rgba(255,255,255,.6);color:#fff;background:transparent}
+.btn.lac{background:var(--lacivert);color:#fff}
+.hamburger{display:none;border:1px solid var(--cizgi);background:#fff;border-radius:10px;width:44px;height:44px;place-items:center;margin-left:auto}
+
+.hero{background:linear-gradient(115deg,var(--lacivert) 0%,var(--lacivert-2) 55%,#1c4e80 100%);color:#fff;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-80px;top:-60px;width:520px;height:520px;border-radius:50%;background:radial-gradient(circle,rgba(255,122,0,.35),rgba(255,122,0,0) 65%)}
+.hero .ic{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:40px;align-items:center;padding-top:64px;padding-bottom:72px}
+.etiket{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600}
+.hero h1{font:900 52px/1.05 Archivo;letter-spacing:-1.5px;margin:18px 0 16px}
+.hero h1 em{font-style:normal;color:var(--sari)}
+.hero p.alt{font-size:18px;color:#d3def0;max-width:560px}
+.hero .d{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap}
+.hero-kart{background:#fff;color:var(--murekkep);border-radius:22px;padding:24px;box-shadow:0 30px 60px rgba(0,0,0,.25)}
+.hero-kart h3{font:800 20px Archivo;margin-bottom:4px}
+.hero-kart p{color:var(--gri);font-size:14px;margin-bottom:14px}
+.hero-kart label{display:block;font-size:12.5px;font-weight:700;color:var(--gri);margin:10px 0 4px}
+.hero-kart input,.hero-kart select,.hero-kart textarea{width:100%;border:1.5px solid var(--cizgi);border-radius:10px;padding:11px 12px;font:inherit}
+.hero-kart .iki{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hero-kart .btn{width:100%;margin-top:14px}
+
+.sayilar{background:#fff;border-bottom:1px solid var(--cizgi)}
+.sayilar .ic{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding-top:26px;padding-bottom:26px}
+.sayilar b{display:block;font:900 34px Archivo;color:var(--lacivert)}
+.sayilar span{color:var(--gri);font-size:14px}
+
+section.blok{padding:70px 0 0}
+.bb{text-align:center;max-width:720px;margin:0 auto 36px}
+.bb .ust-yazi{color:var(--turuncu);font:800 13px Inter;letter-spacing:.12em;text-transform:uppercase}
+.bb h2{font:900 38px/1.1 Archivo;letter-spacing:-1px;margin:8px 0 10px;color:var(--lacivert)}
+.bb p{color:var(--gri);font-size:16.5px}
+
+.hizmetler{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.hizmet{background:#fff;border:1px solid var(--cizgi);border-radius:20px;padding:26px;transition:.2s;position:relative;overflow:hidden}
+.hizmet:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(11,37,69,.10);border-color:transparent}
+.hizmet::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--turuncu);transform:scaleY(0);transition:.25s;transform-origin:top}
+.hizmet:hover::before{transform:none}
+.hizmet .ikon{width:54px;height:54px;border-radius:14px;background:#fff4e8;display:grid;place-items:center;color:var(--turuncu);margin-bottom:16px}
+.hizmet h3{font:800 20px/1.2 Archivo;color:var(--lacivert);margin-bottom:8px}
+.hizmet p{color:var(--gri);font-size:14.5px}
+.hizmet ul{list-style:none;margin-top:12px;font-size:14px}
+.hizmet li{padding:3px 0 3px 22px;position:relative}
+.hizmet li::before{content:"✓";position:absolute;left:0;color:var(--yesil);font-weight:800}
+
+.hesap{background:var(--lacivert);color:#fff;border-radius:28px;padding:40px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:center}
+.hesap h2{font:900 34px/1.1 Archivo;letter-spacing:-.6px}
+.hesap p{color:#c9d6ea;margin-top:10px}
+.hesap .not{font-size:12.5px;color:#9fb2cc;margin-top:14px}
+.hesap-kutu{background:#fff;color:var(--murekkep);border-radius:20px;padding:22px}
+.hesap-kutu label{display:block;font-size:13px;font-weight:700;color:var(--gri);margin:10px 0 6px}
+.hesap-kutu label:first-child{margin-top:0}
+.sinif{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sinif button{border:1.5px solid var(--cizgi);background:#fff;border-radius:12px;padding:10px 6px;font-weight:700;font-size:13.5px}
+.sinif button.secili{border-color:var(--turuncu);background:#fff4e8;color:var(--turuncu-koyu)}
+.hesap-kutu input{width:100%;border:1.5px solid var(--cizgi);border-radius:12px;padding:11px 12px;font:inherit}
+.sonuc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.sonuc div{background:var(--zemin);border-radius:14px;padding:14px}
+.sonuc b{display:block;font:900 26px Archivo;color:var(--lacivert)}
+.sonuc span{font-size:12.5px;color:var(--gri)}
+.uyari-k{margin-top:10px;font-size:13px;background:#fff4e8;color:#8a4200;border-radius:12px;padding:10px 12px}
+
+.sektorler{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.sektor{background:#fff;border:1px solid var(--cizgi);border-radius:18px;padding:18px 10px;text-align:center;font-weight:700;font-size:14px}
+.sektor i{display:block;font-style:normal;font-size:30px;margin-bottom:6px}
+
+.surec{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;counter-reset:a}
+.adim{background:#fff;border:1px solid var(--cizgi);border-radius:20px;padding:24px;position:relative;counter-increment:a}
+.adim::before{content:counter(a);font:900 42px Archivo;color:#e7ecf3;position:absolute;right:18px;top:10px}
+.adim h3{font:800 18px Archivo;color:var(--lacivert);margin-bottom:6px}
+.adim p{color:var(--gri);font-size:14px}
+
+.sss{max-width:860px;margin:0 auto}
+.soru{background:#fff;border:1px solid var(--cizgi);border-radius:16px;margin-bottom:10px;overflow:hidden}
+.soru button{width:100%;text-align:left;border:0;background:none;padding:18px 20px;font:700 16px Inter;display:flex;justify-content:space-between;gap:12px}
+.soru p{padding:0 20px 18px;color:var(--gri);display:none}
+.soru.acik p{display:block}
+.soru.acik button span:last-child{transform:rotate(45deg)}
+.soru button span:last-child{transition:.2s;color:var(--turuncu);font-size:22px;line-height:1}
+
+.cta{margin-top:70px;background:linear-gradient(110deg,var(--turuncu),#ff9f1c);color:#fff;border-radius:28px;padding:40px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+.cta h2{font:900 32px/1.1 Archivo}
+.cta p{opacity:.92;margin-top:6px}
+.cta .d{display:flex;gap:10px;flex-wrap:wrap}
+.cta .btn.beyaz{background:#fff;color:var(--turuncu-koyu)}
+
+footer{margin-top:70px;background:var(--lacivert);color:#b7c5da;padding:46px 0 24px;font-size:14px}
+.f-izgara{display:grid;grid-template-columns:1.4fr repeat(3,minmax(0,1fr));gap:26px}
+footer .logo{color:#fff}
+footer h5{color:#fff;font:800 14px Archivo;margin-bottom:10px;letter-spacing:.04em}
+footer a{display:block;padding:3px 0}
+footer a:hover{color:#fff}
+.f-alt{border-top:1px solid #1f3b63;margin-top:30px;padding-top:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12.5px}
+.wp-sabit{position:fixed;right:18px;bottom:18px;width:58px;height:58px;border-radius:50%;background:#25d366;display:grid;place-items:center;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:60}
+.bildirim{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--murekkep);color:#fff;padding:12px 18px;border-radius:14px;font-weight:600;z-index:200;display:none;max-width:92vw;text-align:center}
+.mobil-menu{display:none;position:fixed;inset:0;background:#fff;z-index:90;padding:22px}
+.mobil-menu.acik{display:block}
+.mobil-menu a{display:block;font:800 24px/2 Archivo;color:var(--lacivert);border-bottom:1px solid var(--cizgi)}
+
+@media (max-width:1000px){
+  nav.menu,header .btn.tur{display:none}
+  .hamburger{display:grid}
+  .hero .ic,.hesap{grid-template-columns:minmax(0,1fr)}
+  .hizmetler,.surec{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sektorler{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .f-izgara{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .ic{padding:0 14px}
+  .ust .sag-yazi{display:none}
+  .hero h1{font-size:34px}
+  .hero p.alt{font-size:16px}
+  .hero .ic{padding-top:40px;padding-bottom:48px}
+  .sayilar .ic{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bb h2{font-size:28px}
+  .hizmetler,.surec{grid-template-columns:minmax(0,1fr)}
+  .hesap,.cta{padding:26px}
+  .hesap h2,.cta h2{font-size:26px}
+  .hero-kart .iki{grid-template-columns:minmax(0,1fr)}
+  .f-izgara{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="onizleme">Tasarım önizlemesi — Panormos Medya · Firma adı, rakamlar ve iletişim bilgileri örnektir</div>
+<div class="ust"><div class="ic"><span>Bakanlık yetkili OSGB · <b>İş güvenliği uzmanı</b> ve <b>işyeri hekimi</b> hizmeti</span><span class="sag-yazi">📞 0 (000) 000 00 00 · ✉ info@firmaadi.com</span></div></div>
+
+<header><div class="ic">
+  <a href="#" class="logo"><span class="kalkan"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><span>FİRMA ADI<small>İŞ SAĞLIĞI VE GÜVENLİĞİ</small></span></a>
+  <nav class="menu"><a href="#hizmetler">Hizmetler</a><a href="#hesap">Hesaplama</a><a href="#sektorler">Sektörler</a><a href="#surec">Nasıl çalışırız</a><a href="#sss">SSS</a><a href="#teklif">İletişim</a></nav>
+  <a href="#teklif" class="btn tur">Ücretsiz teklif al</a>
+  <button class="hamburger" id="hamburger" aria-label="Menü"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+</div></header>
+<div class="mobil-menu" id="mobilMenu"><a href="#hizmetler">Hizmetler</a><a href="#hesap">Hesaplama</a><a href="#sektorler">Sektörler</a><a href="#surec">Nasıl çalışırız</a><a href="#sss">SSS</a><a href="#teklif">Ücretsiz teklif al</a></div>
+
+<section class="hero"><div class="ic">
+  <div>
+    <span class="etiket">🛡️ 6331 sayılı İş Sağlığı ve Güvenliği Kanunu'na tam uyum</span>
+    <h1>Çalışanlarınız <em>güvende</em>, işletmeniz <em>cezasız</em>.</h1>
+    <p class="alt">İş güvenliği uzmanı, işyeri hekimi, risk değerlendirmesi, eğitim ve ölçümler: tek sözleşme, tek muhatap. Denetime her an hazır olun.</p>
+    <div class="d"><a href="#teklif" class="btn tur">Ücretsiz teklif al</a><a href="#hesap" class="btn cizgili">Ne kadar hizmet gerekir?</a></div>
+  </div>
+  <form class="hero-kart" id="teklif" onsubmit="return teklifGonder(event)">
+    <h3>Hızlı teklif</h3>
+    <p>Bilgilerinizi bırakın, aynı gün size dönelim.</p>
+    <div class="iki"><div><label>Firma adı</label><input required placeholder="Firmanız"></div><div><label>Yetkili</label><input required placeholder="Ad soyad"></div></div>
+    <div class="iki"><div><label>Telefon</label><input required placeholder="05xx xxx xx xx" inputmode="tel"></div><div><label>Çalışan sayısı</label><input placeholder="Örn: 25" inputmode="numeric"></div></div>
+    <label>Hizmet</label>
+    <select><option>İSG uzmanı + işyeri hekimi (tam hizmet)</option><option>Yalnızca iş güvenliği uzmanı</option><option>Yalnızca işyeri hekimi</option><option>Risk değerlendirmesi</option><option>İSG eğitimi</option><option>Ortam ölçümleri</option><option>Periyodik kontroller</option></select>
+    <button class="btn tur" type="submit">Teklif iste</button>
+  </form>
+</div></section>
+
+<div class="sayilar"><div class="ic">
+  <div><b data-say="350">0</b><span>Hizmet verilen işyeri</span></div>
+  <div><b data-say="12000">0</b><span>Eğitim verilen çalışan</span></div>
+  <div><b data-say="15">0</b><span>Yıllık deneyim</span></div>
+  <div><b>7/24</b><span>Kaza ve acil durum desteği</span></div>
+</div></div>
+
+<main class="ic">
+  <section class="blok" id="hizmetler">
+    <div class="bb"><span class="ust-yazi">Hizmetlerimiz</span><h2>İş sağlığı ve güvenliğinde ihtiyacınız olan her şey</h2><p>Yasal yükümlülüklerinizi eksiksiz yerine getirir, kazaları önlemek için sahada sizinle çalışırız.</p></div>
+    <div class="hizmetler" id="hizmetListe"></div>
+  </section>
+
+  <section class="blok" id="hesap">
+    <div class="hesap">
+      <div>
+        <h2>İşletmenize ne kadar İSG hizmeti gerekiyor?</h2>
+        <p>Tehlike sınıfınızı ve çalışan sayınızı seçin; yönetmeliğe göre ayda en az kaç saat iş güvenliği uzmanı ve işyeri hekimi hizmeti almanız gerektiğini görün.</p>
+        <p class="not">Hesaplama, İş Güvenliği Uzmanlarının ve İşyeri Hekimlerinin görev sürelerine ilişkin yönetmeliklerdeki çalışan başına aylık asgari sürelere dayanır; bilgilendirme amaçlıdır. Kesin süre için bizimle görüşün.</p>
+      </div>
+      <div class="hesap-kutu">
+        <label>Tehlike sınıfı</label>
+        <div class="sinif" id="sinif"><button type="button" data-s="az" class="secili">Az tehlikeli</button><button type="button" data-s="tehlikeli">Tehlikeli</button><button type="button" data-s="cok">Çok tehlikeli</button></div>
+        <label for="calisan">Çalışan sayısı</label>
+        <input id="calisan" type="number" min="1" value="25" inputmode="numeric">
+        <div class="sonuc"><div><b id="uzman">—</b><span>İş güvenliği uzmanı (ayda)</span></div><div><b id="hekim">—</b><span>İşyeri hekimi (ayda)</span></div></div>
+        <div class="uyari-k" id="uyari"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blok" id="sektorler">
+    <div class="bb"><span class="ust-yazi">Sektörler</span><h2>Her sektörün riskini biliyoruz</h2></div>
+    <div class="sektorler">
+      <div class="sektor"><i>🏗️</i>İnşaat</div><div class="sektor"><i>🏭</i>Üretim ve fabrika</div><div class="sektor"><i>🍽️</i>Gıda ve restoran</div>
+      <div class="sektor"><i>🚚</i>Lojistik ve depo</div><div class="sektor"><i>🏥</i>Sağlık</div><div class="sektor"><i>🏬</i>Mağaza ve ofis</div>
+      <div class="sektor"><i>🌾</i>Tarım</div><div class="sektor"><i>⛏️</i>Maden ve taş ocağı</div><div class="sektor"><i>🏨</i>Otel ve turizm</div>
+      <div class="sektor"><i>🔧</i>Oto sanayi</div><div class="sektor"><i>🏫</i>Eğitim</div><div class="sektor"><i>⚡</i>Enerji</div>
+    </div>
+  </section>
+
+  <section class="blok" id="surec">
+    <div class="bb"><span class="ust-yazi">Nasıl çalışırız</span><h2>4 adımda güvenli işyeri</h2></div>
+    <div class="surec">
+      <div class="adim"><h3>Ücretsiz ön ziyaret</h3><p>İşyerinizi yerinde görür, tehlike sınıfınızı ve ihtiyaçlarınızı belirleriz.</p></div>
+      <div class="adim"><h3>Sözleşme ve İSG-KATİP</h3><p>Uzman ve hekim atamalarınızı İSG-KATİP sistemine biz tanımlarız.</p></div>
+      <div class="adim"><h3>Risk değerlendirmesi</h3><p>Riskleri raporlar, acil durum planını ve eğitim takvimini hazırlarız.</p></div>
+      <div class="adim"><h3>Düzenli takip</h3><p>Aylık ziyaretler, sağlık muayeneleri ve tutanaklarla denetime her an hazır olursunuz.</p></div>
+    </div>
+  </section>
+
+  <section class="blok" id="sss">
+    <div class="bb"><span class="ust-yazi">Sık sorulanlar</span><h2>Merak edilenler</h2></div>
+    <div class="sss" id="sssListe"></div>
+  </section>
+
+  <section class="cta">
+    <div><h2>Denetimden önce hazır olun</h2><p>Ücretsiz ön ziyaret için hemen arayın ya da WhatsApp'tan yazın.</p></div>
+    <div class="d"><a href="tel:+900000000000" class="btn beyaz">📞 Hemen ara</a><a href="#" class="btn lac" data-wp>WhatsApp'tan yaz</a></div>
+  </section>
+</main>
+
+<footer><div class="ic">
+  <div class="f-izgara">
+    <div><a href="#" class="logo"><span class="kalkan"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span>FİRMA ADI</a>
+      <p style="margin-top:12px;max-width:320px">Çalışma ve Sosyal Güvenlik Bakanlığı yetkili ortak sağlık ve güvenlik birimi (OSGB). Yetki belgesi no ve adres buraya gelecek.</p></div>
+    <div><h5>Hizmetler</h5><a href="#hizmetler">İş güvenliği uzmanı</a><a href="#hizmetler">İşyeri hekimi</a><a href="#hizmetler">Risk değerlendirmesi</a><a href="#hizmetler">İSG eğitimleri</a><a href="#hizmetler">Ölçüm ve kontroller</a></div>
+    <div><h5>Kurumsal</h5><a href="#">Hakkımızda</a><a href="#">Belgelerimiz</a><a href="#">KVKK</a><a href="#teklif">İletişim</a></div>
+    <div><h5>İletişim</h5><a href="tel:+900000000000">0 (000) 000 00 00</a><a href="mailto:info@firmaadi.com">info@firmaadi.com</a><span>Adres buraya gelecek</span></div>
+  </div>
+  <div class="f-alt"><span>© <span id="yil"></span> Firma Adı. Tüm hakları saklıdır.</span><span>Tasarım önizlemesi: Panormos Medya</span></div>
+</div></footer>
+
+<a href="#" class="wp-sabit" data-wp aria-label="WhatsApp"><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.7-.1l1.8.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg></a>
+<div class="bildirim" id="bildirim"></div>
+
+<script>
+const WP_NO = '905000000000'; // firmanın WhatsApp numarası gelecek
+const $ = (s) => document.querySelector(s);
+const IKON = {
+  uzman: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  hekim: '<path d="M6 3v6a6 6 0 0 0 12 0V3"/><path d="M12 15v2a4 4 0 0 0 8 0v-1"/><circle cx="20" cy="14" r="2"/>',
+  risk: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  egitim: '<path d="M2 8l10-5 10 5-10 5z"/><path d="M6 10v5c3 2 9 2 12 0v-5"/>',
+  olcum: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  kontrol: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
+};
+const HIZMETLER = [
+  ['uzman', 'İş güvenliği uzmanı', 'A, B ve C sınıfı uzmanlarımız işyerinizi düzenli ziyaret eder, tespit ve önerileri onaylı deftere işler.', ['İSG-KATİP ataması', 'Aylık saha ziyaretleri', 'Tespit ve öneri defteri']],
+  ['hekim', 'İşyeri hekimi', 'İşe giriş ve periyodik muayeneler, sağlık gözetimi ve ilk yardım organizasyonu.', ['İşe giriş muayenesi', 'Periyodik sağlık kontrolü', 'Sağlık dosyalarının tutulması']],
+  ['risk', 'Risk değerlendirmesi', 'Tehlikeleri belirler, riskleri puanlar, alınacak önlemleri sorumlu ve tarihleriyle raporlarız.', ['Risk değerlendirme raporu', 'Acil durum eylem planı', 'Tahliye ve yangın planı']],
+  ['egitim', 'İSG eğitimleri', 'Tehlike sınıfınıza uygun süre ve içerikte, sertifikalı temel İSG eğitimleri.', ['Temel İSG eğitimi', 'Yangın ve tahliye tatbikatı', 'İlk yardım eğitimi']],
+  ['olcum', 'Ortam ölçümleri', 'Gürültü, aydınlatma, toz, termal konfor ve titreşim ölçümleri ile raporlama.', ['Gürültü ve aydınlatma', 'Toz ve gaz ölçümü', 'Termal konfor']],
+  ['kontrol', 'Periyodik kontroller', 'Kaldırma ekipmanı, basınçlı kap, elektrik ve topraklama tesisatı kontrolleri.', ['Forklift ve vinç', 'Kompresör ve kazan', 'Elektrik ve paratoner']]
+];
+$('#hizmetListe').innerHTML = HIZMETLER.map(([k, b, a, l]) => `<div class="hizmet"><div class="ikon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IKON[k]}</svg></div><h3>${b}</h3><p>${a}</p><ul>${l.map((x) => `<li>${x}</li>`).join('')}</ul></div>`).join('');
+
+const SSS = [
+  ['İş güvenliği uzmanı ve işyeri hekimi zorunlu mu?', '6331 sayılı Kanun\'a göre çalışanı olan her işyeri, iş sağlığı ve güvenliği hizmeti almakla yükümlüdür. Hizmeti bir OSGB\'den alarak bu yükümlülüğü yerine getirebilirsiniz.'],
+  ['Tehlike sınıfımı nasıl öğrenirim?', 'Tehlike sınıfı, işyerinizin SGK\'daki NACE faaliyet koduna göre belirlenir: az tehlikeli, tehlikeli veya çok tehlikeli. Ön ziyarette bunu sizin için kontrol ederiz.'],
+  ['Hizmet almazsak ne olur?', 'Denetimlerde uzman ve hekim görevlendirmemek, risk değerlendirmesi yapmamak ve eğitim vermemek için her ay tekrarlanan idari para cezaları uygulanabilir. Bir kaza durumunda işverenin sorumluluğu da ağırlaşır.'],
+  ['Fiyatlandırma nasıl yapılıyor?', 'Ücret; tehlike sınıfı, çalışan sayısı ve ek hizmetlere (ölçüm, periyodik kontrol, eğitim) göre belirlenir. Ön ziyaretten sonra size yazılı teklif sunarız.'],
+  ['Eğitimleri işyerimizde verebilir misiniz?', 'Evet. Temel İSG eğitimlerini işyerinizde ya da eğitim salonumuzda, vardiya düzeninize uygun saatlerde veriyoruz.']
+];
+$('#sssListe').innerHTML = SSS.map(([s, c], i) => `<div class="soru${i ? '' : ' acik'}"><button type="button"><span>${s}</span><span>+</span></button><p>${c}</p></div>`).join('');
+$('#sssListe').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) b.parentElement.classList.toggle('acik'); });
+
+// Asgari süreler (çalışan başına, ayda dakika): uzman 10 / 20 / 40, hekim 5 / 10 / 15
+const SURE = { az: [10, 5], tehlikeli: [20, 10], cok: [40, 15] };
+let sinif = 'az';
+const saat = (dk) => { const s = Math.floor(dk / 60), d = Math.round(dk % 60); return s ? `${s} sa${d ? ' ' + d + ' dk' : ''}` : `${d} dk`; };
+function hesapla(){
+  const n = Math.max(0, parseInt($('#calisan').value, 10) || 0), [u, h] = SURE[sinif];
+  $('#uzman').textContent = n ? saat(n * u) : '—';
+  $('#hekim').textContent = n ? saat(n * h) : '—';
+  const tamUzman = { az: 1000, tehlikeli: 500, cok: 250 }[sinif], tamHekim = { az: 2000, tehlikeli: 1000, cok: 750 }[sinif];
+  $('#uyari').textContent = n >= tamUzman ? 'Bu çalışan sayısında tam zamanlı iş güvenliği uzmanı görevlendirilmesi gerekir.' : n >= tamHekim ? 'Bu çalışan sayısında tam zamanlı işyeri hekimi gerekir.' : sinif === 'cok' ? 'Çok tehlikeli işyerlerinde yalnızca A sınıfı iş güvenliği uzmanı görevlendirilebilir.' : sinif === 'tehlikeli' ? 'Tehlikeli işyerlerinde en az B sınıfı iş güvenliği uzmanı görevlendirilir.' : 'Az tehlikeli işyerlerinde C sınıfı ve üzeri iş güvenliği uzmanı görevlendirilebilir.';
+}
+$('#sinif').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; sinif = b.dataset.s; document.querySelectorAll('#sinif button').forEach((x) => x.classList.toggle('secili', x === b)); hesapla(); });
+$('#calisan').addEventListener('input', hesapla);
+hesapla();
+
+// Sayılar kaydırınca artar
+const sayac = new IntersectionObserver((g) => g.forEach((x) => {
+  if (!x.isIntersecting) return;
+  const el = x.target, hedef = +el.dataset.say, t0 = performance.now();
+  const adim = (t) => { const o = Math.min(1, (t - t0) / 1200); el.textContent = Math.round(hedef * (1 - Math.pow(1 - o, 3))).toLocaleString('tr-TR') + (o === 1 ? '+' : ''); if (o < 1) requestAnimationFrame(adim); };
+  requestAnimationFrame(adim); sayac.unobserve(el);
+}), { threshold: .5 });
+document.querySelectorAll('[data-say]').forEach((el) => sayac.observe(el));
+
+function bildir(m){ const b = $('#bildirim'); b.textContent = m; b.style.display = 'block'; clearTimeout(bildir.t); bildir.t = setTimeout(() => b.style.display = 'none', 3000); }
+function teklifGonder(e){ e.preventDefault(); bildir('Tasarım önizlemesi: gerçek sitede talep firmaya e-posta ve WhatsApp ile iletilir.'); return false; }
+document.querySelectorAll('[data-wp]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); window.open(`https://wa.me/${WP_NO}?text=${encodeURIComponent('Merhaba, iş sağlığı ve güvenliği hizmetleriniz hakkında bilgi almak istiyorum.')}`, '_blank', 'noopener'); }));
+$('#hamburger').addEventListener('click', () => $('#mobilMenu').classList.add('acik'));
+$('#mobilMenu').addEventListener('click', () => $('#mobilMenu').classList.remove('acik'));
+$('#yil').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
