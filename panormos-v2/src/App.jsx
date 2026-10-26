@@ -6449,7 +6449,7 @@ function InventoryPage({ perms }) {
         <Modal title={form.id ? "Ekipmanı Düzenle" : "Ekipman Ekle"} onClose={() => setModal(false)} width={560}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
             <FormField label="Ekipman Adı *"><Input placeholder="Örn: Sony A7 IV" value={form.name || ""} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></FormField>
-            <FormField label="Kategori"><Select value={form.category || "diger"} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{INVENTORY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</Select></FormField>
+            <FormField label="Ürün türü"><Select value={form.category || "diger"} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{INVENTORY_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</Select></FormField>
             <FormField label="Marka / Model"><Input value={form.brand_model || ""} onChange={e => setForm(f => ({ ...f, brand_model: e.target.value }))} /></FormField>
             <FormField label="Adet"><Input type="number" value={form.quantity ?? 1} onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} /></FormField>
             <FormField label="Seri No"><Input value={form.serial_no || ""} onChange={e => setForm(f => ({ ...f, serial_no: e.target.value }))} /></FormField>
@@ -12143,10 +12143,11 @@ function Haber266Instagram({ haber, onClose }) {
 // VETERİNER MARKET — ürünler, siparişler ve mağaza ayarları (yalnızca yönetici).
 // Site: public/veteriner/index.html; tablolar ve sipariş işlevi: supabase/veteriner-kurulum.sql
 // ═══════════════════════════════════════════════════════════
-const VET_KATEGORILER = [["kedi", "Kedi"], ["kopek", "Köpek"], ["kus", "Kuş"], ["akvaryum", "Akvaryum"], ["bakim", "Bakım ve sağlık"], ["aksesuar", "Aksesuar"]];
+const VET_KATEGORILER = [["ilac", "İlaç"], ["asi", "Aşı"], ["parazit", "Parazit ve haşere"], ["vitamin", "Vitamin ve mineral"], ["yem", "Yem katkısı"], ["dezenfektan", "Dezenfektan ve hijyen"], ["ekipman", "Ekipman ve malzeme"]];
+const VET_HAYVANLAR = [["buyukbas", "Büyükbaş"], ["kucukbas", "Küçükbaş"], ["kanatli", "Kanatlı"]];
 const VET_DURUMLAR = [["yeni", "Yeni", "#e30613"], ["hazirlaniyor", "Hazırlanıyor", "#d97706"], ["kargoda", "Kargoda", "#2563eb"], ["teslim", "Teslim edildi", "#16a34a"], ["iptal", "İptal", "#6b7280"]];
 const VET_ODEME = { havale: "Havale / EFT", kapida: "Kapıda ödeme", whatsapp: "WhatsApp" };
-const BOS_VET_URUN = { id: null, ad: "", marka: "", kategori: "kedi", fiyat: "", eski_fiyat: "", stok: "", gorsel: "", aciklama: "", aktif: true };
+const BOS_VET_URUN = { id: null, ad: "", marka: "", kategori: "ilac", hayvanlar: [], online_satis: false, fiyat: "", eski_fiyat: "", stok: "", gorsel: "", aciklama: "", aktif: true };
 const vetTl = (n) => Number(n || 0).toLocaleString("tr-TR", { maximumFractionDigits: 2 }) + " ₺";
 
 async function vetGorselYukle(dosya) {
@@ -12194,12 +12195,14 @@ function VeterinerPage() {
   useEffect(() => { yukle(); }, []);
 
   const urunKaydet = async () => {
-    const fiyat = Number(String(taslak.fiyat).replace(",", "."));
+    const fiyat = String(taslak.fiyat).trim() === "" ? null : Number(String(taslak.fiyat).replace(",", "."));
     if (!taslak.ad.trim()) { swalAlert("Ürün adını yazın"); return; }
-    if (!(fiyat >= 0) || String(taslak.fiyat).trim() === "") { swalAlert("Fiyatı yazın"); return; }
+    if (fiyat !== null && !(fiyat >= 0)) { swalAlert("Fiyatı rakamla yazın ya da boş bırakın"); return; }
+    if (taslak.online_satis && fiyat === null) { swalAlert("Online satılacak ürünün fiyatı olmalı."); return; }
+    if (!taslak.hayvanlar.length) { swalAlert("Ürünün hangi hayvanlar için olduğunu seçin"); return; }
     const eski = String(taslak.eski_fiyat).trim() === "" ? null : Number(String(taslak.eski_fiyat).replace(",", "."));
     const stok = String(taslak.stok).trim() === "" ? null : parseInt(taslak.stok, 10);
-    const kayit = { ad: taslak.ad.trim(), marka: taslak.marka.trim(), kategori: taslak.kategori, fiyat, eski_fiyat: eski && eski > fiyat ? eski : null, stok: Number.isFinite(stok) ? stok : null, gorsel: taslak.gorsel || null, aciklama: taslak.aciklama.trim(), aktif: taslak.aktif };
+    const kayit = { ad: taslak.ad.trim(), marka: taslak.marka.trim(), kategori: taslak.kategori, fiyat, eski_fiyat: eski && fiyat !== null && eski > fiyat ? eski : null, hayvanlar: taslak.hayvanlar, online_satis: !!taslak.online_satis, stok: Number.isFinite(stok) ? stok : null, gorsel: taslak.gorsel || null, aciklama: taslak.aciklama.trim(), aktif: taslak.aktif };
     setBekle(true);
     const sonuc = taslak.id ? await supabase.from("vet_urunler").update(kayit).eq("id", taslak.id) : await supabase.from("vet_urunler").insert(kayit);
     setBekle(false);
@@ -12301,10 +12304,12 @@ function VeterinerPage() {
               <div style={{ padding: 12 }}>
                 <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase" }}>{(VET_KATEGORILER.find(k => k[0] === u.kategori) || [0, u.kategori])[1]}{u.marka ? ` · ${u.marka}` : ""}</div>
                 <div style={{ fontSize: 13.5, fontWeight: 700, color: T.textPrimary, margin: "3px 0 6px", lineHeight: 1.3 }}>{u.ad}</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}><b style={{ color: T.textPrimary }}>{vetTl(u.fiyat)}</b>{u.eski_fiyat && <s style={{ fontSize: 12, color: T.textMuted }}>{vetTl(u.eski_fiyat)}</s>}</div>
+                <div style={{ fontSize: 11.5, color: T.textMuted }}>{(u.hayvanlar || []).map(h => (VET_HAYVANLAR.find(x => x[0] === h) || [0, h])[1]).join(" · ")}</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginTop: 2 }}>{u.fiyat == null ? <span style={{ fontSize: 12.5, color: T.textMuted }}>Fiyat gösterilmiyor</span> : <b style={{ color: T.textPrimary }}>{vetTl(u.fiyat)}</b>}{u.eski_fiyat && <s style={{ fontSize: 12, color: T.textMuted }}>{vetTl(u.eski_fiyat)}</s>}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 2, color: u.online_satis ? T.greenText : T.textMuted }}>{u.online_satis ? "Online satışta" : "Yalnızca bilgi / WhatsApp"}</div>
                 <div style={{ fontSize: 11.5, color: u.stok === 0 ? T.redText : T.textMuted, marginTop: 2 }}>{u.stok == null ? "Stok takibi yok" : `Stok: ${u.stok}`}</div>
                 <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                  <Btn style={kucuk} onClick={() => setTaslak({ ...BOS_VET_URUN, ...u, fiyat: String(u.fiyat), eski_fiyat: u.eski_fiyat == null ? "" : String(u.eski_fiyat), stok: u.stok == null ? "" : String(u.stok), gorsel: u.gorsel || "", aciklama: u.aciklama || "", marka: u.marka || "" })}>Düzenle</Btn>
+                  <Btn style={kucuk} onClick={() => setTaslak({ ...BOS_VET_URUN, ...u, fiyat: u.fiyat == null ? "" : String(u.fiyat), hayvanlar: u.hayvanlar || [], online_satis: !!u.online_satis, eski_fiyat: u.eski_fiyat == null ? "" : String(u.eski_fiyat), stok: u.stok == null ? "" : String(u.stok), gorsel: u.gorsel || "", aciklama: u.aciklama || "", marka: u.marka || "" })}>Düzenle</Btn>
                   <Btn style={kucuk} onClick={() => aktifDegistir(u)}>{u.aktif ? "Satıştan kaldır" : "Satışa al"}</Btn>
                   <Btn style={{ ...kucuk, color: T.redText }} onClick={() => urunSil(u)}>Sil</Btn>
                 </div>
@@ -12341,20 +12346,29 @@ function VeterinerPage() {
               {taslak.gorsel && <Btn style={{ color: T.redText }} onClick={() => setTaslak(t => ({ ...t, gorsel: "" }))}>Görseli Sil</Btn>}
             </div>
           </div>
-          <FormField label="Ürün adı"><Input value={taslak.ad} onChange={e => setTaslak(t => ({ ...t, ad: e.target.value }))} placeholder="Örn: Yetişkin Kedi Maması Tavuklu 10 kg" /></FormField>
+          <FormField label="Ürün adı"><Input value={taslak.ad} onChange={e => setTaslak(t => ({ ...t, ad: e.target.value }))} placeholder="Örn: Buzağı İshal Önleyici Toz 1 kg" /></FormField>
+          <FormField label="Hangi hayvanlar için">
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>{VET_HAYVANLAR.map(([k, a]) => (
+              <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13.5, color: T.textPrimary, cursor: "pointer" }}><input type="checkbox" checked={taslak.hayvanlar.includes(k)} onChange={e => setTaslak(t => ({ ...t, hayvanlar: e.target.checked ? [...t.hayvanlar, k] : t.hayvanlar.filter(x => x !== k) }))} /> {a}</label>
+            ))}</div>
+          </FormField>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <FormField label="Marka"><Input value={taslak.marka} onChange={e => setTaslak(t => ({ ...t, marka: e.target.value }))} /></FormField>
             <FormField label="Kategori"><Select value={taslak.kategori} onChange={e => setTaslak(t => ({ ...t, kategori: e.target.value }))}>{VET_KATEGORILER.map(([k, a]) => <option key={k} value={k}>{a}</option>)}</Select></FormField>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <FormField label="Satış fiyatı (₺)"><Input value={taslak.fiyat} onChange={e => setTaslak(t => ({ ...t, fiyat: e.target.value }))} placeholder="Örn: 1249" /></FormField>
+            <FormField label="Fiyat (₺, boş: gösterilmez)"><Input value={taslak.fiyat} onChange={e => setTaslak(t => ({ ...t, fiyat: e.target.value }))} placeholder="Boş bırakılabilir" /></FormField>
             <FormField label="İndirimden önceki fiyat"><Input value={taslak.eski_fiyat} onChange={e => setTaslak(t => ({ ...t, eski_fiyat: e.target.value }))} placeholder="Boş bırakılabilir" /></FormField>
             <FormField label="Stok adedi"><Input value={taslak.stok} onChange={e => setTaslak(t => ({ ...t, stok: e.target.value.replace(/\D/g, "") }))} placeholder="Boş: takip yok" /></FormField>
           </div>
           <FormField label="Kısa açıklama (isteğe bağlı)"><Input value={taslak.aciklama} onChange={e => setTaslak(t => ({ ...t, aciklama: e.target.value.slice(0, 300) }))} /></FormField>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: T.textSecondary, cursor: "pointer" }}>
-            <input type="checkbox" checked={taslak.aktif} onChange={e => setTaslak(t => ({ ...t, aktif: e.target.checked }))} /> Satışta (sitede görünsün)
+            <input type="checkbox" checked={taslak.aktif} onChange={e => setTaslak(t => ({ ...t, aktif: e.target.checked }))} /> Sitede görünsün
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, color: T.textSecondary, cursor: "pointer", marginTop: 8 }}>
+            <input type="checkbox" checked={!!taslak.online_satis} onChange={e => setTaslak(t => ({ ...t, online_satis: e.target.checked }))} /> Online satış (sepete eklenebilir)
+          </label>
+          <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 4, lineHeight: 1.5 }}>Reçeteli ilaç ve aşılarda bu işareti açmayın: bu ürünler sitede yalnızca "WhatsApp'tan sor / Ara" düğmesiyle görünür.</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>
             <Btn onClick={() => setTaslak(null)} disabled={bekle || gorselBekle}>Vazgeç</Btn>
             <Btn variant="primary" onClick={urunKaydet} disabled={bekle || gorselBekle}>{bekle ? "Kaydediliyor..." : "Kaydet"}</Btn>

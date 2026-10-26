@@ -4,163 +4,177 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Veteriner Market — Mama, kum, bakım ve aksesuar</title>
+<title>Veteriner Market — Büyükbaş, küçükbaş ve kanatlı hayvan ürünleri</title>
+<meta name="description" content="Büyükbaş, küçükbaş ve kanatlı hayvanlar için veteriner ürünleri, vitamin ve mineraller, yem katkıları, dezenfektan ve ekipman.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--zemin:#fbf8f3;--kart:#fff;--murekkep:#1d2a2a;--gri:#5f6b6b;--cizgi:#ece6dc;--yesil:#0f8a6c;--yesil-koyu:#0a6a53;--turuncu:#ff8a3d;--sari:#ffd166;--wp:#25d366}
+:root{--zemin:#f7f6f1;--kart:#fff;--murekkep:#1c2a1f;--gri:#5d6a60;--cizgi:#e5e3d8;--yesil:#2f7d32;--yesil-koyu:#1f5a23;--toprak:#8a5a2b;--sari:#f5c542;--wp:#25d366}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--zemin);color:var(--murekkep);font:15px/1.55 Inter,system-ui,sans-serif;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 button{font:inherit;cursor:pointer}
 .ic{max-width:1220px;margin:0 auto;padding:0 18px}
-.nf{font-family:Nunito,Inter,sans-serif}
 .onizleme{background:var(--sari);font-size:12.5px;font-weight:700;text-align:center;padding:6px 12px}
-.ust-serit{background:var(--yesil-koyu);color:#dff5ee;font-size:13px}
+.ust-serit{background:var(--yesil-koyu);color:#dcefdc;font-size:13px}
 .ust-serit .ic{display:flex;justify-content:space-between;align-items:center;height:36px;gap:12px;white-space:nowrap;overflow:hidden}
 .ust-serit b{color:#fff}
 header{background:#fff;border-bottom:1px solid var(--cizgi);position:sticky;top:0;z-index:50}
 header .ic{display:flex;align-items:center;gap:18px;height:76px}
-.logo{display:flex;align-items:center;gap:10px;font:900 24px/1 Nunito;color:var(--yesil-koyu);white-space:nowrap}
-.logo .pati{width:44px;height:44px;border-radius:14px;background:var(--yesil);display:grid;place-items:center}
-.logo small{display:block;font:700 11px Inter;color:var(--gri);letter-spacing:.06em;margin-top:2px}
+.logo{display:flex;align-items:center;gap:10px;font:900 23px/1 Nunito;color:var(--yesil-koyu);white-space:nowrap}
+.logo .rozet{width:44px;height:44px;border-radius:12px;background:var(--yesil);display:grid;place-items:center}
+.logo small{display:block;font:700 10.5px Inter;color:var(--gri);letter-spacing:.06em;margin-top:3px}
 .arama{flex:1;position:relative;max-width:520px}
-.arama input{width:100%;border:2px solid var(--cizgi);border-radius:999px;padding:12px 18px 12px 44px;font:inherit;background:#fbfaf8}
+.arama input{width:100%;border:2px solid var(--cizgi);border-radius:999px;padding:12px 18px 12px 44px;font:inherit;background:#fbfaf6}
 .arama input:focus{outline:none;border-color:var(--yesil)}
 .arama svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--gri)}
 .sag{margin-left:auto;display:flex;gap:10px;align-items:center}
+.ara-d{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--cizgi);font-weight:700;padding:9px 14px;border-radius:999px;font-size:14px;background:#fff}
 .wp-d{display:inline-flex;align-items:center;gap:8px;background:var(--wp);color:#fff;font-weight:700;padding:11px 16px;border-radius:999px;font-size:14px}
-.sepet-d{position:relative;display:inline-flex;align-items:center;gap:8px;border:2px solid var(--yesil);color:var(--yesil-koyu);font-weight:800;padding:9px 16px;border-radius:999px;background:#fff}
-.sepet-d .adet{background:var(--turuncu);color:#fff;border-radius:999px;font-size:12px;padding:1px 8px}
-nav.kat{background:#fff;border-bottom:1px solid var(--cizgi)}
-nav.kat .ic{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-top:10px;padding-bottom:10px}
-nav.kat button{flex:none;border:0;background:#f4efe6;border-radius:999px;padding:9px 16px;font-weight:700;font-size:14px;color:var(--murekkep)}
-nav.kat button.secili,nav.kat button:hover{background:var(--yesil);color:#fff}
+.sepet-d{display:inline-flex;align-items:center;gap:8px;border:2px solid var(--yesil);color:var(--yesil-koyu);font-weight:800;padding:9px 16px;border-radius:999px;background:#fff}
+.sepet-d .adet{background:var(--toprak);color:#fff;border-radius:999px;font-size:12px;padding:1px 8px}
 
-.hero{padding:26px 0 8px}
-.hero .ic{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px}
-.hero-ana{position:relative;border-radius:28px;overflow:hidden;background:linear-gradient(120deg,#0f8a6c,#14b38c 60%,#7bd8b8);color:#fff;padding:44px;min-height:340px;display:flex;flex-direction:column;justify-content:center}
-.hero-ana h1{font:900 46px/1.05 Nunito;letter-spacing:-1px;max-width:520px}
-.hero-ana p{font-size:17px;opacity:.95;margin:14px 0 22px;max-width:440px}
-.hero-ana .d{display:flex;gap:10px;flex-wrap:wrap}
-.btn{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:13px 22px;font-weight:800;font-size:15px}
+.hayvan-sec{background:#fff;border-bottom:1px solid var(--cizgi)}
+.hayvan-sec .ic{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-top:12px;padding-bottom:12px}
+.hayvan-sec button{flex:none;display:flex;align-items:center;gap:8px;border:2px solid var(--cizgi);background:#fff;border-radius:16px;padding:9px 16px;font:800 15px Nunito}
+.hayvan-sec button i{font-style:normal;font-size:24px}
+.hayvan-sec button.secili{border-color:var(--yesil);background:#eef6ee;color:var(--yesil-koyu)}
+
+.hero{padding:24px 0 6px}
+.hero-izgara{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px}
+.hero-ana{position:relative;border-radius:26px;overflow:hidden;background:linear-gradient(120deg,#1f5a23,#2f7d32 55%,#6aa84f);color:#fff;padding:42px;min-height:330px;display:flex;flex-direction:column;justify-content:center}
+.hero-ana::after{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.12))}
+.hero-ana h1{font:900 42px/1.07 Nunito;letter-spacing:-.8px;max-width:560px;position:relative;z-index:1}
+.hero-ana p{font-size:16.5px;opacity:.95;margin:14px 0 22px;max-width:470px;position:relative;z-index:1}
+.hero-ana .d{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:999px;padding:13px 22px;font-weight:800;font-size:15px}
 .btn.beyaz{background:#fff;color:var(--yesil-koyu)}
-.btn.saydam{background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.6)}
-.hero-ana .hayvanlar{position:absolute;right:28px;bottom:10px;font-size:120px;line-height:1;opacity:.95}
+.btn.saydam{background:rgba(255,255,255,.16);color:#fff;border:1.5px solid rgba(255,255,255,.6)}
+.btn.yesil{background:var(--yesil);color:#fff}.btn.wp{background:var(--wp);color:#fff}
+.hero-ana .hayvanlar{position:absolute;right:26px;bottom:14px;font-size:84px;line-height:1;letter-spacing:-8px;z-index:1}
 .hero-yan{display:grid;grid-template-rows:1fr 1fr;gap:18px}
-.kampanya{border-radius:24px;padding:24px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
-.kampanya h3{font:900 24px/1.1 Nunito}
-.kampanya p{font-size:14px;margin-top:6px;opacity:.85}
-.kampanya span{position:absolute;right:18px;bottom:6px;font-size:64px}
-.k1{background:#ffe7d4;color:#7a3300}.k2{background:#e3ecff;color:#1c3b7a}
+.yan-kart{border-radius:22px;padding:22px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+.yan-kart h3{font:900 21px/1.15 Nunito;max-width:80%}
+.yan-kart p{font-size:13.5px;margin-top:6px;opacity:.85;max-width:80%}
+.yan-kart span{position:absolute;right:16px;bottom:8px;font-size:56px}
+.y1{background:#fff1d6;color:#6b3f00}.y2{background:#e2f0e3;color:#1f5a23}
 
-.guven{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
-.guven div{background:#fff;border:1px solid var(--cizgi);border-radius:18px;padding:14px 16px;display:flex;gap:12px;align-items:center;font-size:13.5px}
+.guven{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.guven div{background:#fff;border:1px solid var(--cizgi);border-radius:16px;padding:14px 16px;display:flex;gap:12px;align-items:center;font-size:13.5px}
 .guven b{display:block;font:800 15px Nunito}
 .guven i{font-style:normal;font-size:26px}
 
-section.blok{padding:34px 0 0}
-.bb{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:16px}
-.bb h2{font:900 28px Nunito;letter-spacing:-.5px}
+section.blok{padding:30px 0 0}
+.bb{display:flex;justify-content:space-between;align-items:end;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.bb h2{font:900 27px Nunito;letter-spacing:-.4px}
 .bb p{color:var(--gri);font-size:14px}
-.siralama{border:1px solid var(--cizgi);border-radius:999px;padding:9px 14px;background:#fff;font:600 14px Inter}
+.turler{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.turler button{border:0;background:#ece9df;border-radius:999px;padding:8px 14px;font-weight:700;font-size:13.5px;color:var(--murekkep)}
+.turler button.secili{background:var(--yesil);color:#fff}
 
 .urunler{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
-.urun{background:#fff;border:1px solid var(--cizgi);border-radius:22px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .2s}
-.urun:hover{box-shadow:0 14px 34px rgba(29,42,42,.10);transform:translateY(-2px)}
-.urun .gorsel{aspect-ratio:1;display:grid;place-items:center;font-size:84px;position:relative}
-.urun .rozet{position:absolute;top:12px;left:12px;background:var(--turuncu);color:#fff;font:800 12px Inter;padding:4px 9px;border-radius:999px}
-.urun .metin{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
-.urun .marka{font-size:12px;font-weight:700;color:var(--gri);text-transform:uppercase;letter-spacing:.06em}
-.urun h3{font:800 16px/1.25 Nunito}
-.urun .fiyat{display:flex;align-items:baseline;gap:8px;margin-top:auto}
-.urun .fiyat b{font:900 22px Nunito;color:var(--yesil-koyu)}
-.urun .fiyat s{color:var(--gri);font-size:13.5px}
+.urun{background:#fff;border:1px solid var(--cizgi);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .2s,transform .2s}
+.urun:hover{box-shadow:0 14px 34px rgba(28,42,31,.10);transform:translateY(-2px)}
+.urun .gorsel{aspect-ratio:1;display:grid;place-items:center;font-size:72px;position:relative;background:#f1efe6}
+.urun .gorsel img{width:100%;height:100%;object-fit:cover}
+.urun .etk{position:absolute;top:10px;left:10px;display:flex;gap:4px;flex-wrap:wrap}
+.urun .etk span{background:rgba(255,255,255,.92);border-radius:999px;padding:3px 8px;font:700 11.5px Inter}
+.urun .etk span.indirim{background:var(--toprak);color:#fff}
+.urun .metin{padding:14px 16px 16px;display:flex;flex-direction:column;gap:5px;flex:1}
+.urun .tur{font-size:11.5px;font-weight:700;color:var(--yesil);text-transform:uppercase;letter-spacing:.06em}
+.urun h3{font:800 15.5px/1.28 Nunito}
+.urun .marka{font-size:12.5px;color:var(--gri)}
+.urun .fiyat{display:flex;align-items:baseline;gap:8px;margin-top:auto;padding-top:6px}
+.urun .fiyat b{font:900 21px Nunito;color:var(--yesil-koyu)}
+.urun .fiyat s{color:var(--gri);font-size:13px}
+.urun .fiyat .sor{font:700 14px Inter;color:var(--gri)}
 .urun .d{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
+.urun .d.tek{grid-template-columns:1fr 1fr}
 .ekle{border:0;background:var(--yesil);color:#fff;border-radius:12px;padding:11px;font-weight:800}
 .ekle:hover{background:var(--yesil-koyu)}
-.wp-k{border:0;background:#e9fbf0;color:#128c4a;border-radius:12px;width:44px;display:grid;place-items:center}
+.wp-k{border:0;background:#e6f8ec;color:#128c4a;border-radius:12px;min-width:44px;padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:800;font-size:13px}
+.ara-k{border:0;background:#f1efe6;border-radius:12px;padding:11px;font-weight:800;font-size:13px}
+.receteli{font-size:12px;color:#8a4a00;background:#fff4e2;border-radius:8px;padding:6px 8px;margin-top:4px}
 .bos{grid-column:1/-1;text-align:center;color:var(--gri);padding:40px;background:#fff;border-radius:20px;border:1px dashed var(--cizgi)}
 
-.hizmet{margin-top:38px;background:#fff;border-radius:28px;border:1px solid var(--cizgi);padding:30px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
-.hizmet h3{font:900 19px Nunito;margin:8px 0 4px}
-.hizmet p{color:var(--gri);font-size:14px}
-.hizmet i{font-style:normal;font-size:34px}
+.danis{margin-top:36px;background:#fff;border-radius:26px;border:1px solid var(--cizgi);padding:28px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.danis h3{font:900 19px Nunito;margin:8px 0 4px}
+.danis p{color:var(--gri);font-size:14px}
+.danis i{font-style:normal;font-size:34px}
+.yasal{margin-top:18px;font-size:12.5px;color:var(--gri);background:#fff;border:1px solid var(--cizgi);border-radius:16px;padding:14px 16px;line-height:1.6}
 
-.wp-band{margin-top:34px;background:linear-gradient(110deg,#128c4a,#25d366);color:#fff;border-radius:28px;padding:30px 34px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
-.wp-band h2{font:900 28px/1.1 Nunito}
+.wp-band{margin-top:30px;background:linear-gradient(110deg,#128c4a,#25d366);color:#fff;border-radius:26px;padding:28px 32px;display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+.wp-band h2{font:900 27px/1.1 Nunito}
 .wp-band p{opacity:.92;margin-top:6px}
 
-footer{margin-top:44px;background:var(--murekkep);color:#bfc8c6;padding:40px 0 22px;font-size:14px}
+footer{margin-top:44px;background:var(--murekkep);color:#bcc7be;padding:40px 0 22px;font-size:14px}
 .f-izgara{display:grid;grid-template-columns:1.4fr repeat(3,minmax(0,1fr));gap:24px}
 footer .logo{color:#fff}
 footer h5{color:#fff;font:800 14px Nunito;margin-bottom:10px}
 footer a{display:block;padding:3px 0}
 footer a:hover{color:#fff}
-.f-alt{border-top:1px solid #33403f;margin-top:28px;padding-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12.5px}
-.odeme-logolar{display:flex;gap:8px;margin-top:12px}
-.odeme-logolar span{background:#fff;color:#1d2a2a;border-radius:6px;padding:4px 8px;font:800 11px Inter}
+.f-alt{border-top:1px solid #34433a;margin-top:28px;padding-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12.5px}
 
-/* Sepet paneli */
-.perde{position:fixed;inset:0;background:rgba(10,20,20,.5);z-index:90;opacity:0;pointer-events:none;transition:.2s}
+.perde{position:fixed;inset:0;background:rgba(10,20,12,.5);z-index:90;opacity:0;pointer-events:none;transition:.2s}
 .perde.acik{opacity:1;pointer-events:auto}
 .sepet{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:#fff;z-index:100;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
 .sepet.acik{transform:none}
 .sepet-ust{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--cizgi)}
 .sepet-ust h3{font:900 22px Nunito}
-.kapat{border:0;background:#f4efe6;width:38px;height:38px;border-radius:50%;font-size:16px}
+.kapat{border:0;background:#f1efe6;width:38px;height:38px;border-radius:50%;font-size:16px}
 .sepet-liste{flex:1;overflow-y:auto;padding:10px 20px}
 .s-satir{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--cizgi)}
-.s-satir .g{width:64px;height:64px;border-radius:14px;display:grid;place-items:center;font-size:34px}
+.s-satir .g{width:64px;height:64px;border-radius:14px;display:grid;place-items:center;font-size:32px;background:#f1efe6;overflow:hidden}
+.s-satir .g img{width:100%;height:100%;object-fit:cover}
 .s-satir b{display:block;font:800 14.5px/1.25 Nunito}
 .s-satir small{color:var(--gri)}
 .adet-d{display:flex;align-items:center;border:1px solid var(--cizgi);border-radius:999px;margin-top:6px;width:max-content}
 .adet-d button{border:0;background:none;width:30px;height:28px;font-weight:800}
 .adet-d span{min-width:22px;text-align:center;font-weight:700}
 .sepet-alt{border-top:1px solid var(--cizgi);padding:16px 20px 20px}
-.toplam{display:flex;justify-content:space-between;font-size:14px;margin:4px 0}
+.toplam{display:flex;justify-content:space-between;gap:10px;font-size:14px;margin:4px 0}
 .toplam.buyuk{font:900 22px Nunito;margin-top:8px}
-.kargo-bar{background:#f4efe6;border-radius:999px;height:8px;overflow:hidden;margin:8px 0 4px}
+.kargo-bar{background:#f1efe6;border-radius:999px;height:8px;overflow:hidden;margin:8px 0 4px}
 .kargo-bar i{display:block;height:100%;background:var(--yesil)}
-.sepet-alt .btn{width:100%;justify-content:center;margin-top:10px}
-.btn.yesil{background:var(--yesil);color:#fff}.btn.wp{background:var(--wp);color:#fff}
+.sepet-alt .btn{width:100%;margin-top:10px}
 
-/* Ödeme */
-.odeme{position:fixed;inset:0;z-index:120;background:rgba(10,20,20,.55);display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 14px}
+.odeme{position:fixed;inset:0;z-index:120;background:rgba(10,20,12,.55);display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 14px}
 .odeme.acik{display:flex}
 .odeme-kutu{background:#fff;border-radius:24px;width:min(860px,100%);padding:26px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:22px}
 .odeme-kutu h3{font:900 22px Nunito;margin-bottom:12px}
 .odeme-kutu label{display:block;font-size:12.5px;font-weight:700;color:var(--gri);margin:10px 0 4px}
 .odeme-kutu input,.odeme-kutu textarea,.odeme-kutu select{width:100%;border:1.5px solid var(--cizgi);border-radius:12px;padding:11px 12px;font:inherit}
 .iki{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.ozet{background:#fbf8f3;border-radius:18px;padding:18px}
+.ozet{background:#f7f6f1;border-radius:18px;padding:18px}
 .not{font-size:12.5px;color:var(--gri);margin-top:10px;line-height:1.5}
 .bildirim{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--murekkep);color:#fff;padding:12px 18px;border-radius:14px;font-weight:600;z-index:200;display:none;max-width:92vw;text-align:center}
 
 @media (max-width:1000px){
-  .hero .ic{grid-template-columns:minmax(0,1fr)}
+  .hero-izgara{grid-template-columns:minmax(0,1fr)}
   .hero-yan{grid-template-columns:1fr 1fr;grid-template-rows:none}
   .urunler{grid-template-columns:repeat(3,minmax(0,1fr))}
   .guven{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .hizmet{grid-template-columns:minmax(0,1fr)}
+  .danis{grid-template-columns:minmax(0,1fr)}
   .f-izgara{grid-template-columns:1fr 1fr}
   .odeme-kutu{grid-template-columns:minmax(0,1fr)}
+  .ara-d span{display:none}
 }
 @media (max-width:680px){
   .ic{padding:0 12px}
   header .ic{flex-wrap:wrap;height:auto;padding-top:10px;padding-bottom:10px}
   .arama{order:3;flex-basis:100%;max-width:none}
   .wp-d span,.ust-serit .sag-yazi{display:none}
-  .hero-ana{padding:28px;min-height:300px}
-  .hero-ana h1{font-size:32px}
-  .hero-ana .hayvanlar{font-size:70px;right:14px}
+  .hero-ana{padding:26px;min-height:300px}
+  .hero-ana h1{font-size:30px}
+  .hero-ana .hayvanlar{font-size:52px;letter-spacing:-4px;right:12px}
   .hero-yan{grid-template-columns:minmax(0,1fr)}
   .urunler{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  .urun .gorsel{font-size:60px}
+  .urun .gorsel{font-size:52px}
   .urun .metin{padding:10px 12px 12px}
-  .urun h3{font-size:14.5px}
-  .urun .fiyat b{font-size:18px}
+  .urun h3{font-size:14px}
+  .urun .fiyat b{font-size:17px}
+  .urun .d,.urun .d.tek{grid-template-columns:minmax(0,1fr)}
   .guven{grid-template-columns:minmax(0,1fr)}
   .f-izgara{grid-template-columns:minmax(0,1fr)}
   .iki{grid-template-columns:minmax(0,1fr)}
@@ -169,65 +183,66 @@ footer a:hover{color:#fff}
 </head>
 <body>
 <div class="onizleme">Tasarım önizlemesi — Panormos Medya · Firma adı, ürünler ve fiyatlar örnektir</div>
-<div class="ust-serit"><div class="ic"><span><b>500 TL</b> ve üzeri siparişlerde <b>kargo bedava</b> · Aynı gün kargo</span><span class="sag-yazi">Veteriner hekim danışmanlığı · 0 (000) 000 00 00</span></div></div>
+<div class="ust-serit"><div class="ic"><span id="kargoYazi">Hızlı kargo · Soğuk zincir gerektiren ürünlerde özel teslimat</span><span class="sag-yazi">Veteriner hekim danışmanlığı · <span class="tel-yazi">0 (000) 000 00 00</span></span></div></div>
 
 <header><div class="ic">
-  <a href="#" class="logo"><span class="pati"><svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><circle cx="5.5" cy="9" r="2.2"/><circle cx="9.5" cy="5.2" r="2.2"/><circle cx="14.5" cy="5.2" r="2.2"/><circle cx="18.5" cy="9" r="2.2"/><path d="M12 10.5c-3.2 0-6.5 4.6-6.5 7.2 0 1.8 1.4 2.8 3.2 2.8 1.4 0 2.2-.8 3.3-.8s1.9.8 3.3.8c1.8 0 3.2-1 3.2-2.8 0-2.6-3.3-7.2-6.5-7.2z"/></svg></span><span>Veteriner Market<small>FİRMA ADI BURAYA GELECEK</small></span></a>
-  <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="ara" placeholder="Mama, kum, tasma, şampuan ara…"></label>
+  <a href="#" class="logo"><span class="rozet"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg></span><span>Veteriner Market<small>FİRMA ADI BURAYA GELECEK</small></span></a>
+  <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="ara" placeholder="İlaç, vitamin, yem katkısı, ekipman ara…"></label>
   <div class="sag">
-    <a class="wp-d" href="#" data-wp-genel><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.4 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.7-.1l1.8.9c.3.1.5.2.5.3.1.2.1.7-.1 1.3z"/></svg><span>WhatsApp Sipariş</span></a>
+    <a class="ara-d" href="#" data-ara><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z"/></svg><span>Ara</span></a>
+    <a class="wp-d" href="#" data-wp-genel><svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg><span>WhatsApp</span></a>
     <button class="sepet-d" id="sepetAc"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 4h2l2.4 11h10.2L20 8H6.3"/><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/></svg>Sepet <span class="adet" id="sepetAdet">0</span></button>
   </div>
 </div></header>
-<nav class="kat"><div class="ic" id="kategoriler"></div></nav>
+<nav class="hayvan-sec"><div class="ic" id="hayvanlar"></div></nav>
 
 <main class="ic">
   <section class="hero">
-    <div class="ic" style="padding:0">
+    <div class="hero-izgara">
       <div class="hero-ana">
-        <h1>Dostlarınız için ihtiyaç olan her şey kapınızda</h1>
-        <p>Mama, kum, bakım ve aksesuar; veteriner hekim onaylı ürünlerle. Online sipariş verin ya da WhatsApp'tan yazın.</p>
-        <div class="d"><a href="#urunler" class="btn beyaz">Alışverişe başla</a><a href="#" class="btn saydam" data-wp-genel>WhatsApp'tan sor</a></div>
-        <div class="hayvanlar">🐶🐱</div>
+        <h1>Sürünüzün sağlığı için ihtiyacınız olan her şey</h1>
+        <p>Büyükbaş, küçükbaş ve kanatlı hayvanlar için veteriner ürünleri, vitamin ve mineraller, yem katkıları ve ekipman. Veteriner hekim desteğiyle.</p>
+        <div class="d"><a href="#urunler" class="btn beyaz">Ürünleri incele</a><a href="#" class="btn saydam" data-wp-genel>Hekime danış</a></div>
+        <div class="hayvanlar">🐄🐑🐔</div>
       </div>
       <div class="hero-yan">
-        <div class="kampanya k1"><h3>Kedi mamalarında %15 indirim</h3><p>Bu hafta tüm kuru mamalarda geçerli.</p><span>🐟</span></div>
-        <div class="kampanya k2"><h3>Pire & kene sezonu</h3><p>Koruyucu ürünlerde veteriner önerisi alın.</p><span>🛡️</span></div>
+        <div class="yan-kart y1"><h3>Kış öncesi vitamin ve mineral desteği</h3><p>Sürünüzün bağışıklığını sezon başında güçlendirin.</p><span>🌾</span></div>
+        <div class="yan-kart y2"><h3>Ahır ve kümes dezenfeksiyonu</h3><p>Hastalıkları başlamadan önleyin, uygun ürünü birlikte seçelim.</p><span>🧴</span></div>
       </div>
     </div>
     <div class="guven">
-      <div><i>🚚</i><span><b>Aynı gün kargo</b>15:00'e kadar verilen siparişler</span></div>
-      <div><i>💳</i><span><b>Güvenli ödeme</b>Kredi kartı, havale, kapıda</span></div>
-      <div><i>🩺</i><span><b>Veteriner danışmanlığı</b>Ürün seçiminde ücretsiz destek</span></div>
-      <div><i>↩️</i><span><b>Kolay iade</b>14 gün içinde koşulsuz</span></div>
+      <div><i>🩺</i><span><b>Veteriner hekim desteği</b>Doğru ürün ve doz için danışın</span></div>
+      <div><i>❄️</i><span><b>Soğuk zincir</b>Aşı ve hassas ürünlerde özel taşıma</span></div>
+      <div><i>🚚</i><span><b>Çiftliğe teslim</b>Köy ve çiftliklere de gönderim</span></div>
+      <div><i>💬</i><span><b>WhatsApp'tan sipariş</b>Hızlı bilgi ve fiyat</span></div>
     </div>
   </section>
 
   <section class="blok" id="urunler">
-    <div class="bb"><div><h2 id="listeBaslik">Çok satanlar</h2><p id="listeAlt">Sepete ekleyin ya da tek tıkla WhatsApp'tan sipariş verin.</p></div>
-      <select class="siralama" id="siralama"><option value="">Önerilen</option><option value="artan">Fiyat: düşükten yükseğe</option><option value="azalan">Fiyat: yüksekten düşüğe</option></select></div>
+    <div class="bb"><div><h2 id="listeBaslik">Tüm ürünler</h2><p>Online satıştaki ürünleri sepete ekleyin; ilaç ve aşılar için WhatsApp'tan ya da telefonla bilgi alın.</p></div></div>
+    <div class="turler" id="turler"></div>
     <div class="urunler" id="urunListe"></div>
   </section>
 
-  <section class="hizmet">
-    <div><i>🩺</i><h3>Veteriner hekim desteği</h3><p>Hangi mama, hangi koruyucu? Ürün seçmeden önce hekimimize ücretsiz danışın.</p></div>
-    <div><i>📦</i><h3>Abonelikli sipariş</h3><p>Mamanız bitmeden kapınızda: her ay otomatik sipariş, ek indirimle.</p></div>
-    <div><i>📍</i><h3>Mağazadan teslim</h3><p>Online sipariş verin, mağazamızdan aynı gün teslim alın.</p></div>
+  <section class="danis">
+    <div><i>🩺</i><h3>Hastalık mı var?</h3><p>Belirtileri WhatsApp'tan fotoğraf ve videoyla gönderin, hekimimiz değerlendirsin.</p></div>
+    <div><i>📋</i><h3>Aşı takvimi</h3><p>Büyükbaş, küçükbaş ve kanatlı için dönemsel aşı ve parazit uygulamalarını hatırlatalım.</p></div>
+    <div><i>🏡</i><h3>Çiftlik ziyareti</h3><p>Büyük işletmeler için yerinde değerlendirme ve toplu alım fiyatı.</p></div>
   </section>
+  <p class="yasal">Reçeteli veteriner ilaçları ve aşılar internetten satılmaz; bu ürünler yalnızca veteriner hekim reçetesi ve değerlendirmesiyle temin edilir. Sitede yer alan ilaç bilgileri bilgilendirme amaçlıdır. Ürünleri etiketinde ve hekiminizin önerdiği şekilde kullanın.</p>
 
   <section class="wp-band">
-    <div><h2>Aradığınızı bulamadınız mı?</h2><p>WhatsApp'tan yazın, ürünü bulup fiyatını hemen iletelim.</p></div>
+    <div><h2>Aradığınız ürün yok mu?</h2><p>WhatsApp'tan yazın, ürünü bulup size bilgi verelim.</p></div>
     <a href="#" class="btn beyaz" data-wp-genel>WhatsApp'tan yaz</a>
   </section>
 </main>
 
 <footer><div class="ic">
   <div class="f-izgara">
-    <div><a href="#" class="logo"><span class="pati"><svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><circle cx="5.5" cy="9" r="2.2"/><circle cx="9.5" cy="5.2" r="2.2"/><circle cx="14.5" cy="5.2" r="2.2"/><circle cx="18.5" cy="9" r="2.2"/><path d="M12 10.5c-3.2 0-6.5 4.6-6.5 7.2 0 1.8 1.4 2.8 3.2 2.8 1.4 0 2.2-.8 3.3-.8s1.9.8 3.3.8c1.8 0 3.2-1 3.2-2.8 0-2.6-3.3-7.2-6.5-7.2z"/></svg></span>Veteriner Market</a>
-      <p style="margin-top:10px;max-width:300px">Evcil dostlarınız için mama, kum, bakım ve aksesuar. Adres ve telefon bilgisi buraya gelecek.</p>
-      <div class="odeme-logolar"><span>VISA</span><span>Mastercard</span><span>TROY</span><span>iyzico</span></div></div>
-    <div><h5>Kategoriler</h5><a href="#">Kedi</a><a href="#">Köpek</a><a href="#">Kuş</a><a href="#">Akvaryum</a><a href="#">Bakım ve sağlık</a></div>
-    <div><h5>Yardım</h5><a href="#">Sipariş takibi</a><a href="#">Kargo ve teslimat</a><a href="#">İade ve değişim</a><a href="#">Sık sorulanlar</a></div>
+    <div><a href="#" class="logo"><span class="rozet"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 4v16M4 12h16"/></svg></span>Veteriner Market</a>
+      <p style="margin-top:10px;max-width:320px">Büyükbaş, küçükbaş ve kanatlı hayvanlar için veteriner ürünleri. Adres, telefon ve ruhsat bilgisi buraya gelecek.</p></div>
+    <div><h5>Hayvanlar</h5><a href="#" data-hayvan-git="buyukbas">Büyükbaş</a><a href="#" data-hayvan-git="kucukbas">Küçükbaş</a><a href="#" data-hayvan-git="kanatli">Kanatlı</a></div>
+    <div><h5>Yardım</h5><a href="#">Sipariş ve teslimat</a><a href="#">İade ve değişim</a><a href="#" data-wp-genel>Hekime danış</a></div>
     <div><h5>Kurumsal</h5><a href="#">Hakkımızda</a><a href="#">Mesafeli satış sözleşmesi</a><a href="#">KVKK ve gizlilik</a><a href="#">İletişim</a></div>
   </div>
   <div class="f-alt"><span>© <span id="yil"></span> Veteriner Market. Tüm hakları saklıdır.</span><span>Tasarım önizlemesi: Panormos Medya</span></div>
@@ -244,92 +259,99 @@ footer a:hover{color:#fff}
   <form id="siparisFormu" onsubmit="return false">
     <h3>Teslimat ve ödeme</h3>
     <div class="iki"><div><label>Ad soyad</label><input id="sAd" required placeholder="Adınız soyadınız"></div><div><label>Telefon</label><input id="sTel" required placeholder="05xx xxx xx xx" inputmode="tel"></div></div>
-    <label>Adres</label><textarea id="sAdres" rows="3" required placeholder="Mahalle, sokak, no, ilçe / il"></textarea>
+    <label>Adres</label><textarea id="sAdres" rows="3" required placeholder="Köy / mahalle, sokak, no, ilçe / il"></textarea>
     <label>Ödeme yöntemi</label>
     <select id="odemeYontem"><option value="havale">Havale / EFT</option><option value="kapida">Kapıda ödeme</option><option value="kart" disabled>Kredi / banka kartı (yakında)</option></select>
-    <label>Sipariş notu (isteğe bağlı)</label><input id="sNot" placeholder="Örn: Akşam 18:00'den sonra teslim">
+    <label>Sipariş notu (isteğe bağlı)</label><input id="sNot" placeholder="Örn: Hayvan sayısı, teslim saati">
     <p class="not">Siparişinizi aldığımızda telefonla ya da WhatsApp'tan teyit ediyoruz. Havale seçerseniz banka bilgileri sipariş sonrasında gösterilir.</p>
   </form>
   <div class="ozet">
     <h3>Sipariş özeti</h3>
     <div id="odemeOzet"></div>
-    <button class="btn yesil" style="width:100%;justify-content:center;margin-top:12px" id="siparisVer">Siparişi tamamla</button>
-    <button class="btn wp" style="width:100%;justify-content:center;margin-top:8px" data-wp-sepet>WhatsApp'tan sipariş ver</button>
-    <button class="btn" style="width:100%;justify-content:center;margin-top:8px;background:#f4efe6" id="odemeKapat">Alışverişe dön</button>
+    <button class="btn yesil" style="width:100%;margin-top:12px" id="siparisVer">Siparişi tamamla</button>
+    <button class="btn wp" style="width:100%;margin-top:8px" data-wp-sepet>WhatsApp'tan sipariş ver</button>
+    <button class="btn" style="width:100%;margin-top:8px;background:#f1efe6" id="odemeKapat">Alışverişe dön</button>
   </div>
 </div></div>
 <div class="odeme" id="tesekkur"><div class="odeme-kutu" style="grid-template-columns:minmax(0,1fr);max-width:560px;text-align:center">
-  <div style="font-size:56px">🐾</div>
+  <div style="font-size:54px">✅</div>
   <h3 id="tesekkurBaslik">Siparişiniz alındı</h3>
   <p id="tesekkurMetin" style="color:var(--gri)"></p>
-  <pre id="havaleBilgi" style="white-space:pre-wrap;background:#fbf8f3;border-radius:14px;padding:14px;text-align:left;font:600 14px Inter;display:none"></pre>
-  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px"><button class="btn wp" id="tesekkurWp">WhatsApp'tan bilgi ver</button><button class="btn" style="background:#f4efe6" id="tesekkurKapat">Alışverişe devam et</button></div>
+  <pre id="havaleBilgi" style="white-space:pre-wrap;background:#f7f6f1;border-radius:14px;padding:14px;text-align:left;font:600 14px Inter;display:none"></pre>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px"><button class="btn wp" id="tesekkurWp">WhatsApp'tan bilgi ver</button><button class="btn" style="background:#f1efe6" id="tesekkurKapat">Alışverişe devam et</button></div>
 </div></div>
 <div class="bildirim" id="bildirim"></div>
 
 <script>
-// ÖRNEK ÜRÜNLER — gerçek ürünler ve fiyatlar firmadan alınacak (panelden yönetilecek)
 // Ürünler ve mağaza ayarları panelden (Ürünlerimiz → Veteriner Market) gelir; panelde ürün yokken aşağıdaki örnekler görünür
 const SUPA = 'https://kmxhsyjtyukrxrzoowag.supabase.co', SUPA_ANAHTAR = 'sb_publishable_8FkJ2hortwsLn57lLZMEwQ_vS29JgwT';
 const istek = (yol, secenek = {}) => fetch(`${SUPA}/rest/v1/${yol}`, { ...secenek, headers: { apikey: SUPA_ANAHTAR, 'Content-Type': 'application/json', ...(secenek.headers || {}) } });
-let WP_NO = '905000000000', AYAR = { kargo_ucreti: 59, bedava_kargo_siniri: 500, havale_bilgisi: '', kapida_odeme: true }, GERCEK = false;
-const KATEGORILER = [['hepsi','Tümü'],['kedi','🐱 Kedi'],['kopek','🐶 Köpek'],['kus','🐦 Kuş'],['akvaryum','🐠 Akvaryum'],['bakim','🧴 Bakım ve sağlık'],['aksesuar','🎾 Aksesuar']];
-const RENK = {kedi:'#fff1e3',kopek:'#e8f4ff',kus:'#fdf6d8',akvaryum:'#e2f7f4',bakim:'#f2ecff',aksesuar:'#ffe9ef'};
+let WP_NO = '905000000000', TEL = '', AYAR = { kargo_ucreti: 0, bedava_kargo_siniri: 0, havale_bilgisi: '', kapida_odeme: true }, GERCEK = false;
+const HAYVANLAR = [['hepsi', 'Tümü', '🌿'], ['buyukbas', 'Büyükbaş', '🐄'], ['kucukbas', 'Küçükbaş', '🐑'], ['kanatli', 'Kanatlı', '🐔']];
+const TURLER = [['hepsi', 'Tümü'], ['ilac', 'İlaç'], ['asi', 'Aşı'], ['parazit', 'Parazit ve haşere'], ['vitamin', 'Vitamin ve mineral'], ['yem', 'Yem katkısı'], ['dezenfektan', 'Dezenfektan ve hijyen'], ['ekipman', 'Ekipman ve malzeme']];
+const TUR_IKON = { ilac: '💊', asi: '💉', parazit: '🪲', vitamin: '🌾', yem: '🥣', dezenfektan: '🧴', ekipman: '🧰' };
+const HAYVAN_AD = { buyukbas: 'Büyükbaş', kucukbas: 'Küçükbaş', kanatli: 'Kanatlı' };
+// ÖRNEK ÜRÜNLER (o: online satış)
 let URUNLER = [
-  {id:1,k:'kedi',ad:'Yetişkin Kedi Maması Tavuklu 10 kg',marka:'Örnek Marka',f:1249,e:1449,i:'🐟',r:'%14'},
-  {id:2,k:'kedi',ad:'Topaklanan Bentonit Kedi Kumu 10 L',marka:'Örnek Marka',f:189,i:'🪣'},
-  {id:3,k:'kopek',ad:'Büyük Irk Köpek Maması Kuzulu 15 kg',marka:'Örnek Marka',f:1690,e:1890,i:'🦴',r:'%11'},
-  {id:4,k:'kopek',ad:'Ayarlanabilir Göğüs Tasması M Beden',marka:'Örnek Marka',f:349,i:'🦮'},
-  {id:5,k:'bakim',ad:'Hassas Ciltler İçin Kedi-Köpek Şampuanı 250 ml',marka:'Örnek Marka',f:159,i:'🧴'},
-  {id:6,k:'bakim',ad:'Diş Bakım Ödülü 7 Adet',marka:'Örnek Marka',f:119,i:'🪥'},
-  {id:7,k:'kus',ad:'Muhabbet Kuşu Yemi 1 kg',marka:'Örnek Marka',f:89,i:'🌾'},
-  {id:8,k:'akvaryum',ad:'Tropikal Balık Yemi Pul 100 g',marka:'Örnek Marka',f:129,i:'🐠'},
-  {id:9,k:'aksesuar',ad:'Kedi Tırmalama Tahtası 60 cm',marka:'Örnek Marka',f:599,e:699,i:'🐾',r:'%14'},
-  {id:10,k:'aksesuar',ad:'Kauçuk Köpek Oyun Topu',marka:'Örnek Marka',f:99,i:'🎾'},
-  {id:11,k:'kedi',ad:'Yavru Kedi Yaş Maması 85 g × 12',marka:'Örnek Marka',f:399,i:'🥫'},
-  {id:12,k:'bakim',ad:'Tüy Bakım Tarağı',marka:'Örnek Marka',f:179,i:'🪮'}
+  { id: 1, t: 'ilac', h: ['buyukbas', 'kucukbas'], ad: 'Geniş Spektrumlu Antibiyotik Enjeksiyon 100 ml', marka: 'Örnek İlaç', f: null, o: false },
+  { id: 2, t: 'parazit', h: ['buyukbas', 'kucukbas'], ad: 'İç ve Dış Parazit Enjeksiyonu 50 ml', marka: 'Örnek İlaç', f: null, o: false },
+  { id: 3, t: 'asi', h: ['kucukbas'], ad: 'Koyun-Keçi Çiçek Aşısı', marka: 'Örnek Aşı', f: null, o: false },
+  { id: 4, t: 'vitamin', h: ['buyukbas'], ad: 'Buzağı Vitamin ve Mineral Takviyesi 1 kg', marka: 'Örnek Marka', f: 420, e: 480, o: true },
+  { id: 5, t: 'vitamin', h: ['kanatli'], ad: 'Kanatlı İçme Suyu Vitamini 1 L', marka: 'Örnek Marka', f: 310, o: true },
+  { id: 6, t: 'yem', h: ['buyukbas', 'kucukbas'], ad: 'Yalama Taşı Mineral Blok 10 kg', marka: 'Örnek Marka', f: 260, o: true },
+  { id: 7, t: 'yem', h: ['buyukbas'], ad: 'Rumen Düzenleyici Toz Yem Katkısı 5 kg', marka: 'Örnek Marka', f: 690, o: true },
+  { id: 8, t: 'dezenfektan', h: ['buyukbas', 'kucukbas', 'kanatli'], ad: 'Ahır ve Kümes Dezenfektanı 5 L', marka: 'Örnek Marka', f: 540, e: 620, o: true },
+  { id: 9, t: 'dezenfektan', h: ['buyukbas'], ad: 'Meme Sağlığı Sağım Sonrası Daldırma Solüsyonu 5 L', marka: 'Örnek Marka', f: 470, o: true },
+  { id: 10, t: 'ekipman', h: ['buyukbas', 'kucukbas'], ad: 'Otomatik Ayarlı Enjektör 50 ml', marka: 'Örnek Marka', f: 890, o: true },
+  { id: 11, t: 'ekipman', h: ['kanatli'], ad: 'Kümes Plastik Suluk 10 L', marka: 'Örnek Marka', f: 185, o: true },
+  { id: 12, t: 'ekipman', h: ['kucukbas'], ad: 'Kulak Küpesi Seti 50 Adet', marka: 'Örnek Marka', f: 350, o: true }
 ];
-let KARGO_LIMIT = 500, KARGO = 59;
 const $ = (s) => document.querySelector(s);
-const tl = (n) => n.toLocaleString('tr-TR') + ' ₺';
-let kat = 'hepsi', sepet = {};
-let SEPET_ANAHTAR = 'vetSepetOrnek';
+const tl = (n) => Number(n).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + ' ₺';
+let hayvan = 'hepsi', tur = 'hepsi', sepet = {}, SEPET_ANAHTAR = 'vetCiftlikOrnek';
 try { sepet = JSON.parse(localStorage.getItem(SEPET_ANAHTAR) || '{}'); } catch (e) {}
 
-function bildir(m){ const b = $('#bildirim'); b.textContent = m; b.style.display = 'block'; clearTimeout(bildir.t); bildir.t = setTimeout(() => b.style.display = 'none', 2600); }
+function bildir(m){ const b = $('#bildirim'); b.textContent = m; b.style.display = 'block'; clearTimeout(bildir.t); bildir.t = setTimeout(() => b.style.display = 'none', 2800); }
 const wpAc = (metin) => window.open(`https://wa.me/${WP_NO}?text=${encodeURIComponent(metin)}`, '_blank', 'noopener');
+const urunBul = (id) => URUNLER.find((u) => u.id == id);
+const kargoHesap = (ara) => (AYAR.bedava_kargo_siniri > 0 && ara >= AYAR.bedava_kargo_siniri ? 0 : +AYAR.kargo_ucreti || 0);
 
-$('#kategoriler').innerHTML = KATEGORILER.map(([k, a]) => `<button data-kat="${k}" class="${k === kat ? 'secili' : ''}">${a}</button>`).join('');
+function filtreleriCiz(){
+  $('#hayvanlar').innerHTML = HAYVANLAR.map(([k, a, i]) => `<button data-hayvan="${k}" class="${k === hayvan ? 'secili' : ''}"><i>${i}</i>${a}</button>`).join('');
+  $('#turler').innerHTML = TURLER.map(([k, a]) => `<button data-tur="${k}" class="${k === tur ? 'secili' : ''}">${a}</button>`).join('');
+}
 function listele(){
   const ara = $('#ara').value.trim().toLocaleLowerCase('tr');
-  let l = URUNLER.filter((u) => (kat === 'hepsi' || u.k === kat) && (!ara || u.ad.toLocaleLowerCase('tr').includes(ara)));
-  if ($('#siralama').value === 'artan') l = [...l].sort((a, b) => a.f - b.f);
-  if ($('#siralama').value === 'azalan') l = [...l].sort((a, b) => b.f - a.f);
-  $('#listeBaslik').textContent = ara ? `"${$('#ara').value.trim()}" için sonuçlar` : kat === 'hepsi' ? 'Çok satanlar' : KATEGORILER.find(([k]) => k === kat)[1].replace(/^\S+\s/, '');
-  $('#urunListe').innerHTML = l.length ? l.map((u) => `
-    <div class="urun"><div class="gorsel" style="background:${RENK[u.k] || '#f4efe6'}">${u.g ? `<img src="${u.g}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : u.i}${u.r ? `<span class="rozet">${u.r} indirim</span>` : ''}</div>
-      <div class="metin"><span class="marka">${u.marka || ''}</span><h3>${u.ad}</h3>
-        <div class="fiyat"><b>${tl(u.f)}</b>${u.e ? `<s>${tl(u.e)}</s>` : ''}</div>
-        <div class="d">${u.tukendi ? '<button class="ekle" disabled style="background:#c9c9c9;cursor:default">Tükendi</button>' : `<button class="ekle" data-ekle="${u.id}">Sepete ekle</button>`}<button class="wp-k" data-wp="${u.id}" aria-label="WhatsApp'tan sipariş ver" title="WhatsApp'tan sipariş ver"><svg width="20" height="20" viewBox="0 0 24 24" fill="#128c4a"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg></button></div>
-      </div></div>`).join('') : '<div class="bos">Ürün bulunamadı. WhatsApp\'tan yazın, sizin için bulalım.</div>';
+  const l = URUNLER.filter((u) => (hayvan === 'hepsi' || u.h.includes(hayvan)) && (tur === 'hepsi' || u.t === tur) && (!ara || (u.ad + ' ' + (u.marka || '')).toLocaleLowerCase('tr').includes(ara)));
+  const hAd = hayvan === 'hepsi' ? '' : HAYVAN_AD[hayvan], tAd = tur === 'hepsi' ? '' : TURLER.find(([k]) => k === tur)[1];
+  $('#listeBaslik').textContent = ara ? `"${$('#ara').value.trim()}" için sonuçlar` : [hAd, tAd].filter(Boolean).join(' · ') || 'Tüm ürünler';
+  $('#urunListe').innerHTML = l.length ? l.map((u) => {
+    const fiyat = u.f == null ? '<span class="sor">Fiyat için sorun</span>' : `<b>${tl(u.f)}</b>${u.e ? `<s>${tl(u.e)}</s>` : ''}`;
+    const dugmeler = u.o && u.f != null
+      ? (u.tukendi ? '<button class="ekle" disabled style="background:#c9c9c9;cursor:default">Tükendi</button>' : `<button class="ekle" data-ekle="${u.id}">Sepete ekle</button>`) + `<button class="wp-k" data-wp="${u.id}" title="WhatsApp'tan sor"><svg width="18" height="18" viewBox="0 0 24 24" fill="#128c4a"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg></button>`
+      : `<button class="wp-k" data-wp="${u.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="#128c4a"><path d="M12 2a10 10 0 0 0-8.6 15l-1.4 5 5.1-1.3A10 10 0 1 0 12 2z"/></svg>Sor</button><button class="ara-k" data-ara>Ara</button>`;
+    return `<div class="urun"><div class="gorsel">${u.g ? `<img src="${u.g}" alt="" loading="lazy">` : TUR_IKON[u.t] || '🌿'}<div class="etk">${u.h.map((x) => `<span>${HAYVAN_AD[x] || x}</span>`).join('')}${u.e && u.f ? `<span class="indirim">%${Math.round((1 - u.f / u.e) * 100)}</span>` : ''}</div></div>
+      <div class="metin"><span class="tur">${(TURLER.find(([k]) => k === u.t) || [0, u.t])[1]}</span><h3>${u.ad}</h3>${u.marka ? `<span class="marka">${u.marka}</span>` : ''}
+        ${!u.o ? '<span class="receteli">Online satılmaz · bilgi ve temin için bize ulaşın</span>' : ''}
+        <div class="fiyat">${fiyat}</div>
+        <div class="d ${u.o && u.f != null ? '' : 'tek'}">${dugmeler}</div></div></div>`;
+  }).join('') : '<div class="bos">Bu seçimde ürün yok. WhatsApp\'tan yazın, sizin için bulalım.</div>';
 }
-const urunBul = (id) => URUNLER.find((u) => u.id == id);
-const kargoHesap = (ara) => (KARGO_LIMIT > 0 && ara >= KARGO_LIMIT ? 0 : KARGO);
 function sepetKaydet(){ try { localStorage.setItem(SEPET_ANAHTAR, JSON.stringify(sepet)); } catch (e) {} sepetCiz(); }
-function sepetToplam(){ return Object.entries(sepet).reduce((t, [id, a]) => t + (urunBul(id) ? urunBul(id).f * a : 0), 0); }
+function sepetToplam(){ return Object.entries(sepet).reduce((t, [id, a]) => t + (urunBul(id) && urunBul(id).f != null ? urunBul(id).f * a : 0), 0); }
 function sepetCiz(){
-  const satirlar = Object.entries(sepet).filter(([id, a]) => a > 0 && urunBul(id));
+  const satirlar = Object.entries(sepet).filter(([id, a]) => a > 0 && urunBul(id) && urunBul(id).o);
   $('#sepetAdet').textContent = satirlar.reduce((t, [, a]) => t + a, 0);
   if (!satirlar.length) { $('#sepetListe').innerHTML = '<div class="bos" style="margin-top:20px">Sepetiniz boş.</div>'; $('#sepetAlt').innerHTML = ''; return; }
-  $('#sepetListe').innerHTML = satirlar.map(([id, a]) => { const u = URUNLER.find((x) => x.id == id); return `
-    <div class="s-satir"><div class="g" style="background:${RENK[u.k] || '#f4efe6'};overflow:hidden">${u.g ? `<img src="${u.g}" alt="" style="width:100%;height:100%;object-fit:cover">` : u.i}</div>
+  $('#sepetListe').innerHTML = satirlar.map(([id, a]) => { const u = urunBul(id); return `
+    <div class="s-satir"><div class="g">${u.g ? `<img src="${u.g}" alt="">` : TUR_IKON[u.t] || '🌿'}</div>
       <div><b>${u.ad}</b><small>${tl(u.f)}</small><div class="adet-d"><button data-azalt="${id}">−</button><span>${a}</span><button data-ekle="${id}">+</button></div></div>
       <b>${tl(u.f * a)}</b></div>`; }).join('');
-  const ara = sepetToplam(), kargo = kargoHesap(ara), kalan = KARGO_LIMIT > 0 ? Math.max(0, KARGO_LIMIT - ara) : 0;
+  const ara = sepetToplam(), kargo = kargoHesap(ara), sinir = +AYAR.bedava_kargo_siniri || 0, kalan = sinir > 0 ? Math.max(0, sinir - ara) : 0;
   $('#sepetAlt').innerHTML = `
     <div class="toplam"><span>Ara toplam</span><span>${tl(ara)}</span></div>
     <div class="toplam"><span>Kargo</span><span>${kargo ? tl(kargo) : 'Bedava'}</span></div>
-    ${kalan ? `<div class="kargo-bar"><i style="width:${Math.min(100, ara / KARGO_LIMIT * 100)}%"></i></div><small style="color:var(--gri)">Kargonun bedava olması için ${tl(kalan)} daha ekleyin</small>` : ''}
+    ${kalan ? `<div class="kargo-bar"><i style="width:${Math.min(100, ara / sinir * 100)}%"></i></div><small style="color:var(--gri)">Kargonun bedava olması için ${tl(kalan)} daha ekleyin</small>` : ''}
     <div class="toplam buyuk"><span>Toplam</span><span>${tl(ara + kargo)}</span></div>
     <button class="btn yesil" id="odemeyeGec">Ödemeye geç</button>
     <button class="btn wp" data-wp-sepet>WhatsApp'tan sipariş ver</button>`;
@@ -337,36 +359,39 @@ function sepetCiz(){
 function sepetAc(){ $('#sepet').classList.add('acik'); $('#perde').classList.add('acik'); }
 function sepetKapat(){ $('#sepet').classList.remove('acik'); $('#perde').classList.remove('acik'); }
 function sepetMetni(){
-  const s = Object.entries(sepet).filter(([id, a]) => a > 0 && urunBul(id)).map(([id, a]) => { const u = urunBul(id); return `- ${a} x ${u.ad} (${tl(u.f * a)})`; });
+  const s = Object.entries(sepet).filter(([id, a]) => a > 0 && urunBul(id) && urunBul(id).o).map(([id, a]) => { const u = urunBul(id); return `- ${a} x ${u.ad} (${tl(u.f * a)})`; });
   const ara = sepetToplam(), kargo = kargoHesap(ara);
   return `Merhaba, sipariş vermek istiyorum:\n${s.join('\n')}\nToplam: ${tl(ara + kargo)}${kargo ? ' (kargo dahil)' : ''}\n\nAd soyad:\nAdres:`;
 }
+function telAc(){ if (TEL) location.href = `tel:${TEL}`; else bildir('Telefon numarası panelden eklenince bu düğme arama başlatır.'); }
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('button,a'); if (!t) return;
-  if (t.dataset.kat) { kat = t.dataset.kat; document.querySelectorAll('nav.kat button').forEach((b) => b.classList.toggle('secili', b === t)); listele(); document.querySelector('#urunler').scrollIntoView({ behavior: 'smooth' }); }
-  else if (t.dataset.ekle) { sepet[t.dataset.ekle] = (sepet[t.dataset.ekle] || 0) + 1; sepetKaydet(); if (!t.closest('.sepet')) bildir('Sepete eklendi'); }
+  if (t.dataset.hayvan) { hayvan = t.dataset.hayvan; filtreleriCiz(); listele(); }
+  else if (t.dataset.hayvanGit) { e.preventDefault(); hayvan = t.dataset.hayvanGit; filtreleriCiz(); listele(); $('#urunler').scrollIntoView({ behavior: 'smooth' }); }
+  else if (t.dataset.tur) { tur = t.dataset.tur; filtreleriCiz(); listele(); }
+  else if (t.dataset.ekle) { const u = urunBul(t.dataset.ekle); if (!u || !u.o) return; sepet[t.dataset.ekle] = (sepet[t.dataset.ekle] || 0) + 1; sepetKaydet(); if (!t.closest('.sepet')) bildir('Sepete eklendi'); }
   else if (t.dataset.azalt) { sepet[t.dataset.azalt] = Math.max(0, (sepet[t.dataset.azalt] || 0) - 1); if (!sepet[t.dataset.azalt]) delete sepet[t.dataset.azalt]; sepetKaydet(); }
-  else if (t.dataset.wp) { const u = URUNLER.find((x) => x.id == t.dataset.wp); wpAc(`Merhaba, "${u.ad}" (${tl(u.f)}) ürününü sipariş vermek istiyorum.`); }
+  else if (t.dataset.wp) { const u = urunBul(t.dataset.wp); wpAc(u.o && u.f != null ? `Merhaba, "${u.ad}" (${tl(u.f)}) ürününü sipariş vermek istiyorum.` : `Merhaba, "${u.ad}" hakkında bilgi almak istiyorum.`); }
   else if ('wpSepet' in t.dataset) { e.preventDefault(); wpAc(sepetMetni()); }
   else if ('wpGenel' in t.dataset) { e.preventDefault(); wpAc('Merhaba, ürünleriniz hakkında bilgi almak istiyorum.'); }
+  else if ('ara' in t.dataset) { e.preventDefault(); telAc(); }
   else if (t.id === 'sepetAc') sepetAc();
   else if (t.id === 'sepetKapat') sepetKapat();
-  else if (t.id === 'odemeyeGec') { sepetKapat(); const ara = sepetToplam(), kargo = kargoHesap(ara); $('#odemeOzet').innerHTML = Object.entries(sepet).filter(([id]) => urunBul(id)).map(([id, a]) => { const u = urunBul(id); return `<div class="toplam"><span>${a} × ${u.ad}</span><span>${tl(u.f * a)}</span></div>`; }).join('') + `<div class="toplam"><span>Kargo</span><span>${kargo ? tl(kargo) : 'Bedava'}</span></div><div class="toplam buyuk"><span>Toplam</span><span>${tl(ara + kargo)}</span></div>`; $('#odeme').classList.add('acik'); }
+  else if (t.id === 'odemeyeGec') { sepetKapat(); const ara = sepetToplam(), kargo = kargoHesap(ara); $('#odemeOzet').innerHTML = Object.entries(sepet).filter(([id]) => urunBul(id) && urunBul(id).o).map(([id, a]) => { const u = urunBul(id); return `<div class="toplam"><span>${a} × ${u.ad}</span><span>${tl(u.f * a)}</span></div>`; }).join('') + `<div class="toplam"><span>Kargo</span><span>${kargo ? tl(kargo) : 'Bedava'}</span></div><div class="toplam buyuk"><span>Toplam</span><span>${tl(ara + kargo)}</span></div>`; $('#odeme').classList.add('acik'); }
   else if (t.id === 'odemeKapat') $('#odeme').classList.remove('acik');
   else if (t.id === 'tesekkurKapat') $('#tesekkur').classList.remove('acik');
   else if (t.id === 'tesekkurWp') wpAc(t.dataset.metin || 'Merhaba, siparişim hakkında bilgi vermek istiyorum.');
   else if (t.id === 'siparisVer') siparisVer(t);
 });
 async function siparisVer(dugme){
-  const f = $('#siparisFormu');
-  if (!f.reportValidity()) return;
+  if (!$('#siparisFormu').reportValidity()) return;
   if ($('#sTel').value.replace(/\D/g, '').length < 10) { bildir('Telefon numarasını kontrol edin'); return; }
   if (!GERCEK) { bildir('Tasarım önizlemesi: panelde ürün eklenince siparişler panele düşer.'); return; }
   dugme.disabled = true; dugme.textContent = 'Gönderiliyor…';
   try {
     const odeme = $('#odemeYontem').value;
-    const r = await istek('rpc/vet_siparis_ver', { method: 'POST', body: JSON.stringify({ p_ad: $('#sAd').value, p_telefon: $('#sTel').value, p_adres: $('#sAdres').value, p_odeme: odeme, p_not: $('#sNot').value, p_sepet: Object.entries(sepet).map(([id, adet]) => ({ id: +id, adet })) }) });
+    const r = await istek('rpc/vet_siparis_ver', { method: 'POST', body: JSON.stringify({ p_ad: $('#sAd').value, p_telefon: $('#sTel').value, p_adres: $('#sAdres').value, p_odeme: odeme, p_not: $('#sNot').value, p_sepet: Object.entries(sepet).filter(([id]) => urunBul(id) && urunBul(id).o).map(([id, adet]) => ({ id: +id, adet })) }) });
     const v = await r.json();
     if (!r.ok) throw new Error(v.message || 'Sipariş alınamadı');
     sepet = {}; sepetKaydet(); $('#odeme').classList.remove('acik');
@@ -380,30 +405,30 @@ async function siparisVer(dugme){
 }
 $('#perde').addEventListener('click', sepetKapat);
 $('#ara').addEventListener('input', listele);
-$('#siralama').addEventListener('change', listele);
 $('#yil').textContent = new Date().getFullYear();
+
 async function panelden(){
   try {
     const [u, a] = await Promise.all([
-      istek('vet_urunler?aktif=eq.true&select=id,ad,marka,kategori,fiyat,eski_fiyat,stok,gorsel&order=sira.asc,id.desc').then((r) => (r.ok ? r.json() : [])),
+      istek('vet_urunler?aktif=eq.true&select=id,ad,marka,kategori,hayvanlar,online_satis,fiyat,eski_fiyat,stok,gorsel&order=sira.asc,id.desc').then((r) => (r.ok ? r.json() : [])),
       istek('vet_ayarlar?id=eq.1&select=*').then((r) => (r.ok ? r.json() : []))
     ]);
     if (a && a[0]) {
-      AYAR = a[0]; if (AYAR.whatsapp) WP_NO = AYAR.whatsapp;
-      KARGO = +AYAR.kargo_ucreti || 0; KARGO_LIMIT = +AYAR.bedava_kargo_siniri || 0;
+      AYAR = a[0];
+      if (AYAR.whatsapp) { WP_NO = AYAR.whatsapp; TEL = '+' + AYAR.whatsapp; document.querySelectorAll('.tel-yazi').forEach((x) => { x.textContent = '+' + AYAR.whatsapp; }); }
       if (!AYAR.kapida_odeme) { const o = $('#odemeYontem option[value=kapida]'); if (o) o.remove(); }
+      if (+AYAR.bedava_kargo_siniri > 0) $('#kargoYazi').innerHTML = `<b>${tl(AYAR.bedava_kargo_siniri)}</b> ve üzeri siparişlerde <b>kargo bedava</b> · Soğuk zincir ürünlerde özel teslimat`;
     }
     if (Array.isArray(u) && u.length) {
       GERCEK = true;
-      SEPET_ANAHTAR = 'vetSepet'; try { sepet = JSON.parse(localStorage.getItem(SEPET_ANAHTAR) || '{}'); } catch (e) { sepet = {}; }
-      URUNLER = u.map((x) => ({ id: x.id, k: x.kategori, ad: x.ad, marka: x.marka, f: +x.fiyat, e: x.eski_fiyat ? +x.eski_fiyat : null, g: x.gorsel, i: '🐾', r: x.eski_fiyat && +x.eski_fiyat > +x.fiyat ? '%' + Math.round((1 - x.fiyat / x.eski_fiyat) * 100) : '', tukendi: x.stok === 0 }));
+      SEPET_ANAHTAR = 'vetCiftlik'; try { sepet = JSON.parse(localStorage.getItem(SEPET_ANAHTAR) || '{}'); } catch (e) { sepet = {}; }
+      URUNLER = u.map((x) => ({ id: x.id, t: x.kategori, h: x.hayvanlar || [], ad: x.ad, marka: x.marka, f: x.fiyat == null ? null : +x.fiyat, e: x.eski_fiyat ? +x.eski_fiyat : null, g: x.gorsel, o: !!x.online_satis, tukendi: x.stok === 0 }));
       document.querySelector('.onizleme').textContent = 'Tasarım önizlemesi — Panormos Medya';
     }
   } catch (e) { /* panel verisi alınamazsa örnekler kalır */ }
-  const ust = $('.ust-serit span'); if (ust) ust.innerHTML = KARGO_LIMIT > 0 ? `<b>${tl(KARGO_LIMIT)}</b> ve üzeri siparişlerde <b>kargo bedava</b>` : 'Hızlı kargo';
   listele(); sepetCiz();
 }
-listele(); sepetCiz(); panelden();
+filtreleriCiz(); listele(); sepetCiz(); panelden();
 </script>
 </body>
 </html>
