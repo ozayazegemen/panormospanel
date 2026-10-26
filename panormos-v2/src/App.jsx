@@ -12280,6 +12280,7 @@ function VeterinerPage({ firma = false }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <a href={firma ? "https://panormosmedya.com/veteriner/" : "/veteriner/"} target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: "none" }}>Siteyi Aç ↗</a>
+          {!firma && <a href="/vet-panel" target="_blank" rel="noopener" style={{ ...dugme, textDecoration: "none" }} title="Firmanın göreceği paneli açar">Firma panelini aç ↗</a>}
           {sekme === "urun" && <Btn variant="primary" onClick={() => setTaslak({ ...BOS_VET_URUN })}>+ Yeni Ürün</Btn>}
         </div>
       </div>
