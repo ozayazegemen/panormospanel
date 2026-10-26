@@ -12280,7 +12280,7 @@ function VeterinerPage({ firma = false }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <a href={firma ? "https://panormosmedya.com/veteriner/" : "/veteriner/"} target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: "none" }}>Siteyi Aç ↗</a>
-          {!firma && <a href="/vet-panel" target="_blank" rel="noopener" style={{ ...dugme, textDecoration: "none" }} title="Firmanın göreceği paneli açar">Firma panelini aç ↗</a>}
+          {!firma && <a href="/vet-panel" style={{ ...dugme, textDecoration: "none" }} title="Firmanın göreceği paneli bu sekmede açar">Firma panelini aç</a>}
           {sekme === "urun" && <Btn variant="primary" onClick={() => setTaslak({ ...BOS_VET_URUN })}>+ Yeni Ürün</Btn>}
         </div>
       </div>
@@ -12560,6 +12560,7 @@ function VetFirmaPanel() {
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "#2f7d32", display: "grid", placeItems: "center" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg></div>
           <div style={{ fontWeight: 800, fontSize: 17 }}>Veteriner Market · Yönetim</div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}>
+            <a href="/#veteriner" style={{ color: "#fff", opacity: .85, fontWeight: 600 }}>‹ Panormos paneli</a>
             <span style={{ opacity: .8 }}>{eposta}</span>
             <button onClick={cikis} style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.35)", color: "#fff", borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Çıkış</button>
           </div>
