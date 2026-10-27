@@ -459,7 +459,7 @@ export function FinansDurum() {
               <td style={td}>{s.borc > 0 ? "B" : "—"}</td>
               <td style={{ ...td, whiteSpace: "nowrap" }}>
                 <div style={{ display: "flex", gap: 5 }}>
-                  <Btn title="Hesap ekstresi (PDF)" onClick={() => printClientStatement(s.musteri, s.inv, s.pay)} style={{ padding: "4px 9px", fontSize: 11.5 }}>Ekstre</Btn>
+                  <Btn title="Cari hesap ekstresi: borç ve tahsilatlar tarih, saat, fatura no ve banka ile (PDF)" onClick={() => printClientStatement(s.musteri, s.inv, s.pay)} style={{ padding: "4px 9px", fontSize: 11.5 }}>Cari Ekstre</Btn>
                   {s.gecikmeTutari > 0 && <Btn title="Vadesi geçen faturalar için ihtar yazısı (PDF)" onClick={() => ihtarYazisi(s)} style={{ padding: "4px 9px", fontSize: 11.5 }}>İhtar</Btn>}
                   {s.borc <= 0 && s.faturalanan > 0 && <Btn title="Borçsuzluk belgesi (PDF)" onClick={() => borcsuzlukBelgesi(s)} style={{ padding: "4px 9px", fontSize: 11.5 }}>Borçsuzluk</Btn>}
                 </div>
