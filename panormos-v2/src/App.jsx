@@ -12193,7 +12193,7 @@ function VeterinerPage({ firma = false }) {
     ]);
     setKurulumYok(!!u.error);
     setUrunler(u.data || []); setSiparisler(s.data || []); setAyar(a.data || null);
-    if (!firma) { const { data: y } = await supabase.from("vet_yetkililer").select("*").order("created_at"); setYetkililer(y || []); }
+    const { data: y } = await supabase.from("vet_yetkililer").select("*").order("created_at"); setYetkililer(y || []);
   };
   useEffect(() => { yukle(); }, []);
 
@@ -12237,18 +12237,14 @@ function VeterinerPage({ firma = false }) {
     setAcikSiparis(x => x && x.id === s.id ? { ...x, durum } : x);
     yukle();
   };
-  // Panormos yöneticisi firmaya giriş hesabı açar / kaldırır (netlify/functions/vet-yetkili-davet.cjs)
-  const yetkiliIslem = async (govde) => {
+  // Ekip: kayıt olmuş kişiyi e-postasıyla mağazaya ekler / çıkarır (supabase/veteriner-kendi-kayit.sql)
+  const ekipIslem = async (ekle, deger) => {
     setBekle(true);
-    try {
-      const { data: oturum } = await supabase.auth.getSession();
-      const r = await fetch("/.netlify/functions/vet-yetkili-davet", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${oturum?.session?.access_token ?? ""}` }, body: JSON.stringify(govde) });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(j.error || "İşlem yapılamadı.");
-      if (govde.eposta) { setDavetEposta(""); swalAlert(j.yeniHesap ? "Davet e-postası gönderildi. Firma, e-postadaki bağlantıdan şifresini belirleyip panormosmedya.com/vet-giris adresinden girer." : "Bu e-posta zaten kayıtlıydı; mağaza yetkisi verildi."); }
-      yukle();
-    } catch (h) { swalAlert(h.message); }
+    const { error } = ekle ? await supabase.rpc("vet_yetkili_ekle", { p_eposta: deger }) : await supabase.rpc("vet_yetkili_kaldir", { p_user: deger });
     setBekle(false);
+    if (error) { swalAlert(error.message); return; }
+    if (ekle) setDavetEposta("");
+    yukle();
   };
   const ayarKaydet = async () => {
     const sayi = (v) => Number(String(v ?? "").replace(",", ".")) || 0;
@@ -12353,19 +12349,20 @@ function VeterinerPage({ firma = false }) {
           <div style={{ fontSize: 12, color: T.textMuted, marginTop: 12, lineHeight: 1.5 }}>Kartla ödeme için firmanın iyzico ya da PayTR üye işyeri başvurusu onaylanınca bu bölüme eklenecek.</div>
         </div>
       )}
-      {sekme === "ayar" && !firma && (
+      {sekme === "ayar" && (
         <div style={{ ...kart, padding: 20, maxWidth: 620, marginTop: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>Firma kullanıcıları</div>
-          <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 12, lineHeight: 1.55 }}>Veteriner firmasının çalışanları kendi panelinden (panormosmedya.com/vet-giris) ürün, sipariş ve ayarları yönetir. E-postasını yazıp davet et; şifre belirleme bağlantısı e-postasına gider.</div>
-          {yetkililer.map(y => (
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>Ekip</div>
+          <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 12, lineHeight: 1.55 }}>Mağazayı yönetebilen kişiler. Yeni çalışan önce panormosmedya.com/vet-giris adresinden "Hesap oluşturun" ile kayıt olur, sonra e-postasını buraya yazıp eklersiniz.</div>
+          {yetkililer.length === 0 && <div style={{ fontSize: 13, color: T.textMuted, padding: "6px 0" }}>Henüz kimse yok. Mağazaya ilk kayıt olup giren kişi otomatik olarak sahip olur.</div>}
+          {yetkililer.map((y, i) => (
             <div key={y.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${T.border}`, fontSize: 13.5, color: T.textPrimary }}>
-              <span>{y.eposta}</span>
-              <Btn style={{ ...kucuk, color: T.redText }} disabled={bekle} onClick={async () => { if (await swalConfirm(`${y.eposta} adresinin mağaza yetkisi kaldırılsın mı?`)) yetkiliIslem({ islem: "kaldir", userId: y.user_id }); }}>Yetkiyi kaldır</Btn>
+              <span>{y.eposta}{i === 0 && <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 6 }}>(sahip)</span>}</span>
+              {i > 0 && <Btn style={{ ...kucuk, color: T.redText }} disabled={bekle} onClick={async () => { if (await swalConfirm(`${y.eposta} mağazadan çıkarılsın mı?`)) ekipIslem(false, y.user_id); }}>Çıkar</Btn>}
             </div>
           ))}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <div style={{ flex: 1 }}><Input value={davetEposta} onChange={e => setDavetEposta(e.target.value)} placeholder="firma@ornek.com" /></div>
-            <Btn variant="primary" disabled={bekle || !davetEposta.trim()} onClick={() => yetkiliIslem({ eposta: davetEposta.trim() })}>Davet et</Btn>
+            <div style={{ flex: 1 }}><Input value={davetEposta} onChange={e => setDavetEposta(e.target.value)} placeholder="calisan@ornek.com" /></div>
+            <Btn variant="primary" disabled={bekle || !davetEposta.trim()} onClick={() => ekipIslem(true, davetEposta.trim())}>Ekle</Btn>
           </div>
         </div>
       )}
@@ -12463,6 +12460,7 @@ function VetKabuk({ children }) {
 function VetGiris() {
   const [sifreBelirle] = useState(() => /type=invite|type=recovery/.test(window.location.hash));
   const [unuttum, setUnuttum] = useState(false);
+  const [kayit, setKayit] = useState(false);
   const [eposta, setEposta] = useState("");
   const [sifre, setSifre] = useState("");
   const [sifre2, setSifre2] = useState("");
@@ -12493,6 +12491,19 @@ function VetGiris() {
     if (error) { setHata(vetHataCevir(error.message)); return; }
     window.location.href = "/vet-panel";
   };
+  const kayitOl = async () => {
+    setHata(""); setBilgi("");
+    if (!/^\S+@\S+\.\S+$/.test(eposta.trim())) { setHata("Geçerli bir e-posta girin."); return; }
+    if (sifre.length < 6) { setHata("Şifre en az 6 karakter olmalı."); return; }
+    if (sifre !== sifre2) { setHata("Şifreler uyuşmuyor."); return; }
+    setBekle(true);
+    const { data, error } = await supabase.auth.signUp({ email: eposta.trim().toLowerCase(), password: sifre, options: { emailRedirectTo: `${window.location.origin}/vet-giris` } });
+    setBekle(false);
+    if (error) { setHata(/already|registered/i.test(error.message) ? "Bu e-postayla zaten hesap var, giriş yapın." : vetHataCevir(error.message)); return; }
+    if (data.session) { window.location.href = "/vet-panel"; return; }
+    setBilgi("Hesabınız oluşturuldu. E-postanıza gelen onay bağlantısına tıklayın, sonra buradan giriş yapın.");
+    setKayit(false); setSifre(""); setSifre2("");
+  };
   const sifirla = async () => {
     setHata(""); setBilgi("");
     if (!eposta) { setHata("E-posta girin."); return; }
@@ -12520,13 +12531,17 @@ function VetGiris() {
   );
   return (
     <VetKabuk>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "#1c2a1f" }}>{unuttum ? "Şifremi unuttum" : "Giriş yapın"}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, color: "#1c2a1f" }}>{unuttum ? "Şifremi unuttum" : kayit ? "Hesap oluşturun" : "Giriş yapın"}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div><label style={etiket}>E-posta</label><input type="email" value={eposta} onChange={e => setEposta(e.target.value)} onKeyDown={enter(unuttum ? sifirla : giris)} placeholder="mail@ornek.com" autoComplete="email" style={girdi} /></div>
-        {!unuttum && <div><label style={etiket}>Şifre</label><input type="password" value={sifre} onChange={e => setSifre(e.target.value)} onKeyDown={enter(giris)} autoComplete="current-password" style={girdi} /></div>}
+        <div><label style={etiket}>E-posta</label><input type="email" value={eposta} onChange={e => setEposta(e.target.value)} onKeyDown={enter(unuttum ? sifirla : kayit ? kayitOl : giris)} placeholder="mail@ornek.com" autoComplete="email" style={girdi} /></div>
+        {!unuttum && <div><label style={etiket}>Şifre</label><input type="password" value={sifre} onChange={e => setSifre(e.target.value)} onKeyDown={enter(kayit ? kayitOl : giris)} placeholder={kayit ? "En az 6 karakter" : ""} autoComplete={kayit ? "new-password" : "current-password"} style={girdi} /></div>}
+        {kayit && <div><label style={etiket}>Şifre (tekrar)</label><input type="password" value={sifre2} onChange={e => setSifre2(e.target.value)} onKeyDown={enter(kayitOl)} autoComplete="new-password" style={girdi} /></div>}
         {kutu(hata, "#c0392b")}{kutu(bilgi, "#2f7d32")}
-        <button onClick={unuttum ? sifirla : giris} disabled={bekle} style={dugme}>{bekle ? "Lütfen bekleyin…" : unuttum ? "Bağlantı gönder" : "Giriş yap"}</button>
-        <button onClick={() => { setUnuttum(!unuttum); setHata(""); setBilgi(""); }} style={{ background: "none", border: "none", color: "#5d6a60", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{unuttum ? "‹ Girişe dön" : "Şifremi unuttum"}</button>
+        <button onClick={unuttum ? sifirla : kayit ? kayitOl : giris} disabled={bekle} style={dugme}>{bekle ? "Lütfen bekleyin…" : unuttum ? "Bağlantı gönder" : kayit ? "Hesap oluştur" : "Giriş yap"}</button>
+        {!kayit && <button onClick={() => { setUnuttum(!unuttum); setHata(""); setBilgi(""); }} style={{ background: "none", border: "none", color: "#5d6a60", fontSize: 12.5, cursor: "pointer", fontFamily: "inherit" }}>{unuttum ? "‹ Girişe dön" : "Şifremi unuttum"}</button>}
+        {!unuttum && <div style={{ borderTop: "1px solid #e5e3d8", paddingTop: 14, textAlign: "center", fontSize: 13, color: "#5d6a60" }}>
+          {kayit ? <>Hesabınız var mı? <a href="#" onClick={e => { e.preventDefault(); setKayit(false); setHata(""); }} style={{ color: "#2f7d32", fontWeight: 700 }}>Giriş yapın</a></> : <>İlk kez mi giriyorsunuz? <a href="#" onClick={e => { e.preventDefault(); setKayit(true); setHata(""); setBilgi(""); }} style={{ color: "#2f7d32", fontWeight: 700 }}>Hesap oluşturun</a></>}
+        </div>}
       </div>
     </VetKabuk>
   );
@@ -12539,7 +12554,8 @@ function VetFirmaPanel() {
       const { data } = await supabase.auth.getSession();
       if (!data?.session) { window.location.href = "/vet-giris"; return; }
       setEposta(data.session.user.email || "");
-      const { data: yetki } = await supabase.rpc("vet_yetkili");
+      // Mağazanın henüz sahibi yoksa ilk giren sahip olur
+      const { data: yetki } = await supabase.rpc("vet_sahiplik_al");
       setDurum(yetki ? "tamam" : "yok");
     })();
   }, []);
@@ -12548,7 +12564,7 @@ function VetFirmaPanel() {
   if (durum === "yok") return (
     <VetKabuk>
       <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2a1f", marginBottom: 10 }}>Bu hesaba bağlı mağaza bulunamadı</div>
-      <p style={{ fontSize: 13.5, color: "#5d6a60", lineHeight: 1.6, marginBottom: 16 }}>{eposta} adresi mağaza yetkilisi olarak tanımlı değil. Panormos Medya ile iletişime geçin.</p>
+      <p style={{ fontSize: 13.5, color: "#5d6a60", lineHeight: 1.6, marginBottom: 16 }}>{eposta} adresi bu mağazanın yetkilisi değil. Mağaza sahibinden sizi panelindeki "Ekip" bölümünden eklemesini isteyin.</p>
       <button onClick={cikis} style={{ background: "none", border: "1px solid #e5e3d8", borderRadius: 10, padding: "9px 16px", cursor: "pointer", fontFamily: "inherit" }}>Çıkış yap</button>
     </VetKabuk>
   );
@@ -12560,7 +12576,6 @@ function VetFirmaPanel() {
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "#2f7d32", display: "grid", placeItems: "center" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg></div>
           <div style={{ fontWeight: 800, fontSize: 17 }}>Veteriner Market · Yönetim</div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}>
-            <a href="/#veteriner" style={{ color: "#fff", opacity: .85, fontWeight: 600 }}>‹ Panormos paneli</a>
             <span style={{ opacity: .8 }}>{eposta}</span>
             <button onClick={cikis} style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.35)", color: "#fff", borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Çıkış</button>
           </div>
