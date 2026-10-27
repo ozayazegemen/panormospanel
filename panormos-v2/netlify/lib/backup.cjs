@@ -11,6 +11,7 @@ const TABLES = [
   "client_payments", "client_invoices", "invoices", "piece_jobs", "company_incomes", "company_expenses",
   "accounting_entries", "accounting_documents", "staff_leave", "bank_accounts", "bank_transactions",
   "conversations", "conversation_members", "staff_messages", "messages", "sent_mails", "received_mails", "mail_folders",
+  "fin_kalemler", "fin_cariler", "fin_gider_faturalari", "fin_odeme_plani", "fin_tekrarlanan", "fin_transferler",
 ];
 const BUCKET = "yedekler";
 const SAKLAMA_GUN = 30;

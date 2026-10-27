@@ -2,6 +2,7 @@ import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
+import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur } from "./Finans.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -8467,12 +8468,34 @@ function AgreementDatesModal({ clients, onClose }) {
   );
 }
 
+// Muhasebe menüsü Apsiyon düzeninde gruplanır (27.10.2026): Özet · Finans · Banka · Raporlar · Tanımlar · Personel · Belgeler.
+// Yeni bölümler Finans.jsx'te; eski sekmeler (cari, giderler, gelirler, SGK, banka, izin, takvim, belgeler) aynen kullanılır.
+const MUHASEBE_GRUPLARI = [
+  { id: "ozet", lbl: "📊 Özet" },
+  { id: "finans", lbl: "💼 Finans", alt: [["durum", "Müşterilere Göre Durum"], ["cari", "Tahsilat ve Müşteri Cari"], ["gfatura", "Gider Faturaları"], ["harcamalar", "Diğer Giderler"], ["gelirler", "Diğer Gelirler"], ["giderler", "SGK / Vergi / Maaş"], ["tekrar", "Tekrarlanan Giderler"], ["transfer", "Kasa Transferi"], ["eslestir", "Banka Eşleştirme"], ["hareketler", "Tüm Hareketler"]] },
+  { id: "banka", lbl: "🏦 Banka ve Ekstre" },
+  { id: "raporlar", lbl: "📈 Raporlar" },
+  { id: "tanimlar", lbl: "🗂️ Tanımlar", alt: [["kasa", "Kasa ve Banka"], ["cari", "Tedarikçiler"], ["kalem", "Gelir / Gider Kalemleri"]] },
+  { id: "personel", lbl: "👥 Personel", alt: [["izin", "Personel İzinleri"], ["takvim", "Ödeme Takvimi"]] },
+  { id: "belgeler", lbl: "📄 Belgeler" },
+];
 function AccountingPage({ clients, staff, perms }) {
-  const [tab, setTab] = useState("ozet");
+  const [grup, setGrup] = useState("ozet");
+  const [altlar, setAltlar] = useState({ finans: "durum", tanimlar: "kasa", personel: "izin" });
   const [anlasmaAcik, setAnlasmaAcik] = useState(false);
-  // Özet'teki "+ Gider" gibi düğmeler ilgili sekmeye gidip ekleme penceresini doğrudan açar
+  const [yenile, setYenile] = useState(0);
+  // "+ Gider Faturası" gibi düğmeler ilgili bölüme gidip ekleme penceresini doğrudan açar
   const [autoAdd, setAutoAdd] = useState(null);
-  const goTab = (t, ekle = false) => { setAutoAdd(ekle ? t : null); setTab(t); };
+  const goTab = (g, alt = null, ekle = false) => {
+    setGrup(g);
+    if (alt) setAltlar(a => ({ ...a, [g]: alt }));
+    setAutoAdd(ekle ? (alt || g) : null);
+  };
+  // Tekrarlanan giderlerin bu aya kadar eksik faturaları açılır (yeni fatura oluştuysa ekran yenilenir)
+  useEffect(() => {
+    if (!perms.accounting) return;
+    tekrarlananlariOlustur().then(n => { if (n > 0) setYenile(k => k + 1); }).catch(() => {});
+  }, []);
   // Güvenlik: muhasebe yetkisi yoksa erişimi engelle
   if (!perms.accounting) {
     return <div style={{textAlign:"center",color:T.textMuted,padding:60}}>
@@ -8481,40 +8504,49 @@ function AccountingPage({ clients, staff, perms }) {
       <div style={{fontSize:13,marginTop:8}}>Muhasebe bilgileri yalnızca yetkili kişiler tarafından görülebilir.</div>
     </div>;
   }
-  const tabs = [
-    { id: "ozet", lbl: "📊 Özet" },
-    { id: "cari", lbl: "💳 Müşteri Cari" },
-    { id: "banka", lbl: "🏦 Banka ve Ekstre" },
-    { id: "harcamalar", lbl: "🧾 Giderler" },
-    { id: "gelirler", lbl: "💵 Gelirler" },
-    { id: "giderler", lbl: "🏛️ SGK / Vergi / Maaş" },
-    { id: "izin", lbl: "🌴 Personel İzinleri" },
-    { id: "takvim", lbl: "📅 Ödeme Takvimi" },
-    { id: "belgeler", lbl: "📄 Belgeler" },
-  ];
+  const aktifGrup = MUHASEBE_GRUPLARI.find(g => g.id === grup);
+  const alt = altlar[grup];
+  const ekle = (k) => autoAdd === k;
+  // Eski Özet'in düğmeleri (goTab("cari", true) gibi) Finans altındaki sekmelere gider
+  const eskiGoTab = (t, e = false) => goTab("finans", t, e);
   return (
-    <div>
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, flexWrap: "wrap", borderBottom: `1px solid ${T.border}`, paddingBottom: 2 }}>
-        {tabs.map(t => {
-          const active = tab === t.id;
-          return <button key={t.id} onClick={() => goTab(t.id)} style={{
+    <div key={yenile}>
+      <div style={{ display: "flex", gap: 4, marginBottom: aktifGrup?.alt ? 10 : 20, flexWrap: "wrap", borderBottom: `1px solid ${T.border}`, paddingBottom: 2 }}>
+        {MUHASEBE_GRUPLARI.map(g => {
+          const active = grup === g.id;
+          return <button key={g.id} onClick={() => goTab(g.id)} style={{
             fontSize: 13, fontWeight: active ? 600 : 400, padding: "9px 16px", borderRadius: "8px 8px 0 0",
             color: active ? T.amberText : T.textMuted, background: active ? T.bgCard : "transparent",
             border: "none", borderBottom: `2px solid ${active ? T.amber : "transparent"}`, cursor: "pointer", whiteSpace: "nowrap",
-          }}>{t.lbl}</button>;
+          }}>{g.lbl}</button>;
         })}
         <div style={{ marginLeft: "auto", paddingBottom: 6 }}><Btn onClick={() => setAnlasmaAcik(true)}>🤝 Anlaşma Tarihleri</Btn></div>
       </div>
+      {aktifGrup?.alt && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 18 }}>
+        {aktifGrup.alt.map(([id, ad]) => <button key={id} onClick={() => goTab(grup, id)} style={{ fontSize: 12.5, padding: "7px 13px", borderRadius: 9, cursor: "pointer", fontWeight: alt === id ? 700 : 500, background: alt === id ? T.amber : T.bgInput, color: alt === id ? T.white : T.textSecondary, border: `1px solid ${alt === id ? T.amber : T.border}` }}>{ad}</button>)}
+      </div>}
       {anlasmaAcik && <AgreementDatesModal clients={clients} onClose={() => setAnlasmaAcik(false)} />}
-      {tab === "ozet" && <AccountingOverview clients={clients} goTab={goTab} />}
-      {tab === "cari" && <AccountingCari clients={clients} autoAdd={autoAdd === "cari"} />}
-      {tab === "banka" && <AccountingBank staff={staff} />}
-      {tab === "harcamalar" && <AccountingSpending autoAdd={autoAdd === "harcamalar"} />}
-      {tab === "gelirler" && <AccountingIncome autoAdd={autoAdd === "gelirler"} />}
-      {tab === "giderler" && <AccountingExpenses staff={staff} autoAdd={autoAdd === "giderler"} />}
-      {tab === "izin" && <AccountingLeave staff={staff} />}
-      {tab === "takvim" && <AccountingCalendar staff={staff} />}
-      {tab === "belgeler" && <AccountingDocuments />}
+      {grup === "ozet" && <FinansOzet goTab={goTab} />}
+      {grup === "finans" && <>
+        {alt === "durum" && <FinansDurum />}
+        {alt === "cari" && <AccountingCari clients={clients} autoAdd={ekle("cari")} />}
+        {alt === "gfatura" && <GiderFaturalari autoAdd={ekle("gfatura")} />}
+        {alt === "harcamalar" && <AccountingSpending autoAdd={ekle("harcamalar")} />}
+        {alt === "gelirler" && <AccountingIncome autoAdd={ekle("gelirler")} />}
+        {alt === "giderler" && <AccountingExpenses staff={staff} autoAdd={ekle("giderler")} />}
+        {alt === "tekrar" && <Tekrarlananlar />}
+        {alt === "transfer" && <KasaTransfer autoAdd={ekle("transfer")} />}
+        {alt === "eslestir" && <BankaEslestirme />}
+        {alt === "hareketler" && <AccountingOverview clients={clients} goTab={eskiGoTab} />}
+      </>}
+      {grup === "banka" && <AccountingBank staff={staff} />}
+      {grup === "raporlar" && <FinansRaporlar />}
+      {grup === "tanimlar" && <FinansTanimlar alt={alt} />}
+      {grup === "personel" && <>
+        {alt === "izin" && <AccountingLeave staff={staff} />}
+        {alt === "takvim" && <AccountingCalendar staff={staff} />}
+      </>}
+      {grup === "belgeler" && <AccountingDocuments />}
     </div>
   );
 }
@@ -11419,7 +11451,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
   const backupAll = async () => {
     setBacking(true);
     try {
-      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'blog_yazilari', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails'];
+      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'blog_yazilari', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails', 'fin_kalemler', 'fin_cariler', 'fin_gider_faturalari', 'fin_odeme_plani', 'fin_tekrarlanan', 'fin_transferler'];
       const backup = { exportedAt: new Date().toISOString(), tables: {} };
       for (const t of tables) {
         // Tek istekte en çok 1000 satır gelir; tablonun tamamını sayfa sayfa al
@@ -14039,3 +14071,10 @@ export default function App() {
     </div>
   </div>;
 }
+
+// Finans.jsx'in kullandığı ortak parçalar
+export {
+  Btn, Select, Input, Textarea, Modal, FormField, StatCard, ModalActions, fmtMoney, sumAmount, todayStr, ymdOf,
+  TR_MONTHS, monthRefLabel, currentMonthRef, exportPerfectExcel, downloadPdfFromHTML, PRINT_STYLES, footerHTML,
+  cariHesapla, muhasebeHareketleri, invoiceDueDate, printClientStatement, bankNorm, bankCatLabel, swalAlert, swalConfirm,
+};
