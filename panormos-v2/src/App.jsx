@@ -11476,7 +11476,7 @@ function YearlyBackupPage({ clients, staff, tasks, perms }) {
   const backupAll = async () => {
     setBacking(true);
     try {
-      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'blog_yazilari', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails', 'fin_kalemler', 'fin_cariler', 'fin_gider_faturalari', 'fin_odeme_plani', 'fin_tekrarlanan', 'fin_transferler'];
+      const tables = ['clients', 'staff', 'tasks', 'leads', 'ideas', 'posts', 'media', 'shoots', 'publishes', 'social_reports', 'inventory', 'pricing_packages', 'pricing_addons', 'pricing_quotes', 'panel_settings', 'blog_yazilari', 'client_payments', 'client_invoices', 'invoices', 'piece_jobs', 'company_incomes', 'company_expenses', 'accounting_entries', 'accounting_documents', 'staff_leave', 'bank_accounts', 'bank_transactions', 'client_finance', 'conversations', 'conversation_members', 'staff_messages', 'messages', 'sent_mails', 'fin_kalemler', 'fin_cariler', 'fin_gider_faturalari', 'fin_odeme_plani', 'fin_tekrarlanan', 'fin_transferler', 'fin_borclandirma'];
       const backup = { exportedAt: new Date().toISOString(), tables: {} };
       for (const t of tables) {
         // Tek istekte en çok 1000 satır gelir; tablonun tamamını sayfa sayfa al
