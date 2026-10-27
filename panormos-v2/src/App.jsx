@@ -3,7 +3,7 @@ import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
 import EmlakSms from "./EmlakSms.jsx";
-import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur } from "./Finans.jsx";
+import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur, OtomatikBorclandirma, borclandirmalariOlustur } from "./Finans.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -8215,7 +8215,8 @@ function invoiceDueAlerts(clients, invoices) {
   const pad = (n) => String(n).padStart(2, "0");
   const bugunStr = todayStr();
   const bugun = new Date(bugunStr + "T00:00:00");
-  const faturali = new Set((invoices || []).map(i => `${i.client_id}|${i.month_ref}`));
+  // Otomatik borç fatura sayılmaz: o ayın faturası yine kesilmeli
+  const faturali = new Set((invoices || []).filter(i => !i.otomatik).map(i => `${i.client_id}|${i.month_ref}`));
   const out = [];
   (clients || []).forEach(c => {
     const anlasma = String(c.agreementDate || "").slice(0, 10);
@@ -8479,7 +8480,7 @@ function AgreementDatesModal({ clients, onClose }) {
 // Yeni bölümler Finans.jsx'te; eski sekmeler (cari, giderler, gelirler, SGK, banka, izin, takvim, belgeler) aynen kullanılır.
 const MUHASEBE_GRUPLARI = [
   { id: "ozet", lbl: "📊 Özet" },
-  { id: "finans", lbl: "💼 Finans", alt: [["durum", "Müşterilere Göre Durum"], ["cari", "Tahsilat ve Müşteri Cari"], ["gfatura", "Gider Faturaları"], ["harcamalar", "Diğer Giderler"], ["gelirler", "Diğer Gelirler"], ["giderler", "SGK / Vergi / Maaş"], ["tekrar", "Tekrarlanan Giderler"], ["transfer", "Kasa Transferi"], ["eslestir", "Banka Eşleştirme"], ["hareketler", "Tüm Hareketler"]] },
+  { id: "finans", lbl: "💼 Finans", alt: [["durum", "Müşterilere Göre Durum"], ["borc", "Otomatik Borçlandırma"], ["cari", "Tahsilat ve Müşteri Cari"], ["gfatura", "Gider Faturaları"], ["harcamalar", "Diğer Giderler"], ["gelirler", "Diğer Gelirler"], ["giderler", "SGK / Vergi / Maaş"], ["tekrar", "Tekrarlanan Giderler"], ["transfer", "Kasa Transferi"], ["eslestir", "Banka Eşleştirme"], ["hareketler", "Tüm Hareketler"]] },
   { id: "banka", lbl: "🏦 Banka ve Ekstre" },
   { id: "raporlar", lbl: "📈 Raporlar" },
   { id: "tanimlar", lbl: "🗂️ Tanımlar", alt: [["kasa", "Kasa ve Banka"], ["cari", "Tedarikçiler"], ["kalem", "Gelir / Gider Kalemleri"]] },
@@ -8501,7 +8502,8 @@ function AccountingPage({ clients, staff, perms }) {
   // Tekrarlanan giderlerin bu aya kadar eksik faturaları açılır (yeni fatura oluştuysa ekran yenilenir)
   useEffect(() => {
     if (!perms.accounting) return;
-    tekrarlananlariOlustur().then(n => { if (n > 0) setYenile(k => k + 1); }).catch(() => {});
+    Promise.all([tekrarlananlariOlustur().catch(() => 0), borclandirmalariOlustur().catch(() => 0)])
+      .then(([a, b]) => { if (a + b > 0) setYenile(k => k + 1); });
   }, []);
   // Güvenlik: muhasebe yetkisi yoksa erişimi engelle
   if (!perms.accounting) {
@@ -8536,6 +8538,7 @@ function AccountingPage({ clients, staff, perms }) {
       {grup === "ozet" && <FinansOzet goTab={goTab} />}
       {grup === "finans" && <>
         {alt === "durum" && <FinansDurum />}
+        {alt === "borc" && <OtomatikBorclandirma />}
         {alt === "cari" && <AccountingCari clients={clients} autoAdd={ekle("cari")} />}
         {alt === "gfatura" && <GiderFaturalari autoAdd={ekle("gfatura")} />}
         {alt === "harcamalar" && <AccountingSpending autoAdd={ekle("harcamalar")} />}
@@ -8701,6 +8704,7 @@ function bankDetectColumns(aoa) {
       amount: find(h => /TUTAR/.test(h) && !/BAKIYE|TAKSIT/.test(h), h => /MIKTAR/.test(h)),
       debit: find(h => /BORC|CIKAN|HARCAMA/.test(h) && !/BAKIYE/.test(h)),
       credit: find(h => /ALACAK|GIREN|YATAN/.test(h) && !/BAKIYE/.test(h)),
+      bakiye: find(h => /BAKIYE/.test(h) && !/ONCEKI|DEVIR|KULLANILABILIR/.test(h)), // işlem sonrası bakiye (kasa ↔ banka karşılaştırması için)
     },
   };
 }
@@ -8723,7 +8727,7 @@ function bankBuildRows(aoa, headerRow, map, flip) {
       if (flip) amount = -amount;
     }
     if (!isFinite(amount) || amount === 0) continue;
-    out.push({ tx_date, description: String(row[map.desc] ?? "").replace(/\s+/g, " ").trim(), amount: Math.round(amount * 100) / 100 });
+    out.push({ tx_date, description: String(row[map.desc] ?? "").replace(/\s+/g, " ").trim(), amount: Math.round(amount * 100) / 100, bakiye: map.bakiye >= 0 ? bankParseAmount(row[map.bakiye]) : NaN });
   }
   return out;
 }
@@ -8995,6 +8999,18 @@ function AccountingBank({ staff = [] }) {
     }
     setBusy(false);
     if (hata) { swalAlert("Hareketler kaydedilemedi: " + hata.message); load(); return; }
+    // Ekstrede bakiye sütunu varsa bankadaki son bakiye hesaba yazılır; Muhasebe Özet'i panelin bakiyesiyle karşılaştırır.
+    // Dosya yeniden eskiye sıralıysa en yeni günün ilk satırı, eskiden yeniye sıralıysa son satırı o günün kapanış bakiyesidir.
+    if (acc.kind === "banka") {
+      const bakiyeli = impRows.filter(x => isFinite(x.bakiye));
+      if (bakiyeli.length) {
+        const sonGun = bakiyeli.reduce((m, x) => (x.tx_date > m ? x.tx_date : m), "");
+        const azalan = impRows[0].tx_date >= impRows[impRows.length - 1].tx_date;
+        const gunun = bakiyeli.filter(x => x.tx_date === sonGun);
+        const kapanis = azalan ? gunun[0] : gunun[gunun.length - 1];
+        await supabase.from('bank_accounts').update({ banka_bakiyesi: kapanis.bakiye, banka_bakiye_tarihi: sonGun }).eq('id', acc.id);
+      }
+    }
     const atlanan = impRows.length - yeni.length - cariEslesen;
     setImp(null);
     await load();
@@ -9493,6 +9509,8 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
       month_ref: f.month_ref || null, description: f.description || "", status: "pending",
     });
     if (error) { swalAlert("Fatura kaydedilemedi: " + error.message + "\n\nFATURA-SQL (client_invoices sütunları) kodunu çalıştırdığınızdan emin olun."); return; }
+    // O ayın otomatik borcu (Muhasebe > Otomatik Borçlandırma) varsa gerçek fatura yerini alır; aynı ay iki kez borçlanmaz
+    if (f.month_ref) await supabase.from('client_invoices').delete().eq('client_id', clientId).eq('month_ref', f.month_ref).eq('otomatik', true);
     setDraft(null); load();
   };
 
