@@ -12171,7 +12171,9 @@ async function vetGorselYukle(dosya) {
   return supabase.storage.from("veteriner").getPublicUrl(yol).data.publicUrl;
 }
 
-function VeterinerPage({ firma = false }) {
+function VeterinerPage({ firma = false, rol = "panormos" }) {
+  const duzenleyebilir = ["panormos", "sahip", "yonetici"].includes(rol);
+  const ekipYonetir = ["panormos", "sahip"].includes(rol);
   const [sekme, setSekme] = useState("siparis");
   const [urunler, setUrunler] = useState(null);
   const [siparisler, setSiparisler] = useState(null);
@@ -12184,6 +12186,8 @@ function VeterinerPage({ firma = false }) {
   const [durumFiltre, setDurumFiltre] = useState("aktif");
   const [yetkililer, setYetkililer] = useState([]);
   const [davetEposta, setDavetEposta] = useState("");
+  const [davetRol, setDavetRol] = useState("calisan");
+  const [sahipEposta, setSahipEposta] = useState("");
 
   const yukle = async () => {
     const [u, s, a] = await Promise.all([
@@ -12194,6 +12198,7 @@ function VeterinerPage({ firma = false }) {
     setKurulumYok(!!u.error);
     setUrunler(u.data || []); setSiparisler(s.data || []); setAyar(a.data || null);
     const { data: y } = await supabase.from("vet_yetkililer").select("*").order("created_at"); setYetkililer(y || []);
+    if (!firma) { const { data: m } = await supabase.from("vet_magaza").select("sahip_eposta").eq("id", 1).maybeSingle(); setSahipEposta(m?.sahip_eposta || ""); }
   };
   useEffect(() => { yukle(); }, []);
 
@@ -12240,7 +12245,7 @@ function VeterinerPage({ firma = false }) {
   // Ekip: kayıt olmuş kişiyi e-postasıyla mağazaya ekler / çıkarır (supabase/veteriner-kendi-kayit.sql)
   const ekipIslem = async (ekle, deger) => {
     setBekle(true);
-    const { error } = ekle ? await supabase.rpc("vet_yetkili_ekle", { p_eposta: deger }) : await supabase.rpc("vet_yetkili_kaldir", { p_user: deger });
+    const { error } = ekle ? await supabase.rpc("vet_yetkili_ekle", { p_eposta: deger, p_rol: ekle }) : await supabase.rpc("vet_yetkili_kaldir", { p_user: deger });
     setBekle(false);
     if (error) { swalAlert(error.message); return; }
     if (ekle) setDavetEposta("");
@@ -12270,14 +12275,14 @@ function VeterinerPage({ firma = false }) {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {[["siparis", `Siparişler${yeniSayi ? ` (${yeniSayi} yeni)` : ""}`], ["urun", `Ürünler (${urunler.length})`], ["ayar", "Mağaza ayarları"]].map(([k, ad]) => (
+          {[["siparis", `Siparişler${yeniSayi ? ` (${yeniSayi} yeni)` : ""}`], ["urun", `Ürünler (${urunler.length})`], ...(duzenleyebilir ? [["ayar", ekipYonetir ? "Mağaza ayarları ve ekip" : "Mağaza ayarları"]] : [])].map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={{ ...dugme, ...(sekme === k ? { background: T.textPrimary, color: T.bgCard, borderColor: T.textPrimary } : {}) }}>{ad}</button>
           ))}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <a href={firma ? "https://panormosmedya.com/veteriner/" : "/veteriner/"} target="_blank" rel="noreferrer" style={{ ...dugme, textDecoration: "none" }}>Siteyi Aç ↗</a>
           {!firma && <a href="/vet-panel" style={{ ...dugme, textDecoration: "none" }} title="Firmanın göreceği paneli bu sekmede açar">Firma panelini aç</a>}
-          {sekme === "urun" && <Btn variant="primary" onClick={() => setTaslak({ ...BOS_VET_URUN })}>+ Yeni Ürün</Btn>}
+          {sekme === "urun" && duzenleyebilir && <Btn variant="primary" onClick={() => setTaslak({ ...BOS_VET_URUN })}>+ Yeni Ürün</Btn>}
         </div>
       </div>
 
@@ -12321,18 +12326,18 @@ function VeterinerPage({ firma = false }) {
                 <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginTop: 2 }}>{u.fiyat == null ? <span style={{ fontSize: 12.5, color: T.textMuted }}>Fiyat gösterilmiyor</span> : <b style={{ color: T.textPrimary }}>{vetTl(u.fiyat)}</b>}{u.eski_fiyat && <s style={{ fontSize: 12, color: T.textMuted }}>{vetTl(u.eski_fiyat)}</s>}</div>
                 <div style={{ fontSize: 11.5, fontWeight: 700, marginTop: 2, color: u.online_satis ? T.greenText : T.textMuted }}>{u.online_satis ? "Online satışta" : "Yalnızca bilgi / WhatsApp"}</div>
                 <div style={{ fontSize: 11.5, color: u.stok === 0 ? T.redText : T.textMuted, marginTop: 2 }}>{u.stok == null ? "Stok takibi yok" : `Stok: ${u.stok}`}</div>
-                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                {duzenleyebilir && <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                   <Btn style={kucuk} onClick={() => setTaslak({ ...BOS_VET_URUN, ...u, fiyat: u.fiyat == null ? "" : String(u.fiyat), hayvanlar: u.hayvanlar || [], online_satis: !!u.online_satis, eski_fiyat: u.eski_fiyat == null ? "" : String(u.eski_fiyat), stok: u.stok == null ? "" : String(u.stok), gorsel: u.gorsel || "", aciklama: u.aciklama || "", marka: u.marka || "" })}>Düzenle</Btn>
                   <Btn style={kucuk} onClick={() => aktifDegistir(u)}>{u.aktif ? "Satıştan kaldır" : "Satışa al"}</Btn>
                   <Btn style={{ ...kucuk, color: T.redText }} onClick={() => urunSil(u)}>Sil</Btn>
-                </div>
+                </div>}
               </div>
             </div>
           ))}
         </div>
       ))}
 
-      {sekme === "ayar" && ayar && (
+      {sekme === "ayar" && duzenleyebilir && ayar && (
         <div style={{ ...kart, padding: 20, maxWidth: 620 }}>
           <FormField label="WhatsApp sipariş numarası (ülke koduyla, örn. 905321234567)"><Input value={ayar.whatsapp || ""} onChange={e => setAyar(a => ({ ...a, whatsapp: e.target.value }))} placeholder="905xxxxxxxxx" /></FormField>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -12349,20 +12354,38 @@ function VeterinerPage({ firma = false }) {
           <div style={{ fontSize: 12, color: T.textMuted, marginTop: 12, lineHeight: 1.5 }}>Kartla ödeme için firmanın iyzico ya da PayTR üye işyeri başvurusu onaylanınca bu bölüme eklenecek.</div>
         </div>
       )}
-      {sekme === "ayar" && (
+      {sekme === "ayar" && !firma && (
+        <div style={{ ...kart, padding: 20, maxWidth: 620, marginTop: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>Firma sahibinin e-postası</div>
+          <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 10, lineHeight: 1.55 }}>Bu e-postayla panormosmedya.com/vet-giris adresinden kayıt olan kişi mağaza sahibi olur; yöneticileri ve çalışanları kendisi belirler. Bir kez yazman yeterli.</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}><Input value={sahipEposta} onChange={e => setSahipEposta(e.target.value)} placeholder="sahip@firma.com" /></div>
+            <Btn variant="primary" disabled={bekle} onClick={async () => { setBekle(true); const { error } = await supabase.from("vet_magaza").update({ sahip_eposta: sahipEposta.trim().toLowerCase() }).eq("id", 1); setBekle(false); swalAlert(error ? "Kaydedilemedi: " + error.message : "Kaydedildi. Firma sahibi bu e-postayla kayıt olunca mağazanın sahibi olur."); }}>Kaydet</Btn>
+          </div>
+        </div>
+      )}
+      {sekme === "ayar" && ekipYonetir && (
         <div style={{ ...kart, padding: 20, maxWidth: 620, marginTop: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.textPrimary, marginBottom: 4 }}>Ekip</div>
-          <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 12, lineHeight: 1.55 }}>Mağazayı yönetebilen kişiler. Yeni çalışan önce panormosmedya.com/vet-giris adresinden "Hesap oluşturun" ile kayıt olur, sonra e-postasını buraya yazıp eklersiniz.</div>
-          {yetkililer.length === 0 && <div style={{ fontSize: 13, color: T.textMuted, padding: "6px 0" }}>Henüz kimse yok. Mağazaya ilk kayıt olup giren kişi otomatik olarak sahip olur.</div>}
-          {yetkililer.map((y, i) => (
-            <div key={y.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${T.border}`, fontSize: 13.5, color: T.textPrimary }}>
-              <span>{y.eposta}{i === 0 && <span style={{ fontSize: 11, color: T.textMuted, marginLeft: 6 }}>(sahip)</span>}</span>
-              {i > 0 && <Btn style={{ ...kucuk, color: T.redText }} disabled={bekle} onClick={async () => { if (await swalConfirm(`${y.eposta} mağazadan çıkarılsın mı?`)) ekipIslem(false, y.user_id); }}>Çıkar</Btn>}
+          <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 12, lineHeight: 1.55 }}><b>Yönetici:</b> ürün, sipariş ve mağaza ayarlarını yönetir. <b>Çalışan:</b> siparişleri görür ve durumunu günceller, ürünleri yalnızca görür. Yeni kişi önce panormosmedya.com/vet-giris adresinden "Hesap oluşturun" ile kayıt olur, sonra e-postasını buraya yazıp eklersiniz.</div>
+          {yetkililer.length === 0 && <div style={{ fontSize: 13, color: T.textMuted, padding: "6px 0" }}>Henüz kimse yok.</div>}
+          {yetkililer.map(y => (
+            <div key={y.user_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "8px 0", borderTop: `1px solid ${T.border}`, fontSize: 13.5, color: T.textPrimary, flexWrap: "wrap" }}>
+              <span>{y.eposta}</span>
+              {y.rol === "sahip" ? <span style={{ fontSize: 12, fontWeight: 700, color: T.textMuted }}>Sahip</span> : (
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <select value={y.rol} disabled={bekle} onChange={e => ekipIslem(e.target.value, y.eposta)} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8, padding: "5px 8px", color: T.textPrimary, fontFamily: "inherit" }}>
+                    <option value="yonetici">Yönetici</option><option value="calisan">Çalışan</option>
+                  </select>
+                  <Btn style={{ ...kucuk, color: T.redText }} disabled={bekle} onClick={async () => { if (await swalConfirm(`${y.eposta} mağazadan çıkarılsın mı?`)) ekipIslem(false, y.user_id); }}>Çıkar</Btn>
+                </div>
+              )}
             </div>
           ))}
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <div style={{ flex: 1 }}><Input value={davetEposta} onChange={e => setDavetEposta(e.target.value)} placeholder="calisan@ornek.com" /></div>
-            <Btn variant="primary" disabled={bekle || !davetEposta.trim()} onClick={() => ekipIslem(true, davetEposta.trim())}>Ekle</Btn>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 180 }}><Input value={davetEposta} onChange={e => setDavetEposta(e.target.value)} placeholder="calisan@ornek.com" /></div>
+            <select value={davetRol} onChange={e => setDavetRol(e.target.value)} style={{ background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 9, padding: "0 10px", color: T.textPrimary, fontFamily: "inherit" }}><option value="calisan">Çalışan</option><option value="yonetici">Yönetici</option></select>
+            <Btn variant="primary" disabled={bekle || !davetEposta.trim()} onClick={() => ekipIslem(davetRol, davetEposta.trim())}>Ekle</Btn>
           </div>
         </div>
       )}
@@ -12549,22 +12572,23 @@ function VetGiris() {
 function VetFirmaPanel() {
   const [durum, setDurum] = useState("yukleniyor");
   const [eposta, setEposta] = useState("");
+  const [rol, setRol] = useState(null);
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!data?.session) { window.location.href = "/vet-giris"; return; }
       setEposta(data.session.user.email || "");
-      // Mağazanın henüz sahibi yoksa ilk giren sahip olur
-      const { data: yetki } = await supabase.rpc("vet_sahiplik_al");
-      setDurum(yetki ? "tamam" : "yok");
+      // Sahip e-postasıyla gelen kişi sahip olur; diğerleri sahibin eklediği rolle girer
+      const { data: r } = await supabase.rpc("vet_sahiplik_al");
+      setRol(r || null); setDurum(r ? "tamam" : "yok");
     })();
   }, []);
   const cikis = async () => { await supabase.auth.signOut(); window.location.href = "/vet-giris"; };
   if (durum === "yukleniyor") return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: T.bg, color: T.textMuted, fontFamily: "'Inter',sans-serif" }}>Yükleniyor…</div>;
   if (durum === "yok") return (
     <VetKabuk>
-      <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2a1f", marginBottom: 10 }}>Bu hesaba bağlı mağaza bulunamadı</div>
-      <p style={{ fontSize: 13.5, color: "#5d6a60", lineHeight: 1.6, marginBottom: 16 }}>{eposta} adresi bu mağazanın yetkilisi değil. Mağaza sahibinden sizi panelindeki "Ekip" bölümünden eklemesini isteyin.</p>
+      <div style={{ fontSize: 15, fontWeight: 700, color: "#1c2a1f", marginBottom: 10 }}>Hesabınız hazır, yetki bekleniyor</div>
+      <p style={{ fontSize: 13.5, color: "#5d6a60", lineHeight: 1.6, marginBottom: 16 }}>{eposta} adresiyle giriş yaptınız. Mağaza sahibinin sizi panelindeki "Ekip" bölümünden yönetici ya da çalışan olarak eklemesi gerekiyor. Eklendikten sonra tekrar giriş yapın.</p>
       <button onClick={cikis} style={{ background: "none", border: "1px solid #e5e3d8", borderRadius: 10, padding: "9px 16px", cursor: "pointer", fontFamily: "inherit" }}>Çıkış yap</button>
     </VetKabuk>
   );
@@ -12576,12 +12600,12 @@ function VetFirmaPanel() {
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "#2f7d32", display: "grid", placeItems: "center" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M12 4v16M4 12h16" /></svg></div>
           <div style={{ fontWeight: 800, fontSize: 17 }}>Veteriner Market · Yönetim</div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, fontSize: 13 }}>
-            <span style={{ opacity: .8 }}>{eposta}</span>
+            <span style={{ opacity: .8 }}>{eposta} · {{ sahip: "Sahip", yonetici: "Yönetici", calisan: "Çalışan", panormos: "Panormos" }[rol] || ""}</span>
             <button onClick={cikis} style={{ background: "rgba(255,255,255,.14)", border: "1px solid rgba(255,255,255,.35)", color: "#fff", borderRadius: 9, padding: "7px 12px", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>Çıkış</button>
           </div>
         </div>
       </div>
-      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 18px 40px" }}><VeterinerPage firma /></div>
+      <div style={{ maxWidth: 1180, margin: "0 auto", padding: "20px 18px 40px" }}><VeterinerPage firma rol={rol} /></div>
     </div>
   );
 }
