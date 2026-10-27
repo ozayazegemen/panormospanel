@@ -2,6 +2,7 @@ import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
+import EmlakSms from "./EmlakSms.jsx";
 import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur } from "./Finans.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
@@ -6468,6 +6469,7 @@ function InventoryPage({ perms }) {
 
 // ═══════════════ EMLAKPANELIM YÖNETİMİ (ayrı Supabase projesi, güvenli köprü fonksiyonu üzerinden) ═══════════════
 function EmlakPanelimPage() {
+  const [sekme, setSekme] = useState("firmalar"); // firmalar | sms
   const [veri, setVeri] = useState(null);
   const [hata, setHata] = useState("");
   const [acikFirma, setAcikFirma] = useState(null);
@@ -6594,6 +6596,10 @@ function EmlakPanelimPage() {
 
   return (
     <div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 18, borderBottom: `1px solid ${T.border}`, paddingBottom: 2 }}>
+        {[["firmalar", "🏘️ Firmalar ve Paketler"], ["sms", "📱 SMS"]].map(([id, ad]) => <button key={id} onClick={() => setSekme(id)} style={{ fontSize: 13, fontWeight: sekme === id ? 600 : 400, padding: "9px 16px", borderRadius: "8px 8px 0 0", color: sekme === id ? T.amberText : T.textMuted, background: sekme === id ? T.bgCard : "transparent", border: "none", borderBottom: `2px solid ${sekme === id ? T.amber : "transparent"}`, cursor: "pointer" }}>{ad}</button>)}
+      </div>
+      {sekme === "sms" ? <EmlakSms /> : <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 12, marginBottom: 20 }}>
         {[["Toplam Firma", veri.firmalar.length], ["Kullanıcı", toplamKullanici], ["Müşteri Kaydı", toplamMusteri], ["Portföy", toplamIlan], ["Satış", toplamSatis]].map(([lbl, val]) => (
           <div key={lbl} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
@@ -6738,6 +6744,7 @@ function EmlakPanelimPage() {
           );
         })}
       </div>
+      </>}
     </div>
   );
 }
@@ -14076,5 +14083,5 @@ export default function App() {
 export {
   Btn, Select, Input, Textarea, Modal, FormField, StatCard, ModalActions, fmtMoney, sumAmount, todayStr, ymdOf,
   TR_MONTHS, monthRefLabel, currentMonthRef, exportPerfectExcel, downloadPdfFromHTML, PRINT_STYLES, footerHTML,
-  cariHesapla, muhasebeHareketleri, invoiceDueDate, printClientStatement, bankNorm, bankCatLabel, swalAlert, swalConfirm,
+  cariHesapla, muhasebeHareketleri, invoiceDueDate, printClientStatement, bankNorm, bankCatLabel, swalAlert, swalConfirm, panelFetch,
 };

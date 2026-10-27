@@ -9,6 +9,17 @@ const supabase = createClient(
   process.env.EMLAK_SUPABASE_SERVICE_KEY
 );
 
+// Emlak Panelim'in SMS işlevini sunucudan çağırır (yetki: Emlak Panelim servis anahtarı)
+async function emlakSms(method, govde) {
+  const site = (process.env.EMLAK_SITE_URL || "https://emlakpanelim.com").replace(/\/+$/, "");
+  const r = await fetch(`${site}/.netlify/functions/sms`, {
+    method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.EMLAK_SUPABASE_SERVICE_KEY}` },
+    body: govde ? JSON.stringify(govde) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  return r.ok ? j : { hata: j.error || `Emlak Panelim SMS işlevi yanıt vermedi (${r.status})` };
+}
+
 exports.handler = async (event) => {
   const headers = {
     "Content-Type": "application/json",
@@ -117,6 +128,44 @@ exports.handler = async (event) => {
         const { error } = await supabase.from("sistem_ayarlari").update({ deneme_suresi_gun: gun }).eq("id", true);
         if (error) throw error;
         return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      }
+
+      // ── SMS (Emlak Panelim aboneleri) ──
+      // Şablon ve rapor doğrudan Emlak Panelim veritabanından; gönderimi Emlak Panelim'in sms işlevi yapar
+      // (Netgsm bilgileri yalnızca orada durur). O işlev bu sunucuyu servis anahtarıyla tanır.
+      if (aksiyon === "sms_veri") {
+        const [s1, s2, s3] = await Promise.all([
+          supabase.from("sms_sablonlar").select("*").order("sira").order("id"),
+          supabase.from("sms_gonderimler").select("*").order("created_at", { ascending: false }).limit(200),
+          supabase.from("firmalar").select("id, ad, telefon, durum, abonelik_bitis, sms_izin, created_at").order("ad"),
+        ]);
+        if (s1.error) return { statusCode: 200, headers, body: JSON.stringify({ kurulumYok: true, hata: s1.error.message }) };
+        const durum = await emlakSms("GET").catch((e) => ({ hata: e.message }));
+        return { statusCode: 200, headers, body: JSON.stringify({ sablonlar: s1.data, gonderimler: s2.data || [], firmalar: s3.data || [], hazir: !!durum.hazir }) };
+      }
+      if (aksiyon === "sms_sablon_kaydet") {
+        const a = body.alanlar || {};
+        const alanlar = {};
+        for (const k of ["ad", "metin", "aktif", "tarih"]) if (k in a) alanlar[k] = k === "tarih" ? (a.tarih || null) : a[k];
+        const { error } = await supabase.from("sms_sablonlar").update(alanlar).eq("id", body.id);
+        if (error) throw error;
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      }
+      if (aksiyon === "sms_sablon_ekle") {
+        const { error } = await supabase.from("sms_sablonlar").insert({ ad: String(body.ad || "Yeni şablon").slice(0, 80), metin: String(body.metin || ""), otomatik: false, sira: 100 });
+        if (error) throw error;
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      }
+      if (aksiyon === "sms_sablon_sil") {
+        const { error } = await supabase.from("sms_sablonlar").delete().eq("id", body.id).eq("otomatik", false);
+        if (error) throw error;
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
+      }
+      if (aksiyon === "sms_gonder" || aksiyon === "sms_deneme") {
+        const j = await emlakSms("POST", aksiyon === "sms_gonder"
+          ? { islem: "gonder", firma_idler: body.firma_idler, metin: body.metin, ticari: !!body.ticari }
+          : { islem: "deneme", telefon: body.telefon, firma_id: body.firma_id, metin: body.metin, ticari: !!body.ticari });
+        return { statusCode: j.hata ? 502 : 200, headers, body: JSON.stringify(j.hata ? { error: j.hata } : j) };
       }
 
       if (aksiyon === "firma_sil") {
