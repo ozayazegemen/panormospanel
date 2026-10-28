@@ -28,9 +28,22 @@ exports.handler = async () => {
     const r = await fetch(KAYNAK, { headers: { 'User-Agent': 'Mozilla/5.0 (ayazgayrimenkul)' }, signal: AbortSignal.timeout(10000) })
     if (!r.ok) throw new Error(`Kaynak yanıt vermedi (${r.status})`)
     const html = await r.text()
+    // Eski sayfa yapısı: __NEXT_DATA__ içinde JSON. Yeni yapı (Ekim 2026): sayfaya gömülü akış verisinde
+    // kaçışlı JSON; her ürün iç içe nesne içermeyen düz bir nesnedir, tek tek ayıklanır.
     const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)
-    if (!m) throw new Error('Veri bulunamadı')
-    const urunler = urunleriTopla(JSON.parse(m[1]))
+    let urunler = m ? urunleriTopla(JSON.parse(m[1])) : []
+    if (!urunler.length) {
+      const duz = html.replace(/\\"/g, '"')
+      for (const p of duz.match(/\{[^{}]*"bankName":"[^"]+"[^{}]*"interestRate":[\d.]+[^{}]*\}/g) ?? []) {
+        try { urunleriTopla(JSON.parse(p), urunler) } catch (e) { /* bozuk parça atlanır */ }
+      }
+      // Karşılaştırma tablosundaki diğer bankalar: banka adı satırının hemen ardından "% 3,09" biçiminde oran
+      for (const t of duz.matchAll(/"title":"([^"]+)","internalUrl":"[^"]*","followingUrl":"konut-kredisi","loanTitle":"[^"]*"\}\]\\n[0-9a-f]+:\["% ","([\d,]+)"\]/g)) {
+        const oran = Number(t[2].replace(',', '.'))
+        if (oran > 0) urunler.push({ productType: 1, bankName: t[1], interestRate: oran, bankType: /katılım/i.test(t[1]) ? 2 : 1 })
+      }
+    }
+    if (!urunler.length) throw new Error('Veri bulunamadı')
     // Her bankadan en düşük oranlı konut ürünü
     const bankalar = {}
     urunler.forEach((u) => {
