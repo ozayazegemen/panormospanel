@@ -3663,14 +3663,10 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const [revisionModal,setRevisionModal]=useState(null);  // revize modalı
   const [approvalUploading,setApprovalUploading]=useState(false);
 
+  // Pano iki sütun: Yapılacak / Tamamlandı (29.10.2026'da sadeleştirildi; eski sütunlar yüklenirken bu ikisine eşlenir)
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
-    {id:"inprogress",label:"Başlandı",color:T.indigoText},
-    {id:"review",label:"İncelemede",color:T.amber},
     {id:"done",label:"Tamamlandı",color:T.green},
-    {id:"revision",label:"Revize",color:"#EF4444"},
-    {id:"approval",label:"Onaya Gönderildi",color:"#25D366"},
-    {id:"published",label:"Paylaşım Yapıldı",color:"#A855F7"},
   ];
 
   // Çalışana özel renk (kişiye göre ayırma)
@@ -4034,7 +4030,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               </div>
             )}
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6}}>
                 {cols.map(c=>(
                   <button key={c.id} onClick={()=>moveTask(selectedTask.id, c.id)} style={{padding:"7px 4px",fontSize:10,fontWeight:600,borderRadius:6,background:selectedTask.col===c.id?T.amber:T.bgSurface,color:selectedTask.col===c.id?T.white:T.textMuted,border:`1px solid ${T.border}`,cursor:"pointer"}}>
                     {c.label}
@@ -4045,7 +4041,6 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
           </div>
           <div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
             <button onClick={()=>{setDeleteModal({taskId:selectedTask.id,reason:"",note:""});}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.redDim,color:T.redText,border:"none",cursor:"pointer"}}>🗑 Sil</button>
-            <button onClick={()=>setRevisionModal({taskId:selectedTask.id,note:""})} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:"rgba(239,68,68,0.15)",color:T.redText,border:"none",cursor:"pointer"}}>🔄 Revize</button>
             <button onClick={()=>{setEditForm({id:selectedTask.id,title:selectedTask.title,client:selectedTask.client,type:selectedTask.type||"Tasarım",priority:selectedTask.priority||"mid",due:selectedTask.due||""});setEditModal(true);}} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.bgSurface,color:T.textSecondary,border:`1px solid ${T.border}`,cursor:"pointer"}}>✏️ Düzenle</button>
             <button onClick={()=>setSelectedTask(null)} style={{padding:"6px 12px",fontSize:12,fontWeight:600,borderRadius:8,background:T.amber,color:T.white,border:"none",cursor:"pointer"}}>Kapat</button>
           </div>
@@ -4103,11 +4098,11 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     </div>
 
     <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:6}}>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(150px,1fr))",gap:10,minWidth:7*150+60}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(260px,1fr))",gap:12,minWidth:560}}>
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
         const allTasks = getAllColTasks(col.id);
-        const shown = colTasks.slice(0, 5);
+        const shown = colTasks.slice(0, 12);
         // Gizli = (kolonda gösterilmeyenler) + (published'da eski kayıtlar)
         const hiddenCount = allTasks.length - shown.length;
         return (
@@ -11393,7 +11388,7 @@ async function loadAllData() {
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
     id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "", clientId: t.client_id || null,
-    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col || "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
+    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: (t.col === "done" || t.col === "published") ? "done" : "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
     revisionNote: t.revision_note || "", revisionBy: t.revision_by || "", revisionAt: t.revision_at || null,
     createdAt: t.created_at || null, completedAt: t.completed_at || null,
   }));
