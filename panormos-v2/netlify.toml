@@ -56,3 +56,7 @@
 # Her gece 02:00'de (Türkiye saati) otomatik tam yedek
 [functions."nightly-backup"]
   schedule = "0 23 * * *"
+
+# Paylaşım Planlayıcı: zamanı gelen Instagram paylaşımlarını her 5 dakikada gönderir
+[functions."planlayici-zamanli"]
+  schedule = "*/5 * * * *"
