@@ -3571,7 +3571,7 @@ function MonthlyTasksSetup({ clients, staff, onClose, onDone }) {
 // ── Aylık görev performansı ──
 // Görev hangi aya ait: son tarihi varsa o ay; yoksa atandığı, o da yoksa oluşturulduğu ay.
 const taskMonth = (t) => /^\d{4}-\d{2}/.test(t.due || "") ? t.due.slice(0, 7) : localDay(t.assignedAt || t.createdAt).slice(0, 7);
-const taskIsDone = (t) => t.col === "done" || t.col === "published";
+const taskIsDone = (t) => t.col === "done" || t.col === "published" || t.col === "planlayici" || t.col === "planlayici";
 function localDay(iso) { if (!iso) return ""; const d = new Date(iso); return isNaN(d) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 // Zamanında mı tamamlandı? true / false; son tarih ya da tamamlanma anı bilinmiyorsa null
 const taskOnTime = (t) => (!taskIsDone(t) || !t.completedAt || !/^\d{4}-\d{2}-\d{2}/.test(t.due || "")) ? null : localDay(t.completedAt) <= t.due.slice(0, 10);
@@ -3667,7 +3667,11 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const cols=[
     {id:"todo",label:"Yapılacak",color:T.textMuted},
     {id:"done",label:"Tamamlandı",color:T.green},
+    {id:"planlayici",label:"Planlayıcıya Yüklendi",color:"#A855F7"},
   ];
+  const [colPage,setColPage]=useState({}); // sütun başına sayfa (7 kart/sayfa)
+  const SAYFA_BOYU=7;
+  const buAyMi=(iso)=>{ if(!iso) return false; const d=new Date(iso), n=new Date(); return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth(); };
 
   // Çalışana özel renk (kişiye göre ayırma)
   const STAFF_COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
@@ -3698,7 +3702,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     }
     // Tamamlanma anı: ilk kez "Tamamlandı / Paylaşım Yapıldı" olduğunda yazılır, geri alınırsa silinir
     const onceki = tasks.find(x=>x.id===id);
-    const bitti = newCol==="done" || newCol==="published";
+    const bitti = newCol==="done" || newCol==="published" || newCol==="planlayici";
     const completedAt = bitti ? (onceki?.completedAt || new Date().toISOString()) : null;
     setTasks(prev=>prev.map(t=>t.id===id?{...t,col:newCol,completedAt}:t));
     if(selectedTask && selectedTask.id===id){ setSelectedTask({...selectedTask,col:newCol,completedAt}); }
@@ -3814,7 +3818,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   const visibleStaff = isAdminView ? staff : staff.filter(s => s.id === currentStaff?.id);
   // Üst özet çubuğu: yönetici=global, çalışan=kendi görevleri
   const viewTasks = isAdminView ? monthTasks : monthTasks.filter(t => t.assignedTo === currentStaff?.id);
-  const viewDone = viewTasks.filter(t => t.col === "done" || t.col === "published").length;
+  const viewDone = viewTasks.filter(t => t.col === "done" || t.col === "published" || t.col === "planlayici").length;
   const viewPercent = viewTasks.length > 0 ? Math.round(viewDone / viewTasks.length * 100) : 0;
 
   const staffColorLocal = (sid) => {
@@ -3867,6 +3871,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   // Bir kolonun görevlerini getir (published kolonu son 30 gün gösterilir)
   const getColTasks = (colId) => {
     let list = tasks.filter(t => t.col === colId && (filterStaff === "all" || t.assignedTo === filterStaff));
+    if (colId === "done" || colId === "planlayici") list = list.filter(t => buAyMi(t.completedAt)).sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
     if (colId === "published") {
       list = list.filter(t => daysAgoOf(publishDateByTask[t.id]) <= 30);
       list.sort((a, b) => {
@@ -3922,7 +3927,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
         <div style={{height:"100%",width:`${viewPercent}%`,background:`linear-gradient(90deg, ${T.indigo}, ${T.amber}, ${T.green})`,borderRadius:6,transition:"width 0.6s ease",boxShadow:`0 0 20px ${T.amber}66`}} />
       </div>
       <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:T.textMuted}}>
-        <span>✓ {viewTasks.filter(t => t.col === "done" || t.col === "published").length} tamamlandı</span>
+        <span>✓ {viewTasks.filter(t => t.col === "done" || t.col === "published" || t.col === "planlayici").length} tamamlandı</span>
         <span>→ {viewTasks.filter(t => t.col === "inprogress").length} başlandı</span>
         <span>◐ {viewTasks.filter(t => t.col === "review").length} incelemede</span>
         <span>○ {viewTasks.filter(t => t.col === "todo").length} yapılacak</span>
@@ -4030,7 +4035,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
               </div>
             )}
             <div><div style={{fontSize:10,color:T.textMuted,marginBottom:4,textTransform:"uppercase"}}>Durum</div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
                 {cols.map(c=>(
                   <button key={c.id} onClick={()=>moveTask(selectedTask.id, c.id)} style={{padding:"7px 4px",fontSize:10,fontWeight:600,borderRadius:6,background:selectedTask.col===c.id?T.amber:T.bgSurface,color:selectedTask.col===c.id?T.white:T.textMuted,border:`1px solid ${T.border}`,cursor:"pointer"}}>
                     {c.label}
@@ -4098,17 +4103,17 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     </div>
 
     <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",paddingBottom:6}}>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(260px,1fr))",gap:12,minWidth:560}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(230px,1fr))",gap:12,minWidth:740}}>
       {cols.map(col=>{
         const colTasks = getColTasks(col.id);
-        const allTasks = getAllColTasks(col.id);
-        const shown = colTasks.slice(0, 12);
-        // Gizli = (kolonda gösterilmeyenler) + (published'da eski kayıtlar)
-        const hiddenCount = allTasks.length - shown.length;
+        const sayfaSayisi = Math.max(1, Math.ceil(colTasks.length / SAYFA_BOYU));
+        const sayfa = Math.min(colPage[col.id] || 0, sayfaSayisi - 1);
+        const shown = colTasks.slice(sayfa * SAYFA_BOYU, (sayfa + 1) * SAYFA_BOYU);
+        const hiddenCount = 0;
         return (
         <div key={col.id} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,paddingBottom:10,borderBottom:`1px solid ${T.border}`}}>
-            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}{col.id==="published" && <span style={{fontSize:8,color:T.textMuted,marginLeft:4}}>(son 30 gün)</span>}</span>
+            <span style={{fontSize:12,fontWeight:600,color:col.color}}>{col.label}{col.id!=="todo" && <span style={{fontSize:8,color:T.textMuted,marginLeft:4}}>({TR_MONTHS[new Date().getMonth()]})</span>}</span>
             <span style={{fontSize:10,background:T.bgSurface,color:T.textMuted,borderRadius:20,padding:"1px 8px"}}>{colTasks.length}</span>
           </div>
           {colTasks.length===0 && <div style={{fontSize:10,color:T.textMuted,textAlign:"center",padding:"12px 0"}}>—</div>}
@@ -4120,10 +4125,12 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
                 </div>
               ))
             : shown.map(taskCardEl)}
-          {hiddenCount>0 && (
-            <button onClick={()=>setColumnModal({colId:col.id,label:col.label,color:col.color})} style={{marginTop:4,padding:"9px",borderRadius:8,border:`1px solid ${col.color}55`,background:`${col.color}18`,color:col.color,fontSize:11,fontWeight:700,cursor:"pointer"}}>
-              📋 Tümünü Gör ({allTasks.length})
-            </button>
+          {sayfaSayisi>1 && (
+            <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap",marginTop:4}}>
+              {Array.from({length:sayfaSayisi},(_,i)=>(
+                <button key={i} onClick={()=>setColPage(p=>({...p,[col.id]:i}))} style={{minWidth:28,padding:"5px 7px",borderRadius:7,border:`1px solid ${i===sayfa?col.color:T.border}`,background:i===sayfa?`${col.color}22`:"transparent",color:i===sayfa?col.color:T.textMuted,fontSize:11,fontWeight:700,cursor:"pointer"}}>{i+1}</button>
+              ))}
+            </div>
           )}
         </div>
       );})}
@@ -4179,7 +4186,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
           <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:"#A855F7"}}>{periodPublishes.length}</div><div style={{fontSize:10,color:T.textMuted}}>DÖNEMDE PAYLAŞIM</div></div>
-          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.greenText}}>{tasks.filter(t=>t.col==="done"||t.col==="published").length}</div><div style={{fontSize:10,color:T.textMuted}}>TOPLAM TAMAMLANAN</div></div>
+          <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.greenText}}>{tasks.filter(t=>t.col==="done"||t.col==="published"||t.col==="planlayici").length}</div><div style={{fontSize:10,color:T.textMuted}}>TOPLAM TAMAMLANAN</div></div>
           <div style={{background:T.bgInput,borderRadius:8,padding:"12px"}}><div style={{fontSize:22,fontWeight:800,color:T.indigoText}}>{tasks.filter(t=>t.col==="inprogress"||t.col==="review").length}</div><div style={{fontSize:10,color:T.textMuted}}>DEVAM EDEN</div></div>
         </div>
 
@@ -5962,8 +5969,8 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
 
     {/* ☀️ Bugünün Özeti (sabah özeti panosu) */}
     {(()=>{
-      const dueToday = tasks.filter(t=>t.due===todayStr && t.col!=="done" && t.col!=="published");
-      const overdue = tasks.filter(t=>t.due && t.due!=="—" && t.due.length>=8 && t.due<todayStr && t.col!=="done" && t.col!=="published");
+      const dueToday = tasks.filter(t=>t.due===todayStr && t.col!=="done" && t.col!=="published" && t.col!=="planlayici");
+      const overdue = tasks.filter(t=>t.due && t.due!=="—" && t.due.length>=8 && t.due<todayStr && t.col!=="done" && t.col!=="published" && t.col!=="planlayici");
       const inRevision = tasks.filter(t=>t.col==="revision");
       const pendingApproval = tasks.filter(t=>t.col==="approval");
       const items = [
@@ -11388,7 +11395,7 @@ async function loadAllData() {
 
   const tasks = (tasksRaw || []).filter(t => !t.deleted_at).map(t => ({
     id: t.id, title: t.title, client: clients.find(c => c.id === t.client_id)?.name || "", clientId: t.client_id || null,
-    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: (t.col === "done" || t.col === "published") ? "done" : "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
+    type: t.type || "", priority: t.priority || "mid", due: t.due_date || "", col: t.col === "planlayici" ? "planlayici" : (t.col === "done" || t.col === "published" || t.col === "planlayici") ? "done" : "todo", assignedTo: t.assigned_to || null, assignedAt: t.assigned_at || null,
     revisionNote: t.revision_note || "", revisionBy: t.revision_by || "", revisionAt: t.revision_at || null,
     createdAt: t.created_at || null, completedAt: t.completed_at || null,
   }));
@@ -11788,7 +11795,7 @@ function NotificationBell({ clients, tasks, perms, setPage, currentStaff }) {
   // Teslim tarihi geçmiş, hâlâ tamamlanmamış görevler
   const overdueTasks = tasks.filter(t => {
     if (!t.due || t.due === "—" || t.due.length < 8) return false;
-    if (t.col === "done" || t.col === "published") return false;
+    if (t.col === "done" || t.col === "published" || t.col === "planlayici") return false;
     return t.due < todayStr;
   });
   if (overdueTasks.length) notifs.push({ icon: "⏰", title: `${overdueTasks.length} görevin teslim tarihi geçti`, sub: overdueTasks.map(t => t.title).join(", "), page: "tasks", sev: "high" });
