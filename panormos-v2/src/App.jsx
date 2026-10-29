@@ -1,7 +1,7 @@
 import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
-import PlanlayiciPage from "./Planlayici.jsx";
+import PlanlayiciPage, { InstagramIstatistik } from "./Planlayici.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
 import EmlakSms from "./EmlakSms.jsx";
 import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur, OtomatikBorclandirma, borclandirmalariOlustur } from "./Finans.jsx";
@@ -1778,7 +1778,6 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
               <div style={{fontSize:14,fontWeight:600,color:T.textPrimary}}>{client.name}</div>
               <div style={{fontSize:12,color:T.textMuted,marginTop:2}}>{client.category} • {client.phone}</div>
             </div>
-            {(()=>{const sp=setupProgress(client);return sp.done<sp.total?<div title="Meta / Instagram kurulumu eksik" style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:6,background:T.amberDim,color:T.amberText,whiteSpace:"nowrap"}}>🛠️ Kurulum {sp.done}/{sp.total}</div>:null;})()}
             <div style={{display:"flex",gap:5}}>{client.platforms.map(p=><PlatformTag key={p} id={p}/>)}</div>
             {perms.finance && <div style={{textAlign:"right",minWidth:90}}>
               <div style={{fontSize:13,fontWeight:600,color:T.textPrimary}}>{fmtMoney(client.monthlyFee)}</div>
@@ -1978,7 +1977,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   const [mailModal, setMailModal] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
-  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"setup",lbl:"Kurulum"},{id:"ai",lbl:"✨ Asistan"}];
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"insta",lbl:"📈 Instagram"},{id:"ai",lbl:"✨ Asistan"}];
   const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
@@ -2082,7 +2081,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="posts"&&<ClientPosts client={client} setClients={setClients}/>}
       {safeTab==="calendar"&&<ClientCalendar client={client}/>}
       {safeTab==="media"&&<ClientMedia client={client}/>}
-      {safeTab==="setup"&&<ClientSetup client={client} setClients={setClients}/>}
+      {safeTab==="insta"&&<InstagramIstatistik client={client}/>}
       {safeTab==="ai"&&<ClientAI client={client}/>}
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
     </div>

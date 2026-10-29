@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { T } from "./theme";
-import { Btn, Select, Input, Textarea, Modal, FormField, StatCard, swalAlert, swalConfirm, panelFetch } from "./App.jsx";
+import { Btn, Select, Input, Textarea, Modal, FormField, StatCard, swalAlert, swalConfirm, panelFetch, downloadPdfFromHTML } from "./App.jsx";
 
 // Panel → Planlayıcı: müşterilerin Reels, Post, Kaydırmalı ve Hikaye paylaşımları.
 // Dosya yüklenir, tarih ve saat seçilir; sunucu her 5 dakikada zamanı geleni Instagram'a gönderir.
@@ -303,5 +303,91 @@ function HesapEslestir({ musteriler, igBag, onDegisti }) {
         </Select>
       </div>
     </div>)}
+  </div>;
+}
+
+// ─────────────────────────────────────────────
+// Müşteri → Instagram sekmesi: aylık istatistikler ve PDF rapor
+// ─────────────────────────────────────────────
+const sayiYaz = (n) => (n === null || n === undefined) ? "—" : Number(n).toLocaleString("tr-TR");
+const kacay = (n) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - n); return `${d.getFullYear()}-${ikiHane(d.getMonth() + 1)}`; };
+const ayYaz = (a) => { const [y, m] = a.split("-").map(Number); return `${AYLAR[m - 1]} ${y}`; };
+const kacis = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+export function InstagramIstatistik({ client }) {
+  const [ay, setAy] = useState(kacay(0));
+  const [veri, setVeri] = useState(null);
+  const [hata, setHata] = useState("");
+  const [yukleniyor, setYukleniyor] = useState(false);
+
+  const getir = async () => {
+    setYukleniyor(true); setHata("");
+    try {
+      const r = await panelFetch(`/.netlify/functions/planlayici?islem=istatistik&client=${client.id}&ay=${ay}`);
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `Hata ${r.status}`);
+      setVeri(j);
+    } catch (e) { setHata(e.message); setVeri(null); }
+    setYukleniyor(false);
+  };
+  useEffect(() => { getir(); }, [client.id, ay]);
+
+  const medya = veri?.medya || [];
+  const top = (k) => medya.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+  const ozet = [
+    ["Takipçi", veri?.hesap?.takipci], ["Bu ay paylaşım", medya.length],
+    ["Görüntülenme", veri?.genel?.views ?? top("goruntulenme")], ["Erişilen hesap", veri?.genel?.reach ?? top("erisim")],
+    ["Beğeni", top("begeni")], ["Yorum", top("yorum")], ["Kaydetme", top("kaydetme")], ["Paylaşım (gönderim)", top("paylasim")],
+    ["Profil ziyareti", veri?.genel?.profile_views ?? null],
+  ];
+
+  const pdf = () => {
+    const satir = medya.map(x => `<tr><td>${kacis(zamanYaz(x.zaman))}</td><td>${kacis(turAdi(x.tur))}</td><td class="ac">${kacis(x.aciklama || "")}</td><td>${sayiYaz(x.goruntulenme)}</td><td>${sayiYaz(x.erisim)}</td><td>${sayiYaz(x.begeni)}</td><td>${sayiYaz(x.yorum)}</td><td>${sayiYaz(x.kaydetme)}</td><td>${sayiYaz(x.paylasim)}</td></tr>`).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>rapor</title><style>
+      body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#111;margin:28px}
+      h1{font-size:20px;margin:0}.alt{color:#666;font-size:12px;margin:4px 0 18px}
+      .kutular{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
+      .k{border:1px solid #ddd;border-radius:10px;padding:10px 12px}.k b{display:block;font-size:20px;margin-top:4px}.k span{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.05em}
+      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border-bottom:1px solid #e5e5e5;padding:6px 5px;text-align:right}th{background:#f6f6f6;font-weight:700}
+      th:nth-child(-n+3),td:nth-child(-n+3){text-align:left}td.ac{max-width:220px;color:#444}
+      .son{margin-top:18px;font-size:10px;color:#888}</style></head><body>
+      <h1>${kacis(client.name)} · Instagram Raporu</h1>
+      <div class="alt">@${kacis(veri?.hesap?.kullanici || "")} · ${ayYaz(ay)} · Hazırlayan: Panormos Medya</div>
+      <div class="kutular">${ozet.map(([l, v]) => `<div class="k"><span>${l}</span><b>${sayiYaz(v)}</b></div>`).join("")}</div>
+      <table><thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Paylaşım</th></tr></thead><tbody>${satir || `<tr><td colspan="9">Bu ay paylaşım yok.</td></tr>`}</tbody></table>
+      <div class="son">Veriler Instagram'dan ${new Date().toLocaleDateString("tr-TR")} tarihinde alındı.</div></body></html>`;
+    downloadPdfFromHTML(html, `${client.name}-instagram-${ay}.pdf`, "landscape");
+  };
+
+  return <div>
+    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+      <div style={{ width: 180 }}><Select value={ay} onChange={e => setAy(e.target.value)}>{Array.from({ length: 12 }, (_, i) => kacay(i)).map(a => <option key={a} value={a}>{ayYaz(a)}</option>)}</Select></div>
+      <Btn onClick={getir} disabled={yukleniyor}>{yukleniyor ? "Alınıyor…" : "Yenile"}</Btn>
+      <div style={{ flex: 1 }} />
+      {veri?.bagli && <Btn variant="primary" onClick={pdf} disabled={yukleniyor}>📄 PDF rapor</Btn>}
+    </div>
+    {hata && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim, padding: "10px 12px", borderRadius: 10, marginBottom: 12 }}>İstatistikler alınamadı: {hata}</div>}
+    {veri && !veri.bagli && <div style={{ fontSize: 13, color: T.textSecondary, padding: 16, background: T.bgInput, borderRadius: 12 }}>Bu müşterinin Instagram hesabı henüz bağlı değil. Paylaşım Planlayıcı → Instagram hesapları sekmesinden bağlayın.</div>}
+    {veri?.bagli && <>
+      <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10 }}>@{veri.hesap?.kullanici} · {ayYaz(ay)}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 16 }}>
+        {ozet.map(([l, v]) => <StatCard key={l} label={l} value={sayiYaz(v)} />)}
+      </div>
+      <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 760 }}>
+          <thead><tr style={{ background: T.bgSurface }}>{["", "Tarih", "Tür", "Açıklama", "Görüntülenme", "Erişim", "Beğeni", "Yorum", "Kaydetme", "Paylaşım"].map((b, i) => <th key={i} style={{ padding: "8px 8px", textAlign: i > 3 ? "right" : "left", color: T.textSecondary, fontSize: 11 }}>{b}</th>)}</tr></thead>
+          <tbody>
+            {medya.length === 0 && <tr><td colSpan={10} style={{ padding: 14, color: T.textMuted }}>Bu ay paylaşım yok.</td></tr>}
+            {medya.map(x => <tr key={x.id} style={{ borderTop: `1px solid ${T.border}` }}>
+              <td style={{ padding: 6 }}>{x.gorsel ? <img src={x.gorsel} alt="" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6 }} /> : null}</td>
+              <td style={{ padding: 6, whiteSpace: "nowrap", color: T.textPrimary }}>{zamanYaz(x.zaman)}</td>
+              <td style={{ padding: 6, color: T.textPrimary }}>{turAdi(x.tur)}</td>
+              <td style={{ padding: 6, color: T.textMuted, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.baglanti ? <a href={x.baglanti} target="_blank" rel="noreferrer" style={{ color: T.textMuted }}>{x.aciklama || "Paylaşımı aç"}</a> : x.aciklama}</td>
+              {["goruntulenme", "erisim", "begeni", "yorum", "kaydetme", "paylasim"].map(k => <td key={k} style={{ padding: 6, textAlign: "right", color: T.textPrimary, fontWeight: 600 }}>{sayiYaz(x[k])}</td>)}
+            </tr>)}
+          </tbody>
+        </table>
+      </div>
+    </>}
   </div>;
 }

@@ -163,4 +163,56 @@ async function hesaplar() {
   }));
 }
 
-module.exports = { calistir, hesaplar };
+// Müşterinin Instagram istatistikleri: hesap özeti + seçilen aydaki paylaşımların sayıları
+// ay: "YYYY-MM". Gerekli izin: instagram_manage_insights
+async function istatistik(igId, ay) {
+  const [y, m] = String(ay || "").split("-").map(Number);
+  const bas = new Date(Date.UTC(y, m - 1, 1)), son = new Date(Date.UTC(y, m, 1));
+  const hesap = await graph(`/${igId}?fields=username,name,followers_count,follows_count,media_count,profile_picture_url`);
+  // Paylaşımlar (yeniden eskiye; ay başından eskiye inince dur)
+  const medya = [];
+  let yol = `/${igId}/media?fields=id,caption,media_type,media_product_type,timestamp,permalink,like_count,comments_count,thumbnail_url,media_url&limit=50`;
+  for (let sayfa = 0; sayfa < 6 && yol; sayfa++) {
+    const j = await graph(yol);
+    let eskiyeIndi = false;
+    for (const x of j.data || []) {
+      const t = new Date(x.timestamp);
+      if (t < bas) { eskiyeIndi = true; break; }
+      if (t < son) medya.push(x);
+    }
+    if (eskiyeIndi || !j.paging?.next) break;
+    const n = new URL(j.paging.next); n.searchParams.delete("access_token");
+    yol = n.pathname.replace(/^\/v[0-9.]+/, "") + n.search;
+  }
+  // Her paylaşımın görüntülenme / erişim / kaydetme / paylaşım sayıları
+  const sayilar = async (x) => {
+    for (const metrik of ["views,reach,saved,shares,total_interactions", "reach,saved,shares,total_interactions", "reach,saved"]) {
+      try {
+        const j = await graph(`/${x.id}/insights?metric=${metrik}`);
+        const o = {}; (j.data || []).forEach(d => { o[d.name] = d.values?.[0]?.value ?? d.total_value?.value ?? 0; });
+        return o;
+      } catch (e) { /* bu tür için desteklenmeyen ölçü; daha azıyla dene */ }
+    }
+    return {};
+  };
+  for (let i = 0; i < medya.length; i += 8) {
+    const grup = medya.slice(i, i + 8);
+    const s = await Promise.all(grup.map(sayilar));
+    grup.forEach((x, k) => { x.olcu = s[k]; });
+  }
+  // Hesap geneli (ayın günleri; Instagram en çok 30 günlük aralık verir)
+  let genel = {};
+  try {
+    const bitis = new Date(Math.min(son.getTime(), Date.now()));
+    const baslangic = new Date(Math.max(bas.getTime(), bitis.getTime() - 30 * 86400000));
+    const j = await graph(`/${igId}/insights?metric=reach,views,profile_views,accounts_engaged,total_interactions&metric_type=total_value&period=day&since=${Math.floor(baslangic / 1000)}&until=${Math.floor(bitis / 1000)}`);
+    (j.data || []).forEach(d => { genel[d.name] = d.total_value?.value ?? 0; });
+  } catch (e) { genel = { hata: e.message }; }
+  return {
+    hesap: { kullanici: hesap.username, ad: hesap.name, takipci: hesap.followers_count, takip: hesap.follows_count, paylasim: hesap.media_count, foto: hesap.profile_picture_url || null },
+    genel,
+    medya: medya.map(x => ({ id: x.id, zaman: x.timestamp, tur: x.media_product_type === "REELS" ? "reels" : x.media_type === "CAROUSEL_ALBUM" ? "carousel" : x.media_product_type === "STORY" ? "story" : "post", aciklama: (x.caption || "").slice(0, 160), baglanti: x.permalink, gorsel: x.thumbnail_url || x.media_url || null, begeni: x.like_count || 0, yorum: x.comments_count || 0, goruntulenme: x.olcu?.views ?? null, erisim: x.olcu?.reach ?? null, kaydetme: x.olcu?.saved ?? null, paylasim: x.olcu?.shares ?? null, etkilesim: x.olcu?.total_interactions ?? null })),
+  };
+}
+
+module.exports = { calistir, hesaplar, istatistik };
