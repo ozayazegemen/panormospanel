@@ -3671,7 +3671,9 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
   ];
   const [colPage,setColPage]=useState({}); // sütun başına sayfa (7 kart/sayfa)
   const SAYFA_BOYU=7;
-  const buAyMi=(iso)=>{ if(!iso) return false; const d=new Date(iso), n=new Date(); return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth(); };
+  // Tamamlandı / Planlayıcıya Yüklendi sütunları 1 Kasım 2026'dan itibaren tutulur (Egemen 29.10.2026'da "sıfırla, ay başında başlayacağız" dedi); öncesi gizli, silinmedi
+  const PANO_BASLANGIC="2026-11-01";
+  const buAyMi=(iso)=>{ if(!iso || String(iso).slice(0,10)<PANO_BASLANGIC) return false; const d=new Date(iso), n=new Date(); return d.getFullYear()===n.getFullYear() && d.getMonth()===n.getMonth(); };
 
   // Çalışana özel renk (kişiye göre ayırma)
   const STAFF_COLORS = ["#F25124","#6366F1","#10B981","#EC4899","#F59E0B","#8B5CF6","#06B6D4","#EF4444","#14B8A6","#A855F7"];
