@@ -9,7 +9,7 @@ const { veritabani } = require("./qr-abonelik.cjs");
 const { imzaliBaglanti } = require("./planlayici.cjs");
 
 const GRAPH = "https://graph.facebook.com/v23.0";
-const HESAP = () => "act_" + String(process.env.META_REKLAM_HESABI || "1254894623405686").replace(/^act_/, "");
+const HESAP = () => "act_" + String(process.env.META_REKLAM_HESABI || "1254854623405886").replace(/^act_/, "");
 const ADIMLAR = ["kampanya", "reklam_seti", "medya", "kreatif", "reklam", "baslat"];
 const VIDEO_BEKLEME_DK = 30;
 
@@ -56,7 +56,7 @@ async function hesapBilgi() {
   try {
     const m = await graph(`/${HESAP()}/minimum_budgets`);
     const d = (m.data || []).find(x => x.currency === h.currency) || (m.data || [])[0];
-    if (d) minGunluk = Math.max(d.min_daily_budget_imp || 0, d.min_daily_budget_low_freq || 0) / 100;
+    if (d) minGunluk = Math.ceil((d.min_daily_budget_imp || 0) / 100); // gösterim bazlı faturalama için en düşük günlük bütçe (TL)
   } catch (e) { /* bilgi amaçlı */ }
   const DURUM = { 1: "Aktif", 2: "Devre dışı", 3: "Ödeme bekliyor", 7: "İnceleme bekliyor", 9: "Ödeme süresi geçti", 100: "Kapatma bekliyor", 101: "Kapalı" };
   return {

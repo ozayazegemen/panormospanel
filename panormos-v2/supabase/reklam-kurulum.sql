@@ -1,5 +1,5 @@
 -- Reklamlar (31.10.2026): panelden Meta (Instagram/Facebook) reklamı verme.
--- Tüm müşterilerin reklamları Panormos Medya'nın reklam hesabından (act_1254894623405686) çıkar;
+-- Tüm müşterilerin reklamları Panormos Medya'nın reklam hesabından (act_1254854623405886) çıkar;
 -- ödeme Panormos kartından, müşteriden önden tahsil edilir. Supabase SQL Editor'de bir kez çalıştırın.
 
 alter table public.clients add column if not exists fb_sayfa_id text;  -- Instagram hesabına bağlı Facebook sayfası (ilk reklamda otomatik bulunur)
