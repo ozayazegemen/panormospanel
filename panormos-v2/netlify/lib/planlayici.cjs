@@ -215,4 +215,71 @@ async function istatistik(igId, ay) {
   };
 }
 
-module.exports = { calistir, hesaplar, istatistik };
+// Günlük takipçi hareketi: Instagram'ın verdiği yeni/ayrılan sayıları (son 30 gün) + bugünkü toplam.
+// since/until Unix saniye. Dönen: [{gun:'YYYY-MM-DD', yeni, ayrilan}]
+async function takipciHareketi(igId, sinceSn, untilSn) {
+  const gunler = {};
+  const ekle = (ad, j) => { for (const d of j.data || []) for (const v of d.values || []) { const g = String(v.end_time || "").slice(0, 10); if (!g) continue; gunler[g] = gunler[g] || {}; gunler[g][ad] = v.value ?? 0; } };
+  // Yeni sürüm metrikleri (follows/unfollows), olmazsa eski follower_count
+  try { ekle("yeni", await graph(`/${igId}/insights?metric=follows_and_unfollows&metric_type=total_value&breakdown=follow_type&period=day&since=${sinceSn}&until=${untilSn}`)); } catch (e) { /* desteklenmeyebilir */ }
+  if (!Object.keys(gunler).length) {
+    try { ekle("yeni", await graph(`/${igId}/insights?metric=follower_count&period=day&since=${sinceSn}&until=${untilSn}`)); } catch (e) { /* 100 takipçi altı hesaplarda yok */ }
+  }
+  return Object.keys(gunler).sort().map(g => ({ gun: g, yeni: gunler[g].yeni ?? null, ayrilan: gunler[g].ayrilan ?? null }));
+}
+
+// Gece işi: bağlı her müşterinin takipçi sayısını ve son 30 günün hareketini ig_takipci_gunluk'a yazar
+async function takipciArsivle() {
+  const db = veritabani();
+  const musteriler = await db.oku(`clients?ig_user_id=not.is.null&deleted_at=is.null&select=id,name,ig_user_id`);
+  const simdi = new Date(); const bugun = simdi.toISOString().slice(0, 10);
+  const sonuc = [];
+  for (const m of musteriler) {
+    try {
+      const hesap = await graph(`/${m.ig_user_id}?fields=followers_count`);
+      const until = Math.floor(simdi / 1000), since = until - 29 * 86400;
+      const hareket = await takipciHareketi(m.ig_user_id, since, until);
+      const satirlar = hareket.map(h => ({ client_id: m.id, gun: h.gun, yeni: h.yeni, ayrilan: h.ayrilan }));
+      // Bugünün toplamı (hareket satırı yoksa da yaz)
+      const bugunku = satirlar.find(x => x.gun === bugun);
+      if (bugunku) bugunku.takipci = hesap.followers_count; else satirlar.push({ client_id: m.id, gun: bugun, takipci: hesap.followers_count });
+      // Eski günlerin toplamını bozmamak için takipci yalnız bugüne yazılır; diğerlerinde alan yok → merge'de dokunulmaz
+      for (const r of satirlar) {
+        await db.yaz(`ig_takipci_gunluk?on_conflict=client_id,gun`, "POST", r).catch(async () => {
+          await db.yaz(`ig_takipci_gunluk?client_id=eq.${m.id}&gun=eq.${r.gun}`, "PATCH", r);
+        });
+      }
+      sonuc.push({ musteri: m.name, takipci: hesap.followers_count, gun: satirlar.length });
+    } catch (e) { sonuc.push({ musteri: m.name, hata: e.message }); }
+  }
+  return sonuc;
+}
+
+// Önbellekli istatistik: 1 saat içinde tekrar sorulursa Instagram'a gitmez (zorla=true ile yenilenir)
+async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
+  const db = veritabani();
+  if (!zorla) {
+    try {
+      const [c] = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=eq.${ay}&select=veri,guncellendi_at`);
+      if (c && Date.now() - new Date(c.guncellendi_at).getTime() < 60 * 60 * 1000) return { ...c.veri, onbellek: c.guncellendi_at };
+    } catch (e) { /* tablo yoksa doğrudan çek */ }
+  }
+  const veri = await istatistik(igId, ay);
+  // Takipçi arşivinden o ayın hareketi
+  try {
+    const [y, mo] = ay.split("-").map(Number);
+    const bas = `${y}-${String(mo).padStart(2, "0")}-01`, son = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
+    const g = await db.oku(`ig_takipci_gunluk?client_id=eq.${clientId}&gun=gte.${bas}&gun=lte.${son}&select=gun,takipci,yeni,ayrilan&order=gun.asc`);
+    const yeni = g.reduce((s, x) => s + (x.yeni || 0), 0), ayrilan = g.reduce((s, x) => s + (x.ayrilan || 0), 0);
+    const ilk = g.find(x => x.takipci != null), sonT = [...g].reverse().find(x => x.takipci != null);
+    veri.takipci = { gunler: g, yeni, ayrilan, net: (ilk && sonT && ilk !== sonT) ? sonT.takipci - ilk.takipci : (yeni - ayrilan), baslangic: ilk?.takipci ?? null, bitis: sonT?.takipci ?? null, kayitVar: g.length > 0 };
+  } catch (e) { veri.takipci = { kayitVar: false }; }
+  try {
+    await db.yaz(`ig_istatistik_onbellek?on_conflict=client_id,ay`, "POST", { client_id: clientId, ay, veri, guncellendi_at: new Date().toISOString() }).catch(async () => {
+      await db.yaz(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=eq.${ay}`, "PATCH", { veri, guncellendi_at: new Date().toISOString() });
+    });
+  } catch (e) { /* önbellek yazılamadı; veri yine döner */ }
+  return veri;
+}
+
+module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, takipciArsivle };

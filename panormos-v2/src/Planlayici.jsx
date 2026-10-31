@@ -320,10 +320,10 @@ export function InstagramIstatistik({ client }) {
   const [hata, setHata] = useState("");
   const [yukleniyor, setYukleniyor] = useState(false);
 
-  const getir = async () => {
+  const getir = async (yenile = false) => {
     setYukleniyor(true); setHata("");
     try {
-      const r = await panelFetch(`/.netlify/functions/planlayici?islem=istatistik&client=${client.id}&ay=${ay}`);
+      const r = await panelFetch(`/.netlify/functions/planlayici?islem=istatistik&client=${client.id}&ay=${ay}${yenile ? "&yenile=1" : ""}`);
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `Hata ${r.status}`);
       setVeri(j);
@@ -334,8 +334,10 @@ export function InstagramIstatistik({ client }) {
 
   const medya = veri?.medya || [];
   const top = (k) => medya.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+  const tk = veri?.takipci || {};
   const ozet = [
-    ["Takipçi", veri?.hesap?.takipci], ["Bu ay paylaşım", medya.length],
+    ["Takipçi", veri?.hesap?.takipci], ["Yeni takipçi (ay)", tk.kayitVar ? tk.yeni : null], ["Bırakan (ay)", tk.kayitVar ? tk.ayrilan : null], ["Net değişim", tk.kayitVar ? (tk.net > 0 ? "+" + sayiYaz(tk.net) : sayiYaz(tk.net)) : null],
+    ["Bu ay paylaşım", medya.length],
     ["Görüntülenme", veri?.genel?.views ?? top("goruntulenme")], ["Erişilen hesap", veri?.genel?.reach ?? top("erisim")],
     ["Beğeni", top("begeni")], ["Yorum", top("yorum")], ["Kaydetme", top("kaydetme")], ["Paylaşım (gönderim)", top("paylasim")],
     ["Profil ziyareti", veri?.genel?.profile_views ?? null],
@@ -353,7 +355,8 @@ export function InstagramIstatistik({ client }) {
       .son{margin-top:18px;font-size:10px;color:#888}</style></head><body>
       <h1>${kacis(client.name)} · Instagram Raporu</h1>
       <div class="alt">@${kacis(veri?.hesap?.kullanici || "")} · ${ayYaz(ay)} · Hazırlayan: Panormos Medya</div>
-      <div class="kutular">${ozet.map(([l, v]) => `<div class="k"><span>${l}</span><b>${sayiYaz(v)}</b></div>`).join("")}</div>
+      <div class="kutular">${ozet.map(([l, v]) => `<div class="k"><span>${l}</span><b>${typeof v === "string" ? v : sayiYaz(v)}</b></div>`).join("")}</div>
+      ${tk.kayitVar && tk.gunler?.length ? `<div class="alt" style="margin-top:4px">Takipçi: ay başı ${sayiYaz(tk.baslangic)} → ay sonu ${sayiYaz(tk.bitis)}</div>` : ""}
       <table><thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Paylaşım</th></tr></thead><tbody>${satir || `<tr><td colspan="9">Bu ay paylaşım yok.</td></tr>`}</tbody></table>
       <div class="son">Veriler Instagram'dan ${new Date().toLocaleDateString("tr-TR")} tarihinde alındı.</div></body></html>`;
     downloadPdfFromHTML(html, `${client.name}-instagram-${ay}.pdf`, "landscape");
@@ -362,7 +365,8 @@ export function InstagramIstatistik({ client }) {
   return <div>
     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
       <div style={{ width: 180 }}><Select value={ay} onChange={e => setAy(e.target.value)}>{Array.from({ length: 12 }, (_, i) => kacay(i)).map(a => <option key={a} value={a}>{ayYaz(a)}</option>)}</Select></div>
-      <Btn onClick={getir} disabled={yukleniyor}>{yukleniyor ? "Alınıyor…" : "Yenile"}</Btn>
+      <Btn onClick={() => getir(true)} disabled={yukleniyor}>{yukleniyor ? "Alınıyor… (20-30 sn sürebilir)" : "Yenile"}</Btn>
+      {veri?.onbellek && <span style={{ fontSize: 11, color: T.textMuted }}>Son güncelleme {new Date(veri.onbellek).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>}
       <div style={{ flex: 1 }} />
       {veri?.bagli && <Btn variant="primary" onClick={pdf} disabled={yukleniyor}>📄 PDF rapor</Btn>}
     </div>
@@ -373,6 +377,7 @@ export function InstagramIstatistik({ client }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 16 }}>
         {ozet.map(([l, v]) => <StatCard key={l} label={l} value={sayiYaz(v)} />)}
       </div>
+      {tk.kayitVar ? <TakipciGrafik gunler={tk.gunler} /> : <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 14 }}>Takipçi hareketi (yeni / bırakan) her gece kaydedilir; ilk kayıttan sonra burada günlük grafik görünür.</div>}
       <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 12 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 760 }}>
           <thead><tr style={{ background: T.bgSurface }}>{["", "Tarih", "Tür", "Açıklama", "Görüntülenme", "Erişim", "Beğeni", "Yorum", "Kaydetme", "Paylaşım"].map((b, i) => <th key={i} style={{ padding: "8px 8px", textAlign: i > 3 ? "right" : "left", color: T.textSecondary, fontSize: 11 }}>{b}</th>)}</tr></thead>
@@ -389,5 +394,36 @@ export function InstagramIstatistik({ client }) {
         </table>
       </div>
     </>}
+  </div>;
+}
+
+// Günlük yeni / bırakan takipçi çubukları (yeşil yukarı, kırmızı aşağı) ve toplam takipçi çizgisi
+function TakipciGrafik({ gunler }) {
+  const g = gunler || [];
+  if (!g.length) return null;
+  const W = 760, H = 150, pad = 28, n = g.length, bw = Math.max(4, (W - pad * 2) / n - 2);
+  const maxBar = Math.max(1, ...g.map(x => Math.max(x.yeni || 0, x.ayrilan || 0)));
+  const tks = g.filter(x => x.takipci != null);
+  const tMin = tks.length ? Math.min(...tks.map(x => x.takipci)) : 0, tMax = tks.length ? Math.max(...tks.map(x => x.takipci)) : 1;
+  const mid = H / 2;
+  const x = (i) => pad + i * ((W - pad * 2) / n) + 1;
+  const cizgi = tks.map(x0 => { const i = g.indexOf(x0); const y = tMax === tMin ? mid : (H - pad) - ((x0.takipci - tMin) / (tMax - tMin)) * (H - pad * 2); return `${x(i) + bw / 2},${y}`; }).join(" ");
+  return <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: 12, marginBottom: 14, background: T.bgCard }}>
+    <div style={{ display: "flex", gap: 14, fontSize: 11, color: T.textSecondary, marginBottom: 6 }}>
+      <span><span style={{ display: "inline-block", width: 10, height: 10, background: T.green || "#2DBE6C", borderRadius: 2, marginRight: 4 }} />Yeni takipçi</span>
+      <span><span style={{ display: "inline-block", width: 10, height: 10, background: T.redText || "#E5484D", borderRadius: 2, marginRight: 4 }} />Bırakan</span>
+      {tks.length > 1 && <span><span style={{ display: "inline-block", width: 14, height: 2, background: T.amber, marginRight: 4, verticalAlign: "middle" }} />Toplam takipçi ({sayiYaz(tMin)}–{sayiYaz(tMax)})</span>}
+    </div>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      <line x1={pad} y1={mid} x2={W - pad} y2={mid} stroke={T.border} />
+      {g.map((d, i) => { const up = ((d.yeni || 0) / maxBar) * (mid - pad), dn = ((d.ayrilan || 0) / maxBar) * (mid - pad); return <g key={d.gun}>
+        <title>{`${d.gun}: +${d.yeni ?? 0} / -${d.ayrilan ?? 0}${d.takipci != null ? ` · toplam ${d.takipci}` : ""}`}</title>
+        <rect x={x(i)} y={mid - up} width={bw} height={up} fill={T.green || "#2DBE6C"} rx={1} />
+        <rect x={x(i)} y={mid} width={bw} height={dn} fill={T.redText || "#E5484D"} rx={1} />
+      </g>; })}
+      {tks.length > 1 && <polyline points={cizgi} fill="none" stroke={T.amber} strokeWidth={2} />}
+      <text x={pad} y={H - 4} fontSize={10} fill={T.textMuted}>{g[0].gun.slice(8)}.{g[0].gun.slice(5, 7)}</text>
+      <text x={W - pad} y={H - 4} fontSize={10} fill={T.textMuted} textAnchor="end">{g[n - 1].gun.slice(8)}.{g[n - 1].gun.slice(5, 7)}</text>
+    </svg>
   </div>;
 }
