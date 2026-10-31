@@ -211,7 +211,7 @@ async function istatistik(igId, ay) {
   return {
     hesap: { kullanici: hesap.username, ad: hesap.name, takipci: hesap.followers_count, takip: hesap.follows_count, paylasim: hesap.media_count, foto: hesap.profile_picture_url || null },
     genel,
-    medya: medya.map(x => ({ id: x.id, zaman: x.timestamp, tur: x.media_product_type === "REELS" ? "reels" : x.media_type === "CAROUSEL_ALBUM" ? "carousel" : x.media_product_type === "STORY" ? "story" : "post", aciklama: (x.caption || "").slice(0, 160), baglanti: x.permalink, gorsel: x.thumbnail_url || x.media_url || null, begeni: x.like_count || 0, yorum: x.comments_count || 0, goruntulenme: x.olcu?.views ?? null, erisim: x.olcu?.reach ?? null, kaydetme: x.olcu?.saved ?? null, paylasim: x.olcu?.shares ?? null, etkilesim: x.olcu?.total_interactions ?? null })),
+    medya: medya.map(x => ({ id: x.id, zaman: x.timestamp, tur: x.media_product_type === "REELS" ? "reels" : x.media_type === "CAROUSEL_ALBUM" ? "carousel" : x.media_product_type === "STORY" ? "story" : "post", aciklama: [...(x.caption || "")].slice(0, 160).join(""), baglanti: x.permalink, gorsel: x.thumbnail_url || x.media_url || null, begeni: x.like_count || 0, yorum: x.comments_count || 0, goruntulenme: x.olcu?.views ?? null, erisim: x.olcu?.reach ?? null, kaydetme: x.olcu?.saved ?? null, paylasim: x.olcu?.shares ?? null, etkilesim: x.olcu?.total_interactions ?? null })),
   };
 }
 
@@ -278,7 +278,9 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
     veri.takipci = { gunler: g, yeni, ayrilan, net: (ilk && sonT && ilk !== sonT) ? sonT.takipci - ilk.takipci : (yeni - ayrilan), baslangic: ilk?.takipci ?? null, bitis: sonT?.takipci ?? null, kayitVar: g.length > 0 };
   } catch (e) { veri.takipci = { kayitVar: false }; }
   try {
-    await yazVeyaGuncelle(db, "ig_istatistik_onbellek", `client_id=eq.${clientId}&ay=eq.${ay}`, { client_id: clientId, ay, veri, guncellendi_at: new Date().toISOString() });
+    // jsonb, \u0000 ve tek başına kalmış vekil (surrogate) karakterleri kabul etmez; açıklamalardaki emojileri temizle
+    const temiz = JSON.parse(JSON.stringify(veri).replace(/\\u0000/g, "").replace(/[\ud800-\udbff](?![\udc00-\udfff])|(^|[^\ud800-\udbff])[\udc00-\udfff]/g, "$1"));
+    await yazVeyaGuncelle(db, "ig_istatistik_onbellek", `client_id=eq.${clientId}&ay=eq.${ay}`, { client_id: clientId, ay, veri: temiz, guncellendi_at: new Date().toISOString() });
   } catch (e) { veri.onbellekHatasi = String(e.message || e).slice(0, 300); }
   return veri;
 }
