@@ -215,6 +215,13 @@ async function istatistik(igId, ay) {
   };
 }
 
+// Çakışmada güncelle: önce güncelle (PATCH), satır yoksa ekle (POST)
+async function yazVeyaGuncelle(db, tablo, anahtarFiltre, satir) {
+  const guncel = await db.yaz(`${tablo}?${anahtarFiltre}`, "PATCH", satir).catch(() => []);
+  if (Array.isArray(guncel) && guncel.length) return guncel;
+  return db.yaz(tablo, "POST", satir);
+}
+
 // Günlük takipçi hareketi: Instagram'ın verdiği yeni/ayrılan sayıları (son 30 gün) + bugünkü toplam.
 // since/until Unix saniye. Dönen: [{gun:'YYYY-MM-DD', yeni, ayrilan}]
 async function takipciHareketi(igId, sinceSn, untilSn) {
@@ -244,11 +251,7 @@ async function takipciArsivle() {
       const bugunku = satirlar.find(x => x.gun === bugun);
       if (bugunku) bugunku.takipci = hesap.followers_count; else satirlar.push({ client_id: m.id, gun: bugun, takipci: hesap.followers_count });
       // Eski günlerin toplamını bozmamak için takipci yalnız bugüne yazılır; diğerlerinde alan yok → merge'de dokunulmaz
-      for (const r of satirlar) {
-        await db.yaz(`ig_takipci_gunluk?on_conflict=client_id,gun`, "POST", r).catch(async () => {
-          await db.yaz(`ig_takipci_gunluk?client_id=eq.${m.id}&gun=eq.${r.gun}`, "PATCH", r);
-        });
-      }
+      for (const r of satirlar) await yazVeyaGuncelle(db, "ig_takipci_gunluk", `client_id=eq.${m.id}&gun=eq.${r.gun}`, r);
       sonuc.push({ musteri: m.name, takipci: hesap.followers_count, gun: satirlar.length });
     } catch (e) { sonuc.push({ musteri: m.name, hata: e.message }); }
   }
@@ -275,9 +278,7 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
     veri.takipci = { gunler: g, yeni, ayrilan, net: (ilk && sonT && ilk !== sonT) ? sonT.takipci - ilk.takipci : (yeni - ayrilan), baslangic: ilk?.takipci ?? null, bitis: sonT?.takipci ?? null, kayitVar: g.length > 0 };
   } catch (e) { veri.takipci = { kayitVar: false }; }
   try {
-    await db.yaz(`ig_istatistik_onbellek?on_conflict=client_id,ay`, "POST", { client_id: clientId, ay, veri, guncellendi_at: new Date().toISOString() }).catch(async () => {
-      await db.yaz(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=eq.${ay}`, "PATCH", { veri, guncellendi_at: new Date().toISOString() });
-    });
+    await yazVeyaGuncelle(db, "ig_istatistik_onbellek", `client_id=eq.${clientId}&ay=eq.${ay}`, { client_id: clientId, ay, veri, guncellendi_at: new Date().toISOString() });
   } catch (e) { /* önbellek yazılamadı; veri yine döner */ }
   return veri;
 }
