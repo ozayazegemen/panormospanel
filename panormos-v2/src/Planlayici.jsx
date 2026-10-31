@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { T } from "./theme";
 import { Btn, Select, Input, Textarea, Modal, FormField, StatCard, swalAlert, swalConfirm, panelFetch, downloadPdfFromHTML } from "./App.jsx";
+import { MusteriReklamlari, reklamAmacAdi, reklamParaYaz } from "./Reklamlar.jsx";
 
 // Panel → Planlayıcı: müşterilerin Reels, Post, Kaydırmalı ve Hikaye paylaşımları.
 // Dosya yüklenir, tarih ve saat seçilir; sunucu her 5 dakikada zamanı geleni Instagram'a gönderir.
@@ -319,6 +320,7 @@ export function InstagramIstatistik({ client }) {
   const [veri, setVeri] = useState(null);
   const [hata, setHata] = useState("");
   const [yukleniyor, setYukleniyor] = useState(false);
+  const [reklamlar, setReklamlar] = useState([]); // o ayki reklamlar (PDF'e de girer)
 
   const getir = async (yenile = false) => {
     setYukleniyor(true); setHata("");
@@ -357,6 +359,7 @@ export function InstagramIstatistik({ client }) {
       <div class="alt">@${kacis(veri?.hesap?.kullanici || "")} · ${ayYaz(ay)} · Hazırlayan: Panormos Medya</div>
       <div class="kutular">${ozet.map(([l, v]) => `<div class="k"><span>${l}</span><b>${typeof v === "string" ? v : sayiYaz(v)}</b></div>`).join("")}</div>
       ${tk.kayitVar && tk.gunler?.length ? `<div class="alt" style="margin-top:4px">Takipçi: ay başı ${sayiYaz(tk.baslangic)} → ay sonu ${sayiYaz(tk.bitis)}</div>` : ""}
+      ${reklamlar.length ? `<h2 style="font-size:14px;margin:6px 0 8px">Reklamlar</h2><table style="margin-bottom:18px"><thead><tr><th>Reklam</th><th>Amaç</th><th>Tarih</th><th>Erişim</th><th>Gösterim</th><th>Tıklama</th><th>Harcama</th></tr></thead><tbody>${reklamlar.map(r => `<tr><td>${kacis(r.baslik || reklamAmacAdi(r.amac))}</td><td>${kacis(reklamAmacAdi(r.amac))}</td><td>${kacis(new Date(r.baslangic).toLocaleDateString("tr-TR"))}${r.bitis ? " – " + kacis(new Date(r.bitis).toLocaleDateString("tr-TR")) : ""}</td><td>${sayiYaz(r.sonuc?.erisim)}</td><td>${sayiYaz(r.sonuc?.gosterim)}</td><td>${sayiYaz(r.sonuc?.tiklama)}</td><td>${r.sonuc ? kacis(reklamParaYaz(r.sonuc.harcama)) : "—"}</td></tr>`).join("")}</tbody></table>` : ""}
       <table><thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Paylaşım</th></tr></thead><tbody>${satir || `<tr><td colspan="9">Bu ay paylaşım yok.</td></tr>`}</tbody></table>
       <div class="son">Veriler Instagram'dan ${new Date().toLocaleDateString("tr-TR")} tarihinde alındı.</div></body></html>`;
     downloadPdfFromHTML(html, `${client.name}-instagram-${ay}.pdf`, "landscape");
@@ -378,6 +381,7 @@ export function InstagramIstatistik({ client }) {
         {ozet.map(([l, v]) => <StatCard key={l} label={l} value={sayiYaz(v)} />)}
       </div>
       {tk.kayitVar ? <TakipciGrafik gunler={tk.gunler} /> : <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 14 }}>Takipçi hareketi (yeni / bırakan) her gece kaydedilir; ilk kayıttan sonra burada günlük grafik görünür.</div>}
+      <MusteriReklamlari client={client} ay={ay} onVeri={setReklamlar} />
       <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 12 }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 760 }}>
           <thead><tr style={{ background: T.bgSurface }}>{["", "Tarih", "Tür", "Açıklama", "Görüntülenme", "Erişim", "Beğeni", "Yorum", "Kaydetme", "Paylaşım"].map((b, i) => <th key={i} style={{ padding: "8px 8px", textAlign: i > 3 ? "right" : "left", color: T.textSecondary, fontSize: 11 }}>{b}</th>)}</tr></thead>

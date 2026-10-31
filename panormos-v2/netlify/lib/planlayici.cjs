@@ -285,4 +285,4 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
   return veri;
 }
 
-module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, takipciArsivle };
+module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, takipciArsivle, imzaliBaglanti, graph };

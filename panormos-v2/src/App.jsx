@@ -2,6 +2,7 @@ import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
 import PlanlayiciPage, { InstagramIstatistik } from "./Planlayici.jsx";
+import ReklamlarPage from "./Reklamlar.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
 import EmlakSms from "./EmlakSms.jsx";
 import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur, OtomatikBorclandirma, borclandirmalariOlustur } from "./Finans.jsx";
@@ -6792,6 +6793,7 @@ const NAV=[
   {id:"ideas",label:"Fikirler",icon:"💡"},
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"planlayici",label:"Paylaşım Planlayıcı",icon:"🗓️"},
+  {id:"reklamlar",label:"Reklamlar",icon:"📣"},
   {id:"reports",label:"Raporlar",icon:"📊"},
   {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
@@ -6810,7 +6812,7 @@ const NAV=[
 // Menü bölümleri (sırası ve başlıkları)
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
-  { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "planlayici", "ideas"] },
+  { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "planlayici", "reklamlar", "ideas"] },
   { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
   { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "veteriner", "emlakpanelim"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
@@ -6829,6 +6831,7 @@ const NAV_ICON_PATHS = {
   ideas: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z" />,
   tasks: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 12 2.5 2.5L16 9" /></>,
   planlayici: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4M12 13v4l2.5 1.5" /></>,
+  reklamlar: <><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" /><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12" /></>,
   reports: <path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />,
   files: <path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />,
   messages: <path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-9l-5 4v-4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />,
@@ -14110,6 +14113,7 @@ export default function App() {
         {page==="veteriner"&&<VeterinerPage/>}
         {page==="qrmenu"&&<QrMenuPage clients={allClients||clients}/>}
         {page==="planlayici"&&<PlanlayiciPage clients={clients} currentStaff={currentStaff}/>}
+        {page==="reklamlar"&&<ReklamlarPage clients={clients} currentStaff={currentStaff}/>}
       </div>
     </div>
   </div>;
