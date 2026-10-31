@@ -279,7 +279,7 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
   } catch (e) { veri.takipci = { kayitVar: false }; }
   try {
     await yazVeyaGuncelle(db, "ig_istatistik_onbellek", `client_id=eq.${clientId}&ay=eq.${ay}`, { client_id: clientId, ay, veri, guncellendi_at: new Date().toISOString() });
-  } catch (e) { /* önbellek yazılamadı; veri yine döner */ }
+  } catch (e) { veri.onbellekHatasi = String(e.message || e).slice(0, 300); }
   return veri;
 }
 
