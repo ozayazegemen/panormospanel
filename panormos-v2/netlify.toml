@@ -57,9 +57,9 @@
 [functions."nightly-backup"]
   schedule = "0 23 * * *"
 
-# Paylaşım Planlayıcı: zamanı gelen Instagram paylaşımlarını her 5 dakikada gönderir
+# Paylaşım Planlayıcı: her dakika çalışır; dosyayı plan saatinden 10 dk önce hazırlar, tam saatinde yayınlar
 [functions."planlayici-zamanli"]
-  schedule = "*/5 * * * *"
+  schedule = "* * * * *"
 
 # Instagram takipçi arşivi: her gece 23:30 (Türkiye) bağlı müşterilerin takipçi sayısı ve günlük hareket
 [functions."takipci-gunluk"]

@@ -17,7 +17,7 @@ const TURLER = [
 const turAdi = (id) => TURLER.find(t => t.id === id)?.label || id;
 const DURUM = {
   bekliyor: { l: "Planlandı", c: T.blueText || "#4D8DFF" },
-  hazirlaniyor: { l: "Instagram'a gönderiliyor", c: T.amberText || "#E8A100" },
+  hazirlaniyor: { l: "Hazır, saatinde yayınlanır", c: T.amberText || "#E8A100" },
   paylasildi: { l: "Paylaşıldı", c: T.greenText || "#2DBE6C" },
   hata: { l: "Hata", c: T.redText || "#E5484D" },
   iptal: { l: "İptal", c: T.textMuted },

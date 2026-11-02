@@ -8,6 +8,7 @@ const { veritabani } = require("./qr-abonelik.cjs");
 
 const GRAPH = "https://graph.facebook.com/v23.0";
 const ZAMAN_ASIMI_DK = 45; // video bu süre içinde işlenmezse hata sayılır
+const ON_HAZIRLIK_DK = 10; // dosya, plan saatinden bu kadar önce Instagram'a yüklenip hazırlatılır; yayın tam saatinde yapılır
 
 function metaAnahtari() {
   const a = process.env.META_ERISIM_ANAHTARI || "";
@@ -76,7 +77,8 @@ async function guncelle(db, id, alanlar) {
 }
 
 // Bir paylaşımı bir adım ilerletir. Dönen metin günlük içindir.
-async function ilerlet(db, p, musteri) {
+// zorla: "Şimdi paylaş" — plan saatini beklemeden yayınla
+async function ilerlet(db, p, musteri, zorla = false) {
   const igId = musteri?.ig_user_id;
   if (!igId) { await guncelle(db, p.id, { durum: "hata", hata: "Müşterinin Instagram hesabı bağlı değil (Planlayıcı → Hesaplar)." }); return "hesap yok"; }
   const dosyalar = Array.isArray(p.dosyalar) ? p.dosyalar : [];
@@ -115,6 +117,11 @@ async function ilerlet(db, p, musteri) {
       const s = await durumu(kap);
       if (s === "ERROR") throw new Error("Dosya Instagram'da işlenemedi (biçim, süre ya da boyut uygun değil).");
       if (s !== "FINISHED") { if (gecen > ZAMAN_ASIMI_DK) throw new Error("Video zamanında işlenemedi."); return "işleniyor"; }
+      // Hazır; plan saati gelmediyse bekle (tam saatinde yayınlanır)
+      if (!zorla && new Date(p.zaman).getTime() > Date.now() + 20000) {
+        if (!meta.hazir) await guncelle(db, p.id, { meta: { ...meta, hazir: new Date().toISOString() } });
+        return "hazır, saat bekleniyor";
+      }
 
       const yayin = await graph(`/${igId}/media_publish`, { method: "POST", govde: { creation_id: kap } });
       let baglanti = null;
@@ -140,11 +147,12 @@ async function ilerlet(db, p, musteri) {
 async function calistir({ id = null } = {}) {
   const db = veritabani();
   const simdi = new Date().toISOString();
-  // İki ayrı sorgu: zamanı gelen bekleyenler + hazırlanmakta olanlar (or() içindeki tırnaklı tarih yazımına güvenmemek için)
+  const esik = new Date(Date.now() + ON_HAZIRLIK_DK * 60000).toISOString(); // 10 dk içinde yayınlanacaklar hazırlığa alınır
+  // İki ayrı sorgu: hazırlık zamanı gelen bekleyenler + hazırlanmakta olanlar (or() içindeki tırnaklı tarih yazımına güvenmemek için)
   const liste = id
     ? await db.oku(`planli_paylasimlar?id=eq.${id}&durum=in.(bekliyor,hazirlaniyor)&select=*&limit=1`)
     : [
-      ...await db.oku(`planli_paylasimlar?durum=eq.bekliyor&zaman=lte.${encodeURIComponent(simdi)}&select=*&order=zaman.asc&limit=20`),
+      ...await db.oku(`planli_paylasimlar?durum=eq.bekliyor&zaman=lte.${encodeURIComponent(esik)}&select=*&order=zaman.asc&limit=20`),
       ...await db.oku(`planli_paylasimlar?durum=eq.hazirlaniyor&select=*&order=zaman.asc&limit=20`),
     ];
   if (!id) console.log(`planlayıcı kontrol ${simdi}: ${liste.length} paylaşım sırada`);
@@ -155,12 +163,12 @@ async function calistir({ id = null } = {}) {
   const bekle = (ms) => new Promise(r => setTimeout(r, ms));
   for (const p of liste) {
     const m = musteriler.find(x => x.id === p.client_id);
-    let adim = await ilerlet(db, p, m);
-    // Kapsayıcı yeni oluştuysa hemen yayınlamayı dene (görseller anında hazır olur; video ise bir sonraki tura kalır)
+    let adim = await ilerlet(db, p, m, !!id);
+    // Kapsayıcı yeni oluştuysa hemen devam et (saati geldiyse yayınlanır; gelmediyse "hazır, saat bekleniyor")
     if (adim === "kapsayıcı oluşturuldu") {
       await bekle(2500);
       const [g] = await db.oku(`planli_paylasimlar?id=eq.${p.id}&select=*`);
-      if (g && g.durum === "hazirlaniyor") adim += " → " + await ilerlet(db, g, m);
+      if (g && g.durum === "hazirlaniyor") adim += " → " + await ilerlet(db, g, m, !!id);
     }
     sonuc.push({ id: p.id, musteri: m?.name, sonuc: adim });
   }
