@@ -1,9 +1,10 @@
 // Paylaşım Planlayıcı: panelden çağrılır (oturumlu çalışan)
 //   GET  ?islem=hesaplar         → bağlı Instagram işletme hesapları
 //   GET  ?islem=istatistik&client=<id>&ay=YYYY-MM → müşterinin Instagram istatistikleri
+//   GET  ?islem=ozet&client=<id>&ay=YYYY-MM&adet=6 → son aylar özeti (grafik, önceki aya göre değişim)
 //   POST { islem: "simdi", id }  → bir paylaşımı beklemeden ilerletir (Şimdi paylaş / Tekrar dene)
 const { yetkili } = require("../lib/auth.cjs");
-const { calistir, hesaplar, istatistikOnbellekli } = require("../lib/planlayici.cjs");
+const { calistir, hesaplar, istatistikOnbellekli, aylikOzet } = require("../lib/planlayici.cjs");
 const { veritabani } = require("../lib/qr-abonelik.cjs");
 
 const YANIT = (statusCode, govde) => ({ statusCode, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }, body: JSON.stringify(govde) });
@@ -15,11 +16,12 @@ exports.handler = async (event) => {
     if (event.httpMethod === "GET") {
       const islem = event.queryStringParameters?.islem;
       if (islem === "hesaplar") return YANIT(200, { hesaplar: await hesaplar() });
-      if (islem === "istatistik") {
+      if (islem === "istatistik" || islem === "ozet") {
         const q = event.queryStringParameters || {};
         if (!/^[0-9a-f-]{36}$/i.test(q.client || "") || !/^\d{4}-\d{2}$/.test(q.ay || "")) return YANIT(400, { error: "Eksik bilgi" });
         const [m] = await veritabani().oku(`clients?id=eq.${q.client}&select=ig_user_id`);
         if (!m?.ig_user_id) return YANIT(200, { bagli: false });
+        if (islem === "ozet") return YANIT(200, { bagli: true, ...(await aylikOzet(q.client, m.ig_user_id, q.ay, Math.min(12, parseInt(q.adet) || 6))) });
         return YANIT(200, { bagli: true, ...(await istatistikOnbellekli(q.client, m.ig_user_id, q.ay, q.yenile === "1")) });
       }
       return YANIT(400, { error: "Bilinmeyen işlem" });

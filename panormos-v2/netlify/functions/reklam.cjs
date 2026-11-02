@@ -5,8 +5,10 @@
 //   GET  ?islem=tahmin&hedef=<json>&amac=  → tahmini kitle büyüklüğü
 //   POST { islem:"olustur", ... }          → yeni reklam (Meta'da kampanya + reklam seti + kreatif + reklam)
 //   POST { islem:"ilerle"|"yenile"|"durdur"|"devam"|"bitir"|"sil"|"tekrar", id }
+//   GET  ?islem=meta_liste                  → reklam hesabındaki tüm reklamlar (Reklam Yöneticisi'nden açılanlar dahil)
+//   POST { islem:"ice_aktar", ad_id, client_id } → dışarıdan açılmış reklamı müşteriye bağla
 const { yetkili, panelKullanicisi } = require("../lib/auth.cjs");
-const { hesapBilgi, gonderiler, konumAra, ilgiAra, kitleTahmin, olustur, islem } = require("../lib/reklam.cjs");
+const { hesapBilgi, gonderiler, konumAra, ilgiAra, kitleTahmin, olustur, islem, metaListesi, iceAktar } = require("../lib/reklam.cjs");
 const { veritabani } = require("../lib/qr-abonelik.cjs");
 
 const YANIT = (statusCode, govde) => ({ statusCode, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }, body: JSON.stringify(govde) });
@@ -19,6 +21,7 @@ exports.handler = async (event) => {
     const q = event.queryStringParameters || {};
     if (event.httpMethod === "GET") {
       if (q.islem === "hesap") return YANIT(200, await hesapBilgi());
+      if (q.islem === "meta_liste") return YANIT(200, { reklamlar: await metaListesi() });
       if (q.islem === "gonderiler") {
         if (!UUID.test(q.client || "")) return YANIT(400, { error: "Eksik bilgi" });
         const [m] = await veritabani().oku(`clients?id=eq.${q.client}&select=ig_user_id`);
@@ -38,6 +41,10 @@ exports.handler = async (event) => {
       if (!UUID.test(String(g.client_id || ""))) return YANIT(400, { error: "Müşteri seçin" });
       const kisi = await panelKullanicisi(event).catch(() => null);
       return YANIT(200, { reklam: await olustur(g, kisi) });
+    }
+    if (g.islem === "ice_aktar" && /^\d{5,25}$/.test(String(g.ad_id || "")) && UUID.test(String(g.client_id || ""))) {
+      const kisi = await panelKullanicisi(event).catch(() => null);
+      return YANIT(200, { reklam: await iceAktar(String(g.ad_id), g.client_id, kisi) });
     }
     if (["ilerle", "yenile", "durdur", "devam", "bitir", "sil", "tekrar"].includes(g.islem) && UUID.test(String(g.id || ""))) return YANIT(200, { reklam: await islem(g.id, g.islem) });
     return YANIT(400, { error: "Bilinmeyen işlem" });

@@ -342,4 +342,41 @@ async function calistir() {
   return sonuc;
 }
 
-module.exports = { AMACLAR, hesapBilgi, gonderiler, konumAra, ilgiAra, kitleTahmin, olustur, islem, calistir };
+// Reklam hesabındaki tüm reklamlar (Reklam Yöneticisi'nden elle açılanlar dahil); panelde kayıtlı olanlar işaretlenir
+const AMAC_ESLE = { OUTCOME_AWARENESS: "erisim", OUTCOME_ENGAGEMENT: "etkilesim", OUTCOME_TRAFFIC: "trafik", OUTCOME_LEADS: "trafik", OUTCOME_SALES: "trafik", OUTCOME_APP_PROMOTION: "trafik" };
+async function metaListesi() {
+  const db = veritabani();
+  const kayitli = await db.oku(`reklamlar?select=id,client_id,meta`).catch(() => []);
+  const j = await graph(`/${HESAP()}/ads?fields=id,name,effective_status,created_time,campaign{id,name,objective},adset{id,start_time,end_time,daily_budget,lifetime_budget},insights.date_preset(maximum){spend,reach,impressions,clicks,inline_link_clicks}&limit=100`);
+  return (j.data || []).map(a => {
+    const i = (a.insights?.data || [])[0] || {};
+    const k = kayitli.find(r => r.meta?.reklam_id === a.id);
+    return {
+      id: a.id, ad: a.name, kampanya: a.campaign?.name || "", amac: AMAC_ESLE[a.campaign?.objective] || "erisim", durum: DURUM_ESLE[a.effective_status] || "bitti", meta_durum: a.effective_status,
+      baslangic: a.adset?.start_time || a.created_time, bitis: a.adset?.end_time || null, butce_gunluk: a.adset?.daily_budget ? Number(a.adset.daily_budget) / 100 : null, butce_toplam: a.adset?.lifetime_budget ? Number(a.adset.lifetime_budget) / 100 : null,
+      sonuc: { harcama: Number(i.spend || 0), erisim: Number(i.reach || 0), gosterim: Number(i.impressions || 0), tiklama: Number(i.clicks || 0), linkTiklama: Number(i.inline_link_clicks || 0) },
+      panelde: k ? { id: k.id, client_id: k.client_id } : null, kampanya_id: a.campaign?.id, reklam_seti_id: a.adset?.id,
+    };
+  }).sort((a, b) => String(b.baslangic).localeCompare(String(a.baslangic)));
+}
+
+// Reklam Yöneticisi'nde açılmış bir reklamı panelde bir müşteriye bağlar (sonuçları müşteri raporuna girer)
+async function iceAktar(adId, clientId, olusturan) {
+  const db = veritabani();
+  const m = await musteriGetir(db, clientId);
+  const [var_] = await db.oku(`reklamlar?meta->>reklam_id=eq.${adId}&select=id`);
+  if (var_) throw new Error("Bu reklam zaten panelde kayıtlı.");
+  const a = await graph(`/${adId}?fields=id,name,effective_status,created_time,campaign{id,name,objective},adset{id,start_time,end_time,daily_budget},creative{id}`);
+  const satir = {
+    client_id: m.id, baslik: String(a.name || a.campaign?.name || "").slice(0, 120), amac: AMAC_ESLE[a.campaign?.objective] || "erisim", kaynak: "gonderi",
+    metin: "", hedef: { disaridan: true }, butce_gunluk: a.adset?.daily_budget ? Number(a.adset.daily_budget) / 100 : 0,
+    baslangic: a.adset?.start_time || a.created_time, bitis: a.adset?.end_time || null,
+    durum: DURUM_ESLE[a.effective_status] || "bitti", adim: null,
+    meta: { kampanya_id: a.campaign?.id, reklam_seti_id: a.adset?.id, kreatif_id: a.creative?.id, reklam_id: a.id, disaridan: true },
+    olusturan_id: olusturan?.id || null, olusturan_ad: olusturan?.name || null,
+  };
+  const [r] = await db.yaz("reklamlar", "POST", satir);
+  return sonucTazele(db, r);
+}
+
+module.exports = { AMACLAR, hesapBilgi, gonderiler, konumAra, ilgiAra, kitleTahmin, olustur, islem, calistir, metaListesi, iceAktar };

@@ -11,6 +11,15 @@ import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
 import { T, THEME, toggleTheme } from "./theme";
 
+// Müşteri adı: her kelimenin baş harfi büyük, kalanı küçük (Türkçe İ/ı kurallarıyla). Sayıyla başlayan kelimelere dokunulmaz.
+const trBaslik = (ad) => String(ad || "").trim().replace(/\s+/g, " ").split(" ").map(w => {
+  if (!w || /^[0-9]/.test(w)) return w;
+  const kucuk = w.replace(/I/g, "ı").replace(/İ/g, "i").toLocaleLowerCase("tr-TR");
+  return kucuk.charAt(0).toLocaleUpperCase("tr-TR") + kucuk.slice(1);
+}).join(" ");
+// Müşteri listesi her zaman alfabetik (Türkçe) tutulur; yeni eklenen de yerine oturur
+const musterileriSirala = (liste) => [...liste].sort((a, b) => (a.name || "").localeCompare(b.name || "", "tr", { sensitivity: "base" }));
+
 
 // ─────────────────────────────────────────────
 // SWEETALERT2 UYARI / ONAY PENCERELERİ (tarayıcı alert/confirm yerine)
@@ -1828,13 +1837,14 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
         const colors=["#6366F1","#EC4899","#10B981","#F59E0B","#F97316"];
-        const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+        const ad = trBaslik(form.name);
+        const initials = ad.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
         const accentColor = colors[clients.length%colors.length];
         const publishDays = Array.isArray(form.publishDays)?form.publishDays:(form.publishDays?form.publishDays.split(",").map(s=>s.trim()):[]);
         const shootDays = Array.isArray(form.shootDays)?form.shootDays:(form.shootDays?form.shootDays.split(",").map(s=>s.trim()):[]);
         const publishTimes = form.publishTimes||[];
         const { data, error } = await supabase.from('clients').insert({
-          name: form.name, category: form.category||"", initials, accent_color: accentColor,
+          name: ad, category: form.category||"", initials, accent_color: accentColor,
           phone: form.phone||"", email: form.email||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
@@ -1893,12 +1903,13 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       <FormField label="📆 Sözleşme Bitiş Tarihi (yenileme takibi için)"><Input type="date" value={form.contractEnd||""} onChange={e=>setForm(f=>({...f,contractEnd:e.target.value}))} /></FormField>
       <ModalActions onClose={()=>setModal(null)} onSave={async()=>{
         if(!form.name)return;
-        const initials = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+        const ad = trBaslik(form.name);
+        const initials = ad.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
         const publishDays = Array.isArray(form.publishDays)?form.publishDays:[];
         const shootDays = Array.isArray(form.shootDays)?form.shootDays:[];
         const publishTimes = form.publishTimes||[];
         const { error } = await supabase.from('clients').update({
-          name: form.name, category: form.category||"", initials,
+          name: ad, category: form.category||"", initials,
           phone: form.phone||"", email: form.email||"", address: form.address||"", city: form.city||"", district: form.district||"",
           tax_number: form.taxNumber||"", tax_office: form.taxOffice||"", social_media: form.socialMedia||"",
           description: form.description||"", monthly_post_quota: parseInt(form.monthlyPostQuota)||0, quota_detail: form.quotaDetail||{},
@@ -1918,7 +1929,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
           const { data:jobData } = await supabase.from('piece_jobs').insert(rows).select();
           addedJobs = (jobData||[]).map(j=>({id:j.id,title:j.title,quantity:j.quantity,amount:Number(j.amount||0),dueDate:j.due_date,status:j.status,monthRef:j.month_ref}));
         }
-        setClients(clients.map(c=>c.id===form.id?{...c,name:form.name,category:form.category||"",initials,phone:form.phone||"",email:form.email||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,agreementDate:form.agreementDate||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
+        setClients(clients.map(c=>c.id===form.id?{...c,name:ad,category:form.category||"",initials,phone:form.phone||"",email:form.email||"",address:form.address||"",city:form.city||"",district:form.district||"",taxNumber:form.taxNumber||"",taxOffice:form.taxOffice||"",socialMedia:form.socialMedia||"",socialPassword:form.socialPassword||"",description:form.description||"",monthlyPostQuota:parseInt(form.monthlyPostQuota)||0,quotaDetail:form.quotaDetail||{},platforms:form.platforms||[],publishDays,shootDays,publishTimes,monthlyFee:parseInt(form.monthlyFee)||0,workType:form.workType||"monthly",contractEnd:form.contractEnd||null,agreementDate:form.agreementDate||null,pieceJobs:[...addedJobs,...(c.pieceJobs||[])]}:c));
         setModal(null);
       }} />
     </Modal>}
@@ -13785,7 +13796,8 @@ export default function App() {
   const perms = currentStaff ? getPerms(currentStaff) : null;
   // Yetkisi olmayan sayfa açılmaz, Ana Sayfa gösterilir
   const page = !perms || canAccessPage(rawPage, perms) ? rawPage : 'dashboard';
-  const [clients, setClients] = useState([]);
+  const [clients, setClientsHam] = useState([]);
+  const setClients = (v) => setClientsHam(prev => musterileriSirala(typeof v === "function" ? v(prev) : v));
   const [staff, setStaff] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [allClients, setAllClients] = useState([]);

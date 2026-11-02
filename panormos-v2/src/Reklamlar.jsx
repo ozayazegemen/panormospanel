@@ -170,8 +170,67 @@ export default function ReklamlarPage({ clients, currentStaff }) {
       </table>
     </div>
 
+    <MetaReklamlari musteriler={aktifMusteriler} musteriAdi={musteriAdi} onAktarildi={(r) => setReklamlar(l => [r, ...l])} />
+
     {form && <ReklamFormu form={form} setForm={setForm} musteriler={aktifMusteriler} hesap={hesap} onOlustu={(r) => { setForm(null); setReklamlar(l => [r, ...l]); setDetay(r); }} />}
     {detay && <ReklamDetay r={reklamlar.find(x => x.id === detay.id) || detay} musteri={musteriAdi(detay.client_id)} onClose={() => setDetay(null)} onIslem={islemYap} />}
+  </div>;
+}
+
+// Reklam Yöneticisi'nden (panel dışından) açılmış reklamlar: listele, müşteriye bağla
+function MetaReklamlari({ musteriler, musteriAdi, onAktarildi }) {
+  const [acik, setAcik] = useState(false);
+  const [liste, setListe] = useState(null);
+  const [hata, setHata] = useState("");
+  const [secim, setSecim] = useState({});
+  const [aktariliyor, setAktariliyor] = useState("");
+  const getir = async () => {
+    setHata(""); setListe(null);
+    try { const j = await api("?islem=meta_liste"); setListe(j.reklamlar || []); } catch (e) { setHata(e.message); setListe([]); }
+  };
+  useEffect(() => { if (acik && liste === null) getir(); }, [acik]);
+  const aktar = async (r) => {
+    const clientId = secim[r.id];
+    if (!clientId) return swalAlert("Önce müşteri seçin.");
+    setAktariliyor(r.id);
+    try { const j = await api("", { islem: "ice_aktar", ad_id: r.id, client_id: clientId }); onAktarildi(j.reklam); setListe(l => l.map(x => x.id === r.id ? { ...x, panelde: { id: j.reklam.id, client_id: clientId } } : x)); }
+    catch (e) { swalAlert("Bağlanamadı: " + e.message); }
+    setAktariliyor("");
+  };
+  const disaridan = (liste || []).filter(r => !r.panelde);
+  return <div style={{ marginTop: 22 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => setAcik(a => !a)}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>{acik ? "▾" : "▸"} Meta'daki diğer reklamlar</span>
+      <span style={{ fontSize: 11.5, color: T.textMuted }}>Reklam Yöneticisi'nden elle açılanlar; müşteriye bağlarsanız sonuçları müşterinin raporuna girer.</span>
+    </div>
+    {acik && <div style={{ marginTop: 10 }}>
+      <Btn onClick={getir} style={{ marginBottom: 10 }}>Meta'dan yenile</Btn>
+      {hata && <div style={{ fontSize: 12.5, color: T.redText, marginBottom: 8 }}>{hata}</div>}
+      {liste === null && !hata && <div style={{ fontSize: 12, color: T.textMuted }}>Meta'dan alınıyor…</div>}
+      {liste && liste.length === 0 && !hata && <div style={{ fontSize: 12, color: T.textMuted }}>Reklam hesabında reklam yok.</div>}
+      {liste && liste.length > 0 && <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 900 }}>
+          <thead><tr style={{ background: T.bgSurface }}>{["Reklam", "Kampanya", "Tarih", "Bütçe", "Durum", "Erişim", "Tıklama", "Harcama", "Müşteri"].map((b, i) => <th key={i} style={{ padding: 8, textAlign: i >= 5 && i <= 7 ? "right" : "left", color: T.textSecondary, fontSize: 11 }}>{b}</th>)}</tr></thead>
+          <tbody>{liste.map(r => <tr key={r.id} style={{ borderTop: `1px solid ${T.border}`, opacity: r.panelde ? 0.6 : 1 }}>
+            <td style={{ padding: 7, color: T.textPrimary, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.ad}>{r.ad}</td>
+            <td style={{ padding: 7, color: T.textSecondary, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.kampanya}>{r.kampanya}</td>
+            <td style={{ padding: 7, color: T.textSecondary, whiteSpace: "nowrap" }}>{gunYaz(r.baslangic)}{r.bitis ? ` – ${gunYaz(r.bitis)}` : ""}</td>
+            <td style={{ padding: 7, color: T.textSecondary, whiteSpace: "nowrap" }}>{r.butce_gunluk ? `${paraYaz(r.butce_gunluk)}/gün` : r.butce_toplam ? `${paraYaz(r.butce_toplam)} toplam` : "—"}</td>
+            <td style={{ padding: 7 }}><Rozet durum={r.durum} /></td>
+            <td style={{ padding: 7, textAlign: "right", color: T.textPrimary, fontWeight: 600 }}>{sayiYaz(r.sonuc.erisim)}</td>
+            <td style={{ padding: 7, textAlign: "right", color: T.textPrimary, fontWeight: 600 }}>{sayiYaz(r.sonuc.tiklama)}</td>
+            <td style={{ padding: 7, textAlign: "right", color: T.textPrimary, fontWeight: 600 }}>{paraYaz(r.sonuc.harcama)}</td>
+            <td style={{ padding: 7, whiteSpace: "nowrap" }}>
+              {r.panelde ? <span style={{ fontSize: 11.5, color: T.textMuted }}>✓ {musteriAdi(r.panelde.client_id)}</span> : <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ width: 190 }}><Select value={secim[r.id] || ""} onChange={e => setSecim(s => ({ ...s, [r.id]: e.target.value }))}><option value="">Müşteri seçin</option>{musteriler.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></div>
+                <Btn variant="primary" onClick={() => aktar(r)} disabled={aktariliyor === r.id} style={{ padding: "6px 10px" }}>{aktariliyor === r.id ? "…" : "Bağla"}</Btn>
+              </div>}
+            </td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+      {liste && disaridan.length > 0 && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>{disaridan.length} reklam henüz bir müşteriye bağlı değil.</div>}
+    </div>}
   </div>;
 }
 

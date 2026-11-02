@@ -321,6 +321,8 @@ export function InstagramIstatistik({ client }) {
   const [hata, setHata] = useState("");
   const [yukleniyor, setYukleniyor] = useState(false);
   const [reklamlar, setReklamlar] = useState([]); // o ayki reklamlar (PDF'e de girer)
+  const [ozet, setOzet] = useState(null); // son 6 ayın özeti (grafik + önceki aya göre değişim)
+  const [ozetEksik, setOzetEksik] = useState(0);
 
   const getir = async (yenile = false) => {
     setYukleniyor(true); setHata("");
@@ -333,17 +335,49 @@ export function InstagramIstatistik({ client }) {
     setYukleniyor(false);
   };
   useEffect(() => { getir(); }, [client.id, ay]);
+  // Son 6 ay: önbellekte olmayan aylar sunucuda teker teker hesaplanır, bitene kadar tekrar sorulur
+  useEffect(() => {
+    let iptal = false, sayac = 0;
+    setOzet(null); setOzetEksik(0);
+    const sor = async () => {
+      try {
+        const r = await panelFetch(`/.netlify/functions/planlayici?islem=ozet&client=${client.id}&ay=${ay}&adet=6`);
+        const j = await r.json().catch(() => ({}));
+        if (iptal || !r.ok || !j.bagli) return;
+        setOzet(j.aylar || []); setOzetEksik(j.eksik || 0);
+        if (j.eksik > 0 && sayac++ < 8) setTimeout(sor, 1500);
+      } catch (e) { /* özet olmadan da sayfa çalışır */ }
+    };
+    sor();
+    return () => { iptal = true; };
+  }, [client.id, ay]);
 
   const medya = veri?.medya || [];
   const top = (k) => medya.reduce((s, x) => s + (Number(x[k]) || 0), 0);
   const tk = veri?.takipci || {};
-  const ozet = [
+  const buAyOz = (ozet || []).find(o => o.ay === ay), oncekiOz = (ozet || [])[(ozet || []).findIndex(o => o.ay === ay) - 1];
+  const degisim = (k) => {
+    if (!buAyOz?.veriVar || !oncekiOz?.veriVar) return null;
+    const a = Number(buAyOz[k]), b = Number(oncekiOz[k]);
+    if (!isFinite(a) || !isFinite(b)) return null;
+    if (b === 0) return a === 0 ? { yuzde: 0, fark: 0 } : { yuzde: null, fark: a - b };
+    return { yuzde: Math.round(((a - b) / b) * 100), fark: a - b };
+  };
+  const okYazi = (d) => {
+    if (!d) return null;
+    const yon = d.fark > 0 ? "▲" : d.fark < 0 ? "▼" : "•";
+    const renk = d.fark > 0 ? (T.greenText || "#2DBE6C") : d.fark < 0 ? (T.redText || "#E5484D") : T.textMuted;
+    return { metin: `${yon} ${d.yuzde === null ? (d.fark > 0 ? "+" : "") + sayiYaz(d.fark) : (d.yuzde > 0 ? "+" : "") + d.yuzde + "%"} önceki aya göre`, renk };
+  };
+  const DEGISIM_ANAHTARI = { "Takipçi": "takipci", "Bu ay paylaşım": "paylasim", "Görüntülenme": "goruntulenme", "Erişilen hesap": "erisim", "Beğeni": "begeni", "Yorum": "yorum", "Kaydetme": "kaydetme", "Paylaşım (gönderim)": "paylasimSayisi", "Profil ziyareti": "profil", "Yeni takipçi (ay)": "yeniTakipci", "Bırakan (ay)": "ayrilan" };
+  const ozetKutu = [
     ["Takipçi", veri?.hesap?.takipci], ["Yeni takipçi (ay)", tk.kayitVar ? tk.yeni : null], ["Bırakan (ay)", tk.kayitVar ? tk.ayrilan : null], ["Net değişim", tk.kayitVar ? (tk.net > 0 ? "+" + sayiYaz(tk.net) : sayiYaz(tk.net)) : null],
     ["Bu ay paylaşım", medya.length],
     ["Görüntülenme", veri?.genel?.views ?? top("goruntulenme")], ["Erişilen hesap", veri?.genel?.reach ?? top("erisim")],
     ["Beğeni", top("begeni")], ["Yorum", top("yorum")], ["Kaydetme", top("kaydetme")], ["Paylaşım (gönderim)", top("paylasim")],
     ["Profil ziyareti", veri?.genel?.profile_views ?? null],
   ];
+  const ozet_ = ozetKutu; // PDF ve kutular bu listeyi kullanır
 
   const pdf = () => {
     const satir = medya.map(x => `<tr><td>${kacis(zamanYaz(x.zaman))}</td><td>${kacis(turAdi(x.tur))}</td><td class="ac">${kacis(x.aciklama || "")}</td><td>${sayiYaz(x.goruntulenme)}</td><td>${sayiYaz(x.erisim)}</td><td>${sayiYaz(x.begeni)}</td><td>${sayiYaz(x.yorum)}</td><td>${sayiYaz(x.kaydetme)}</td><td>${sayiYaz(x.paylasim)}</td></tr>`).join("");
@@ -357,8 +391,9 @@ export function InstagramIstatistik({ client }) {
       .son{margin-top:18px;font-size:10px;color:#888}</style></head><body>
       <h1>${kacis(client.name)} · Instagram Raporu</h1>
       <div class="alt">@${kacis(veri?.hesap?.kullanici || "")} · ${ayYaz(ay)} · Hazırlayan: Panormos Medya</div>
-      <div class="kutular">${ozet.map(([l, v]) => `<div class="k"><span>${l}</span><b>${typeof v === "string" ? v : sayiYaz(v)}</b></div>`).join("")}</div>
+      <div class="kutular">${ozet_.map(([l, v]) => `<div class="k"><span>${l}</span><b>${typeof v === "string" ? v : sayiYaz(v)}</b></div>`).join("")}</div>
       ${tk.kayitVar && tk.gunler?.length ? `<div class="alt" style="margin-top:4px">Takipçi: ay başı ${sayiYaz(tk.baslangic)} → ay sonu ${sayiYaz(tk.bitis)}</div>` : ""}
+      ${ozet && ozet.filter(o => o.veriVar).length > 1 ? `<h2 style="font-size:14px;margin:6px 0 8px">Son aylar</h2><table style="margin-bottom:18px"><thead><tr><th>Ay</th><th>Paylaşım</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Takipçi</th></tr></thead><tbody>${ozet.filter(o => o.veriVar).map(o => `<tr><td>${kacis(ayYaz(o.ay))}</td><td>${sayiYaz(o.paylasim)}</td><td>${sayiYaz(o.goruntulenme)}</td><td>${sayiYaz(o.erisim)}</td><td>${sayiYaz(o.begeni)}</td><td>${sayiYaz(o.yorum)}</td><td>${sayiYaz(o.kaydetme)}</td><td>${sayiYaz(o.takipci)}</td></tr>`).join("")}</tbody></table>` : ""}
       ${reklamlar.length ? `<h2 style="font-size:14px;margin:6px 0 8px">Reklamlar</h2><table style="margin-bottom:18px"><thead><tr><th>Reklam</th><th>Amaç</th><th>Tarih</th><th>Erişim</th><th>Gösterim</th><th>Tıklama</th><th>Harcama</th></tr></thead><tbody>${reklamlar.map(r => `<tr><td>${kacis(r.baslik || reklamAmacAdi(r.amac))}</td><td>${kacis(reklamAmacAdi(r.amac))}</td><td>${kacis(new Date(r.baslangic).toLocaleDateString("tr-TR"))}${r.bitis ? " – " + kacis(new Date(r.bitis).toLocaleDateString("tr-TR")) : ""}</td><td>${sayiYaz(r.sonuc?.erisim)}</td><td>${sayiYaz(r.sonuc?.gosterim)}</td><td>${sayiYaz(r.sonuc?.tiklama)}</td><td>${r.sonuc ? kacis(reklamParaYaz(r.sonuc.harcama)) : "—"}</td></tr>`).join("")}</tbody></table>` : ""}
       <table><thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Paylaşım</th></tr></thead><tbody>${satir || `<tr><td colspan="9">Bu ay paylaşım yok.</td></tr>`}</tbody></table>
       <div class="son">Veriler Instagram'dan ${new Date().toLocaleDateString("tr-TR")} tarihinde alındı.</div></body></html>`;
@@ -378,8 +413,9 @@ export function InstagramIstatistik({ client }) {
     {veri?.bagli && <>
       <div style={{ fontSize: 12, color: T.textSecondary, marginBottom: 10 }}>@{veri.hesap?.kullanici} · {ayYaz(ay)}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: 10, marginBottom: 16 }}>
-        {ozet.map(([l, v]) => <StatCard key={l} label={l} value={sayiYaz(v)} />)}
+        {ozet_.map(([l, v]) => { const d = okYazi(degisim(DEGISIM_ANAHTARI[l])); return <StatCard key={l} label={l} value={sayiYaz(v)} sub={d ? <span style={{ color: d.renk, fontWeight: 700 }}>{d.metin}</span> : (buAyOz && !oncekiOz?.veriVar && ozetEksik > 0 ? "önceki ay hesaplanıyor…" : undefined)} />; })}
       </div>
+      {ozet && ozet.some(o => o.veriVar) && <AylikGrafik aylar={ozet} secili={ay} eksik={ozetEksik} />}
       {tk.kayitVar ? <TakipciGrafik gunler={tk.gunler} /> : <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 14 }}>Takipçi hareketi (yeni / bırakan) her gece kaydedilir; ilk kayıttan sonra burada günlük grafik görünür.</div>}
       <MusteriReklamlari client={client} ay={ay} onVeri={setReklamlar} />
       <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: 12 }}>
@@ -398,6 +434,46 @@ export function InstagramIstatistik({ client }) {
         </table>
       </div>
     </>}
+  </div>;
+}
+
+// Son aylar çubuk grafiği: ölçü seçilir, seçili ay vurgulanır, her çubuğun üstünde önceki aya göre ok
+const OLCULER = [["goruntulenme", "Görüntülenme"], ["erisim", "Erişim"], ["etkilesim", "Etkileşim"], ["paylasim", "Paylaşım sayısı"], ["profil", "Profil ziyareti"], ["takipci", "Takipçi"]];
+function AylikGrafik({ aylar, secili, eksik }) {
+  const [olcu, setOlcu] = useState("goruntulenme");
+  const W = 760, H = 190, padL = 16, padR = 16, padT = 34, padB = 26;
+  const n = aylar.length, adim = (W - padL - padR) / n, bw = Math.min(70, adim * 0.6);
+  const deger = (o) => (o.veriVar && o[olcu] != null) ? Number(o[olcu]) : null;
+  const vals = aylar.map(deger).filter(v => v != null);
+  const max = Math.max(1, ...vals), min = olcu === "takipci" ? Math.min(...vals) : 0;
+  const yuk = (v) => max === min ? (H - padT - padB) * 0.6 : ((v - min) / (max - min)) * (H - padT - padB - 10) + 6;
+  const kisa = (n0) => n0 >= 1e6 ? (n0 / 1e6).toFixed(1).replace(".0", "") + "M" : n0 >= 1e3 ? (n0 / 1e3).toFixed(n0 >= 1e4 ? 0 : 1).replace(".0", "") + "B" : String(n0);
+  return <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: 12, marginBottom: 14, background: T.bgCard }}>
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, marginRight: 6 }}>Son {n} ay</span>
+      {OLCULER.map(([k, l]) => <button key={k} onClick={() => setOlcu(k)} style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 8, cursor: "pointer", border: `1px solid ${olcu === k ? T.amber : T.border}`, background: olcu === k ? T.amber : "transparent", color: olcu === k ? T.white : T.textSecondary }}>{l}</button>)}
+      {eksik > 0 && <span style={{ fontSize: 11, color: T.textMuted, marginLeft: "auto" }}>{eksik} ay daha hesaplanıyor…</span>}
+    </div>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+      <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke={T.border} />
+      {aylar.map((o, i) => {
+        const v = deger(o), x = padL + i * adim + (adim - bw) / 2;
+        const h = v == null ? 0 : yuk(v), y = H - padB - h;
+        const onceki = i > 0 ? deger(aylar[i - 1]) : null;
+        const fark = (v != null && onceki != null) ? v - onceki : null;
+        const yuzde = (fark != null && onceki) ? Math.round((fark / onceki) * 100) : null;
+        const renk = fark == null ? T.textMuted : fark > 0 ? (T.greenText || "#2DBE6C") : fark < 0 ? (T.redText || "#E5484D") : T.textMuted;
+        const [yy, mm] = o.ay.split("-").map(Number);
+        return <g key={o.ay}>
+          <title>{`${AYLAR[mm - 1]} ${yy}: ${v == null ? "veri yok" : sayiYaz(v)}${fark != null ? ` (${fark > 0 ? "+" : ""}${sayiYaz(fark)})` : ""}`}</title>
+          {v == null ? <rect x={x} y={H - padB - 4} width={bw} height={4} fill={T.border} rx={2} /> : <rect x={x} y={y} width={bw} height={h} fill={o.ay === secili ? T.amber : (T.blueText || "#4D8DFF")} opacity={o.ay === secili ? 1 : 0.55} rx={4} />}
+          {v != null && <text x={x + bw / 2} y={y - 6} fontSize={11} fontWeight={700} textAnchor="middle" fill={T.textPrimary}>{kisa(v)}</text>}
+          {fark != null && <text x={x + bw / 2} y={y - 19} fontSize={10} fontWeight={700} textAnchor="middle" fill={renk}>{fark > 0 ? "▲" : fark < 0 ? "▼" : "•"} {yuzde != null ? `${yuzde > 0 ? "+" : ""}${yuzde}%` : (fark > 0 ? "+" : "") + kisa(fark)}</text>}
+          <text x={x + bw / 2} y={H - 8} fontSize={10.5} textAnchor="middle" fill={o.ay === secili ? T.textPrimary : T.textMuted} fontWeight={o.ay === secili ? 700 : 400}>{AYLAR[mm - 1].slice(0, 3)} {String(yy).slice(2)}</text>
+        </g>;
+      })}
+    </svg>
+    {olcu === "takipci" && <div style={{ fontSize: 10.5, color: T.textMuted, marginTop: 4 }}>Takipçi sayısı geçmiş aylar için ancak günlük arşiv tutulduğu aylarda ay sonu değeridir; arşiv 31.10.2026'dan itibaren tutulur.</div>}
   </div>;
 }
 

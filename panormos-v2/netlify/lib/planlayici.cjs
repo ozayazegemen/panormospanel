@@ -264,7 +264,9 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
   if (!zorla) {
     try {
       const [c] = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=eq.${ay}&select=veri,guncellendi_at`);
-      if (c && Date.now() - new Date(c.guncellendi_at).getTime() < 60 * 60 * 1000) return { ...c.veri, onbellek: c.guncellendi_at };
+      // İçinde bulunulan ay 1 saat, geçmiş aylar 30 gün saklanır (geçmiş ayın sayıları artık pek değişmez)
+      const gecmisAy = ay < new Date().toISOString().slice(0, 7);
+      if (c && Date.now() - new Date(c.guncellendi_at).getTime() < (gecmisAy ? 30 * 24 : 1) * 60 * 60 * 1000) return { ...c.veri, onbellek: c.guncellendi_at };
     } catch (e) { /* tablo yoksa doğrudan çek */ }
   }
   const veri = await istatistik(igId, ay);
@@ -285,4 +287,35 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
   return veri;
 }
 
-module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, takipciArsivle, imzaliBaglanti, graph };
+// Bir ayın özet sayıları (grafik ve önceki aya göre karşılaştırma için)
+function ayOzeti(ay, v) {
+  const medya = v?.medya || [];
+  const top = (k) => medya.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+  const tk = v?.takipci || {};
+  return {
+    ay, veriVar: !!v, paylasim: medya.length,
+    goruntulenme: v?.genel?.views ?? top("goruntulenme"), erisim: v?.genel?.reach ?? top("erisim"), profil: v?.genel?.profile_views ?? null,
+    begeni: top("begeni"), yorum: top("yorum"), kaydetme: top("kaydetme"), paylasimSayisi: top("paylasim"),
+    etkilesim: top("begeni") + top("yorum") + top("kaydetme") + top("paylasim"),
+    // geçmiş ayda günlük arşiv yoksa takipçi bilinmez (hesap sayısı bugünkü değer olurdu)
+    takipci: tk.kayitVar ? (tk.bitis ?? null) : (ay === new Date().toISOString().slice(0, 7) ? (v?.hesap?.takipci ?? null) : null), takipciGuncel: !tk.kayitVar, yeniTakipci: tk.kayitVar ? tk.yeni : null, ayrilan: tk.kayitVar ? tk.ayrilan : null,
+  };
+}
+
+// Son N ayın özeti. Önbellekte olmayan aylardan her çağrıda en çok 1 tanesi hesaplanır (işlev süresi kısa);
+// eksik kalan varsa "eksik" sayısı döner, panel tekrar çağırır.
+async function aylikOzet(clientId, igId, ay, adet = 6) {
+  const db = veritabani();
+  const [y, m] = ay.split("-").map(Number);
+  const aylar = Array.from({ length: adet }, (_, i) => { const d = new Date(Date.UTC(y, m - 1 - i, 1)); return d.toISOString().slice(0, 7); }).reverse();
+  let onbellek = [];
+  try { onbellek = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=in.(${aylar.join(",")})&select=ay,veri,guncellendi_at`); } catch (e) { /* tablo yok */ }
+  const buAy = new Date().toISOString().slice(0, 7);
+  const bul = (a) => onbellek.find(c => c.ay === a && (a < buAy ? Date.now() - new Date(c.guncellendi_at).getTime() < 30 * 24 * 3600e3 : Date.now() - new Date(c.guncellendi_at).getTime() < 3600e3 * 6));
+  const eksikler = aylar.filter(a => !bul(a)).reverse(); // en yeniden eskiye
+  let hesaplanan = null;
+  if (eksikler.length) { hesaplanan = eksikler[0]; try { const v = await istatistikOnbellekli(clientId, igId, hesaplanan); onbellek.push({ ay: hesaplanan, veri: v, guncellendi_at: new Date().toISOString() }); } catch (e) { /* bir sonraki çağrıda */ } }
+  return { aylar: aylar.map(a => ayOzeti(a, (onbellek.find(c => c.ay === a) || {}).veri || null)), eksik: Math.max(0, eksikler.length - (hesaplanan ? 1 : 0)) };
+}
+
+module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, aylikOzet, takipciArsivle, imzaliBaglanti, graph };
