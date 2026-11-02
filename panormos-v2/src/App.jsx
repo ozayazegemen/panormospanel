@@ -5684,11 +5684,12 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
   };
 
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:20}}>
       <StatCard label="Toplam Çalışan" value={staff.length} />
       <StatCard label="Tam Zamanlı" value={staff.filter(s=>s.type==="Tam zamanlı").length} color={T.greenText} />
       <StatCard label="Part-time" value={staff.filter(s=>s.type==="Part-time").length} color={T.amberText} />
       <StatCard label="Serbest" value={staff.filter(s=>s.type==="Serbest").length} color={T.indigoText} />
+      <StatCard label="Stajyer" value={staff.filter(s=>s.type==="Stajyer").length} color={T.amber} />
     </div>
 
     <div style={{display:"flex",gap:10,marginBottom:20}}>
@@ -5749,7 +5750,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={form.name||""} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} /></FormField>
       <FormField label="Yaptığı İşler (bu türdeki görevler kendiliğinden ona atanır)"><TaskTypePicker value={form.taskTypes} onChange={v=>setForm(f=>({...f,taskTypes:v}))} /></FormField>
-      <FormField label="Çalışan Türü"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
+      <FormField label="Çalışan Türü"><Select value={form.type||"Tam zamanlı"} onChange={e=>setForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option><option value="Stajyer">Stajyer</option></Select></FormField>
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={form.email||""} onChange={e=>setForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="🔑 Giriş Şifresi (çalışan bununla girecek)"><Input type="text" placeholder="En az 6 karakter" value={form.password||""} onChange={e=>setForm(f=>({...f,password:e.target.value}))} /></FormField>
       <FormField label="Telefon"><Input placeholder="05XX XXX XX XX" value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} /></FormField>
@@ -5777,7 +5778,7 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
       <FormField label="Ad Soyad"><Input placeholder="Örn: Ayaz Gayrimenkul" value={editForm.name||""} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></FormField>
       <FormField label="Pozisyon"><Input placeholder="Örn: Video Editor" value={editForm.role||""} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))} /></FormField>
       <FormField label="Yaptığı İşler (bu türdeki görevler kendiliğinden ona atanır)"><TaskTypePicker value={editForm.taskTypes} onChange={v=>setEditForm(f=>({...f,taskTypes:v}))} /></FormField>
-      <FormField label="Çalışan Türü"><Select value={editForm.type||"Tam zamanlı"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option></Select></FormField>
+      <FormField label="Çalışan Türü"><Select value={editForm.type||"Tam zamanlı"} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="Tam zamanlı">Tam Zamanlı</option><option value="Part-time">Part-time</option><option value="Serbest">Serbest</option><option value="Stajyer">Stajyer</option></Select></FormField>
       <FormField label="E-mail"><Input placeholder="mail@example.com" value={editForm.email||""} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} /></FormField>
       <FormField label="🔑 Yeni Şifre Belirle (boş bırakırsan değişmez)">
         <div style={{display:"flex",gap:6}}>
