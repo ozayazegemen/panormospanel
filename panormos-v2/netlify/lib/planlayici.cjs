@@ -140,17 +140,29 @@ async function ilerlet(db, p, musteri) {
 async function calistir({ id = null } = {}) {
   const db = veritabani();
   const simdi = new Date().toISOString();
-  const filtre = id
-    ? `id=eq.${id}&durum=in.(bekliyor,hazirlaniyor)`
-    : `or=(and(durum.eq.bekliyor,zaman.lte."${simdi}"),durum.eq.hazirlaniyor)`;
-  const liste = await db.oku(`planli_paylasimlar?${filtre}&select=*&order=zaman.asc&limit=20`);
+  // İki ayrı sorgu: zamanı gelen bekleyenler + hazırlanmakta olanlar (or() içindeki tırnaklı tarih yazımına güvenmemek için)
+  const liste = id
+    ? await db.oku(`planli_paylasimlar?id=eq.${id}&durum=in.(bekliyor,hazirlaniyor)&select=*&limit=1`)
+    : [
+      ...await db.oku(`planli_paylasimlar?durum=eq.bekliyor&zaman=lte.${encodeURIComponent(simdi)}&select=*&order=zaman.asc&limit=20`),
+      ...await db.oku(`planli_paylasimlar?durum=eq.hazirlaniyor&select=*&order=zaman.asc&limit=20`),
+    ];
+  if (!id) console.log(`planlayıcı kontrol ${simdi}: ${liste.length} paylaşım sırada`);
   if (!liste.length) return [];
   const idler = [...new Set(liste.map(p => p.client_id))];
   const musteriler = await db.oku(`clients?id=in.(${idler.join(",")})&select=id,name,ig_user_id`);
   const sonuc = [];
+  const bekle = (ms) => new Promise(r => setTimeout(r, ms));
   for (const p of liste) {
     const m = musteriler.find(x => x.id === p.client_id);
-    sonuc.push({ id: p.id, musteri: m?.name, sonuc: await ilerlet(db, p, m) });
+    let adim = await ilerlet(db, p, m);
+    // Kapsayıcı yeni oluştuysa hemen yayınlamayı dene (görseller anında hazır olur; video ise bir sonraki tura kalır)
+    if (adim === "kapsayıcı oluşturuldu") {
+      await bekle(2500);
+      const [g] = await db.oku(`planli_paylasimlar?id=eq.${p.id}&select=*`);
+      if (g && g.durum === "hazirlaniyor") adim += " → " + await ilerlet(db, g, m);
+    }
+    sonuc.push({ id: p.id, musteri: m?.name, sonuc: adim });
   }
   return sonuc;
 }
