@@ -134,6 +134,20 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
       <Btn variant="primary" onClick={() => yeniAc(null)}>+ Yeni paylaşım planla</Btn>
     </div>
 
+    {/* Müşteri sekmeleri: Instagram'ı bağlı ya da planı olan müşteriler; sayı = sıradaki paylaşım */}
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+      {[{ id: "", name: "Tümü" }, ...aktifMusteriler.filter(c => igBag[c.id]?.ig_user_id || planlar.some(p => p.client_id === c.id))].map(c => {
+        const n = planlar.filter(p => (!c.id || p.client_id === c.id) && (p.durum === "bekliyor" || p.durum === "hazirlaniyor")).length;
+        const h = planlar.filter(p => (!c.id || p.client_id === c.id) && p.durum === "hata").length;
+        const aktif = musteriFiltre === c.id;
+        return <button key={c.id || "hepsi"} onClick={() => setMusteriFiltre(c.id)} style={{ fontSize: 12, fontWeight: 700, padding: "7px 12px", borderRadius: 10, cursor: "pointer", border: `1.5px solid ${aktif ? T.amber : T.border}`, background: aktif ? T.amber : T.bgCard, color: aktif ? T.white : T.textPrimary, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {c.name}
+          {n > 0 && <span style={{ fontSize: 10.5, padding: "1px 7px", borderRadius: 8, background: aktif ? "rgba(255,255,255,.25)" : T.bgInput, color: aktif ? T.white : T.textSecondary }}>{n}</span>}
+          {h > 0 && <span title="Hatalı" style={{ fontSize: 10.5, padding: "1px 7px", borderRadius: 8, background: T.redText || "#E5484D", color: "#fff" }}>{h}</span>}
+        </button>;
+      })}
+    </div>
+
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 16 }}>
       <StatCard label="Sırada bekleyen" value={yaklasan} />
       <StatCard label="Bu ay otomatik paylaşılan" value={buAyPaylasilan} color={T.greenText} />
