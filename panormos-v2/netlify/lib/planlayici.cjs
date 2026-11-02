@@ -133,7 +133,12 @@ async function ilerlet(db, p, musteri, zorla = false) {
         const kayit = await db.yaz("publishes", "POST", { client_id: p.client_id, publisher_id: p.olusturan_id || null, platform: "instagram", content_type: p.icerik_turu, quantity: 1, published_at: simdi });
         publishId = kayit?.[0]?.id || null;
       } catch (e) { /* paylaşım yapıldı; kayıt hatası ayrıca yazılır */ }
-      await guncelle(db, p.id, { durum: "paylasildi", ig_medya_id: yayin.id, baglanti, publish_id: publishId, paylasildi_at: simdi, hata: publishId ? null : "Paylaşıldı ama hak kaydı yazılamadı; Raporlar'dan elle ekleyin." });
+      // publishes.id sayı; planli_paylasimlar.publish_id uuid sütunu → numara meta'ya yazılır (uuid ise sütuna da)
+      const uuidMi = /^[0-9a-f-]{36}$/i.test(String(publishId || ""));
+      const bitti = { durum: "paylasildi", ig_medya_id: yayin.id, baglanti, paylasildi_at: simdi, meta: { ...meta, publish_kayit: publishId }, hata: publishId ? null : "Paylaşıldı ama hak kaydı yazılamadı; Raporlar'dan elle ekleyin." };
+      if (uuidMi) bitti.publish_id = publishId;
+      try { await guncelle(db, p.id, bitti); }
+      catch (e) { await guncelle(db, p.id, { durum: "paylasildi", ig_medya_id: yayin.id, paylasildi_at: simdi, hata: null }); } // yayın yapıldı; kayıt hatası "hata" göstermesin
       return "paylaşıldı";
     }
     return "atlandı";
