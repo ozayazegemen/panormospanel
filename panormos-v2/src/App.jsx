@@ -3701,11 +3701,13 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     return d.toLocaleDateString("tr-TR") + " " + d.toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
   };
 
-  const moveTask=async (id, newCol)=>{
-    // "Paylaşım Yapıldı" kolonuna taşınıyorsa önce paylaşım bilgilerini sor
-    if(newCol==="published"){
+  const moveTask=async (id, newCol, { hakSorma=false }={})=>{
+    // "Paylaşım Yapıldı" ya da "Planlayıcıya Yüklendi" kolonuna taşınıyorsa paylaşım bilgilerini sor → müşterinin aylık hakkından düşer
+    if((newCol==="published" || newCol==="planlayici") && !hakSorma){
       const t = tasks.find(x=>x.id===id);
-      setPublishModal({ taskId:id, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", counts:{} });
+      const tur = String(t?.type||"").toLowerCase();
+      const tahmin = /video|reels/.test(tur) ? { reels:1 } : /tasar|foto|post/.test(tur) ? { post:1 } : {};
+      setPublishModal({ taskId:id, hedefCol:newCol, client_id: t?.clientId||"", publisher_id: t?.assignedTo||"", platform:"instagram", counts: newCol==="planlayici" ? tahmin : {} });
       return;
     }
     // "Onaya Gönderildi" kolonuna taşınıyorsa müşteri seç + WhatsApp
@@ -3750,9 +3752,10 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     const { error } = await supabase.from('publishes').insert(rows);
     if(error){ swalAlert("Paylaşım kaydedilemedi: "+error.message+"\n\nPAYLASIM-ADET-SQL kodunu çalıştırın."); return; }
     const pubCompletedAt = tasks.find(x=>x.id===pm.taskId)?.completedAt || nowIso;
-    await supabase.from('tasks').update({ col: "published", completed_at: pubCompletedAt }).eq('id', pm.taskId);
-    setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:"published",completedAt:pubCompletedAt}:t));
-    if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:"published"}); }
+    const hedef = pm.hedefCol || "published";
+    await supabase.from('tasks').update({ col: hedef, completed_at: pubCompletedAt }).eq('id', pm.taskId);
+    setTasks(prev=>prev.map(t=>t.id===pm.taskId?{...t,col:hedef,completedAt:pubCompletedAt}:t));
+    if(selectedTask && selectedTask.id===pm.taskId){ setSelectedTask({...selectedTask,col:hedef}); }
     setPublishModal(null);
     // Müşteri verilerini yenile (takvim + paylaşım sayımı güncellensin)
     if(refreshData) await refreshData();
@@ -4285,8 +4288,9 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
     })()}
 
     {/* Paylaşım Yapıldı Modalı */}
-    {publishModal && <Modal title="📤 Paylaşım Yapıldı" onClose={()=>setPublishModal(null)}>
-      <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>Paylaşım bilgilerini girin. Tarih ve saat <strong style={{color:T.amberText}}>otomatik</strong> kaydedilecek.</div>
+    {publishModal && <Modal title={publishModal.hedefCol==="planlayici" ? "📤 Planlayıcıya Yüklendi · paylaşım say" : "📤 Paylaşım Yapıldı"} onClose={()=>setPublishModal(null)}>
+      <div style={{fontSize:12,color:T.textMuted,marginBottom:14,lineHeight:1.5}}>Paylaşım bilgilerini girin; müşterinin o ayki hakkından düşer. Tarih ve saat <strong style={{color:T.amberText}}>otomatik</strong> kaydedilecek.</div>
+      {publishModal.hedefCol==="planlayici" && clients.find(c=>c.id===publishModal.client_id)?.igUserId && <div style={{fontSize:12,color:T.amberText,background:"rgba(232,161,0,.12)",borderRadius:9,padding:"9px 12px",marginBottom:12,lineHeight:1.5}}>Bu müşterinin Instagram'ı panele bağlı: Paylaşım Planlayıcı'dan otomatik paylaşılınca hak zaten düşer. Planlayıcıdan paylaşılacaksa aşağıdan <b>"Hak düşmeden taşı"</b>yı seçin, yoksa iki kez sayılır.</div>}
       <FormField label="Paylaşım Yapılan Müşteri">
         <Select value={publishModal.client_id||""} onChange={e=>setPublishModal(m=>({...m,client_id:e.target.value}))}>
           <option value="">Seç...</option>
@@ -4328,6 +4332,7 @@ function TasksPage({tasks,setTasks,clients,staff,refreshData,currentStaff,perms}
       </FormField>
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:20}}>
         <Btn onClick={()=>setPublishModal(null)}>Vazgeç</Btn>
+        {publishModal.hedefCol==="planlayici" && <Btn onClick={async()=>{ const pm=publishModal; setPublishModal(null); await moveTask(pm.taskId, "planlayici", { hakSorma:true }); }}>Hak düşmeden taşı</Btn>}
         <Btn variant="primary" onClick={confirmPublish}>✅ Paylaşımı Kaydet</Btn>
       </div>
     </Modal>}
@@ -11373,7 +11378,7 @@ async function loadAllData() {
   const socialRaw = (clientsRaw || []).filter(c => c.source !== 'emlakpanelim');
   const clients = socialRaw.filter(c => !c.deleted_at).map(c => ({
     id: c.id, name: c.name, category: c.category || "", initials: c.initials || "",
-    accentColor: c.accent_color || "#6366F1", phone: c.phone || "", email: c.email || "", address: c.address || "",
+    accentColor: c.accent_color || "#6366F1", igUserId: c.ig_user_id || null, phone: c.phone || "", email: c.email || "", address: c.address || "",
     city: c.city || "", district: c.district || "", taxNumber: c.tax_number || "", taxOffice: c.tax_office || "",
     socialMedia: c.social_media || "", socialPassword: sifreOf[c.id] || "", defaultAssignee: c.default_assignee || null, description: c.description || "", setupChecklist: c.setup_checklist || {}, monthlyPostQuota: c.monthly_post_quota || 0, quotaDetail: c.quota_detail || {},
     platforms: c.platforms || [], publishDays: c.publish_days || [], shootDays: c.shoot_days || [],
