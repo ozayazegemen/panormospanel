@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Koru Villaları — Doğanın içinde, denize bir adım</title>
+<meta name="description" content="Koru Villaları: zeytin ve çam korusunun içinde, denize yürüme mesafesinde 4+1 ve 5+1 müstakil villalar. Satış ofisinden önce burayı gezin.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --yesil:#1e3a31; --yesil-koyu:#15291f; --yesil-acik:#2b4f43;
+    --krem:#f4f1ea; --krem-koyu:#e9e4d8; --kum:#cfc6b2; --altin:#b89b6a;
+    --yazi:#1b1f1c; --yazi-soluk:#6a7069; --beyaz:#fff;
+    --serif:"Cormorant Garamond",Georgia,serif; --sans:"Manrope",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--yazi);background:var(--krem);line-height:1.6;font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  img{display:block;max-width:100%}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3,.serif{font-family:var(--serif);font-weight:400;line-height:1.05;letter-spacing:-.01em}
+  em{font-style:italic}
+  .kap{width:min(1240px,92vw);margin:0 auto}
+  .etiket{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--altin);font-weight:500}
+  .buyuk{font-size:clamp(40px,6.2vw,92px)}
+  .orta{font-size:clamp(32px,4.2vw,60px)}
+  .btn{display:inline-flex;align-items:center;gap:12px;padding:16px 28px;border:1px solid currentColor;border-radius:999px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;transition:background .3s,color .3s,transform .3s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn.dolu{background:var(--yesil);color:#fff;border-color:var(--yesil)}
+  .btn.dolu:hover{background:var(--yesil-koyu)}
+  .btn.acik{color:#fff;border-color:rgba(255,255,255,.55)}
+  .btn.acik:hover{background:#fff;color:var(--yesil)}
+  .btn svg{width:16px;height:16px}
+
+  /* Üst menü */
+  header{position:fixed;inset:0 0 auto;z-index:50;padding:22px 0;transition:background .4s,padding .4s,box-shadow .4s;color:#fff}
+  header .kap{display:flex;align-items:center;justify-content:space-between}
+  header.dolu{background:rgba(244,241,234,.86);backdrop-filter:blur(14px);color:var(--yazi);padding:14px 0;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+  .logo{font-family:var(--serif);font-size:24px;letter-spacing:.02em}
+  .logo span{color:var(--altin)}
+  nav{display:flex;gap:34px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+  nav a{opacity:.85;position:relative;padding:4px 0}
+  nav a::after{content:"";position:absolute;left:0;bottom:0;width:0;height:1px;background:currentColor;transition:width .3s}
+  nav a:hover::after{width:100%}
+  .menu-btn{display:none;background:none;border:0;color:inherit;font:inherit;font-size:12px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+
+  /* Açılış: eğik kolaj */
+  .acilis{position:relative;height:100vh;min-height:680px;overflow:hidden;background:var(--yesil)}
+  .kolaj{position:absolute;inset:-18%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:14px;transform:rotate(-8deg) scale(1.02);transform-origin:50% 50%;will-change:transform}
+  .kolaj div{overflow:hidden;background:var(--yesil-acik)}
+  .kolaj img{width:100%;height:100%;object-fit:cover;transform:scale(1.08);transition:transform 1.6s ease-out}
+  .acilis.hazir .kolaj img{transform:scale(1)}
+  .acilis::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(21,41,31,.35) 0%,rgba(21,41,31,.1) 40%,rgba(21,41,31,.75) 100%)}
+  .acilis-yazi{position:absolute;inset:auto 0 0;z-index:2;color:#fff;padding-bottom:9vh}
+  .acilis-yazi .kap{display:flex;justify-content:space-between;align-items:flex-end;gap:40px}
+  .acilis-yazi h1{max-width:12ch}
+  .acilis-yazi p{max-width:38ch;font-size:15px;opacity:.85;margin-top:18px}
+  .acilis-ust{position:absolute;top:110px;left:0;right:0;z-index:2;color:#fff;font-size:12px;letter-spacing:.14em;text-transform:uppercase;opacity:.8}
+  .acilis-ust .kap{display:flex;justify-content:space-between}
+  .asagi{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:2;width:1px;height:48px;background:rgba(255,255,255,.45);overflow:hidden}
+  .asagi::after{content:"";position:absolute;inset:0;background:#fff;transform:translateY(-100%);animation:kay 2.2s infinite}
+  @keyframes kay{to{transform:translateY(100%)}}
+
+  /* Görünür olunca beliren öğeler */
+  .belir{opacity:0;transform:translateY(28px);transition:opacity 1s ease,transform 1s ease}
+  .belir.goster{opacity:1;transform:none}
+  .gecikme-1{transition-delay:.15s}.gecikme-2{transition-delay:.3s}.gecikme-3{transition-delay:.45s}
+
+  /* Manifesto */
+  .manifesto{padding:150px 0 120px;text-align:center}
+  .manifesto h2{max-width:22ch;margin:22px auto 0}
+  .manifesto p{max-width:54ch;margin:30px auto 0;color:var(--yazi-soluk);font-size:17px}
+  .rakamlar{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:80px;border-top:1px solid var(--kum);padding-top:40px}
+  .rakamlar b{display:block;font-family:var(--serif);font-size:54px;font-weight:400;line-height:1}
+  .rakamlar span{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--yazi-soluk)}
+
+  /* Tam ekran fotoğraf + köşe yazısı (sabit kalan, üst üste binen bölümler) */
+  .yigin{position:relative}
+  .sahne{position:sticky;top:0;height:100vh;overflow:hidden;color:#fff}
+  .sahne img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scale(1.12);transition:transform 2.4s ease-out}
+  .sahne.goster img{transform:scale(1)}
+  .sahne::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(21,41,31,.55),rgba(21,41,31,.05) 60%)}
+  .sahne .kap{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:12vh}
+  .sahne .kelime{font-size:clamp(64px,10vw,150px);line-height:.95}
+  .sahne .not{position:absolute;right:4vw;bottom:12vh;max-width:30ch;font-size:14px;opacity:.9;text-align:right}
+  .sahne .kucuk{max-width:22ch;font-size:clamp(26px,3vw,40px);line-height:1.15}
+
+  /* Yarım yeşil panel + fotoğraf */
+  .ikili{display:grid;grid-template-columns:1fr 1fr;min-height:92vh}
+  .ikili .panel{background:var(--yesil);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:12vh 8vw}
+  .ikili .panel .etiket{color:var(--kum)}
+  .ikili .panel h2{margin-top:26px;max-width:14ch}
+  .ikili .panel p{margin-top:28px;max-width:40ch;opacity:.8;font-size:15px}
+  .ikili .foto{position:relative;overflow:hidden}
+  .ikili .foto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .ikili.ters .panel{order:2}
+
+  /* Villa tipleri */
+  .tipler{padding:140px 0}
+  .tipler-ust{display:flex;justify-content:space-between;align-items:flex-end;gap:40px;margin-bottom:60px}
+  .tipler-ust p{max-width:44ch;color:var(--yazi-soluk)}
+  .tip-liste{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .tip{position:relative;background:#fff;border:1px solid var(--krem-koyu);overflow:hidden;transition:transform .5s,box-shadow .5s}
+  .tip:hover{transform:translateY(-6px);box-shadow:0 30px 60px rgba(30,58,49,.14)}
+  .tip .gorsel{aspect-ratio:4/5;overflow:hidden}
+  .tip .gorsel img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s}
+  .tip:hover .gorsel img{transform:scale(1.06)}
+  .tip .ic{padding:26px 26px 30px}
+  .tip h3{font-size:30px}
+  .tip .alt{color:var(--yazi-soluk);font-size:13px;margin-top:4px}
+  .tip ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:20px;font-size:13px}
+  .tip li{padding-left:16px;position:relative}
+  .tip li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--altin)}
+  .tip .rozet{position:absolute;top:16px;left:16px;background:rgba(244,241,234,.92);padding:6px 12px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:500}
+  .tip a.devam{display:inline-block;margin-top:22px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;border-bottom:1px solid var(--altin);padding-bottom:4px}
+
+  /* Zarafet: açık bölüm, yüzen kart */
+  .zarafet{padding:120px 0;background:var(--krem-koyu)}
+  .zarafet .kap{display:grid;grid-template-columns:1fr 1.15fr;gap:70px;align-items:center}
+  .zarafet p{margin-top:28px;color:var(--yazi-soluk);max-width:42ch}
+  .zarafet .ozellikler{margin-top:36px;display:grid;gap:14px;font-size:14px}
+  .zarafet .ozellikler div{display:flex;gap:14px;align-items:baseline;border-bottom:1px solid var(--kum);padding-bottom:12px}
+  .zarafet .ozellikler b{font-family:var(--serif);font-size:22px;font-weight:500;min-width:3ch}
+  .zarafet .cerceve{position:relative}
+  .zarafet .cerceve img{width:100%;aspect-ratio:4/5;object-fit:cover}
+  .zarafet .kart{position:absolute;left:-40px;bottom:50px;background:var(--yesil);color:#fff;padding:26px 28px;max-width:280px;font-size:14px}
+  .zarafet .kart b{display:block;font-family:var(--serif);font-size:26px;font-weight:400;margin-bottom:6px}
+
+  /* Konum */
+  .konum{padding:140px 0}
+  .konum .kap{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+  .konum h2{margin-top:22px}
+  .konum .mesafeler{margin-top:40px;display:grid;gap:0}
+  .konum .mesafeler div{display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--kum);font-size:15px}
+  .konum .mesafeler b{font-family:var(--serif);font-size:26px;font-weight:400}
+  .konum .harita{aspect-ratio:1;overflow:hidden;position:sticky;top:120px}
+  .konum .harita img{width:100%;height:100%;object-fit:cover}
+
+  /* Galeri şeridi */
+  .galeri{padding:0 0 140px}
+  .serit{display:grid;grid-template-columns:1.4fr 1fr 1fr;grid-auto-rows:42vh;gap:14px}
+  .serit div{overflow:hidden}
+  .serit img{width:100%;height:100%;object-fit:cover;transition:transform 1.4s}
+  .serit div:hover img{transform:scale(1.05)}
+  .serit div:nth-child(1){grid-row:span 2}
+
+  /* Kapanış: yeşil, çam korusu */
+  .kapanis{position:relative;min-height:100vh;display:flex;align-items:center;color:#fff;overflow:hidden;background:var(--yesil)}
+  .kapanis img.arka{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
+  .kapanis::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--yesil) 0%,rgba(30,58,49,.2) 35%,rgba(30,58,49,.3) 70%,var(--yesil-koyu) 100%)}
+  .kapanis .kap{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;padding:14vh 0}
+  .kapanis h2{max-width:12ch}
+  .kapanis p{margin-top:24px;max-width:40ch;opacity:.85}
+  form{background:rgba(244,241,234,.08);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(10px);padding:36px}
+  form h3{font-size:30px;margin-bottom:6px}
+  form .aciklama{font-size:13px;opacity:.75;margin-bottom:24px}
+  .alan{display:grid;gap:6px;margin-bottom:16px}
+  .alan label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.75}
+  .alan input,.alan select,.alan textarea{width:100%;background:transparent;border:0;border-bottom:1px solid rgba(255,255,255,.4);color:#fff;font:inherit;font-size:16px;padding:10px 0;outline:0;border-radius:0}
+  .alan input:focus,.alan select:focus,.alan textarea:focus{border-color:#fff}
+  .alan select option{color:var(--yazi)}
+  .alan-satir{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  form button{margin-top:10px;width:100%;justify-content:center;cursor:pointer;background:#fff;color:var(--yesil);border-color:#fff}
+  form button:hover{background:var(--krem)}
+  .tesekkur{display:none;text-align:center;padding:30px 0}
+  .tesekkur b{display:block;font-family:var(--serif);font-size:32px;font-weight:400;margin-bottom:8px}
+
+  footer{background:var(--yesil-koyu);color:rgba(255,255,255,.75);padding:60px 0 30px;font-size:13px}
+  footer .kap{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:40px}
+  footer .logo{color:#fff}
+  footer h4{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--kum);margin-bottom:14px;font-weight:500}
+  footer p,footer li{margin-bottom:8px;list-style:none}
+  footer .alt{grid-column:1/-1;border-top:1px solid rgba(255,255,255,.12);padding-top:22px;margin-top:20px;display:flex;justify-content:space-between;font-size:12px;opacity:.7}
+
+  /* Sabit WhatsApp */
+  .wa{position:fixed;right:22px;bottom:22px;z-index:40;width:54px;height:54px;border-radius:50%;background:#25D366;display:grid;place-items:center;box-shadow:0 10px 24px rgba(0,0,0,.2);transition:transform .3s}
+  .wa:hover{transform:scale(1.06)}
+  .wa svg{width:26px;height:26px;fill:#fff}
+
+  @media (max-width:900px){
+    nav{display:none}
+    nav.acik{display:flex;position:fixed;inset:0;background:var(--yesil);color:#fff;flex-direction:column;align-items:center;justify-content:center;gap:28px;font-size:16px}
+    .menu-btn{display:block;position:relative;z-index:60}
+    .acilis-yazi .kap{flex-direction:column;align-items:flex-start}
+    .kolaj{inset:-30%;grid-template-columns:repeat(3,1fr)}
+    .rakamlar{grid-template-columns:1fr 1fr;gap:34px 16px}
+    .ikili{grid-template-columns:1fr;min-height:0}
+    .ikili .foto{min-height:60vh}
+    .ikili.ters .panel{order:0}
+    .tip-liste,.zarafet .kap,.konum .kap,.kapanis .kap{grid-template-columns:1fr}
+    .zarafet .kart{left:14px;right:14px;bottom:-30px;max-width:none}
+    .zarafet .cerceve{margin-bottom:50px}
+    .konum .harita{position:static}
+    .serit{grid-template-columns:1fr 1fr;grid-auto-rows:34vh}
+    .serit div:nth-child(1){grid-column:span 2;grid-row:span 1}
+    .sahne .not{display:none}
+    footer .kap{grid-template-columns:1fr 1fr}
+    .alan-satir{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header id="ust">
+  <div class="kap">
+    <a href="#" class="logo">Koru<span>.</span>Villaları</a>
+    <nav id="menu">
+      <a href="#hikaye">Hikâye</a>
+      <a href="#villalar">Villalar</a>
+      <a href="#konum">Konum</a>
+      <a href="#galeri">Galeri</a>
+      <a href="#randevu">Randevu</a>
+    </nav>
+    <button class="menu-btn" id="menuBtn">Menü</button>
+  </div>
+</header>
+
+<!-- AÇILIŞ: eğik fotoğraf kolajı, kaydırınca düzleşip büyür -->
+<section class="acilis" id="acilis">
+  <div class="kolaj" id="kolaj">
+    <div><img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    <div><img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=75" alt=""></div>
+  </div>
+  <div class="acilis-ust"><div class="kap"><span>Erdek · Balıkesir</span><span>Satışta · 2027 teslim</span></div></div>
+  <div class="acilis-yazi">
+    <div class="kap">
+      <div>
+        <h1 class="buyuk">Hayatın<br><em>koruya açılan</em> hali.</h1>
+        <p>Zeytin ve çam korusunun içinde, denize yürüme mesafesinde 24 müstakil villa. Satış ofisinden önce burayı gezin.</p>
+      </div>
+      <a href="#randevu" class="btn acik">Yerinde görün <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+  </div>
+  <div class="asagi"></div>
+</section>
+
+<!-- MANİFESTO -->
+<section class="manifesto" id="hikaye">
+  <div class="kap">
+    <div class="etiket belir">Koru Villaları</div>
+    <h2 class="orta belir gecikme-1">Biraz yavaşlayın.<br><em>Güzel şeyler, hemen şimdi başlamalı.</em></h2>
+    <p class="belir gecikme-2">Şehrin ritminden bir adım geri çekilin. Sabah çam kokusuyla uyanın, akşam denize karşı sofra kurun. Her villa, komşusunu görmeden kendi bahçesine açılacak şekilde yerleştirildi.</p>
+    <div class="rakamlar">
+      <div class="belir"><b>24</b><span>Müstakil villa</span></div>
+      <div class="belir gecikme-1"><b>12</b><span>Dönüm koru</span></div>
+      <div class="belir gecikme-2"><b>350<small style="font-size:24px">m</small></b><span>Denize yürüyüş</span></div>
+      <div class="belir gecikme-3"><b>2027</b><span>Teslim</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ÜST ÜSTE BİNEN TAM EKRAN SAHNELER -->
+<div class="yigin">
+  <section class="sahne">
+    <img src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=2000&q=80" alt="Koru ve deniz manzarası">
+    <div class="kap"><div class="etiket" style="color:var(--kum)">01 — Doğa</div><div class="kelime serif">Doğa.</div></div>
+    <p class="not">Mevcut zeytin ağaçlarının hiçbiri kesilmedi; yollar ve villalar ağaçların arasına göre çizildi.</p>
+  </section>
+  <section class="sahne">
+    <img src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=2000&q=80" alt="Havuzlu villa, akşam">
+    <div class="kap"><div class="etiket" style="color:var(--kum)">02 — Villalar</div><div class="kelime serif">Villalar.</div></div>
+    <p class="not">Her villanın kendi havuzu, bahçesi ve kapalı otoparkı var. Üç farklı plan, tek bir mimari dil.</p>
+  </section>
+  <section class="sahne">
+    <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=2000&q=80" alt="Villa iç mekân">
+    <div class="kap"><div class="etiket" style="color:var(--kum)">03 — İçerisi</div><div class="kucuk serif">İçten gelen <em>güzellik.</em></div></div>
+    <p class="not">Doğal taş, meşe ve geniş cam yüzeyler. Işık gün boyu evin içinde dolaşır.</p>
+  </section>
+</div>
+
+<!-- YEŞİL PANEL + FOTOĞRAF -->
+<section class="ikili">
+  <div class="panel">
+    <div class="etiket belir">Bir yer. Bir his.</div>
+    <h2 class="orta belir gecikme-1">Komşunuz çam ağaçları, <em>manzaranız deniz.</em></h2>
+    <p class="belir gecikme-2">Villalar arasındaki en kısa mesafe 14 metre. Teraslar güneşin batışına, yatak odaları koruya bakar. Sitenin içinde araba sesi duyulmaz; otoparklar girişte toplandı.</p>
+    <a href="#villalar" class="btn acik belir gecikme-3" style="margin-top:36px;align-self:flex-start">Villa tiplerini görün</a>
+  </div>
+  <div class="foto"><img src="https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=1400&q=80" alt="Villa cephesi ve bahçe"></div>
+</section>
+
+<!-- VİLLA TİPLERİ -->
+<section class="tipler" id="villalar">
+  <div class="kap">
+    <div class="tipler-ust">
+      <div><div class="etiket belir">Villa tipleri</div><h2 class="orta belir gecikme-1">Üç plan, <em>tek karakter.</em></h2></div>
+      <p class="belir gecikme-2">Hepsi müstakil, hepsi havuzlu. Fark, oda sayısı ve bahçenin büyüklüğünde. Planları ve fiyat listesini randevuda paylaşıyoruz.</p>
+    </div>
+    <div class="tip-liste">
+      <article class="tip belir">
+        <div class="gorsel"><img src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=900&q=75" alt="Zeytin tipi villa"></div>
+        <span class="rozet">Zeytin</span>
+        <div class="ic">
+          <h3>4+1 Villa</h3>
+          <div class="alt">220 m² kapalı · 480 m² arsa</div>
+          <ul><li>Özel havuz 8×4</li><li>Ebeveyn banyolu</li><li>Çatı terası</li><li>2 araçlık otopark</li></ul>
+          <a class="devam" href="#randevu">Planı isteyin</a>
+        </div>
+      </article>
+      <article class="tip belir gecikme-1">
+        <div class="gorsel"><img src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=900&q=75" alt="Çam tipi villa"></div>
+        <span class="rozet">Çam</span>
+        <div class="ic">
+          <h3>5+1 Villa</h3>
+          <div class="alt">290 m² kapalı · 620 m² arsa</div>
+          <ul><li>Özel havuz 10×4</li><li>Deniz manzaralı teras</li><li>Hobi / sinema odası</li><li>Misafir süiti</li></ul>
+          <a class="devam" href="#randevu">Planı isteyin</a>
+        </div>
+      </article>
+      <article class="tip belir gecikme-2">
+        <div class="gorsel"><img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=75" alt="Deniz tipi villa"></div>
+        <span class="rozet">Deniz · Son 3</span>
+        <div class="ic">
+          <h3>5+2 Köşe Villa</h3>
+          <div class="alt">340 m² kapalı · 800 m² arsa</div>
+          <ul><li>Sonsuzluk havuzu</li><li>Tam deniz manzarası</li><li>Kapalı garaj</li><li>Kış bahçesi</li></ul>
+          <a class="devam" href="#randevu">Planı isteyin</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ZARAFET -->
+<section class="zarafet">
+  <div class="kap">
+    <div>
+      <div class="etiket belir">Malzeme ve işçilik</div>
+      <h2 class="orta belir gecikme-1">Zarafetin <em>yeni çizgisi.</em></h2>
+      <p class="belir gecikme-2">Dışarıda yerel taş ve ahşap, içeride sıcak nötr tonlar. Her malzemeyi önce örnek villada denedik, sonra 24 villaya uyguladık.</p>
+      <div class="ozellikler belir gecikme-3">
+        <div><b>A+</b><span>Enerji sınıfı, ısı pompası ve güneş paneli hazır altyapı</span></div>
+        <div><b>3.2</b><span>metre kat yüksekliği, tavana kadar cam</span></div>
+        <div><b>%40</b><span>sert zemin, %60 bahçe: yeşil alan oranı</span></div>
+        <div><b>7/24</b><span>güvenlik, bakım ve havuz hizmeti</span></div>
+      </div>
+    </div>
+    <div class="cerceve belir gecikme-1">
+      <img src="https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1200&q=80" alt="Villa salon, doğal ışık">
+      <div class="kart"><b>Örnek villa hazır</b>Hafta içi ve hafta sonu randevuyla gezilebilir. Kahve bizden.</div>
+    </div>
+  </div>
+</section>
+
+<!-- KONUM -->
+<section class="konum" id="konum">
+  <div class="kap">
+    <div>
+      <div class="etiket belir">Konum</div>
+      <h2 class="orta belir gecikme-1">Erdek'in sakin yakası, <em>İstanbul'a bir feribot.</em></h2>
+      <p class="belir gecikme-2" style="margin-top:24px;color:var(--yazi-soluk);max-width:44ch">Koru, Erdek merkeze 6 dakika; Bandırma feribot iskelesine 25 dakika. Hafta sonu İstanbul'dan gelip Pazar akşamı dönebilirsiniz.</p>
+      <div class="mesafeler belir gecikme-3">
+        <div><span>Deniz / plaj</span><b>350 m</b></div>
+        <div><span>Erdek merkez</span><b>6 dk</b></div>
+        <div><span>Bandırma İDO iskelesi</span><b>25 dk</b></div>
+        <div><span>Bandırma hastane</span><b>30 dk</b></div>
+        <div><span>Balıkesir Koca Seyit Havalimanı</span><b>1 sa 40 dk</b></div>
+        <div><span>İstanbul (feribotla)</span><b>2 sa 30 dk</b></div>
+      </div>
+    </div>
+    <div class="harita belir gecikme-1"><img src="https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&w=1200&q=80" alt="Erdek kıyısı"></div>
+  </div>
+</section>
+
+<!-- GALERİ -->
+<section class="galeri" id="galeri">
+  <div class="kap">
+    <div class="etiket belir" style="margin-bottom:40px">Galeri</div>
+    <div class="serit">
+      <div class="belir"><img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80" alt=""></div>
+      <div class="belir gecikme-1"><img src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=75" alt=""></div>
+      <div class="belir gecikme-2"><img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=900&q=75" alt=""></div>
+      <div class="belir gecikme-1"><img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=900&q=75" alt=""></div>
+      <div class="belir gecikme-2"><img src="https://images.unsplash.com/photo-1600121848594-d8644e57abab?auto=format&fit=crop&w=900&q=75" alt=""></div>
+    </div>
+  </div>
+</section>
+
+<!-- KAPANIŞ + RANDEVU -->
+<section class="kapanis" id="randevu">
+  <img class="arka" src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=2000&q=80" alt="">
+  <div class="kap">
+    <div>
+      <div class="etiket belir" style="color:var(--kum)">Randevu</div>
+      <h2 class="buyuk belir gecikme-1">Bir an durun.<br><em>Hayatı hissedin.</em></h2>
+      <p class="belir gecikme-2">Örnek villayı gezin, koruda bir kahve için. Formu bırakın, aynı gün sizi arayalım.</p>
+      <p class="belir gecikme-3" style="margin-top:30px;font-size:14px">Satış ofisi: Koru Mevkii, Erdek / Balıkesir<br>Telefon: 0 266 000 00 00 · info@koruvillalari.com</p>
+    </div>
+    <form id="form" class="belir gecikme-2" novalidate>
+      <h3>Yerinde görmek istiyorum</h3>
+      <div class="aciklama">Bilgileriniz yalnızca randevu için kullanılır.</div>
+      <div class="alan-satir">
+        <div class="alan"><label>Ad Soyad</label><input name="ad" required></div>
+        <div class="alan"><label>Telefon</label><input name="telefon" type="tel" required></div>
+      </div>
+      <div class="alan"><label>İlgilendiğiniz tip</label>
+        <select name="tip"><option>4+1 Zeytin</option><option>5+1 Çam</option><option>5+2 Deniz</option><option>Henüz karar vermedim</option></select>
+      </div>
+      <div class="alan"><label>Not (isteğe bağlı)</label><textarea name="not" rows="2"></textarea></div>
+      <button type="submit" class="btn">Randevu isteyin</button>
+      <div class="tesekkur" id="tesekkur"><b>Teşekkürler.</b>Aynı gün içinde sizi arayacağız.</div>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="kap">
+    <div>
+      <a href="#" class="logo">Koru<span>.</span>Villaları</a>
+      <p style="margin-top:14px;max-width:36ch">Bir <b>… İnşaat</b> projesidir. 1998'den beri Güney Marmara'da konut üretiyoruz.</p>
+    </div>
+    <div><h4>Proje</h4><ul><li><a href="#hikaye">Hikâye</a></li><li><a href="#villalar">Villa tipleri</a></li><li><a href="#konum">Konum</a></li><li><a href="#galeri">Galeri</a></li></ul></div>
+    <div><h4>İletişim</h4><ul><li>0 266 000 00 00</li><li>info@koruvillalari.com</li><li>Koru Mevkii, Erdek / Balıkesir</li></ul></div>
+    <div><h4>Takip</h4><ul><li><a href="#">Instagram</a></li><li><a href="#">YouTube</a></li><li><a href="#">WhatsApp</a></li></ul></div>
+    <div class="alt"><span>© 2026 … İnşaat. Tüm hakları saklıdır.</span><span>Görseller temsilidir. Tasarım: Panormos Medya</span></div>
+  </div>
+</footer>
+
+<a class="wa" href="https://wa.me/902660000000" target="_blank" rel="noopener" aria-label="WhatsApp">
+  <svg viewBox="0 0 32 32"><path d="M16 3C9 3 3.3 8.7 3.3 15.7c0 2.5.7 4.8 2 6.9L3 29l6.6-2.2c2 1.1 4.1 1.6 6.4 1.6 7 0 12.7-5.7 12.7-12.7S23 3 16 3zm0 23.2c-2 0-3.9-.6-5.6-1.6l-.4-.2-3.9 1.3 1.3-3.8-.3-.4a10.3 10.3 0 0 1-1.7-5.8C5.4 9.9 10.2 5.2 16 5.2s10.6 4.7 10.6 10.5S21.8 26.2 16 26.2zm5.8-7.8c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7.1-1.9-.9-3.1-1.7-4.4-3.9-.3-.6.3-.5 1-1.8.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.2-1.2 2.8s1.2 3.3 1.4 3.5c.2.2 2.4 3.6 5.8 5 2.1.9 3 1 4 .8.6-.1 1.9-.8 2.2-1.6.3-.8.3-1.4.2-1.6-.1-.1-.3-.2-.6-.4z"/></svg>
+</a>
+
+<script>
+  // Üst menü: kaydırınca dolu zemine geçer
+  const ust=document.getElementById('ust');
+  const kolaj=document.getElementById('kolaj');
+  const acilis=document.getElementById('acilis');
+  function kaydir(){
+    const y=window.scrollY;
+    ust.classList.toggle('dolu', y>window.innerHeight*0.85);
+    // Açılış kolajı: kaydırdıkça düzleşir ve büyür (videodaki geçiş)
+    const o=Math.min(1, y/(window.innerHeight*0.9));
+    const aci=-8+8*o, olcek=1.02+0.9*o;
+    kolaj.style.transform=`rotate(${aci}deg) scale(${olcek})`;
+    kolaj.style.opacity=1-o*0.15;
+  }
+  window.addEventListener('scroll',kaydir,{passive:true}); kaydir();
+  requestAnimationFrame(()=>acilis.classList.add('hazir'));
+
+  // Görünür olunca belir
+  const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('goster'); io.unobserve(e.target);} }),{threshold:.18});
+  document.querySelectorAll('.belir,.sahne').forEach(el=>io.observe(el));
+
+  // Mobil menü
+  const menu=document.getElementById('menu'), menuBtn=document.getElementById('menuBtn');
+  menuBtn.addEventListener('click',()=>{const a=menu.classList.toggle('acik'); menuBtn.textContent=a?'Kapat':'Menü';});
+  menu.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{menu.classList.remove('acik');menuBtn.textContent='Menü';}));
+
+  // Form: şimdilik yalnız teşekkür gösterir (canlıda Netlify Forms'a bağlanacak)
+  const form=document.getElementById('form');
+  form.addEventListener('submit',e=>{
+    e.preventDefault();
+    const ad=form.ad.value.trim(), tel=form.telefon.value.trim();
+    if(!ad||!tel){ form.querySelector(ad?'[name=telefon]':'[name=ad]').focus(); return; }
+    form.querySelectorAll('.alan,.aciklama,button,h3').forEach(x=>x.style.display='none');
+    document.getElementById('tesekkur').style.display='block';
+  });
+</script>
+</body>
+</html>
