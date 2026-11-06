@@ -7163,10 +7163,13 @@ const SOZLESME_STYLES = `
   ul { margin:2px 0 6px 16px; }
   li { margin-bottom:2px; }
   .kutu { border:1px solid #E5E7EB; border-left:3px solid #F25124; border-radius:6px; padding:7px 10px; margin:5px 0 7px; background:#FAFAFA; }
-  .imza { display:flex; gap:24px; margin-top:24px; page-break-inside:avoid; }
-  .imza div { flex:1; border-top:1px solid #1F2937; padding-top:6px; font-size:9.5px; }
+  .imza { display:flex; gap:24px; margin-top:22px; page-break-inside:avoid; }
+  .imza .taraf-imza { flex:1; border-top:1px solid #1F2937; padding-top:6px; font-size:9.5px; }
   .imza b { display:block; font-size:10.5px; }
-  .imza small { display:block; color:#6B7280; margin-top:30px; }
+  .imza .kutular { display:flex; gap:10px; margin-top:8px; }
+  .imza .kutu-alan { flex:1; height:26mm; border:1px dashed #9CA3AF; border-radius:6px; position:relative; }
+  .imza .kutu-alan span { position:absolute; left:7px; top:5px; font-size:8px; color:#9CA3AF; letter-spacing:0.08em; text-transform:uppercase; }
+  .imza .tarih { margin-top:7px; font-size:9.5px; color:#374151; }
   .paraf { font-size:8.5px; color:#8A8F98; margin-top:10px; display:flex; justify-content:space-between; }
   @media print { html, body { height:auto; } body { padding:0 13mm; } th, .kutu, .ant-ust .serit { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 `;
@@ -7192,6 +7195,11 @@ function antetHTML(altNot) {
   return `<div class="ant-ust"><div class="ic"><div><div class="logo">panormos <span class="m">medya.</span></div><div class="unvan">${kacis(S.company_title)}</div></div><div class="iletisim">${kacis(S.phone)} · ${kacis(S.email)}<br>${kacis(S.web)}${S.company_address ? "<br>" + kacis(S.company_address) : ""}</div></div><div class="serit"></div></div>
   <div class="ant-alt"><div class="ic"><div><b>${kacis(S.company_title)}</b>${altSol ? "<br>" + altSol : ""}<br>${kacis(S.web)} · ${kacis(S.email)} · ${kacis(S.phone)}</div><div class="paraf-alan">${altNot || ""}<br>Paraf: AJANS ______ · MÜŞTERİ ______</div></div></div>`;
 }
+
+// İmza bloğu: taraf adı, yetkili; yan yana Kaşe ve İmza kutuları; altında tarih
+const imzaAlani = (baslik, unvan, yetkili) => `<div class="taraf-imza"><b>${baslik}</b>${kacis(unvan)}<br>${kacis(yetkili || "")}
+  <div class="kutular"><div class="kutu-alan"><span>Kaşe</span></div><div class="kutu-alan"><span>İmza</span></div></div>
+  <div class="tarih">Tarih: ____ / ____ / ________</div></div>`;
 
 function sozlesmeHTML(client, f) {
   const S = QUOTE_SETTINGS;
@@ -7339,8 +7347,8 @@ function sozlesmeHTML(client, f) {
   ${B("Yürürlük ve İmza")}
   ${m(`İşbu Sözleşme ${bolum} madde ve ${ekler.length ? "ek hizmet tablosu dahil " : ""}eklerinden ibaret olup, ${simdi} tarihinde iki nüsha olarak düzenlenmiş, Taraflarca her sayfası paraflanarak okunmuş ve imzalanmıştır. Her Taraf'a bir nüsha verilmiştir.`)}
   <div class="imza">
-    <div><b>HİZMET VEREN (AJANS)</b>${kacis(S.company_title)}<br>${kacis(S.company_rep || "")}<small>Kaşe / İmza · Tarih: ____ / ____ / ________</small></div>
-    <div><b>HİZMET ALAN (MÜŞTERİ)</b>${kacis(client.name)}<br>${kacis(f.musteri_yetkili || "")}<small>Kaşe / İmza · Tarih: ____ / ____ / ________</small></div>
+    ${imzaAlani("HİZMET VEREN (AJANS)", S.company_title, S.company_rep)}
+    ${imzaAlani("HİZMET ALAN (MÜŞTERİ)", client.name, f.musteri_yetkili)}
   </div>
   </td></tr></tbody></table>
   </body></html>`;
