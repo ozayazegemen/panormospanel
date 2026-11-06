@@ -6993,7 +6993,7 @@ async function downloadPdfFromHTML(html, filename, orientation = "portrait", haz
 // Grafikler saf SVG üretir: yazdırmada ve PDF'te dış kitaplık gerekmez.
 const RAPOR_PALET = ["#F25124", "#2D5BFF", "#22B07D", "#7B3FF2", "#FF2E88", "#E0A800", "#14B8A6", "#EF4444", "#0EA5E9", "#A3E635"];
 const rSayi = (n) => (n === null || n === undefined || n === "" || isNaN(Number(n))) ? "—" : Number(n).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
-const rKisa = (n) => { n = Number(n) || 0; const a = Math.abs(n); const s = a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(".", ",").replace(",0", "") + "M" : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1).replace(".", ",").replace(",0", "") + "B" : String(Math.round(a)); return (n < 0 ? "-" : "") + s; };
+const rKisa = (n) => { n = Number(n) || 0; const a = Math.abs(n); const s = a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(".", ",").replace(",0", "") + "M" : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(".", ",").replace(",0", "") + "B" : String(Math.round(a)); return (n < 0 ? "-" : "") + s; };
 const rKacis = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // Önceki döneme göre değişim: { yuzde, fark } ya da null
 const rDegisim = (simdi, once) => { const a = Number(simdi), b = Number(once); if (!isFinite(a) || !isFinite(b) || once === null || once === undefined) return null; if (b === 0) return a === 0 ? { yuzde: 0, fark: 0 } : { yuzde: null, fark: a }; return { yuzde: Math.round(((a - b) / b) * 100), fark: a - b }; };
