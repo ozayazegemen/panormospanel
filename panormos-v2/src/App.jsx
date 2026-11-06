@@ -7187,9 +7187,10 @@ const paraYazili = (n) => `${fmtMoney(n)} (${sayiYaziyla(n)} Türk Lirası)`;
 // Antetli kâğıt: her yazdırılan sayfanın üstünde ve altında Panormos Medya bilgileri
 function antetHTML(altNot) {
   const S = QUOTE_SETTINGS;
-  const altSol = [S.company_title, S.company_address, S.company_tax_office || S.company_tax_no ? `${S.company_tax_office || "—"} V.D. · VKN ${S.company_tax_no || "—"}` : ""].filter(Boolean).map(kacis).join(" · ");
+  const vergi = (S.company_tax_office || S.company_tax_no) ? `${S.company_tax_office || "—"} V.D. · VKN ${S.company_tax_no || "—"}` : "";
+  const altSol = [S.company_address, vergi].filter(Boolean).map(kacis).join(" · ");
   return `<div class="ant-ust"><div class="ic"><div><div class="logo">panormos <span class="m">medya.</span></div><div class="unvan">${kacis(S.company_title)}</div></div><div class="iletisim">${kacis(S.phone)} · ${kacis(S.email)}<br>${kacis(S.web)}${S.company_address ? "<br>" + kacis(S.company_address) : ""}</div></div><div class="serit"></div></div>
-  <div class="ant-alt"><div class="ic"><div><b>${kacis(S.company_title)}</b><br>${altSol.replace(kacis(S.company_title) + " · ", "")}<br>${kacis(S.web)} · ${kacis(S.email)} · ${kacis(S.phone)}</div><div class="paraf-alan">${altNot || ""}<br>Paraf: AJANS ______ · MÜŞTERİ ______</div></div></div>`;
+  <div class="ant-alt"><div class="ic"><div><b>${kacis(S.company_title)}</b>${altSol ? "<br>" + altSol : ""}<br>${kacis(S.web)} · ${kacis(S.email)} · ${kacis(S.phone)}</div><div class="paraf-alan">${altNot || ""}<br>Paraf: AJANS ______ · MÜŞTERİ ______</div></div></div>`;
 }
 
 function sozlesmeHTML(client, f) {
