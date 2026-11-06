@@ -7106,33 +7106,56 @@ const SOZLESME_DURUM = {
   bitti: { label: "Süresi Doldu", color: T.amberText, bg: T.amberDim },
   iptal: { label: "İptal", color: T.redText, bg: T.redDim },
 };
+// Ticari şartların varsayılanları (her sözleşmede ayrıca değiştirilebilir)
+const SOZLESME_SART_VARSAYILAN = {
+  vade_gun: 7,            // fatura tarihinden itibaren ödeme vadesi (gün)
+  gecikme_faizi: 3,       // aylık gecikme faizi (%)
+  askiya_alma_gun: 15,    // vadeden sonra kaç gün geçince hizmet askıya alınır
+  fesih_gun: 30,          // vadeden sonra kaç gün geçince AJANS feshedebilir
+  cayma_orani: 50,        // asgari süre dolmadan MÜŞTERİ feshederse kalan ayların bedelinin yüzdesi
+  cayma_en_az_ay: 1,      // cayma bedeli en az kaç aylık bedel
+  revizyon_hakki: 2,      // içerik başına ücretsiz revizyon
+  acil_fark: 50,          // 48 saatten kısa sürede istenen işlerde ek yüzde
+  cekim_iptal_orani: 50,  // 24 saatten kısa sürede iptal edilen çekimde alınacak yüzde
+  ek_icerik_ucreti: "",   // kapsam dışı ek içerik başına ₺ (boşsa "güncel fiyat listesine göre")
+  ek_revizyon_ucreti: "", // ek revizyon başına ₺
+  yillik_artis: "TÜFE",   // yenilemede fiyat güncelleme ölçütü
+  sorumluluk_ay: 3,       // AJANS'ın toplam sorumluluk üst sınırı (son kaç aylık bedel)
+  ayartma_yasagi_ay: 12,  // personel ayartmama / doğrudan çalışma yasağı süresi
+  cezai_sart_ay: 6,       // ayartma yasağı ihlalinde cezai şart (kaç aylık bedel)
+  gizlilik_yil: 3,        // sözleşme bitiminden sonra gizlilik süresi
+  bildirim_gun: 30,       // olağan fesih için önceden bildirim süresi
+  onay_is_gunu: 2,        // içerik onayı için MÜŞTERİ'ye tanınan iş günü
+};
 const SOZLESME_STYLES = `
   @page { size: A4 portrait; margin: 0; }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:34px 38px; font-size:10.5px; line-height:1.55; }
-  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1A2B3F; padding-bottom:10px; margin-bottom:14px; }
+  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:34px 38px; font-size:10px; line-height:1.5; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1A2B3F; padding-bottom:10px; margin-bottom:12px; }
   .logo { font-size:15px; font-weight:800; color:#1A2B3F; }
   .logo .m { color:#F25124; }
   .head .no { text-align:right; font-size:9.5px; color:#6B7280; }
-  h1 { font-size:15px; color:#1A2B3F; text-align:center; margin:4px 0 14px; letter-spacing:0.02em; }
-  h2 { font-size:11px; color:#1A2B3F; margin:12px 0 5px; text-transform:uppercase; letter-spacing:0.04em; }
-  p { margin-bottom:5px; text-align:justify; }
+  h1 { font-size:14.5px; color:#1A2B3F; text-align:center; margin:4px 0 12px; letter-spacing:0.02em; }
+  h2 { font-size:10.5px; color:#1A2B3F; margin:11px 0 4px; text-transform:uppercase; letter-spacing:0.04em; page-break-after:avoid; }
+  p { margin-bottom:4px; text-align:justify; }
+  p.m { padding-left:14px; text-indent:-14px; }
   .taraflar { display:flex; gap:12px; margin-bottom:6px; }
   .taraf { flex:1; border:1px solid #E5E7EB; border-radius:8px; padding:9px 11px; }
-  .taraf .b { font-size:9px; color:#F25124; font-weight:800; letter-spacing:0.06em; margin-bottom:4px; }
-  .taraf .u { font-weight:800; font-size:11px; margin-bottom:3px; }
-  .taraf div { font-size:9.8px; }
+  .taraf .b { font-size:8.5px; color:#F25124; font-weight:800; letter-spacing:0.06em; margin-bottom:4px; }
+  .taraf .u { font-weight:800; font-size:10.5px; margin-bottom:3px; }
+  .taraf div { font-size:9.5px; }
   table { width:100%; border-collapse:collapse; margin:4px 0 6px; page-break-inside:avoid; }
-  th { background:#1A2B3F; color:#fff; padding:5px 9px; text-align:left; font-size:9.5px; }
-  td { padding:4px 9px; border-bottom:1px solid #E5E7EB; font-size:9.8px; vertical-align:top; }
+  th { background:#1A2B3F; color:#fff; padding:5px 9px; text-align:left; font-size:9px; }
+  td { padding:4px 9px; border-bottom:1px solid #E5E7EB; font-size:9.5px; vertical-align:top; }
   ul { margin:2px 0 6px 16px; }
   li { margin-bottom:2px; }
-  .imza { display:flex; gap:24px; margin-top:26px; page-break-inside:avoid; }
-  .imza div { flex:1; border-top:1px solid #1F2937; padding-top:6px; font-size:9.8px; }
+  .kutu { border:1px solid #E5E7EB; border-left:3px solid #F25124; border-radius:6px; padding:7px 10px; margin:5px 0 7px; background:#FAFAFA; }
+  .imza { display:flex; gap:24px; margin-top:24px; page-break-inside:avoid; }
+  .imza div { flex:1; border-top:1px solid #1F2937; padding-top:6px; font-size:9.5px; }
   .imza b { display:block; font-size:10.5px; }
-  .imza small { display:block; color:#6B7280; margin-top:28px; }
-  .not { font-size:8.5px; color:#8A8F98; margin-top:12px; }
-  @media print { html, body { height:auto; } body { padding:14mm 13mm; } th { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  .imza small { display:block; color:#6B7280; margin-top:30px; }
+  .paraf { font-size:8.5px; color:#8A8F98; margin-top:10px; display:flex; justify-content:space-between; }
+  @media print { html, body { height:auto; } body { padding:14mm 13mm; } th, .kutu { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 `;
 const tarihYaz = (ymd) => ymd ? new Date(ymd + "T00:00:00").toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
 const ayEkle = (ymd, ay) => { const d = new Date(ymd + "T00:00:00"); d.setMonth(d.getMonth() + Number(ay || 0)); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -7146,72 +7169,162 @@ function sayiYaziyla(n) {
   while (n > 0) { const p = n % 1000; if (p) s = ((p === 1 && i === 1) ? "" : yuzler(p)) + basamak[i] + " " + s; n = Math.floor(n / 1000); i++; }
   return s.trim().replace(/\s+/g, " ");
 }
+const paraYazili = (n) => `${fmtMoney(n)} (${sayiYaziyla(n)} Türk Lirası)`;
 
 function sozlesmeHTML(client, f) {
   const S = QUOTE_SETTINGS;
+  const k = { ...SOZLESME_SART_VARSAYILAN, ...(f.sartlar || {}) };
   const kdv = Number(f.kdv_orani ?? S.vat_rate) || 20;
-  const ucret = Number(f.aylik_ucret) || 0, toplam = ucret * (1 + kdv / 100);
-  const bitis = ayEkle(f.baslangic, f.sure_ay);
+  const ucret = Number(f.aylik_ucret) || 0, kdvTutar = ucret * kdv / 100, toplam = ucret + kdvTutar;
+  const sure = Number(f.sure_ay) || 12;
+  const bitis = ayEkle(f.baslangic, sure);
   const kapsam = (f.kapsam || []).filter(x => String(x).trim());
   const ekler = (f.ek_hizmetler || []);
   const platformlar = (client.platforms || []).map(p => platformConfig[p]?.label || p).filter(Boolean).join(", ");
   const gunler = (client.publishDays || []).join(", ");
   const simdi = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  const ekUcret = (v, yoksa) => v !== "" && v != null && !isNaN(Number(v)) && Number(v) > 0 ? fmtMoney(Number(v)) + " + KDV" : yoksa;
+  const musteriAdres = [client.address, client.district, client.city].filter(Boolean).join(" ") || "—";
+  const ozel = (f.ozel_sartlar || "").trim();
+  let no = 0, bolum = 0; const B = (t) => { bolum++; no = 0; return `<h2>${bolum}. ${t}</h2>`; };
+  const m = (t) => `<p class="m">${bolum}.${++no} ${t}</p>`;
+
   return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Sözleşme - ${kacis(client.name)}</title><style>${SOZLESME_STYLES}</style></head><body>
-  <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><div class="no">Sözleşme No: <b>${kacis(f.sozlesme_no)}</b><br>Tarih: ${simdi}</div></div>
-  <h1>SOSYAL MEDYA YÖNETİMİ HİZMET SÖZLEŞMESİ</h1>
+  <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><div class="no">Sözleşme No: <b>${kacis(f.sozlesme_no)}</b><br>Düzenleme Tarihi: ${simdi}</div></div>
+  <h1>SOSYAL MEDYA YÖNETİMİ VE DİJİTAL İÇERİK HİZMET SÖZLEŞMESİ</h1>
 
-  <h2>1. Taraflar</h2>
+  ${B("Taraflar")}
   <div class="taraflar">
-    <div class="taraf"><div class="b">HİZMET VEREN (AJANS)</div><div class="u">${kacis(S.company_title)}</div><div>${kacis(S.company_address)}</div><div>Vergi Dairesi / No: ${kacis(S.company_tax_office)} / ${kacis(S.company_tax_no)}</div><div>Yetkili: ${kacis(S.company_rep)}</div><div>Tel: ${kacis(S.phone)} · ${kacis(S.email)}</div></div>
-    <div class="taraf"><div class="b">HİZMET ALAN (MÜŞTERİ)</div><div class="u">${kacis(client.name)}</div><div>${kacis([client.address, client.district, client.city].filter(Boolean).join(" ") || "—")}</div><div>Vergi Dairesi / No: ${kacis(client.taxOffice || "—")} / ${kacis(client.taxNumber || "—")}</div><div>Yetkili: ${kacis(f.musteri_yetkili || "—")}</div><div>Tel: ${kacis(client.phone || "—")}${client.email ? " · " + kacis(client.email) : ""}</div></div>
+    <div class="taraf"><div class="b">HİZMET VEREN ("AJANS")</div><div class="u">${kacis(S.company_title)}</div><div>${kacis(S.company_address || "—")}</div><div>Vergi Dairesi / No: ${kacis(S.company_tax_office || "—")} / ${kacis(S.company_tax_no || "—")}</div><div>Yetkili: ${kacis(S.company_rep || "—")}</div><div>Tel: ${kacis(S.phone)} · E-posta: ${kacis(S.email)}</div></div>
+    <div class="taraf"><div class="b">HİZMET ALAN ("MÜŞTERİ")</div><div class="u">${kacis(client.name)}</div><div>${kacis(musteriAdres)}</div><div>Vergi Dairesi / No: ${kacis(client.taxOffice || "—")} / ${kacis(client.taxNumber || "—")}</div><div>Yetkili: ${kacis(f.musteri_yetkili || "—")}</div><div>Tel: ${kacis(client.phone || "—")}${client.email ? " · E-posta: " + kacis(client.email) : ""}</div></div>
   </div>
-  <p>Yukarıda bilgileri yazılı taraflar arasında, aşağıdaki şartlarla bir sosyal medya yönetimi hizmet sözleşmesi ("Sözleşme") akdedilmiştir. Sözleşmede Hizmet Veren "AJANS", Hizmet Alan "MÜŞTERİ" olarak anılacaktır.</p>
+  ${m(`Yukarıda bilgileri yazılı taraflar, aşağıdaki şartlarla işbu Sosyal Medya Yönetimi ve Dijital İçerik Hizmet Sözleşmesi'ni ("Sözleşme") akdetmişlerdir. AJANS ve MÜŞTERİ birlikte "Taraflar", ayrı ayrı "Taraf" olarak anılır.`)}
+  ${m(`Taraflar, bu Sözleşme'de yazılı adreslerin tebligat adresleri olduğunu; adres değişikliğini yazılı bildirmedikçe bu adreslere yapılacak tebligatların geçerli sayılacağını kabul eder.`)}
 
-  <h2>2. Sözleşmenin Konusu</h2>
-  <p>İşbu Sözleşme'nin konusu, AJANS'ın MÜŞTERİ'ye ait${platformlar ? " " + kacis(platformlar) : ""} sosyal medya hesaplarının yönetimi, içerik üretimi ve ilgili dijital hizmetleri, "${kacis(f.paket_adi || "Özel Paket")}" kapsamında ve aşağıda belirtilen şartlarla sunmasıdır.</p>
+  ${B("Tanımlar")}
+  ${m(`<b>Hizmet:</b> Madde 3 ve 4'te tanımlanan sosyal medya yönetimi, içerik üretimi, çekim, tasarım, raporlama ve ilgili dijital hizmetler. <b>Paket:</b> Hizmet'in kapsamını ve aylık bedelini belirleyen, bu Sözleşme'de "${kacis(f.paket_adi || "Özel Paket")}" olarak anılan hizmet seti. <b>İçerik:</b> AJANS tarafından üretilen gönderi, görsel, video, metin, hikâye, reels ve benzeri her tür çalışma. <b>Hesaplar:</b> MÜŞTERİ'ye ait${platformlar ? " " + kacis(platformlar) : ""} sosyal medya ve reklam hesapları. <b>Reklam Bütçesi:</b> Meta, Google ve benzeri platformlara reklam yayını için ödenen, hizmet bedelinden ayrı tutarlar. <b>İş Günü:</b> Türkiye'de resmî tatil olmayan Pazartesi–Cuma günleri.`)}
 
-  <h2>3. Hizmet Kapsamı</h2>
-  ${kapsam.length ? `<ul>${kapsam.map(k => `<li>${kacis(k)}</li>`).join("")}</ul>` : "<p>Hizmet kapsamı taraflarca ayrıca belirlenecektir.</p>"}
-  ${gunler ? `<p>Paylaşımlar kural olarak <b>${kacis(gunler)}</b> günleri yapılır; taraflar yazılı mutabakatla gün ve saatleri değiştirebilir.</p>` : ""}
-  ${ekler.length ? `<table><thead><tr><th>Ek Hizmet</th><th>Ücret</th></tr></thead><tbody>${ekler.map(e => `<tr><td>${kacis(e.ad)}</td><td>${kacis(e.fiyat || "—")}</td></tr>`).join("")}</tbody></table>` : ""}
-  <p>Reklam bütçeleri (Meta, Google vb. platformlara ödenen tutarlar) hizmet bedeline dahil değildir; MÜŞTERİ tarafından ayrıca karşılanır.</p>
+  ${B("Sözleşmenin Konusu")}
+  ${m(`İşbu Sözleşme'nin konusu; AJANS'ın MÜŞTERİ'ye ait Hesaplar için "${kacis(f.paket_adi || "Özel Paket")}" kapsamındaki Hizmet'i, karşılığında MÜŞTERİ'nin Madde 7'de belirlenen bedeli ödemesi şartıyla sunmasına ilişkin tarafların hak ve yükümlülüklerinin belirlenmesidir.`)}
 
-  <h2>4. Süre</h2>
-  <p>Sözleşme <b>${tarihYaz(f.baslangic)}</b> tarihinde başlar ve <b>${f.sure_ay} ay</b> süreyle, <b>${tarihYaz(bitis)}</b> tarihine kadar geçerlidir. Süre bitiminden en az 30 gün önce taraflardan biri yazılı olarak sona erdirme bildiriminde bulunmadıkça Sözleşme aynı şartlarla birer aylık dönemler halinde kendiliğinden yenilenir.</p>
+  ${B("Hizmet Kapsamı ve Teslimat")}
+  ${m(`AJANS, Sözleşme süresince MÜŞTERİ'ye aşağıdaki hizmetleri sunar:`)}
+  ${kapsam.length ? `<ul>${kapsam.map(x => `<li>${kacis(x)}</li>`).join("")}</ul>` : "<p>Hizmet kapsamı Taraflarca yazılı olarak belirlenir ve Sözleşme'nin eki sayılır.</p>"}
+  ${gunler ? m(`Paylaşımlar kural olarak <b>${kacis(gunler)}</b> günleri yapılır. Gün ve saatler, MÜŞTERİ'nin ihtiyacına göre AJANS'ın önerisi ve Tarafların yazılı mutabakatıyla değiştirilebilir.`) : ""}
+  ${m(`Aylık içerik adetleri, ait olduğu takvim ayı içinde kullanılır; MÜŞTERİ'den kaynaklanan gecikme, onay verilmemesi ya da materyal sağlanmaması nedeniyle kullanılmayan haklar sonraki aya devretmez ve bedelden indirim yapılmaz. AJANS'tan kaynaklanan eksik üretim ise bir sonraki ay tamamlanır.`)}
+  ${m(`Her İçerik için MÜŞTERİ'ye <b>${k.revizyon_hakki} revizyon</b> hakkı tanınır. Revizyon; onaya sunulan içerikte metin, renk, görsel sırası gibi düzeltmeleri kapsar; konseptin tamamen değiştirilmesi yeni iş sayılır. Ek revizyonlar ${ekUcret(k.ek_revizyon_ucreti, "AJANS'ın güncel fiyat listesine göre")} ücretlendirilir.`)}
+  ${m(`Hizmet kapsamında üretilen İçerikler, bu Sözleşme'de belirtilen mecralar için hazırlanır. Kapsam dışı kalan işler (ek içerik, web sitesi, basılı materyal, prodüksiyon, influencer iş birliği vb.) Madde 9'daki esaslara göre ayrıca ücretlendirilir ve yazılı onayla başlar.`)}
+  ${ekler.length ? m(`Bu Sözleşme ile birlikte aşağıdaki ek hizmetler de alınmıştır; bedelleri aylık hizmet bedelinden ayrı faturalanır:`) + `<table><thead><tr><th>Ek Hizmet</th><th>Ücret</th></tr></thead><tbody>${ekler.map(e => `<tr><td>${kacis(e.ad)}</td><td>${kacis(e.fiyat || "Fiyat listesine göre")}</td></tr>`).join("")}</tbody></table>` : ""}
+  ${m(`AJANS, Hizmet'in bir kısmını kendi sorumluluğunda kalmak kaydıyla alt yüklenici veya serbest çalışanlara yaptırabilir; MÜŞTERİ'ye karşı sorumluluk AJANS'a aittir.`)}
 
-  <h2>5. Ücret ve Ödeme</h2>
+  ${B("Onay Süreci ve İletişim")}
+  ${m(`AJANS, her dönem için içerik planını MÜŞTERİ'nin onayına sunar. MÜŞTERİ, kendisine iletilen içerik veya planı en geç <b>${k.onay_is_gunu} İş Günü</b> içinde onaylar ya da gerekçeli düzeltme talebini yazılı iletir. Bu süre içinde yanıt verilmeyen içerikler onaylanmış sayılır ve planlanan tarihte yayımlanır.`)}
+  ${m(`Taraflar, iletişim için birer yetkili kişi belirler. MÜŞTERİ tarafında yetkili kişi <b>${kacis(f.musteri_yetkili || "—")}</b>'dir; bu kişinin onayı MÜŞTERİ'yi bağlar. Yetkili değişikliği yazılı bildirilir.`)}
+  ${m(`Günlük iletişim e-posta, WhatsApp veya AJANS'ın müşteri paneli üzerinden yapılabilir. Onay, revizyon talebi, fesih ve ihtar gibi hukuki sonuç doğuran bildirimler e-posta ile; fesih ve ihtarlar ayrıca noter veya iadeli taahhütlü posta ile yapılır.`)}
+  ${m(`MÜŞTERİ'nin talebi üzerine yayımlanan, onaylanmış ya da onaylanmış sayılan içeriklerden doğan sonuçlar MÜŞTERİ'ye aittir.`)}
+
+  ${B("Süre ve Yenileme")}
+  ${m(`Sözleşme <b>${tarihYaz(f.baslangic)}</b> tarihinde yürürlüğe girer ve <b>${sure} ay</b> süreyle, <b>${tarihYaz(bitis)}</b> tarihine kadar geçerlidir. Bu süre, Tarafların karşılıklı taahhüdü olan <b>asgari süredir</b>.`)}
+  ${m(`Süre bitiminden en az <b>${k.bildirim_gun} gün</b> önce Taraflardan biri yazılı olarak sona erdirme bildiriminde bulunmadıkça Sözleşme, aynı şartlarla ve aynı süreyle kendiliğinden yenilenir.`)}
+  ${m(`Her yenileme döneminde aylık hizmet bedeli, AJANS'ın yazılı bildirimiyle ve <b>${kacis(k.yillik_artis)}</b> ölçütünde (son 12 aylık değişim oranından az olmamak üzere) güncellenir. MÜŞTERİ güncel bedeli kabul etmezse, yenileme tarihinden önce bildirimde bulunarak Sözleşme'yi cayma bedeli ödemeden sona erdirebilir.`)}
+
+  ${B("Ücret, Faturalandırma ve Ödeme")}
   <table><thead><tr><th>Kalem</th><th>Tutar</th></tr></thead><tbody>
-    <tr><td>Aylık hizmet bedeli (KDV hariç)</td><td><b>${fmtMoney(ucret)}</b> (${kacis(sayiYaziyla(ucret))} Türk Lirası)</td></tr>
-    <tr><td>KDV (%${kdv})</td><td>${fmtMoney(toplam - ucret)}</td></tr>
+    <tr><td>Aylık hizmet bedeli (KDV hariç)</td><td><b>${paraYazili(ucret)}</b></td></tr>
+    <tr><td>KDV (%${kdv})</td><td>${fmtMoney(kdvTutar)}</td></tr>
     <tr><td><b>Aylık toplam (KDV dahil)</b></td><td><b>${fmtMoney(toplam)}</b></td></tr>
+    <tr><td>Sözleşme süresi toplam bedel (${sure} ay, KDV hariç)</td><td>${fmtMoney(ucret * sure)}</td></tr>
   </tbody></table>
-  <p>Hizmet bedeli her ayın <b>${f.odeme_gunu}.</b> günü, AJANS tarafından düzenlenen fatura karşılığında, AJANS'ın bildireceği banka hesabına peşin olarak ödenir. Ödemenin 7 gün içinde yapılmaması halinde AJANS hizmeti askıya alabilir; 30 günü aşan gecikmelerde Sözleşme'yi tek taraflı feshedebilir. Gecikme halinde yasal faiz uygulanır. Fiyatlar her yenileme döneminde yazılı bildirimle güncellenebilir.</p>
+  ${m(`Hizmet bedeli aylık ve <b>peşin</b> ödenir. AJANS faturayı her ayın <b>${f.odeme_gunu}.</b> günü düzenler; MÜŞTERİ fatura tarihinden itibaren <b>${k.vade_gun} gün</b> içinde ödemeyi AJANS'ın bildireceği banka hesabına yapar. İlk ay bedeli Sözleşme'nin imzasıyla birlikte ödenir; AJANS ilk ödeme alınmadan hizmete başlamakla yükümlü değildir.`)}
+  ${m(`Hizmet bedeline KDV dahil değildir; vergi oranlarındaki yasal değişiklikler faturaya aynen yansıtılır. Ek hizmetler, kapsam dışı işler ve Madde 9'daki ek ücretler ayrı kalem olarak faturalanır.`)}
+  ${m(`<b>Reklam Bütçesi</b> hizmet bedeline dahil değildir. Reklam harcamaları MÜŞTERİ'nin kendi ödeme aracıyla doğrudan platforma ödenir ya da MÜŞTERİ'nin yazılı talimatıyla AJANS tarafından ödenip %10 hizmet payı eklenerek faturalanır. AJANS, MÜŞTERİ'den tahsil etmediği reklam bütçesini kendi adına yüklemekle yükümlü değildir.`)}
+  ${m(`MÜŞTERİ, hizmetin kısmen kullanılmadığı, içerik onaylamadığı veya Hesapları kendi kullanmadığı gerekçesiyle bedelden indirim ya da iade talep edemez; alacağını AJANS'ın alacağından tek taraflı mahsup edemez. Fatura itirazları fatura tarihinden itibaren 7 gün içinde yazılı yapılır; itiraz, itiraz edilmeyen kısmın ödenmesini durdurmaz.`)}
 
-  <h2>6. Tarafların Yükümlülükleri</h2>
-  <p><b>AJANS:</b> Hizmetleri özenle, sektör standartlarına uygun ve zamanında sunar; paylaşım öncesi içerikleri MÜŞTERİ'nin onayına sunar; hesap erişim bilgilerini gizli tutar ve yalnızca hizmet amacıyla kullanır; aylık özet rapor paylaşır.</p>
-  <p><b>MÜŞTERİ:</b> Hizmet için gerekli hesap erişimlerini, logo, görsel, ürün ve fiyat bilgilerini zamanında sağlar; sunulan içerikleri en geç 2 iş günü içinde onaylar veya düzeltme talep eder (süresinde yanıt verilmeyen içerikler onaylanmış sayılır); sağladığı bilgi ve görsellerin hukuka uygunluğundan ve üçüncü kişi haklarından sorumludur; çekim için gerekli ortam ve zamanı sağlar.</p>
+  ${B("Ödemede Gecikme ve Hizmetin Askıya Alınması")}
+  ${m(`Vadesinde ödenmeyen tutarlara, vade tarihinden ödeme tarihine kadar <b>aylık %${k.gecikme_faizi}</b> gecikme faizi uygulanır; faiz ayın kesirleri için gün hesabıyla işler. Bu oran, yasal üst sınırı aşıyorsa yasal üst sınır uygulanır.`)}
+  ${m(`Vadeyi izleyen 7 gün içinde ödeme yapılmazsa AJANS yazılı hatırlatma gönderir. Vadeyi izleyen <b>${k.askiya_alma_gun}. gün</b> sonunda ödeme yapılmamışsa AJANS, ayrıca ihtara gerek kalmaksızın Hizmet'i <b>askıya alma</b> hakkına sahiptir: paylaşımlar, çekimler ve üretim durur. Askı süresi Sözleşme süresinden sayılır ve bu dönem için hizmet bedeli tam olarak işlemeye devam eder; askı nedeniyle üretilemeyen içerikler telafi edilmez.`)}
+  ${m(`Vadeyi izleyen <b>${k.fesih_gun}. gün</b> sonunda da ödeme yapılmamışsa AJANS, Sözleşme'yi haklı nedenle derhal feshedebilir. Bu halde MÜŞTERİ; birikmiş borcu, gecikme faizini ve Madde 10'daki erken fesih bedelini öder. AJANS'ın tahsilat için yaptığı noter, avukatlık ve icra masrafları MÜŞTERİ'ye aittir.`)}
+  ${m(`Askıya alınan hizmetin yeniden başlatılması için MÜŞTERİ, borcun tamamını ve gecikme faizini öder; AJANS yeniden başlatma takvimini belirler.`)}
 
-  <h2>7. Fikri Mülkiyet</h2>
-  <p>Sözleşme süresince üretilen ve bedeli ödenen içeriklerin kullanım hakkı MÜŞTERİ'ye aittir. AJANS, ürettiği işleri referans olarak portföyünde ve kendi tanıtım kanallarında kullanabilir. Bedeli ödenmeyen içeriklerin tüm hakları AJANS'ta kalır.</p>
+  ${B("Ek Ücretler ve Kapsam Dışı İşler")}
+  ${m(`Aşağıdaki haller Paket bedeline dahil olmayıp ayrıca ücretlendirilir. Kapsam dışı her iş, MÜŞTERİ'nin yazılı onayıyla (e-posta/WhatsApp yeterlidir) başlar:`)}
+  <table><thead><tr><th>Kalem</th><th>Esas</th></tr></thead><tbody>
+    <tr><td>Paket dışı ek içerik (gönderi, reels, hikâye vb.)</td><td>${ekUcret(k.ek_icerik_ucreti, "AJANS'ın güncel fiyat listesine göre, içerik başına")}</td></tr>
+    <tr><td>${k.revizyon_hakki} revizyonu aşan düzeltmeler</td><td>${ekUcret(k.ek_revizyon_ucreti, "Güncel fiyat listesine göre, revizyon başına")}</td></tr>
+    <tr><td>Acil işler (48 saatten kısa sürede teslim istenen)</td><td>İlgili işin bedeline <b>%${k.acil_fark}</b> acil iş farkı eklenir</td></tr>
+    <tr><td>Çekim iptali / ertelemesi (çekime 24 saatten az kala, MÜŞTERİ kaynaklı)</td><td>Çekim bedelinin <b>%${k.cekim_iptal_orani}</b>'si tahsil edilir; aylık paket çekimlerinde o çekim hakkı kullanılmış sayılır</td></tr>
+    <tr><td>Şehir dışı çekim ve etkinlikler</td><td>Ulaşım, konaklama ve yemek giderleri belgeye dayalı olarak MÜŞTERİ'ye aittir</td></tr>
+    <tr><td>Üçüncü taraf maliyetleri</td><td>Stok görsel/video/müzik ve yazı tipi lisansları, oyuncu, seslendirme, influencer, mekân kirası, baskı ve kargo bedelleri MÜŞTERİ'ye aittir; önceden onay alınır</td></tr>
+    <tr><td>Reklam yönetimi hizmet payı</td><td>Reklam Bütçesi AJANS üzerinden ödeniyorsa bütçenin %10'u</td></tr>
+    <tr><td>Ham/kaynak dosya teslimi</td><td>Talep halinde, güncel fiyat listesine göre (Madde 12.3)</td></tr>
+  </tbody></table>
 
-  <h2>8. Gizlilik</h2>
-  <p>Taraflar, Sözleşme kapsamında öğrendikleri ticari sırları, hesap bilgilerini, şifreleri ve müşteri verilerini sözleşme süresince ve sona ermesinden sonra da gizli tutar; üçüncü kişilerle paylaşmaz. Kişisel veriler 6698 sayılı KVKK'ya uygun olarak işlenir.</p>
+  ${B("Erken Fesih ve Cayma Bedeli")}
+  ${m(`Taraflar, Madde 6.1'deki asgari sürenin, fiyatın ve ekip planlamasının bu süreye göre yapıldığını kabul eder.`)}
+  ${m(`<b>MÜŞTERİ'nin sebepsiz feshi:</b> MÜŞTERİ, asgari süre dolmadan Sözleşme'yi haklı bir neden olmaksızın feshederse veya ödemelerini durdurarak fiilen sona erdirirse; fesih tarihine kadar işlemiş bedeller ve giderlere ek olarak, <b>kalan ayların hizmet bedelinin %${k.cayma_orani}'si</b> tutarında (ancak <b>${k.cayma_en_az_ay} aylık hizmet bedelinden az olmamak üzere</b>) cayma bedelini, fesih bildiriminden itibaren 7 gün içinde öder. Taraflar bu bedelin fahiş olmadığını ve indirim talep etmeyeceklerini kabul eder.`)}
+  ${m(`<b>AJANS'ın sebepsiz feshi:</b> AJANS, asgari süre dolmadan Sözleşme'yi haklı neden olmaksızın feshederse <b>${Math.max(k.bildirim_gun, 30)} gün</b> önceden yazılı bildirimde bulunur; peşin alınmış ancak verilmemiş hizmetlerin bedelini 7 gün içinde iade eder, onaylanmış ve ödenmiş tüm içerikleri ve devam eden işlerin dosyalarını MÜŞTERİ'ye teslim eder ve devir için makul yardımı ücretsiz sağlar. Bunun dışında MÜŞTERİ'nin tazminat talebi Madde 15'teki sınırlara tabidir.`)}
+  ${m(`<b>Haklı nedenle fesih:</b> Taraflardan biri Sözleşme'den doğan esaslı bir yükümlülüğünü ihlal eder ve yazılı ihtara rağmen <b>10 gün</b> içinde ihlali gidermezse diğer Taraf Sözleşme'yi derhal feshedebilir. Bu halde fesheden Taraf'tan cayma bedeli istenemez; ihlal eden Taraf, diğer Taraf'ın bu Sözleşme'ye göre hesaplanan zararını karşılar. MÜŞTERİ'nin ödeme yükümlülüğünü ihlali Madde 8.3'e tabidir.`)}
+  ${m(`Taraflardan birinin iflası, konkordato ilanı, tasfiyesi veya işletmesini kapatması halinde diğer Taraf Sözleşme'yi derhal feshedebilir; MÜŞTERİ'nin bu nedenle feshi halinde cayma bedeli, fesih tarihine kadar olan borçlarla sınırlıdır.`)}
+  ${m(`Sözleşme hangi nedenle sona ererse ersin; sona erme tarihine kadar verilen hizmetlerin bedeli, işlemiş gecikme faizi ve onaylanmış kapsam dışı işlerin bedeli muaccel olur. AJANS, borcun tamamı ödenene kadar teslim edilmemiş içerik ve dosyaları alıkoyabilir.`)}
 
-  <h2>9. Fesih</h2>
-  <p>Taraflardan her biri, 30 gün önceden yazılı bildirimde bulunarak Sözleşme'yi feshedebilir. Fesih halinde, bildirim süresi sonuna kadar olan hizmet bedeli ödenir; peşin ödenmiş dönemler iade edilmez. Bir tarafın yükümlülüklerini ağır biçimde ihlal etmesi ve yazılı uyarıya rağmen 7 gün içinde düzeltmemesi halinde diğer taraf Sözleşme'yi derhal feshedebilir. Sözleşme sona erdiğinde AJANS, hesaplardaki yetkilerini kaldırır ve erişim bilgilerini MÜŞTERİ'ye teslim eder.</p>
+  ${B("Tarafların Hak ve Yükümlülükleri")}
+  ${m(`<b>AJANS;</b> (a) Hizmet'i basiretli bir tacir özeniyle, sektör standartlarına uygun, yetkin ekiple ve zamanında sunar; (b) içerikleri MÜŞTERİ'nin marka kimliğine ve yazılı yönlendirmelerine uygun hazırlar; (c) Hesaplar'ın erişim bilgilerini gizli tutar, yalnızca Hizmet amacıyla kullanır, iki aşamalı doğrulama gibi makul güvenlik önlemlerini uygular; (d) her ay performans özeti sunar; (e) MÜŞTERİ'nin talebi dışında Hesaplar üzerinden ticari taahhüt, kampanya veya indirim duyurusu yapmaz; (f) yürürlükteki reklam ve tüketici mevzuatına açıkça aykırı olduğunu bildiği içerikleri yayımlamaz ve MÜŞTERİ'yi uyarır.`)}
+  ${m(`<b>MÜŞTERİ;</b> (a) Hizmet için gerekli hesap erişimlerini, logo, kurumsal kimlik, ürün/hizmet bilgilerini, fiyatları ve görselleri zamanında ve doğru olarak sağlar; (b) sağladığı bilgi, görsel, marka ve iddiaların doğruluğundan, hukuka uygunluğundan ve üçüncü kişi haklarını ihlal etmediğinden tek başına sorumludur; (c) ürün ve hizmetlerine, kampanya koşullarına, teslimat ve garantilere ilişkin tüm sorumluluk kendisine aittir; (d) içerik onaylarını Madde 5'teki sürelerde verir; (e) çekimler için uygun ortam, ürün ve personeli sağlar; (f) Hesaplar üzerinde AJANS'ın çalışmasını engelleyecek değişiklikleri (şifre değişikliği, yetki kaldırma vb.) önceden bildirir; (g) ödemelerini vadesinde yapar.`)}
+  ${m(`MÜŞTERİ'nin sağladığı materyal ve iddialar nedeniyle üçüncü kişilerin, platformların veya idari makamların AJANS'a yönelteceği her türlü talep, ceza ve masrafı MÜŞTERİ ilk yazılı talepte karşılar.`)}
 
-  <h2>10. Diğer Hükümler</h2>
-  <p>Sosyal medya platformlarının algoritma, erişim ve kural değişikliklerinden; hesapların platform tarafından kısıtlanması veya kapatılmasından AJANS sorumlu tutulamaz. Takipçi, erişim ve satış rakamları konusunda garanti verilmez. Bildirimler tarafların yukarıdaki adreslerine ya da e-posta / WhatsApp üzerinden yapılır. Sözleşmeden doğan uyuşmazlıklarda <b>${kacis(S.contract_city || "Bandırma")} Mahkemeleri ve İcra Daireleri</b> yetkilidir.</p>
-  ${f.ozel_sartlar && f.ozel_sartlar.trim() ? `<h2>11. Özel Şartlar</h2><p>${kacis(f.ozel_sartlar).replace(/\n/g, "<br>")}</p>` : ""}
-  <p>İşbu Sözleşme ${f.ozel_sartlar && f.ozel_sartlar.trim() ? "11" : "10"} maddeden ibaret olup, ${simdi} tarihinde iki nüsha olarak düzenlenmiş ve taraflarca okunarak imzalanmıştır.</p>
+  ${B("Fikri ve Sınai Haklar")}
+  ${m(`Bedeli tamamen ödenmiş İçerikler üzerindeki kullanım hakkı, Sözleşme kapsamındaki mecralarda ve MÜŞTERİ'nin kendi tanıtımı için süre ve yer sınırı olmaksızın MÜŞTERİ'ye aittir. Bedeli ödenmemiş İçerikler'in tüm hakları, ödeme yapılana kadar AJANS'ta kalır ve kullanılamaz.`)}
+  ${m(`MÜŞTERİ'nin markası, logosu, ürün görselleri ve sağladığı tüm materyal MÜŞTERİ'ye aittir; AJANS bunları yalnızca Hizmet amacıyla kullanır.`)}
+  ${m(`İçeriklerin ham çekim dosyaları, katmanlı tasarım ve proje dosyaları AJANS'ın üretim aracıdır ve teslimat kapsamında değildir; MÜŞTERİ talep ederse güncel fiyat listesine göre ücret karşılığı teslim edilir.`)}
+  ${m(`AJANS, MÜŞTERİ için ürettiği işleri ve MÜŞTERİ'nin adını/logosunu referans olarak portföyünde, web sitesinde ve kendi sosyal medya hesaplarında kullanabilir. MÜŞTERİ, gizlilik gerektiren işler için bu kullanımı yazılı bildirimle sınırlayabilir.`)}
+  ${m(`Üçüncü kişilere ait stok görsel, müzik ve yazı tipleri, lisans koşulları çerçevesinde ve lisansın izin verdiği mecralarda kullanılır; lisans bedelleri Madde 9'a tabidir.`)}
 
+  ${B("Hesap Sahipliği ve Erişim")}
+  ${m(`Hesaplar ve bunlara bağlı reklam hesapları, Business Manager varlıkları, alan adları ve veriler MÜŞTERİ'ye aittir. AJANS, Hesaplar'a mümkün olan en düşük yetki seviyesiyle (editör/ortak yönetici) erişir ve Hesaplar'ı kendi adına devralmaz.`)}
+  ${m(`Hizmet için AJANS tarafından açılan hesap, sayfa veya reklam varlıkları, Sözleşme sona erdiğinde ve MÜŞTERİ'nin borcu kalmadığında ücretsiz olarak MÜŞTERİ'ye devredilir.`)}
+  ${m(`Sözleşme sona erdiğinde AJANS, 5 İş Günü içinde Hesaplar'daki tüm yetkilerini kaldırır ve elindeki erişim bilgilerini imha eder. MÜŞTERİ'nin bu tarihten sonra şifrelerini değiştirmesi tavsiye edilir; değiştirmemesinden doğan sonuçlardan AJANS sorumlu değildir.`)}
+
+  ${B("Gizlilik ve Kişisel Verilerin Korunması")}
+  ${m(`Taraflar, Sözleşme nedeniyle öğrendikleri ticari sırları, fiyat ve müşteri bilgilerini, stratejileri, erişim bilgilerini ve kamuya açık olmayan her türlü bilgiyi Sözleşme süresince ve sona ermesinden itibaren <b>${k.gizlilik_yil} yıl</b> boyunca gizli tutar; yasal zorunluluk dışında üçüncü kişilerle paylaşmaz ve yalnızca Sözleşme amacıyla kullanır.`)}
+  ${m(`Taraflar, 6698 sayılı Kişisel Verilerin Korunması Kanunu ve ilgili mevzuata uygun hareket eder. MÜŞTERİ'nin takipçi, müşteri ve etkileşim verileri bakımından MÜŞTERİ veri sorumlusu, AJANS veri işleyendir; AJANS bu verileri yalnızca MÜŞTERİ'nin talimatıyla ve Hizmet amacıyla işler, gerekli teknik ve idari tedbirleri alır, bir veri ihlalini öğrenmesinden itibaren 72 saat içinde MÜŞTERİ'ye bildirir.`)}
+  ${m(`Gizlilik yükümlülüğünün ihlali halinde ihlal eden Taraf, diğer Taraf'ın doğrudan zararını tazmin eder; AJANS'ın sorumluluğu Madde 15'teki sınıra tabidir, MÜŞTERİ'nin AJANS'ın fiyat ve iş yöntemlerini rakiplerle paylaşması da ihlal sayılır.`)}
+
+  ${B("Sorumluluğun Sınırı ve Garanti")}
+  ${m(`AJANS; sosyal medya ve reklam platformlarının algoritma, erişim, kural ve ücret değişikliklerinden; Hesaplar'ın platform tarafından kısıtlanması, askıya alınması veya kapatılmasından; platform kesintilerinden; MÜŞTERİ'nin veya üçüncü kişilerin yaptığı paylaşım ve yorumlardan sorumlu değildir. Hesap kısıtlamalarında AJANS, itiraz süreçlerinde MÜŞTERİ'ye makul desteği sağlar.`)}
+  ${m(`Takipçi, beğeni, erişim, tıklama, randevu, satış veya ciro gibi sonuçlar birçok dış etkene bağlıdır; AJANS belirli bir sonuç garantisi vermez. Bu Sözleşme bir <b>hizmet (vekâlet) sözleşmesi</b>dir; AJANS'ın borcu, hizmeti özenle ifa etmektir.`)}
+  ${m(`Taraflardan hiçbiri; kâr kaybı, itibar kaybı, iş kaybı, veri kaybı gibi dolaylı ve yansıma zararlardan sorumlu tutulamaz. AJANS'ın bu Sözleşme'den doğan toplam sorumluluğu, her halde, zararın doğduğu tarihten önceki <b>${k.sorumluluk_ay} aylık</b> hizmet bedeli toplamı ile sınırlıdır. Bu sınırlamalar kasıt ve ağır ihmal hallerinde uygulanmaz.`)}
+
+  ${B("Mücbir Sebep")}
+  ${m(`Doğal afet, salgın, savaş, terör, geniş çaplı internet veya enerji kesintisi, platformların genel erişime kapanması, grev, idari makam kararları gibi Tarafların kontrolü dışında, öngörülemeyen ve kaçınılamayan olaylar mücbir sebep sayılır. Mücbir sebepten etkilenen Taraf durumu 5 gün içinde bildirir; yükümlülükler mücbir sebep süresince askıya alınır, ödeme yükümlülüğü verilmiş hizmetler için devam eder. Mücbir sebep 60 günü aşarsa Taraflardan her biri Sözleşme'yi cayma bedeli ödemeden feshedebilir.`)}
+
+  ${B("Personel Ayartmama ve Dürüstlük")}
+  ${m(`Taraflar, Sözleşme süresince ve sona ermesinden itibaren <b>${k.ayartma_yasagi_ay} ay</b> boyunca, diğer Taraf'ın yazılı izni olmadan, Hizmet'in ifasında görev alan çalışan, serbest çalışan veya alt yüklenicilerini doğrudan ya da dolaylı olarak istihdam etmez, iş teklif etmez ve bunlarla doğrudan çalışmaz.`)}
+  ${m(`Bu maddenin ihlali halinde ihlal eden Taraf, diğer Taraf'a <b>${k.cezai_sart_ay} aylık hizmet bedeli</b> tutarında cezai şart öder; aşan zararın tazmini hakkı saklıdır. Taraflar bu cezai şartın fahiş olmadığını kabul eder.`)}
+
+  ${B("Diğer Hükümler")}
+  ${m(`<b>Devir:</b> Taraflar, diğer Taraf'ın yazılı onayı olmadan Sözleşme'den doğan hak ve borçlarını üçüncü kişilere devredemez. Şirket birleşme, bölünme veya işletme devri hallerinde Sözleşme halefe geçer; durum 15 gün içinde bildirilir.`)}
+  ${m(`<b>Değişiklik:</b> Sözleşme'de yapılacak değişiklikler ve kapsam genişletmeleri ancak Tarafların yazılı mutabakatıyla geçerlidir. E-posta ile teyit edilen kapsam ve bedel değişiklikleri Sözleşme'nin eki sayılır.`)}
+  ${m(`<b>Delil sözleşmesi:</b> Taraflar, uyuşmazlık halinde AJANS'ın ve MÜŞTERİ'nin e-posta, WhatsApp yazışmaları, müşteri paneli kayıtları, platform raporları ve ticari defter kayıtlarının 6100 sayılı HMK m.193 uyarınca kesin delil olacağını kabul eder.`)}
+  ${m(`<b>Bölünebilirlik ve feragat:</b> Sözleşme'nin herhangi bir hükmünün geçersiz sayılması diğer hükümleri etkilemez; geçersiz hüküm, amacına en yakın geçerli hükümle değiştirilmiş sayılır. Bir Taraf'ın hakkını kullanmaması o haktan feragat ettiği anlamına gelmez.`)}
+  ${m(`<b>Bildirimler:</b> Olağan bildirimler Madde 5.3'teki kanallarla, hukuki sonuç doğuran bildirimler noter veya iadeli taahhütlü posta ile Madde 1'deki adreslere yapılır. Kayıtlı elektronik posta (KEP) adresleri varsa KEP ile yapılan bildirimler de geçerlidir.`)}
+  ${m(`<b>Uygulanacak hukuk ve yetki:</b> Sözleşme Türkiye Cumhuriyeti hukukuna tabidir. Sözleşme'den doğan uyuşmazlıklarda, zorunlu arabuluculuk hükümleri saklı kalmak kaydıyla, <b>${kacis(S.contract_city || "Bandırma")} Mahkemeleri ve İcra Daireleri</b> yetkilidir.`)}
+  ${m(`<b>Damga vergisi:</b> Sözleşme'den doğan damga vergisi, yasal düzenlemeler saklı kalmak üzere Taraflarca eşit olarak karşılanır.`)}
+
+  ${ozel ? B("Özel Şartlar") + `<div class="kutu">${kacis(ozel).replace(/\n/g, "<br>")}</div><p>Özel şartlar ile genel hükümler çelişirse özel şartlar öncelikli uygulanır.</p>` : ""}
+
+  ${B("Yürürlük ve İmza")}
+  ${m(`İşbu Sözleşme ${bolum} madde ve ${ekler.length ? "ek hizmet tablosu dahil " : ""}eklerinden ibaret olup, ${simdi} tarihinde iki nüsha olarak düzenlenmiş, Taraflarca her sayfası paraflanarak okunmuş ve imzalanmıştır. Her Taraf'a bir nüsha verilmiştir.`)}
   <div class="imza">
-    <div><b>HİZMET VEREN</b>${kacis(S.company_title)}<br>${kacis(S.company_rep)}<small>Kaşe / İmza</small></div>
-    <div><b>HİZMET ALAN</b>${kacis(client.name)}<br>${kacis(f.musteri_yetkili || "")}<small>Kaşe / İmza</small></div>
+    <div><b>HİZMET VEREN (AJANS)</b>${kacis(S.company_title)}<br>${kacis(S.company_rep || "")}<small>Kaşe / İmza · Tarih: ____ / ____ / ________</small></div>
+    <div><b>HİZMET ALAN (MÜŞTERİ)</b>${kacis(client.name)}<br>${kacis(f.musteri_yetkili || "")}<small>Kaşe / İmza · Tarih: ____ / ____ / ________</small></div>
   </div>
-  <div class="not">Sözleşme No ${kacis(f.sozlesme_no)} · Panormos Medya paneli tarafından hazırlanmıştır.</div>
+  <div class="paraf"><span>Sözleşme No ${kacis(f.sozlesme_no)} · ${kacis(S.company_title)} — ${kacis(client.name)}</span><span>Paraf: AJANS ______ · MÜŞTERİ ______</span></div>
   </body></html>`;
+}
+
+// Ticari şart sayı kutusu (bileşenin dışında: her yazışta yeniden kurulmasın)
+function SartSayi({ k, sart, ad, label, sonek }) {
+  return <FormField label={label}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><Input type="number" value={k[ad] ?? ""} onChange={e => sart(ad, e.target.value === "" ? "" : Number(e.target.value))} />{sonek && <span style={{ fontSize: 12, color: T.textMuted, whiteSpace: "nowrap" }}>{sonek}</span>}</div></FormField>;
 }
 
 function ClientContractTab({ client, currentStaff }) {
@@ -7221,14 +7334,16 @@ function ClientContractTab({ client, currentStaff }) {
   const [loading, setLoading] = useState(true);
   const [tabloYok, setTabloYok] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sartAcik, setSartAcik] = useState(false);
   const bugun = todayStr();
   const varsayilanNo = () => `PM-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
   const [f, setF] = useState(() => ({
     sozlesme_no: varsayilanNo(), paket_adi: "", aylik_ucret: client.monthlyFee || "", kdv_orani: QUOTE_SETTINGS.vat_rate || 20,
     baslangic: (client.agreementDate || "").slice(0, 10) || bugun, sure_ay: 12,
     odeme_gunu: Number(((client.agreementDate || bugun).slice(8, 10))) || 1,
-    musteri_yetkili: "", kapsam: [], ek_hizmetler: [], ozel_sartlar: "",
+    musteri_yetkili: "", kapsam: [], ek_hizmetler: [], ozel_sartlar: "", sartlar: { ...SOZLESME_SART_VARSAYILAN },
   }));
+  const sart = (ad, deger) => setF(x => ({ ...x, sartlar: { ...x.sartlar, [ad]: deger } }));
 
   const load = async () => {
     const [{ data: p }, { data: a }, { data: s, error }] = await Promise.all([
@@ -7252,42 +7367,47 @@ function ClientContractTab({ client, currentStaff }) {
   };
   const ekToggle = (a) => setF(x => ({ ...x, ek_hizmetler: x.ek_hizmetler.some(e => e.ad === a.name) ? x.ek_hizmetler.filter(e => e.ad !== a.name) : [...x.ek_hizmetler, { ad: a.name, fiyat: a.price_text || "" }] }));
 
-  const kontrol = () => {
-    if (!f.paket_adi && !f.kapsam.length) { swalAlert("Paket seçin ya da hizmet kapsamını yazın."); return false; }
+  const kontrol = async () => {
+    if (!f.paket_adi && !f.kapsam.some(x => String(x).trim())) { swalAlert("Paket seçin ya da hizmet kapsamını yazın."); return false; }
     if (!(Number(f.aylik_ucret) > 0)) { swalAlert("Aylık ücret girin."); return false; }
     if (!f.baslangic) { swalAlert("Başlangıç tarihi seçin."); return false; }
     if (!f.musteri_yetkili.trim()) { swalAlert("Müşteri tarafında imzalayacak yetkilinin adını yazın."); return false; }
-    if (!QUOTE_SETTINGS.company_title || !QUOTE_SETTINGS.company_rep) { swalAlert("Önce Fiyatlar → Teklif Ayarları → Sözleşme Bilgileri bölümünü doldurun (şirket ünvanı, yetkili, vergi bilgileri)."); return false; }
+    if (!client.taxNumber || !client.address) { if (!await swalConfirm("Müşterinin vergi numarası ya da adresi boş; sözleşmede '—' görünecek. Yine de devam edilsin mi?\n\n(Müşteriler → Düzenle'den doldurabilirsiniz.)")) return false; }
+    if (!QUOTE_SETTINGS.company_title || !QUOTE_SETTINGS.company_rep || !QUOTE_SETTINGS.company_tax_no) { swalAlert("Önce Fiyatlar → Teklif Ayarları → Sözleşme Bilgileri bölümünü doldurun (şirket ünvanı, adres, vergi bilgileri, imzalayacak yetkili)."); return false; }
     return true;
   };
-  const onizle = (asPdf) => { if (!kontrol()) return; const html = sozlesmeHTML(client, f); asPdf ? downloadPdfFromHTML(html, `Sozlesme-${client.name.replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${f.baslangic}.pdf`) : openPrintWindow(html); };
+  const dosyaAdi = () => `Sozlesme-${client.name.replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${f.baslangic}.pdf`;
+  const onizle = async (asPdf) => { if (!await kontrol()) return; const html = sozlesmeHTML(client, f); asPdf ? downloadPdfFromHTML(html, dosyaAdi()) : openPrintWindow(html); };
   const kaydet = async (sonra) => {
-    if (!kontrol()) return;
+    if (!await kontrol()) return;
     setBusy(true);
     const html = sozlesmeHTML(client, f);
     const { data, error } = await supabase.from('sozlesmeler').insert({
       client_id: client.id, sozlesme_no: f.sozlesme_no, paket_adi: f.paket_adi, aylik_ucret: Number(f.aylik_ucret) || 0, kdv_orani: Number(f.kdv_orani) || 20,
       baslangic: f.baslangic, sure_ay: Number(f.sure_ay) || 12, odeme_gunu: Number(f.odeme_gunu) || 1, musteri_yetkili: f.musteri_yetkili.trim(),
-      kapsam: f.kapsam.filter(x => String(x).trim()), ek_hizmetler: f.ek_hizmetler, ozel_sartlar: f.ozel_sartlar || "", html, olusturan: currentStaff?.name || "",
+      kapsam: f.kapsam.filter(x => String(x).trim()), ek_hizmetler: f.ek_hizmetler, ozel_sartlar: f.ozel_sartlar || "", sartlar: f.sartlar, html, olusturan: currentStaff?.name || "",
     }).select().single();
     setBusy(false);
     if (error) { swalAlert("Sözleşme kaydedilemedi: " + error.message + "\n\nsupabase/sozlesme-kurulum.sql dosyasını Supabase'de çalıştırdığınızdan emin olun."); return; }
     setListe(l => [data, ...l]);
     setF(x => ({ ...x, sozlesme_no: varsayilanNo() }));
     if (sonra === "yazdir") openPrintWindow(html);
-    if (sonra === "pdf") downloadPdfFromHTML(html, `Sozlesme-${client.name.replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${f.baslangic}.pdf`);
+    if (sonra === "pdf") downloadPdfFromHTML(html, dosyaAdi());
   };
   const durumDegistir = async (s, durum) => { const { error } = await supabase.from('sozlesmeler').update({ durum }).eq('id', s.id); if (error) { swalAlert("Durum değişmedi: " + error.message); return; } setListe(l => l.map(x => x.id === s.id ? { ...x, durum } : x)); };
   const sil = async (s) => { if (!await swalConfirm(`${s.sozlesme_no} numaralı sözleşme kaydı silinsin mi?`)) return; await supabase.from('sozlesmeler').delete().eq('id', s.id); setListe(l => l.filter(x => x.id !== s.id)); };
 
   const ucret = Number(f.aylik_ucret) || 0, kdv = Number(f.kdv_orani) || 20;
   const bitis = f.baslangic ? ayEkle(f.baslangic, f.sure_ay) : "";
+  const k = f.sartlar;
+  const kalanOrnek = Math.round(ucret * Math.max(1, Math.ceil((Number(f.sure_ay) || 12) / 2)) * (Number(k.cayma_orani) || 0) / 100);
+  const Sayi = ({ ad, label, sonek }) => <SartSayi k={k} sart={sart} ad={ad} label={label} sonek={sonek} />;
   if (loading) return <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>;
 
   return <div>
     {tabloYok && <Card style={{ padding: 14, marginBottom: 14, borderColor: T.amber }}><div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.6 }}><b style={{ color: T.textPrimary }}>Kurulum gerekiyor:</b> Sözleşmeler tablosu veritabanında yok. <b>supabase/sozlesme-kurulum.sql</b> dosyasını Supabase SQL Editor'de bir kez çalıştırın. Yazdırma ve PDF yine de çalışır, yalnızca kayıt tutulmaz.</div></Card>}
     <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 14, lineHeight: 1.6, background: T.bgInput, borderRadius: 10, padding: "10px 14px" }}>
-      Paketi seçin; ücret ve hizmet kapsamı <b style={{ color: T.textPrimary }}>{client.name}</b> için kendiliğinden dolar. Şirket bilgileri Fiyatlar → Teklif Ayarları'ndan gelir. Belge genel bir şablondur; önemli sözleşmelerde avukatınıza göstermeniz iyi olur.
+      Paketi seçin; ücret ve hizmet kapsamı <b style={{ color: T.textPrimary }}>{client.name}</b> için kendiliğinden dolar. Şirket bilgileri Fiyatlar → Teklif Ayarları'ndan gelir. Belge 20 maddelik kapsamlı bir hizmet sözleşmesidir; cayma bedeli, gecikme faizi ve ek ücret oranlarını aşağıdaki "Ticari Şartlar" bölümünden müşteriye göre değiştirebilirsiniz.
     </div>
 
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
@@ -7299,10 +7419,10 @@ function ClientContractTab({ client, currentStaff }) {
       </FormField>
       <FormField label="Aylık Ücret (₺, KDV hariç)"><Input type="number" value={f.aylik_ucret} onChange={e => setF(x => ({ ...x, aylik_ucret: e.target.value }))} /></FormField>
       <FormField label="Başlangıç Tarihi"><Input type="date" value={f.baslangic} onChange={e => setF(x => ({ ...x, baslangic: e.target.value, odeme_gunu: Number(e.target.value.slice(8, 10)) || x.odeme_gunu }))} /></FormField>
-      <FormField label="Süre (ay)">
+      <FormField label="Asgari Süre (ay)">
         <Select value={f.sure_ay} onChange={e => setF(x => ({ ...x, sure_ay: Number(e.target.value) }))}>{[3, 6, 12, 24].map(n => <option key={n} value={n}>{n} ay</option>)}</Select>
       </FormField>
-      <FormField label="Ödeme Günü (her ayın)"><Input type="number" value={f.odeme_gunu} onChange={e => setF(x => ({ ...x, odeme_gunu: Math.min(28, Math.max(1, Number(e.target.value) || 1)) }))} /></FormField>
+      <FormField label="Fatura Günü (her ayın)"><Input type="number" value={f.odeme_gunu} onChange={e => setF(x => ({ ...x, odeme_gunu: Math.min(28, Math.max(1, Number(e.target.value) || 1)) }))} /></FormField>
       <FormField label="Müşteri Yetkilisi (imzalayacak kişi)"><Input placeholder="Ad Soyad" value={f.musteri_yetkili} onChange={e => setF(x => ({ ...x, musteri_yetkili: e.target.value }))} /></FormField>
       <FormField label="Sözleşme No"><Input value={f.sozlesme_no} onChange={e => setF(x => ({ ...x, sozlesme_no: e.target.value }))} /></FormField>
       <FormField label="KDV (%)"><Input type="number" value={f.kdv_orani} onChange={e => setF(x => ({ ...x, kdv_orani: e.target.value }))} /></FormField>
@@ -7315,10 +7435,52 @@ function ClientContractTab({ client, currentStaff }) {
         {addons.map(a => { const on = f.ek_hizmetler.some(e => e.ad === a.name); return <button key={a.id} type="button" onClick={() => ekToggle(a)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, cursor: "pointer", background: on ? T.amber : T.bgInput, color: on ? "#fff" : T.textSecondary, border: `1px solid ${on ? T.amber : T.border}` }}>{on ? "✓ " : ""}{a.name}{a.price_text ? ` · ${a.price_text}` : ""}</button>; })}
       </div>
     </FormField>}
-    <FormField label="Özel Şartlar (isteğe bağlı)"><Textarea minHeight={70} placeholder="Bu müşteriye özel eklenecek maddeler" value={f.ozel_sartlar} onChange={e => setF(x => ({ ...x, ozel_sartlar: e.target.value }))} /></FormField>
+
+    <div style={{ border: `1px solid ${T.border}`, borderRadius: 12, marginBottom: 14, overflow: "hidden" }}>
+      <div onClick={() => setSartAcik(a => !a)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 14px", cursor: "pointer", background: T.bgInput }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary }}>⚖️ Ticari Şartlar <span style={{ fontSize: 11, fontWeight: 500, color: T.textMuted }}>· vade {k.vade_gun} gün · gecikme faizi aylık %{k.gecikme_faizi} · cayma bedeli kalan ayların %{k.cayma_orani}'si · {k.revizyon_hakki} revizyon · acil iş +%{k.acil_fark}</span></div>
+        <span style={{ color: T.textMuted }}>{sartAcik ? "▾" : "▸"}</span>
+      </div>
+      {sartAcik && <div style={{ padding: "12px 14px 2px" }}>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Ödeme</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
+          <Sayi ad="vade_gun" label="Ödeme vadesi" sonek="gün" />
+          <Sayi ad="gecikme_faizi" label="Gecikme faizi (aylık)" sonek="%" />
+          <Sayi ad="askiya_alma_gun" label="Askıya alma (vadeden sonra)" sonek="gün" />
+          <Sayi ad="fesih_gun" label="Ödememe nedeniyle fesih" sonek="gün" />
+          <FormField label="Yenilemede fiyat artışı ölçütü"><Select value={k.yillik_artis} onChange={e => sart("yillik_artis", e.target.value)}>{["TÜFE", "ÜFE", "TÜFE ve ÜFE ortalaması", "Taraflarca belirlenecek"].map(o => <option key={o} value={o}>{o}</option>)}</Select></FormField>
+          <Sayi ad="bildirim_gun" label="Olağan fesih bildirimi" sonek="gün önce" />
+        </div>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "6px 0 8px" }}>Erken Fesih (Cayma)</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
+          <Sayi ad="cayma_orani" label="Kalan ayların bedelinin" sonek="%" />
+          <Sayi ad="cayma_en_az_ay" label="En az" sonek="aylık bedel" />
+          <div style={{ fontSize: 12, color: T.textSecondary, alignSelf: "center", lineHeight: 1.5 }}>Örnek: {Math.ceil((Number(f.sure_ay) || 12) / 2)} ay kala ayrılırsa ≈ <b>{fmtMoney(Math.max(kalanOrnek, ucret * (Number(k.cayma_en_az_ay) || 0)))}</b> cayma bedeli</div>
+        </div>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "6px 0 8px" }}>Ek Ücretler</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
+          <Sayi ad="revizyon_hakki" label="Ücretsiz revizyon (içerik başına)" sonek="adet" />
+          <Sayi ad="ek_revizyon_ucreti" label="Ek revizyon ücreti (boş: fiyat listesi)" sonek="₺" />
+          <Sayi ad="ek_icerik_ucreti" label="Ek içerik ücreti (boş: fiyat listesi)" sonek="₺" />
+          <Sayi ad="acil_fark" label="Acil iş farkı (48 saatten kısa)" sonek="%" />
+          <Sayi ad="cekim_iptal_orani" label="Geç çekim iptali bedeli" sonek="%" />
+          <Sayi ad="onay_is_gunu" label="İçerik onay süresi" sonek="iş günü" />
+        </div>
+        <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "6px 0 8px" }}>Koruyucu Maddeler</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
+          <Sayi ad="sorumluluk_ay" label="Ajans sorumluluk üst sınırı" sonek="aylık bedel" />
+          <Sayi ad="ayartma_yasagi_ay" label="Personel ayartmama süresi" sonek="ay" />
+          <Sayi ad="cezai_sart_ay" label="Ayartma cezai şartı" sonek="aylık bedel" />
+          <Sayi ad="gizlilik_yil" label="Gizlilik (bitimden sonra)" sonek="yıl" />
+        </div>
+        <div style={{ textAlign: "right", marginBottom: 10 }}><Btn onClick={() => setF(x => ({ ...x, sartlar: { ...SOZLESME_SART_VARSAYILAN } }))} style={{ fontSize: 11.5, padding: "5px 10px" }}>Varsayılanlara dön</Btn></div>
+      </div>}
+    </div>
+
+    <FormField label="Özel Şartlar (isteğe bağlı — genel maddelerin önüne geçer)"><Textarea minHeight={70} placeholder="Bu müşteriye özel eklenecek maddeler" value={f.ozel_sartlar} onChange={e => setF(x => ({ ...x, ozel_sartlar: e.target.value }))} /></FormField>
 
     <div style={{ fontSize: 12.5, color: T.textSecondary, background: T.greenDim, borderRadius: 10, padding: "10px 14px", marginBottom: 14, lineHeight: 1.6 }}>
-      <b style={{ color: T.greenText }}>Özet:</b> {f.paket_adi || "Özel paket"} · aylık <b>{fmtMoney(ucret)}</b> + KDV = <b>{fmtMoney(ucret * (1 + kdv / 100))}</b> · {f.sure_ay} ay · {tarihYaz(f.baslangic)} → {tarihYaz(bitis)} · ödeme her ayın {f.odeme_gunu}. günü
+      <b style={{ color: T.greenText }}>Özet:</b> {f.paket_adi || "Özel paket"} · aylık <b>{fmtMoney(ucret)}</b> + KDV = <b>{fmtMoney(ucret * (1 + kdv / 100))}</b> · {f.sure_ay} ay (toplam {fmtMoney(ucret * (Number(f.sure_ay) || 0))} + KDV) · {tarihYaz(f.baslangic)} → {tarihYaz(bitis)} · fatura her ayın {f.odeme_gunu}. günü, vade {k.vade_gun} gün
     </div>
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 }}>
       <Btn variant="primary" onClick={() => kaydet("yazdir")} disabled={busy}>📜 Sözleşmeyi Oluştur ve Yazdır</Btn>
@@ -7335,7 +7497,7 @@ function ClientContractTab({ client, currentStaff }) {
               <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{s.sozlesme_no} · {s.paket_adi || "Özel"}</div>
               <div style={{ fontSize: 11, color: T.textMuted }}>{fmtMoney(Number(s.aylik_ucret))} + KDV · {s.sure_ay} ay · {tarihYaz(s.baslangic)} → {tarihYaz(ayEkle(s.baslangic, s.sure_ay))}{s.olusturan ? ` · ${s.olusturan}` : ""}</div>
             </div>
-            <Select value={s.durum} onChange={e => durumDegistir(s, e.target.value)}>{Object.entries(SOZLESME_DURUM).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select>
+            <Select value={s.durum} onChange={e => durumDegistir(s, e.target.value)}>{Object.entries(SOZLESME_DURUM).map(([kk, v]) => <option key={kk} value={kk}>{v.label}</option>)}</Select>
             <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: st.bg, color: st.color }}>{st.label}</span>
             <Btn onClick={() => openPrintWindow(s.html)} style={{ fontSize: 12, padding: "6px 12px" }}>🖨️ Yazdır</Btn>
             <Btn onClick={() => downloadPdfFromHTML(s.html, `Sozlesme-${s.sozlesme_no}.pdf`)} style={{ fontSize: 12, padding: "6px 12px", background: T.greenDim, color: T.greenText }}>📥 PDF</Btn>

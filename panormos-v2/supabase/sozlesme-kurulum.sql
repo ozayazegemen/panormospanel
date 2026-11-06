@@ -21,6 +21,7 @@ create table if not exists public.sozlesmeler (
   olusturan text not null default '',
   created_at timestamptz not null default now()
 );
+alter table public.sozlesmeler add column if not exists sartlar jsonb not null default '{}'::jsonb;  -- vade, faiz, cayma oranı vb.
 create index if not exists sozlesmeler_musteri on public.sozlesmeler (client_id, created_at desc);
 
 alter table public.sozlesmeler enable row level security;
