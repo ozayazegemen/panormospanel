@@ -6993,12 +6993,14 @@ async function htmlToPdfBlob(html, orientation) {
     d.querySelectorAll("table.sayfa > thead td, table.sayfa > tfoot td").forEach(td => { td.style.height = "0"; });
     // Sayfa sonu: paragraf, satır, kutu ortadan bölünmesin
     const st = d.createElement("style"); st.textContent = "p, li, tr, .taraf, .taraf-imza, .imza, .kutu, .card, .pkg { break-inside: avoid; page-break-inside: avoid; } h1, h2, h3 { break-after: avoid; page-break-after: avoid; }"; d.head.appendChild(st);
+    // Diziler çerçevenin kendi Array'inden olmalı (html2pdf "instanceof Array" ile denetler)
+    const dizi = (...x) => { const a = new w.Array(); x.forEach(v => a.push(v)); return a; };
     const pdf = await w.html2pdf().set({
-      margin: [ustR ? ustR.mm : 8, 0, altR ? altR.mm : 8, 0],
+      margin: dizi(ustR ? ustR.mm : 8, 0, altR ? altR.mm : 8, 0),
       image: { type: "jpeg", quality: 0.95 },
       html2canvas: h2c,
       jsPDF: { unit: "mm", format: "a4", orientation: yatay ? "landscape" : "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
+      pagebreak: { mode: dizi("css", "legacy") },
     }).from(d.body).toPdf().get("pdf");
     if (ustR || altR) {
       const n = pdf.internal.getNumberOfPages();
