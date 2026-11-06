@@ -6925,42 +6925,117 @@ function NavIcon({ id, size = 17 }) {
 // ─────────────────────────────────────────────
 // FİYATLANDIRMA - yazdırma yardımcıları
 // ─────────────────────────────────────────────
+// ── Yazdırma: belge gizli bir çerçevede hazırlanır ve doğrudan yazıcı penceresi açılır (ayrı sekme açılmaz) ──
 function openPrintWindow(html) {
+  const eski = document.getElementById("pm-yazdir-cerceve"); if (eski) eski.remove();
+  const fr = document.createElement("iframe");
+  fr.id = "pm-yazdir-cerceve";
+  fr.setAttribute("aria-hidden", "true");
+  fr.style.cssText = "position:fixed;left:-20000px;top:0;width:794px;height:1123px;border:0;visibility:hidden";
+  document.body.appendChild(fr);
+  const d = fr.contentDocument || fr.contentWindow.document;
+  d.open(); d.write(html); d.close();
+  let yazdirildi = false;
+  const yazdir = () => {
+    if (yazdirildi) return; yazdirildi = true;
+    try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { swalAlert("Yazdırma başlatılamadı: " + e.message); }
+    // Yazıcı penceresi kapanınca çerçeve kaldırılır (afterprint vermeyen tarayıcılar için 2 dk sonra her halde)
+    try { fr.contentWindow.addEventListener("afterprint", () => setTimeout(() => fr.remove(), 500)); } catch (e) {}
+    setTimeout(() => { if (fr.parentNode) fr.remove(); }, 120000);
+  };
+  const hazir = () => (d.fonts?.ready || Promise.resolve()).then(() => setTimeout(yazdir, 200));
+  if (d.readyState === "complete") hazir(); else fr.onload = hazir;
+  setTimeout(yazdir, 3000);
+}
+
+// ── Önizleme: belge yeni sekmede yalnızca görüntülenir (yazdırma penceresi açılmaz) ──
+function openPreviewWindow(html) {
   const w = window.open("", "_blank");
-  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
-  w.document.write(html);
-  w.document.close();
-  const doPrint = () => { try { w.focus(); w.print(); } catch (e) {} };
-  w.onload = doPrint;
-  setTimeout(doPrint, 600);
+  if (!w) { swalAlert("Önizleme penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
+  w.document.write(html); w.document.close();
 }
 
-// ── PDF olarak indirme (html2pdf CDN'den yüklenir) ──
-async function ensureHtml2Pdf() {
-  if (window.html2pdf) return true;
-  return new Promise((resolve) => {
-    const s = document.createElement("script");
-    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-    s.onload = () => resolve(!!window.html2pdf);
-    s.onerror = () => resolve(false);
-    document.head.appendChild(s);
-  });
+// ── PDF: belge gerçek bir PDF dosyasına çevrilir; tarayıcı destekliyorsa nereye kaydedileceği sorulur ──
+const HTML2PDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+function pdfBekleGoster(metin) {
+  const el = document.createElement("div");
+  el.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-family:'Manrope','Inter',sans-serif";
+  el.innerHTML = `<div style="background:#fff;color:#0E0E14;border-radius:14px;padding:18px 26px;font-size:14px;font-weight:700;box-shadow:0 20px 60px rgba(0,0,0,.35)">${metin}</div>`;
+  document.body.appendChild(el);
+  return { kapat: () => el.remove(), yaz: (t) => { el.firstChild.textContent = t; } };
 }
-
-// hazirPencere: veri yüklenmeden önce (tıklama anında) açılmış pencere; açılır pencere engeline takılmamak için
+// Belgeyi gizli çerçevede açar, çerçevenin içine html2pdf'i yükler ve PDF verisini (blob) döndürür.
+// Antetli belgelerde (.ant-ust / .ant-alt) üst ve alt bilgi ayrı resme çevrilip her sayfaya basılır.
+async function htmlToPdfBlob(html, orientation) {
+  const yatay = orientation === "landscape";
+  const sayfaMm = yatay ? [297, 210] : [210, 297];
+  const genislikPx = yatay ? 1123 : 794; // 96 dpi A4
+  const fr = document.createElement("iframe");
+  fr.style.cssText = `position:fixed;left:-20000px;top:0;width:${genislikPx}px;height:1123px;border:0;visibility:hidden`;
+  document.body.appendChild(fr);
+  try {
+    const d = fr.contentDocument; d.open(); d.write(html); d.close();
+    const w = fr.contentWindow;
+    await new Promise(r => { if (d.readyState === "complete") r(); else { fr.onload = r; setTimeout(r, 3000); } });
+    await (d.fonts?.ready || Promise.resolve());
+    // html2pdf çerçevenin içine yüklenir: belgenin kendi stilleri geçerli kalsın
+    await new Promise((res, rej) => { const s = d.createElement("script"); s.src = HTML2PDF_URL; s.onload = res; s.onerror = () => rej(new Error("PDF kitaplığı yüklenemedi; internet bağlantısını kontrol edin")); d.head.appendChild(s); });
+    if (!w.html2pdf) throw new Error("PDF kitaplığı başlatılamadı");
+    const h2c = { scale: 2, useCORS: true, logging: false, windowWidth: genislikPx, scrollX: 0, scrollY: 0 };
+    const resim = async (el) => {
+      el.style.position = "static"; el.style.width = genislikPx + "px"; el.style.visibility = "visible";
+      const c = await w.html2pdf().set({ html2canvas: h2c }).from(el).toCanvas().get("canvas");
+      return { veri: c.toDataURL("image/jpeg", 0.95), mm: c.height / c.width * sayfaMm[0] };
+    };
+    const ust = d.querySelector(".ant-ust"), alt = d.querySelector(".ant-alt");
+    const ustR = ust ? await resim(ust) : null, altR = alt ? await resim(alt) : null;
+    if (ust) ust.remove(); if (alt) alt.remove();
+    d.querySelectorAll("table.sayfa > thead td, table.sayfa > tfoot td").forEach(td => { td.style.height = "0"; });
+    // Sayfa sonu: paragraf, satır, kutu ortadan bölünmesin
+    const st = d.createElement("style"); st.textContent = "p, li, tr, .taraf, .taraf-imza, .imza, .kutu, .card, .pkg { break-inside: avoid; page-break-inside: avoid; } h1, h2, h3 { break-after: avoid; page-break-after: avoid; }"; d.head.appendChild(st);
+    const pdf = await w.html2pdf().set({
+      margin: [ustR ? ustR.mm : 8, 0, altR ? altR.mm : 8, 0],
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: h2c,
+      jsPDF: { unit: "mm", format: "a4", orientation: yatay ? "landscape" : "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    }).from(d.body).toPdf().get("pdf");
+    if (ustR || altR) {
+      const n = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= n; i++) {
+        pdf.setPage(i);
+        if (ustR) pdf.addImage(ustR.veri, "JPEG", 0, 0, sayfaMm[0], ustR.mm);
+        if (altR) pdf.addImage(altR.veri, "JPEG", 0, sayfaMm[1] - altR.mm, sayfaMm[0], altR.mm);
+      }
+    }
+    return pdf.output("blob");
+  } finally { fr.remove(); }
+}
+// hazirPencere: eski sürümden kalan, önceden açılmış pencere; artık gerekmediği için kapatılır
 async function downloadPdfFromHTML(html, filename, orientation = "portrait", hazirPencere = null) {
-  // En güvenilir yöntem: yazdırma penceresi aç, kullanıcı "PDF olarak kaydet" desin.
-  // (html2pdf bazı tarayıcılarda boş çıkıyor; tarayıcı motoru şaşmaz.)
-  const w = hazirPencere && !hazirPencere.closed ? hazirPencere : window.open("", "_blank");
-  if (!w) { swalAlert("PDF penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
-  if (w === hazirPencere) w.document.open();
-  // Başlığı dosya adı yap (yazdırırken önerilen ad olur)
-  const titled = html.replace(/<title>.*?<\/title>/i, `<title>${filename.replace(/\.pdf$/i, "")}</title>`);
-  w.document.write(titled);
-  w.document.close();
-  w.focus();
-  // İçerik ve fontlar yüklensin, sonra yazdır (kullanıcı Hedef: PDF seçer)
-  setTimeout(() => { try { w.print(); } catch (e) {} }, 500);
+  if (hazirPencere && !hazirPencere.closed) { try { hazirPencere.close(); } catch (e) {} }
+  const ad = /\.pdf$/i.test(filename) ? filename : filename + ".pdf";
+  // Kayıt yeri sorulur (Chrome/Edge). Desteklemeyen tarayıcıda dosya İndirilenler klasörüne iner.
+  let tutucu = null;
+  if (window.showSaveFilePicker) {
+    try { tutucu = await window.showSaveFilePicker({ suggestedName: ad, types: [{ description: "PDF belgesi", accept: { "application/pdf": [".pdf"] } }] }); }
+    catch (e) { if (e && e.name === "AbortError") return; tutucu = null; }
+  }
+  const bilgi = pdfBekleGoster("PDF hazırlanıyor…");
+  try {
+    const blob = await htmlToPdfBlob(html, orientation);
+    if (tutucu) { const y = await tutucu.createWritable(); await y.write(blob); await y.close(); }
+    else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = ad; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+    bilgi.kapat();
+  } catch (e) {
+    bilgi.kapat();
+    swalAlert("PDF oluşturulamadı: " + e.message + "\n\nBunun yerine yazdırma penceresi açılıyor; oradan \"PDF olarak kaydet\" seçebilirsiniz.");
+    openPrintWindow(html);
+  }
 }
 
 const PRINT_STYLES = `
@@ -7409,7 +7484,7 @@ function ClientContractTab({ client, currentStaff }) {
     return true;
   };
   const dosyaAdi = () => `Sozlesme-${client.name.replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${f.baslangic}.pdf`;
-  const onizle = async (asPdf) => { if (!await kontrol()) return; const html = sozlesmeHTML(client, f); asPdf ? downloadPdfFromHTML(html, dosyaAdi()) : openPrintWindow(html); };
+  const onizle = async (asPdf) => { if (!await kontrol()) return; const html = sozlesmeHTML(client, f); asPdf ? downloadPdfFromHTML(html, dosyaAdi()) : openPreviewWindow(html); };
   const kaydet = async (sonra) => {
     if (!await kontrol()) return;
     setBusy(true);
