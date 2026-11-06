@@ -6938,9 +6938,11 @@ async function htmlToPdfBlob(html, orientation) {
     if (ust) ust.remove(); if (alt) alt.remove();
     d.querySelectorAll("table.sayfa > thead td, table.sayfa > tfoot td").forEach(td => { td.style.height = "0"; });
     // Sayfa sonu: paragraf, satır, kutu ortadan bölünmesin
-    const st = d.createElement("style"); st.textContent = "p, li, tr, .taraf, .taraf-imza, .imza, .kutu, .card, .pkg { break-inside: avoid; page-break-inside: avoid; }"; d.head.appendChild(st);
+    const st = d.createElement("style"); st.textContent = "p, li, tr, .taraf, .taraf-imza, .imza, .kutu, .card, .pkg, .r-kutu, .r-ikili, .r-kpi, .r-vurgular, .r-kapak { break-inside: avoid; page-break-inside: avoid; }"; d.head.appendChild(st);
     // Başlık sayfa sonunda yalnız kalmasın: başlık + ilk öğe birlikte tutulur
-    d.querySelectorAll("h1, h2, h3").forEach(h => { const n = h.nextElementSibling; if (!n || /^H[1-6]$/.test(n.tagName)) return; const sar = d.createElement("div"); sar.style.cssText = "break-inside:avoid;page-break-inside:avoid"; h.parentNode.insertBefore(sar, h); sar.appendChild(h); sar.appendChild(n); });
+    d.querySelectorAll("h1, h2, h3, .r-bolum-baslik").forEach(h => { if (h.closest(".r-bolum-baslik") && h !== h.closest(".r-bolum-baslik")) return; const n = h.nextElementSibling; if (!n || /^H[1-6]$/.test(n.tagName)) return; const sar = d.createElement("div"); sar.style.cssText = "break-inside:avoid;page-break-inside:avoid"; h.parentNode.insertBefore(sar, h); sar.appendChild(h); sar.appendChild(n); });
+    // SVG grafikler: yüzde genişlik yerine ölçülen piksel boyutu (html2canvas viewBox'ı ancak böyle doğru ölçekler)
+    d.querySelectorAll("svg").forEach(svg => { const r = svg.getBoundingClientRect(); if (r.width > 0 && r.height > 0) { svg.setAttribute("width", Math.round(r.width)); svg.setAttribute("height", Math.round(r.height)); svg.style.width = Math.round(r.width) + "px"; svg.style.height = Math.round(r.height) + "px"; } });
     // Diziler çerçevenin kendi Array'inden olmalı (html2pdf "instanceof Array" ile denetler)
     const dizi = (...x) => { const a = new w.Array(); x.forEach(v => a.push(v)); return a; };
     const pdf = await w.html2pdf().set({
@@ -6996,13 +6998,14 @@ const rSayi = (n) => (n === null || n === undefined || n === "" || isNaN(Number(
 const rKisa = (n) => { n = Number(n) || 0; const a = Math.abs(n); const s = a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(".", ",").replace(",0", "") + "M" : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(".", ",").replace(",0", "") + "B" : String(Math.round(a)); return (n < 0 ? "-" : "") + s; };
 const rKacis = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 // Önceki döneme göre değişim: { yuzde, fark } ya da null
-const rDegisim = (simdi, once) => { const a = Number(simdi), b = Number(once); if (!isFinite(a) || !isFinite(b) || once === null || once === undefined) return null; if (b === 0) return a === 0 ? { yuzde: 0, fark: 0 } : { yuzde: null, fark: a }; return { yuzde: Math.round(((a - b) / b) * 100), fark: a - b }; };
+// Önceki değer 10'un altındaysa yüzde yanıltır ("+5644%"): o zaman yalnız fark gösterilir
+const rDegisim = (simdi, once) => { const a = Number(simdi), b = Number(once); if (!isFinite(a) || !isFinite(b) || once === null || once === undefined) return null; if (b === 0) return a === 0 ? { yuzde: 0, fark: 0 } : { yuzde: null, fark: a }; if (Math.abs(b) < 10) return { yuzde: null, fark: a - b }; return { yuzde: Math.round(((a - b) / b) * 100), fark: a - b }; };
 const rRozet = (d, tersIyi = false) => {
   if (!d) return "";
   const iyi = tersIyi ? d.fark < 0 : d.fark > 0, kotu = tersIyi ? d.fark > 0 : d.fark < 0;
   const renk = iyi ? "#15803D" : kotu ? "#B91C1C" : "#6B7280", arka = iyi ? "#DCFCE7" : kotu ? "#FEE2E2" : "#F3F4F6";
   const ok = d.fark > 0 ? "▲" : d.fark < 0 ? "▼" : "•";
-  const metin = d.yuzde === null ? (d.fark > 0 ? "+" : "") + rKisa(d.fark) : (d.yuzde > 0 ? "+" : "") + d.yuzde + "%";
+  const metin = d.yuzde === null ? (d.fark > 0 ? "+" : "") + rSayi(d.fark) : d.yuzde >= 1000 ? `${Math.round(d.yuzde / 100 + 1)} kat` : (d.yuzde > 0 ? "+" : "") + d.yuzde + "%";
   return `<span class="r-rozet" style="color:${renk};background:${arka}">${ok} ${metin}</span>`;
 };
 // Eksen için "güzel" üst sınır ve adımlar

@@ -398,7 +398,7 @@ export function InstagramIstatistik({ client }) {
 
   // Grafikli, antetli aylık rapor (PDF ya da yazıcı). Görseller sunucu üzerinden alınır (Instagram CDN'i tarayıcıya izin vermez)
   const [raporBusy, setRaporBusy] = useState(false);
-  const gorselVeri = async (url) => { try { const r = await panelFetch(`/.netlify/functions/planlayici?islem=gorsel&url=${encodeURIComponent(url)}`); const j = await r.json().catch(() => ({})); return r.ok && j.veri ? j.veri : ""; } catch (e) { return ""; } };
+  const gorselVeri = async (url) => { try { const r = await panelFetch(`/.netlify/functions/planlayici?islem=gorsel&url=${encodeURIComponent(url)}`); const j = await r.json().catch(() => ({})); if (!r.ok || !j.veri) console.warn("Rapor görseli alınamadı:", r.status, j.error || ""); return r.ok && j.veri ? j.veri : ""; } catch (e) { console.warn("Rapor görseli alınamadı:", e.message); return ""; } };
   const rapor = async (asPdf) => {
     setRaporBusy(true);
     try {
@@ -406,7 +406,11 @@ export function InstagramIstatistik({ client }) {
       const d = (k) => (buAyOz?.veriVar && oncekiOz?.veriVar) ? rDegisim(buAyOz[k], oncekiOz[k]) : null;
       const etkilesim = top("begeni") + top("yorum") + top("kaydetme") + top("paylasim");
       const erisim = veri?.genel?.reach ?? top("erisim"), goruntulenme = veri?.genel?.views ?? top("goruntulenme");
-      const oran = erisim ? etkilesim / erisim * 100 : null;
+      const gonderiErisim = top("erisim"), gonderiGoruntulenme = top("goruntulenme");
+      // Etkileşim oranı gönderilerin kendi erişimine göre (hesap erişimi reklamla şiştiğinde yanıltmasın)
+      const oran = gonderiErisim ? etkilesim / gonderiErisim * 100 : null;
+      const oranYaz = (x) => x === null ? "—" : "%" + (x < 1 ? x.toFixed(2) : x.toFixed(1)).replace(".", ",");
+      const reklamEtkisi = gonderiErisim > 0 && erisim > gonderiErisim * 3;
       const sirali = [...medya].sort((a, b) => (Number(b.goruntulenme) || 0) - (Number(a.goruntulenme) || 0));
       const enIyi = sirali.slice(0, 5);
       const [foto, ...kucukler] = await Promise.all([veri?.hesap?.foto ? gorselVeri(veri.hesap.foto) : "", ...enIyi.map(x => x.gorsel ? gorselVeri(x.gorsel) : "")]);
@@ -416,14 +420,16 @@ export function InstagramIstatistik({ client }) {
       const enIyiGun = [...gunler].sort((a, b) => b.ort - a.ort)[0];
       const aylar = (ozet || []).filter(o => o.veriVar);
       const ayEt = aylar.map(o => { const [y, m] = o.ay.split("-").map(Number); return AYLAR[m - 1].slice(0, 3) + " " + String(y).slice(2); });
-      const yuzdeYaz = (x) => x ? (x.yuzde === null ? "" : ` (${x.yuzde > 0 ? "+" : ""}${x.yuzde}% önceki aya göre)`) : "";
+      const yuzdeYaz = (x) => !x ? "" : x.yuzde === null ? ` (önceki aya göre ${x.fark > 0 ? "+" : ""}${rSayi(x.fark)})` : x.yuzde >= 1000 ? ` (önceki ayın ${Math.round(x.yuzde / 100 + 1)} katı)` : ` (${x.yuzde > 0 ? "+" : ""}${x.yuzde}% önceki aya göre)`;
       const vurgular = [
-        { baslik: `${rSayi(erisim)} hesaba ulaşıldı`, metin: `İçerikler toplam ${rSayi(goruntulenme)} kez görüntülendi${yuzdeYaz(d("erisim"))}.`, renk: "#F25124" },
-        oran !== null ? { baslik: `Etkileşim oranı %${oran.toFixed(1).replace(".", ",")}`, metin: `Toplam ${rSayi(etkilesim)} etkileşim: beğeni, yorum, kaydetme ve paylaşım${yuzdeYaz(d("etkilesim"))}.`, renk: "#2D5BFF" } : null,
-        tk.kayitVar ? { baslik: `${tk.net > 0 ? "+" : ""}${rSayi(tk.net)} net takipçi`, metin: `${rSayi(tk.yeni)} yeni takipçi kazanıldı, ${rSayi(tk.ayrilan)} kişi ayrıldı. Ay sonu takipçi sayısı ${rSayi(tk.bitis ?? veri?.hesap?.takipci)}.`, renk: "#22B07D" } : { baslik: `${rSayi(veri?.hesap?.takipci)} takipçi`, metin: "Günlük takipçi hareketi arşivi ilk kayıttan sonra raporda yer alır.", renk: "#22B07D" },
+        { baslik: `${rSayi(erisim)} hesaba ulaşıldı`, metin: `Hesap bu ay toplam ${rSayi(goruntulenme)} görüntülenme aldı${yuzdeYaz(d("erisim"))}.`, renk: "#F25124" },
+        reklamEtkisi ? { baslik: "Reklam ve keşfet etkisi", metin: `Ay içindeki ${medya.length} paylaşımın kendi erişimi ${rSayi(gonderiErisim)}; hesap geneli erişimin büyük bölümü reklamlar, keşfet ve hikâyelerden geldi.`, renk: "#E0A800" } : null,
+        oran !== null ? { baslik: `Gönderi etkileşim oranı ${oranYaz(oran)}`, metin: `Gönderilere ulaşan her 100 hesaptan ${(oran < 1 ? oran.toFixed(2) : oran.toFixed(1)).replace(".", ",")} tanesi etkileşime girdi; toplam ${rSayi(etkilesim)} etkileşim${yuzdeYaz(d("etkilesim"))}.`, renk: "#2D5BFF" } : null,
+        tk.kayitVar ? { baslik: `${tk.net > 0 ? "+" : ""}${rSayi(tk.net)} net takipçi`, metin: `${rSayi(tk.yeni)} yeni takipçi kazanıldı, ${rSayi(tk.ayrilan)} kişi ayrıldı. Ay sonu takipçi sayısı ${rSayi(tk.bitis ?? veri?.hesap?.takipci)}.`, renk: "#22B07D" } : { baslik: `${rSayi(veri?.hesap?.takipci)} takipçi`, metin: `Hesabın güncel takipçi sayısı. Aylık takipçi kazanım ve kayıp analizi bir sonraki raporda yer alacak.`, renk: "#22B07D" },
         enIyi[0] ? { baslik: "En çok izlenen içerik", metin: `${turAdi(enIyi[0].tur)} · ${zamanYaz(enIyi[0].zaman).split(" · ")[0]} · ${rSayi(enIyi[0].goruntulenme)} görüntülenme, ${rSayi(enIyi[0].begeni)} beğeni.`, renk: "#7B3FF2" } : null,
-        enIyiTur ? { baslik: `En verimli format: ${turAdi(enIyiTur.t)}`, metin: `${enIyiTur.adet} paylaşımda ortalama ${rSayi(enIyiTur.ort)} görüntülenme.`, renk: "#FF2E88" } : null,
-        enIyiGun ? { baslik: `En iyi gün: ${enIyiGun.g}`, metin: `${enIyiGun.g} günü yapılan paylaşımlar ortalama ${rSayi(enIyiGun.ort)} görüntülenme aldı.`, renk: "#E0A800" } : null,
+        enIyiTur && turler.length > 1 ? { baslik: `En verimli format: ${turAdi(enIyiTur.t)}`, metin: `${enIyiTur.adet} paylaşımda ortalama ${rSayi(enIyiTur.ort)} görüntülenme.`, renk: "#FF2E88" } : null,
+        enIyiGun && gunler.length > 1 && enIyiGun.adet > 1 ? { baslik: `En iyi gün: ${enIyiGun.g}`, metin: `${enIyiGun.g} günü yapılan ${enIyiGun.adet} paylaşım ortalama ${rSayi(enIyiGun.ort)} görüntülenme aldı.`, renk: "#E0A800" } : null,
+        medya.length < 4 ? { baslik: "Paylaşım sıklığı", metin: `Bu ay ${medya.length} paylaşım yapıldı. Düzenli ve daha sık içerik, erişim ve takipçi artışının temel koşuludur.`, renk: "#9CA3AF" } : null,
       ];
       const kpi = [
         { etiket: "Takipçi", deger: veri?.hesap?.takipci, degisim: d("takipci"), renk: "#22B07D" },
@@ -449,7 +455,7 @@ export function InstagramIstatistik({ client }) {
         raporBolum("Bu ayın analizi", raporIkili(
           raporKutu("Etkileşim dağılımı", grafikHalka({ dilimler: [{ ad: "Beğeni", deger: top("begeni"), renk: "#EF4444" }, { ad: "Yorum", deger: top("yorum"), renk: "#8B5CF6" }, { ad: "Kaydetme", deger: top("kaydetme"), renk: "#F59E0B" }, { ad: "Paylaşım", deger: top("paylasim"), renk: "#06B6D4" }], merkez: rKisa(etkilesim), merkezAlt: "etkileşim" })),
           raporKutu("İçerik türlerine göre ortalama görüntülenme", turler.length ? grafikYatayCubuk({ satirlar: turler.map((x, i) => ({ ad: turAdi(x.t), alt: `${x.adet} paylaşım · ${rSayi(x.etk)} etkileşim`, deger: x.ort, renk: RAPOR_PALET[i % RAPOR_PALET.length] })) }) : "<div class='r-kucuk'>Bu ay paylaşım yok</div>"))
-          + (gunler.length > 1 ? raporKutu("Haftanın günlerine göre ortalama görüntülenme", grafikCubuk({ etiketler: gunler.map(x => x.g), seriler: [{ ad: "Ortalama görüntülenme", degerler: gunler.map(x => x.ort), renk: "#2D5BFF" }], yukseklik: 170 })) : "")
+          + (gunler.length > 1 && medya.length >= 4 ? raporKutu("Haftanın günlerine göre ortalama görüntülenme", grafikCubuk({ etiketler: gunler.map(x => x.g), seriler: [{ ad: "Ortalama görüntülenme", degerler: gunler.map(x => x.ort), renk: "#2D5BFF" }], yukseklik: 170 })) : "")
           + (tkGun.length ? raporKutu("Günlük takipçi hareketi", grafikCubuk({ etiketler: tkGun.map(x => String(Number(x.gun.slice(8, 10)))), seriler: [{ ad: "Yeni", degerler: tkGun.map(x => x.yeni || 0), renk: "#22B07D" }, { ad: "Ayrılan", degerler: tkGun.map(x => x.ayrilan || 0), renk: "#EF4444" }], yukseklik: 170, degerGoster: false }), `Ay başı ${rSayi(tk.baslangic)} → ay sonu ${rSayi(tk.bitis)} takipçi`) : "")),
         enIyi.length ? raporBolum("En iyi içerikler", raporTablo(["", "Tarih", "Tür", "Açıklama", "Görüntülenme", "Erişim", "Beğeni", "Yorum", "Kaydetme"], enIyi.map((x, i) => [{ html: kucukler[i] ? `<img src="${kucukler[i]}" alt="">` : "" }, zamanYaz(x.zaman).split(" · ")[0], turAdi(x.tur), (x.aciklama || "").slice(0, 70), rSayi(x.goruntulenme), rSayi(x.erisim), rSayi(x.begeni), rSayi(x.yorum), rSayi(x.kaydetme)]), ["sol", "sol", "sol", "sol", "sag", "sag", "sag", "sag", "sag"]), "Görüntülenmeye göre ilk 5") : "",
         reklamlar.length ? raporBolum("Reklamlar", raporKPI([{ etiket: "Reklam", deger: reklamlar.length, renk: "#F25124" }, { etiket: "Erişim", deger: reklamTop("erisim"), renk: "#2D5BFF" }, { etiket: "Tıklama", deger: reklamTop("tiklama"), renk: "#22B07D" }, { etiket: "Harcama", deger: reklamParaYaz(reklamTop("harcama")), renk: "#E0A800" }], 4) + raporTablo(["Reklam", "Amaç", "Tarih", "Erişim", "Gösterim", "Tıklama", "Harcama"], reklamlar.map(r => [r.baslik || reklamAmacAdi(r.amac), reklamAmacAdi(r.amac), `${gunYaz(r.baslangic)}${r.bitis ? " – " + gunYaz(r.bitis) : ""}`, rSayi(r.sonuc?.erisim), rSayi(r.sonuc?.gosterim), rSayi(r.sonuc?.tiklama), reklamParaYaz(r.sonuc?.harcama)]), ["sol", "sol", "sol", "sag", "sag", "sag", "sag"])) : "",
