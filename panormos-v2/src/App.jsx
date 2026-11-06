@@ -7512,7 +7512,6 @@ function ClientContractTab({ client, currentStaff }) {
   const bitis = f.baslangic ? ayEkle(f.baslangic, f.sure_ay) : "";
   const k = f.sartlar;
   const kalanOrnek = Math.round(ucret * Math.max(1, Math.ceil((Number(f.sure_ay) || 12) / 2)) * (Number(k.cayma_orani) || 0) / 100);
-  const Sayi = ({ ad, label, sonek }) => <SartSayi k={k} sart={sart} ad={ad} label={label} sonek={sonek} />;
   if (loading) return <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>;
 
   return <div>
@@ -7555,34 +7554,34 @@ function ClientContractTab({ client, currentStaff }) {
       {sartAcik && <div style={{ padding: "12px 14px 2px" }}>
         <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Ödeme</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
-          <Sayi ad="vade_gun" label="Ödeme vadesi" sonek="gün" />
-          <Sayi ad="gecikme_faizi" label="Gecikme faizi (aylık)" sonek="%" />
-          <Sayi ad="askiya_alma_gun" label="Askıya alma (vadeden sonra)" sonek="gün" />
-          <Sayi ad="fesih_gun" label="Ödememe nedeniyle fesih" sonek="gün" />
+          <SartSayi k={k} sart={sart} ad="vade_gun" label="Ödeme vadesi" sonek="gün" />
+          <SartSayi k={k} sart={sart} ad="gecikme_faizi" label="Gecikme faizi (aylık)" sonek="%" />
+          <SartSayi k={k} sart={sart} ad="askiya_alma_gun" label="Askıya alma (vadeden sonra)" sonek="gün" />
+          <SartSayi k={k} sart={sart} ad="fesih_gun" label="Ödememe nedeniyle fesih" sonek="gün" />
           <FormField label="Yenilemede fiyat artışı ölçütü"><Select value={k.yillik_artis} onChange={e => sart("yillik_artis", e.target.value)}>{["TÜFE", "ÜFE", "TÜFE ve ÜFE ortalaması", "Taraflarca belirlenecek"].map(o => <option key={o} value={o}>{o}</option>)}</Select></FormField>
-          <Sayi ad="bildirim_gun" label="Olağan fesih bildirimi" sonek="gün önce" />
+          <SartSayi k={k} sart={sart} ad="bildirim_gun" label="Olağan fesih bildirimi" sonek="gün önce" />
         </div>
         <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "6px 0 8px" }}>Erken Fesih (Cayma)</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
-          <Sayi ad="cayma_orani" label="Kalan ayların bedelinin" sonek="%" />
-          <Sayi ad="cayma_en_az_ay" label="En az" sonek="aylık bedel" />
+          <SartSayi k={k} sart={sart} ad="cayma_orani" label="Kalan ayların bedelinin" sonek="%" />
+          <SartSayi k={k} sart={sart} ad="cayma_en_az_ay" label="En az" sonek="aylık bedel" />
           <div style={{ fontSize: 12, color: T.textSecondary, alignSelf: "center", lineHeight: 1.5 }}>Örnek: {Math.ceil((Number(f.sure_ay) || 12) / 2)} ay kala ayrılırsa ≈ <b>{fmtMoney(Math.max(kalanOrnek, ucret * (Number(k.cayma_en_az_ay) || 0)))}</b> cayma bedeli</div>
         </div>
         <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "6px 0 8px" }}>Ek Ücretler</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
-          <Sayi ad="revizyon_hakki" label="Ücretsiz revizyon (içerik başına)" sonek="adet" />
-          <Sayi ad="ek_revizyon_ucreti" label="Ek revizyon ücreti (boş: fiyat listesi)" sonek="₺" />
-          <Sayi ad="ek_icerik_ucreti" label="Ek içerik ücreti (boş: fiyat listesi)" sonek="₺" />
-          <Sayi ad="acil_fark" label="Acil iş farkı (48 saatten kısa)" sonek="%" />
-          <Sayi ad="cekim_iptal_orani" label="Geç çekim iptali bedeli" sonek="%" />
-          <Sayi ad="onay_is_gunu" label="İçerik onay süresi" sonek="iş günü" />
+          <SartSayi k={k} sart={sart} ad="revizyon_hakki" label="Ücretsiz revizyon (içerik başına)" sonek="adet" />
+          <SartSayi k={k} sart={sart} ad="ek_revizyon_ucreti" label="Ek revizyon ücreti (boş: fiyat listesi)" sonek="₺" />
+          <SartSayi k={k} sart={sart} ad="ek_icerik_ucreti" label="Ek içerik ücreti (boş: fiyat listesi)" sonek="₺" />
+          <SartSayi k={k} sart={sart} ad="acil_fark" label="Acil iş farkı (48 saatten kısa)" sonek="%" />
+          <SartSayi k={k} sart={sart} ad="cekim_iptal_orani" label="Geç çekim iptali bedeli" sonek="%" />
+          <SartSayi k={k} sart={sart} ad="onay_is_gunu" label="İçerik onay süresi" sonek="iş günü" />
         </div>
         <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "6px 0 8px" }}>Koruyucu Maddeler</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0 12px" }}>
-          <Sayi ad="sorumluluk_ay" label="Ajans sorumluluk üst sınırı" sonek="aylık bedel" />
-          <Sayi ad="ayartma_yasagi_ay" label="Personel ayartmama süresi" sonek="ay" />
-          <Sayi ad="cezai_sart_ay" label="Ayartma cezai şartı" sonek="aylık bedel" />
-          <Sayi ad="gizlilik_yil" label="Gizlilik (bitimden sonra)" sonek="yıl" />
+          <SartSayi k={k} sart={sart} ad="sorumluluk_ay" label="Ajans sorumluluk üst sınırı" sonek="aylık bedel" />
+          <SartSayi k={k} sart={sart} ad="ayartma_yasagi_ay" label="Personel ayartmama süresi" sonek="ay" />
+          <SartSayi k={k} sart={sart} ad="cezai_sart_ay" label="Ayartma cezai şartı" sonek="aylık bedel" />
+          <SartSayi k={k} sart={sart} ad="gizlilik_yil" label="Gizlilik (bitimden sonra)" sonek="yıl" />
         </div>
         <div style={{ textAlign: "right", marginBottom: 10 }}><Btn onClick={() => setF(x => ({ ...x, sartlar: { ...SOZLESME_SART_VARSAYILAN } }))} style={{ fontSize: 11.5, padding: "5px 10px" }}>Varsayılanlara dön</Btn></div>
       </div>}
