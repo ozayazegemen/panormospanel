@@ -2040,10 +2040,10 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
   const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"insta",lbl:"📈 Instagram"},{id:"ai",lbl:"✨ Asistan"}];
-  const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}] : baseTabs;
+  const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}, {id:"contract",lbl:"📜 Sözleşme"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
-  const safeTab = (currentTab === "invoices" && !perms.finance) ? "overview" : currentTab;
+  const safeTab = ((currentTab === "invoices" || currentTab === "contract") && !perms.finance) ? "overview" : currentTab;
 
   // Bu müşterinin TÜM bilgilerini Excel'e aktar (birden çok sayfa)
   const exportClientAll = async () => {
@@ -2146,6 +2146,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="insta"&&<InstagramIstatistik client={client}/>}
       {safeTab==="ai"&&<ClientAI client={client}/>}
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
+      {safeTab==="contract"&&perms.finance&&<ClientContractTab client={client} currentStaff={currentStaff}/>}
     </div>
     
     {mailModal && <ClientMailModal client={client} currentStaff={currentStaff} onClose={()=>setMailModal(false)} />}
@@ -7014,6 +7015,13 @@ const QUOTE_SETTINGS = {
   list_footer_text: "Size özel paket için bizimle iletişime geçin.",
   quote_footer_title: "Teklifimizi incelediğiniz için teşekkür ederiz",
   quote_footer_text: "Başlamak için bizimle iletişime geçin.",
+  // Sözleşme belgesinde "Hizmet Veren" bilgileri
+  company_title: "Panormos Medya San. ve Tic. Ltd. Şti.",
+  company_address: "",
+  company_tax_office: "",
+  company_tax_no: "",
+  company_rep: "",
+  contract_city: "Bandırma",
 };
 async function loadQuoteSettings() {
   try {
@@ -7088,6 +7096,253 @@ function printQuote(quote, addonList, asPdf) {
   </body></html>`;
   if (asPdf) { downloadPdfFromHTML(html, `Teklif-${(quote.client_name || "Musteri").replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${new Date().toISOString().slice(0,10)}.pdf`); return; }
   openPrintWindow(html);
+}
+
+// ═══════════════ MÜŞTERİ SÖZLEŞMESİ (Müşteriler → müşteri → Sözleşme sekmesi) ═══════════════
+// Paket seçilince ücret ve hizmet kapsamı kendiliğinden dolar; belge yazdırılır / PDF alınır ve sozlesmeler tablosuna kaydedilir.
+const SOZLESME_DURUM = {
+  taslak: { label: "Taslak", color: T.textMuted, bg: T.bgSurface },
+  imzalandi: { label: "İmzalandı", color: T.greenText, bg: T.greenDim },
+  bitti: { label: "Süresi Doldu", color: T.amberText, bg: T.amberDim },
+  iptal: { label: "İptal", color: T.redText, bg: T.redDim },
+};
+const SOZLESME_STYLES = `
+  @page { size: A4 portrait; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:34px 38px; font-size:10.5px; line-height:1.55; }
+  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1A2B3F; padding-bottom:10px; margin-bottom:14px; }
+  .logo { font-size:15px; font-weight:800; color:#1A2B3F; }
+  .logo .m { color:#F25124; }
+  .head .no { text-align:right; font-size:9.5px; color:#6B7280; }
+  h1 { font-size:15px; color:#1A2B3F; text-align:center; margin:4px 0 14px; letter-spacing:0.02em; }
+  h2 { font-size:11px; color:#1A2B3F; margin:12px 0 5px; text-transform:uppercase; letter-spacing:0.04em; }
+  p { margin-bottom:5px; text-align:justify; }
+  .taraflar { display:flex; gap:12px; margin-bottom:6px; }
+  .taraf { flex:1; border:1px solid #E5E7EB; border-radius:8px; padding:9px 11px; }
+  .taraf .b { font-size:9px; color:#F25124; font-weight:800; letter-spacing:0.06em; margin-bottom:4px; }
+  .taraf .u { font-weight:800; font-size:11px; margin-bottom:3px; }
+  .taraf div { font-size:9.8px; }
+  table { width:100%; border-collapse:collapse; margin:4px 0 6px; page-break-inside:avoid; }
+  th { background:#1A2B3F; color:#fff; padding:5px 9px; text-align:left; font-size:9.5px; }
+  td { padding:4px 9px; border-bottom:1px solid #E5E7EB; font-size:9.8px; vertical-align:top; }
+  ul { margin:2px 0 6px 16px; }
+  li { margin-bottom:2px; }
+  .imza { display:flex; gap:24px; margin-top:26px; page-break-inside:avoid; }
+  .imza div { flex:1; border-top:1px solid #1F2937; padding-top:6px; font-size:9.8px; }
+  .imza b { display:block; font-size:10.5px; }
+  .imza small { display:block; color:#6B7280; margin-top:28px; }
+  .not { font-size:8.5px; color:#8A8F98; margin-top:12px; }
+  @media print { html, body { height:auto; } body { padding:14mm 13mm; } th { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+`;
+const tarihYaz = (ymd) => ymd ? new Date(ymd + "T00:00:00").toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
+const ayEkle = (ymd, ay) => { const d = new Date(ymd + "T00:00:00"); d.setMonth(d.getMonth() + Number(ay || 0)); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const kacis = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Tutarı yazıyla (ör. 20.000 → yirmi bin) — sözleşmelerde alışılmış
+function sayiYaziyla(n) {
+  n = Math.round(Number(n) || 0); if (!n) return "sıfır";
+  const bir = ["", "bir", "iki", "üç", "dört", "beş", "altı", "yedi", "sekiz", "dokuz"], on = ["", "on", "yirmi", "otuz", "kırk", "elli", "altmış", "yetmiş", "seksen", "doksan"];
+  const yuzler = (x) => { let s = ""; const y = Math.floor(x / 100), o = Math.floor((x % 100) / 10), b = x % 10; if (y) s += (y > 1 ? bir[y] + " " : "") + "yüz "; if (o) s += on[o] + " "; if (b) s += bir[b] + " "; return s; };
+  const basamak = ["", "bin", "milyon", "milyar"]; let s = "", i = 0;
+  while (n > 0) { const p = n % 1000; if (p) s = ((p === 1 && i === 1) ? "" : yuzler(p)) + basamak[i] + " " + s; n = Math.floor(n / 1000); i++; }
+  return s.trim().replace(/\s+/g, " ");
+}
+
+function sozlesmeHTML(client, f) {
+  const S = QUOTE_SETTINGS;
+  const kdv = Number(f.kdv_orani ?? S.vat_rate) || 20;
+  const ucret = Number(f.aylik_ucret) || 0, toplam = ucret * (1 + kdv / 100);
+  const bitis = ayEkle(f.baslangic, f.sure_ay);
+  const kapsam = (f.kapsam || []).filter(x => String(x).trim());
+  const ekler = (f.ek_hizmetler || []);
+  const platformlar = (client.platforms || []).map(p => platformConfig[p]?.label || p).filter(Boolean).join(", ");
+  const gunler = (client.publishDays || []).join(", ");
+  const simdi = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Sözleşme - ${kacis(client.name)}</title><style>${SOZLESME_STYLES}</style></head><body>
+  <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><div class="no">Sözleşme No: <b>${kacis(f.sozlesme_no)}</b><br>Tarih: ${simdi}</div></div>
+  <h1>SOSYAL MEDYA YÖNETİMİ HİZMET SÖZLEŞMESİ</h1>
+
+  <h2>1. Taraflar</h2>
+  <div class="taraflar">
+    <div class="taraf"><div class="b">HİZMET VEREN (AJANS)</div><div class="u">${kacis(S.company_title)}</div><div>${kacis(S.company_address)}</div><div>Vergi Dairesi / No: ${kacis(S.company_tax_office)} / ${kacis(S.company_tax_no)}</div><div>Yetkili: ${kacis(S.company_rep)}</div><div>Tel: ${kacis(S.phone)} · ${kacis(S.email)}</div></div>
+    <div class="taraf"><div class="b">HİZMET ALAN (MÜŞTERİ)</div><div class="u">${kacis(client.name)}</div><div>${kacis([client.address, client.district, client.city].filter(Boolean).join(" ") || "—")}</div><div>Vergi Dairesi / No: ${kacis(client.taxOffice || "—")} / ${kacis(client.taxNumber || "—")}</div><div>Yetkili: ${kacis(f.musteri_yetkili || "—")}</div><div>Tel: ${kacis(client.phone || "—")}${client.email ? " · " + kacis(client.email) : ""}</div></div>
+  </div>
+  <p>Yukarıda bilgileri yazılı taraflar arasında, aşağıdaki şartlarla bir sosyal medya yönetimi hizmet sözleşmesi ("Sözleşme") akdedilmiştir. Sözleşmede Hizmet Veren "AJANS", Hizmet Alan "MÜŞTERİ" olarak anılacaktır.</p>
+
+  <h2>2. Sözleşmenin Konusu</h2>
+  <p>İşbu Sözleşme'nin konusu, AJANS'ın MÜŞTERİ'ye ait${platformlar ? " " + kacis(platformlar) : ""} sosyal medya hesaplarının yönetimi, içerik üretimi ve ilgili dijital hizmetleri, "${kacis(f.paket_adi || "Özel Paket")}" kapsamında ve aşağıda belirtilen şartlarla sunmasıdır.</p>
+
+  <h2>3. Hizmet Kapsamı</h2>
+  ${kapsam.length ? `<ul>${kapsam.map(k => `<li>${kacis(k)}</li>`).join("")}</ul>` : "<p>Hizmet kapsamı taraflarca ayrıca belirlenecektir.</p>"}
+  ${gunler ? `<p>Paylaşımlar kural olarak <b>${kacis(gunler)}</b> günleri yapılır; taraflar yazılı mutabakatla gün ve saatleri değiştirebilir.</p>` : ""}
+  ${ekler.length ? `<table><thead><tr><th>Ek Hizmet</th><th>Ücret</th></tr></thead><tbody>${ekler.map(e => `<tr><td>${kacis(e.ad)}</td><td>${kacis(e.fiyat || "—")}</td></tr>`).join("")}</tbody></table>` : ""}
+  <p>Reklam bütçeleri (Meta, Google vb. platformlara ödenen tutarlar) hizmet bedeline dahil değildir; MÜŞTERİ tarafından ayrıca karşılanır.</p>
+
+  <h2>4. Süre</h2>
+  <p>Sözleşme <b>${tarihYaz(f.baslangic)}</b> tarihinde başlar ve <b>${f.sure_ay} ay</b> süreyle, <b>${tarihYaz(bitis)}</b> tarihine kadar geçerlidir. Süre bitiminden en az 30 gün önce taraflardan biri yazılı olarak sona erdirme bildiriminde bulunmadıkça Sözleşme aynı şartlarla birer aylık dönemler halinde kendiliğinden yenilenir.</p>
+
+  <h2>5. Ücret ve Ödeme</h2>
+  <table><thead><tr><th>Kalem</th><th>Tutar</th></tr></thead><tbody>
+    <tr><td>Aylık hizmet bedeli (KDV hariç)</td><td><b>${fmtMoney(ucret)}</b> (${kacis(sayiYaziyla(ucret))} Türk Lirası)</td></tr>
+    <tr><td>KDV (%${kdv})</td><td>${fmtMoney(toplam - ucret)}</td></tr>
+    <tr><td><b>Aylık toplam (KDV dahil)</b></td><td><b>${fmtMoney(toplam)}</b></td></tr>
+  </tbody></table>
+  <p>Hizmet bedeli her ayın <b>${f.odeme_gunu}.</b> günü, AJANS tarafından düzenlenen fatura karşılığında, AJANS'ın bildireceği banka hesabına peşin olarak ödenir. Ödemenin 7 gün içinde yapılmaması halinde AJANS hizmeti askıya alabilir; 30 günü aşan gecikmelerde Sözleşme'yi tek taraflı feshedebilir. Gecikme halinde yasal faiz uygulanır. Fiyatlar her yenileme döneminde yazılı bildirimle güncellenebilir.</p>
+
+  <h2>6. Tarafların Yükümlülükleri</h2>
+  <p><b>AJANS:</b> Hizmetleri özenle, sektör standartlarına uygun ve zamanında sunar; paylaşım öncesi içerikleri MÜŞTERİ'nin onayına sunar; hesap erişim bilgilerini gizli tutar ve yalnızca hizmet amacıyla kullanır; aylık özet rapor paylaşır.</p>
+  <p><b>MÜŞTERİ:</b> Hizmet için gerekli hesap erişimlerini, logo, görsel, ürün ve fiyat bilgilerini zamanında sağlar; sunulan içerikleri en geç 2 iş günü içinde onaylar veya düzeltme talep eder (süresinde yanıt verilmeyen içerikler onaylanmış sayılır); sağladığı bilgi ve görsellerin hukuka uygunluğundan ve üçüncü kişi haklarından sorumludur; çekim için gerekli ortam ve zamanı sağlar.</p>
+
+  <h2>7. Fikri Mülkiyet</h2>
+  <p>Sözleşme süresince üretilen ve bedeli ödenen içeriklerin kullanım hakkı MÜŞTERİ'ye aittir. AJANS, ürettiği işleri referans olarak portföyünde ve kendi tanıtım kanallarında kullanabilir. Bedeli ödenmeyen içeriklerin tüm hakları AJANS'ta kalır.</p>
+
+  <h2>8. Gizlilik</h2>
+  <p>Taraflar, Sözleşme kapsamında öğrendikleri ticari sırları, hesap bilgilerini, şifreleri ve müşteri verilerini sözleşme süresince ve sona ermesinden sonra da gizli tutar; üçüncü kişilerle paylaşmaz. Kişisel veriler 6698 sayılı KVKK'ya uygun olarak işlenir.</p>
+
+  <h2>9. Fesih</h2>
+  <p>Taraflardan her biri, 30 gün önceden yazılı bildirimde bulunarak Sözleşme'yi feshedebilir. Fesih halinde, bildirim süresi sonuna kadar olan hizmet bedeli ödenir; peşin ödenmiş dönemler iade edilmez. Bir tarafın yükümlülüklerini ağır biçimde ihlal etmesi ve yazılı uyarıya rağmen 7 gün içinde düzeltmemesi halinde diğer taraf Sözleşme'yi derhal feshedebilir. Sözleşme sona erdiğinde AJANS, hesaplardaki yetkilerini kaldırır ve erişim bilgilerini MÜŞTERİ'ye teslim eder.</p>
+
+  <h2>10. Diğer Hükümler</h2>
+  <p>Sosyal medya platformlarının algoritma, erişim ve kural değişikliklerinden; hesapların platform tarafından kısıtlanması veya kapatılmasından AJANS sorumlu tutulamaz. Takipçi, erişim ve satış rakamları konusunda garanti verilmez. Bildirimler tarafların yukarıdaki adreslerine ya da e-posta / WhatsApp üzerinden yapılır. Sözleşmeden doğan uyuşmazlıklarda <b>${kacis(S.contract_city || "Bandırma")} Mahkemeleri ve İcra Daireleri</b> yetkilidir.</p>
+  ${f.ozel_sartlar && f.ozel_sartlar.trim() ? `<h2>11. Özel Şartlar</h2><p>${kacis(f.ozel_sartlar).replace(/\n/g, "<br>")}</p>` : ""}
+  <p>İşbu Sözleşme ${f.ozel_sartlar && f.ozel_sartlar.trim() ? "11" : "10"} maddeden ibaret olup, ${simdi} tarihinde iki nüsha olarak düzenlenmiş ve taraflarca okunarak imzalanmıştır.</p>
+
+  <div class="imza">
+    <div><b>HİZMET VEREN</b>${kacis(S.company_title)}<br>${kacis(S.company_rep)}<small>Kaşe / İmza</small></div>
+    <div><b>HİZMET ALAN</b>${kacis(client.name)}<br>${kacis(f.musteri_yetkili || "")}<small>Kaşe / İmza</small></div>
+  </div>
+  <div class="not">Sözleşme No ${kacis(f.sozlesme_no)} · Panormos Medya paneli tarafından hazırlanmıştır.</div>
+  </body></html>`;
+}
+
+function ClientContractTab({ client, currentStaff }) {
+  const [packages, setPackages] = useState([]);
+  const [addons, setAddons] = useState([]);
+  const [liste, setListe] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tabloYok, setTabloYok] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const bugun = todayStr();
+  const varsayilanNo = () => `PM-${new Date().getFullYear()}-${String(Date.now()).slice(-5)}`;
+  const [f, setF] = useState(() => ({
+    sozlesme_no: varsayilanNo(), paket_adi: "", aylik_ucret: client.monthlyFee || "", kdv_orani: QUOTE_SETTINGS.vat_rate || 20,
+    baslangic: (client.agreementDate || "").slice(0, 10) || bugun, sure_ay: 12,
+    odeme_gunu: Number(((client.agreementDate || bugun).slice(8, 10))) || 1,
+    musteri_yetkili: "", kapsam: [], ek_hizmetler: [], ozel_sartlar: "",
+  }));
+
+  const load = async () => {
+    const [{ data: p }, { data: a }, { data: s, error }] = await Promise.all([
+      supabase.from('pricing_packages').select('*').order('sort_order'),
+      supabase.from('pricing_addons').select('*').order('sort_order'),
+      supabase.from('sozlesmeler').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
+    ]);
+    setPackages(p || []); setAddons(a || []); setListe(s || []);
+    if (error && /sozlesmeler/.test(error.message || "")) setTabloYok(true);
+    await loadQuoteSettings();
+    setF(x => ({ ...x, kdv_orani: QUOTE_SETTINGS.vat_rate || 20 }));
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [client.id]);
+
+  // Paket seçilince ücret ve kapsam kendiliğinden dolar
+  const paketSec = (ad) => {
+    const p = packages.find(x => x.name === ad);
+    if (p) setF(x => ({ ...x, paket_adi: p.name, aylik_ucret: p.price, kapsam: [...(p.features || [])] }));
+    else setF(x => ({ ...x, paket_adi: ad, kapsam: ad ? x.kapsam : [] }));
+  };
+  const ekToggle = (a) => setF(x => ({ ...x, ek_hizmetler: x.ek_hizmetler.some(e => e.ad === a.name) ? x.ek_hizmetler.filter(e => e.ad !== a.name) : [...x.ek_hizmetler, { ad: a.name, fiyat: a.price_text || "" }] }));
+
+  const kontrol = () => {
+    if (!f.paket_adi && !f.kapsam.length) { swalAlert("Paket seçin ya da hizmet kapsamını yazın."); return false; }
+    if (!(Number(f.aylik_ucret) > 0)) { swalAlert("Aylık ücret girin."); return false; }
+    if (!f.baslangic) { swalAlert("Başlangıç tarihi seçin."); return false; }
+    if (!f.musteri_yetkili.trim()) { swalAlert("Müşteri tarafında imzalayacak yetkilinin adını yazın."); return false; }
+    if (!QUOTE_SETTINGS.company_title || !QUOTE_SETTINGS.company_rep) { swalAlert("Önce Fiyatlar → Teklif Ayarları → Sözleşme Bilgileri bölümünü doldurun (şirket ünvanı, yetkili, vergi bilgileri)."); return false; }
+    return true;
+  };
+  const onizle = (asPdf) => { if (!kontrol()) return; const html = sozlesmeHTML(client, f); asPdf ? downloadPdfFromHTML(html, `Sozlesme-${client.name.replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${f.baslangic}.pdf`) : openPrintWindow(html); };
+  const kaydet = async (sonra) => {
+    if (!kontrol()) return;
+    setBusy(true);
+    const html = sozlesmeHTML(client, f);
+    const { data, error } = await supabase.from('sozlesmeler').insert({
+      client_id: client.id, sozlesme_no: f.sozlesme_no, paket_adi: f.paket_adi, aylik_ucret: Number(f.aylik_ucret) || 0, kdv_orani: Number(f.kdv_orani) || 20,
+      baslangic: f.baslangic, sure_ay: Number(f.sure_ay) || 12, odeme_gunu: Number(f.odeme_gunu) || 1, musteri_yetkili: f.musteri_yetkili.trim(),
+      kapsam: f.kapsam.filter(x => String(x).trim()), ek_hizmetler: f.ek_hizmetler, ozel_sartlar: f.ozel_sartlar || "", html, olusturan: currentStaff?.name || "",
+    }).select().single();
+    setBusy(false);
+    if (error) { swalAlert("Sözleşme kaydedilemedi: " + error.message + "\n\nsupabase/sozlesme-kurulum.sql dosyasını Supabase'de çalıştırdığınızdan emin olun."); return; }
+    setListe(l => [data, ...l]);
+    setF(x => ({ ...x, sozlesme_no: varsayilanNo() }));
+    if (sonra === "yazdir") openPrintWindow(html);
+    if (sonra === "pdf") downloadPdfFromHTML(html, `Sozlesme-${client.name.replace(/[^\wğüşıöçĞÜŞİÖÇ -]/g, "")}-${f.baslangic}.pdf`);
+  };
+  const durumDegistir = async (s, durum) => { const { error } = await supabase.from('sozlesmeler').update({ durum }).eq('id', s.id); if (error) { swalAlert("Durum değişmedi: " + error.message); return; } setListe(l => l.map(x => x.id === s.id ? { ...x, durum } : x)); };
+  const sil = async (s) => { if (!await swalConfirm(`${s.sozlesme_no} numaralı sözleşme kaydı silinsin mi?`)) return; await supabase.from('sozlesmeler').delete().eq('id', s.id); setListe(l => l.filter(x => x.id !== s.id)); };
+
+  const ucret = Number(f.aylik_ucret) || 0, kdv = Number(f.kdv_orani) || 20;
+  const bitis = f.baslangic ? ayEkle(f.baslangic, f.sure_ay) : "";
+  if (loading) return <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>;
+
+  return <div>
+    {tabloYok && <Card style={{ padding: 14, marginBottom: 14, borderColor: T.amber }}><div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.6 }}><b style={{ color: T.textPrimary }}>Kurulum gerekiyor:</b> Sözleşmeler tablosu veritabanında yok. <b>supabase/sozlesme-kurulum.sql</b> dosyasını Supabase SQL Editor'de bir kez çalıştırın. Yazdırma ve PDF yine de çalışır, yalnızca kayıt tutulmaz.</div></Card>}
+    <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 14, lineHeight: 1.6, background: T.bgInput, borderRadius: 10, padding: "10px 14px" }}>
+      Paketi seçin; ücret ve hizmet kapsamı <b style={{ color: T.textPrimary }}>{client.name}</b> için kendiliğinden dolar. Şirket bilgileri Fiyatlar → Teklif Ayarları'ndan gelir. Belge genel bir şablondur; önemli sözleşmelerde avukatınıza göstermeniz iyi olur.
+    </div>
+
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
+      <FormField label="📦 Paket">
+        <Select value={f.paket_adi} onChange={e => paketSec(e.target.value)}>
+          <option value="">Özel (paketsiz)</option>
+          {packages.map(p => <option key={p.id} value={p.name}>{p.name} · {fmtMoney(Number(p.price))}</option>)}
+        </Select>
+      </FormField>
+      <FormField label="Aylık Ücret (₺, KDV hariç)"><Input type="number" value={f.aylik_ucret} onChange={e => setF(x => ({ ...x, aylik_ucret: e.target.value }))} /></FormField>
+      <FormField label="Başlangıç Tarihi"><Input type="date" value={f.baslangic} onChange={e => setF(x => ({ ...x, baslangic: e.target.value, odeme_gunu: Number(e.target.value.slice(8, 10)) || x.odeme_gunu }))} /></FormField>
+      <FormField label="Süre (ay)">
+        <Select value={f.sure_ay} onChange={e => setF(x => ({ ...x, sure_ay: Number(e.target.value) }))}>{[3, 6, 12, 24].map(n => <option key={n} value={n}>{n} ay</option>)}</Select>
+      </FormField>
+      <FormField label="Ödeme Günü (her ayın)"><Input type="number" value={f.odeme_gunu} onChange={e => setF(x => ({ ...x, odeme_gunu: Math.min(28, Math.max(1, Number(e.target.value) || 1)) }))} /></FormField>
+      <FormField label="Müşteri Yetkilisi (imzalayacak kişi)"><Input placeholder="Ad Soyad" value={f.musteri_yetkili} onChange={e => setF(x => ({ ...x, musteri_yetkili: e.target.value }))} /></FormField>
+      <FormField label="Sözleşme No"><Input value={f.sozlesme_no} onChange={e => setF(x => ({ ...x, sozlesme_no: e.target.value }))} /></FormField>
+      <FormField label="KDV (%)"><Input type="number" value={f.kdv_orani} onChange={e => setF(x => ({ ...x, kdv_orani: e.target.value }))} /></FormField>
+    </div>
+    <FormField label="Hizmet Kapsamı (her satır bir madde)">
+      <Textarea minHeight={110} placeholder={"Örn:\nAyda 12 paylaşım (8 post, 4 reels)\nHaftada 1 çekim\nAylık rapor"} value={f.kapsam.join("\n")} onChange={e => setF(x => ({ ...x, kapsam: e.target.value.split("\n") }))} />
+    </FormField>
+    {addons.length > 0 && <FormField label="Ek Hizmetler (isteğe bağlı)">
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {addons.map(a => { const on = f.ek_hizmetler.some(e => e.ad === a.name); return <button key={a.id} type="button" onClick={() => ekToggle(a)} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, cursor: "pointer", background: on ? T.amber : T.bgInput, color: on ? "#fff" : T.textSecondary, border: `1px solid ${on ? T.amber : T.border}` }}>{on ? "✓ " : ""}{a.name}{a.price_text ? ` · ${a.price_text}` : ""}</button>; })}
+      </div>
+    </FormField>}
+    <FormField label="Özel Şartlar (isteğe bağlı)"><Textarea minHeight={70} placeholder="Bu müşteriye özel eklenecek maddeler" value={f.ozel_sartlar} onChange={e => setF(x => ({ ...x, ozel_sartlar: e.target.value }))} /></FormField>
+
+    <div style={{ fontSize: 12.5, color: T.textSecondary, background: T.greenDim, borderRadius: 10, padding: "10px 14px", marginBottom: 14, lineHeight: 1.6 }}>
+      <b style={{ color: T.greenText }}>Özet:</b> {f.paket_adi || "Özel paket"} · aylık <b>{fmtMoney(ucret)}</b> + KDV = <b>{fmtMoney(ucret * (1 + kdv / 100))}</b> · {f.sure_ay} ay · {tarihYaz(f.baslangic)} → {tarihYaz(bitis)} · ödeme her ayın {f.odeme_gunu}. günü
+    </div>
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 22 }}>
+      <Btn variant="primary" onClick={() => kaydet("yazdir")} disabled={busy}>📜 Sözleşmeyi Oluştur ve Yazdır</Btn>
+      <Btn onClick={() => kaydet("pdf")} disabled={busy} style={{ background: T.greenDim, color: T.greenText }}>📥 Oluştur ve PDF İndir</Btn>
+      <Btn onClick={() => onizle(false)}>👁 Kaydetmeden Önizle</Btn>
+    </div>
+
+    <div style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, marginBottom: 8 }}>Bu müşterinin sözleşmeleri ({liste.length})</div>
+    {liste.length === 0 ? <div style={{ fontSize: 12, color: T.textMuted }}>Henüz kayıtlı sözleşme yok.</div>
+      : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {liste.map(s => { const st = SOZLESME_DURUM[s.durum] || SOZLESME_DURUM.taslak; return (
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 10, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary }}>{s.sozlesme_no} · {s.paket_adi || "Özel"}</div>
+              <div style={{ fontSize: 11, color: T.textMuted }}>{fmtMoney(Number(s.aylik_ucret))} + KDV · {s.sure_ay} ay · {tarihYaz(s.baslangic)} → {tarihYaz(ayEkle(s.baslangic, s.sure_ay))}{s.olusturan ? ` · ${s.olusturan}` : ""}</div>
+            </div>
+            <Select value={s.durum} onChange={e => durumDegistir(s, e.target.value)}>{Object.entries(SOZLESME_DURUM).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select>
+            <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: st.bg, color: st.color }}>{st.label}</span>
+            <Btn onClick={() => openPrintWindow(s.html)} style={{ fontSize: 12, padding: "6px 12px" }}>🖨️ Yazdır</Btn>
+            <Btn onClick={() => downloadPdfFromHTML(s.html, `Sozlesme-${s.sozlesme_no}.pdf`)} style={{ fontSize: 12, padding: "6px 12px", background: T.greenDim, color: T.greenText }}>📥 PDF</Btn>
+            <Btn onClick={() => sil(s)} style={{ fontSize: 12, padding: "6px 12px", background: T.redDim, color: T.redText }}>🗑</Btn>
+          </div>); })}
+      </div>}
+  </div>;
 }
 
 const QUOTE_STATUS = {
@@ -7186,6 +7441,17 @@ function QuoteSettingsTab({ reload }) {
       <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "22px 0 10px" }}>📄 Fiyat Listesi Alt Yazısı</div>
       <FormField label="Başlık"><Input placeholder="Teklifimizi incelediğiniz için teşekkür ederiz" value={form.list_footer_title || ""} onChange={e => setForm(f => ({ ...f, list_footer_title: e.target.value }))} /></FormField>
       <FormField label="Açıklama"><Input placeholder="Size özel paket için bizimle iletişime geçin." value={form.list_footer_text || ""} onChange={e => setForm(f => ({ ...f, list_footer_text: e.target.value }))} /></FormField>
+
+      <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "22px 0 10px" }}>📜 Sözleşme Bilgileri (Hizmet Veren)</div>
+      <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 10, lineHeight: 1.5 }}>Müşteriler → müşteri → "Sözleşme" sekmesinden hazırlanan sözleşmelerde şirketiniz bu bilgilerle görünür.</div>
+      <FormField label="Şirket Ünvanı"><Input placeholder="Panormos Medya San. ve Tic. Ltd. Şti." value={form.company_title || ""} onChange={e => setForm(f => ({ ...f, company_title: e.target.value }))} /></FormField>
+      <FormField label="Adres"><Input placeholder="Mah. Cad. No, Bandırma / Balıkesir" value={form.company_address || ""} onChange={e => setForm(f => ({ ...f, company_address: e.target.value }))} /></FormField>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+        <FormField label="Vergi Dairesi"><Input placeholder="Bandırma" value={form.company_tax_office || ""} onChange={e => setForm(f => ({ ...f, company_tax_office: e.target.value }))} /></FormField>
+        <FormField label="Vergi No"><Input placeholder="0000000000" value={form.company_tax_no || ""} onChange={e => setForm(f => ({ ...f, company_tax_no: e.target.value }))} /></FormField>
+        <FormField label="İmzalayacak Yetkili"><Input placeholder="Ad Soyad" value={form.company_rep || ""} onChange={e => setForm(f => ({ ...f, company_rep: e.target.value }))} /></FormField>
+        <FormField label="Yetkili Mahkeme (şehir)"><Input placeholder="Bandırma" value={form.contract_city || ""} onChange={e => setForm(f => ({ ...f, contract_city: e.target.value }))} /></FormField>
+      </div>
 
       <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, textTransform: "uppercase", margin: "22px 0 10px" }}>📝 Teklif Alt Yazısı</div>
       <FormField label="Başlık"><Input placeholder="Teklifimizi incelediğiniz için teşekkür ederiz" value={form.quote_footer_title || ""} onChange={e => setForm(f => ({ ...f, quote_footer_title: e.target.value }))} /></FormField>
