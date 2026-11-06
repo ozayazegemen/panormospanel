@@ -6992,12 +6992,14 @@ async function htmlToPdfBlob(html, orientation) {
     if (ust) ust.remove(); if (alt) alt.remove();
     d.querySelectorAll("table.sayfa > thead td, table.sayfa > tfoot td").forEach(td => { td.style.height = "0"; });
     // Sayfa sonu: paragraf, satır, kutu ortadan bölünmesin
-    const st = d.createElement("style"); st.textContent = "p, li, tr, .taraf, .taraf-imza, .imza, .kutu, .card, .pkg { break-inside: avoid; page-break-inside: avoid; } h1, h2, h3 { break-after: avoid; page-break-after: avoid; }"; d.head.appendChild(st);
+    const st = d.createElement("style"); st.textContent = "p, li, tr, .taraf, .taraf-imza, .imza, .kutu, .card, .pkg { break-inside: avoid; page-break-inside: avoid; }"; d.head.appendChild(st);
+    // Başlık sayfa sonunda yalnız kalmasın: başlık + ilk öğe birlikte tutulur
+    d.querySelectorAll("h1, h2, h3").forEach(h => { const n = h.nextElementSibling; if (!n || /^H[1-6]$/.test(n.tagName)) return; const sar = d.createElement("div"); sar.style.cssText = "break-inside:avoid;page-break-inside:avoid"; h.parentNode.insertBefore(sar, h); sar.appendChild(h); sar.appendChild(n); });
     // Diziler çerçevenin kendi Array'inden olmalı (html2pdf "instanceof Array" ile denetler)
     const dizi = (...x) => { const a = new w.Array(); x.forEach(v => a.push(v)); return a; };
     const pdf = await w.html2pdf().set({
-      margin: dizi(ustR ? ustR.mm : 8, 0, altR ? altR.mm : 8, 0),
-      image: { type: "jpeg", quality: 0.95 },
+      margin: dizi(ustR ? ustR.mm + 1 : 8, 0, altR ? altR.mm + 2 : 8, 0),
+      image: { type: "jpeg", quality: 0.85 },
       html2canvas: h2c,
       jsPDF: { unit: "mm", format: "a4", orientation: yatay ? "landscape" : "portrait" },
       pagebreak: { mode: dizi("css", "legacy") },
