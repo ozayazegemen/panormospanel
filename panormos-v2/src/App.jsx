@@ -817,77 +817,19 @@ async function exportPerfectExcel(sheets, filename) {
 // ─────────────────────────────────────────────
 // YAZDIRMA FONKSİYONU - Yazıcıya gönderir
 // ─────────────────────────────────────────────
-function printData(title, rows) {
-  if (!rows || rows.length === 0) {
-    swalAlert("Yazdırılacak veri bulunamadı");
-    return;
-  }
-
+async function printData(title, rows) {
+  if (!rows || rows.length === 0) { swalAlert("Yazdırılacak veri bulunamadı"); return; }
+  await loadQuoteSettings();
   const headers = Object.keys(rows[0]);
-  const now = new Date().toLocaleString("tr-TR");
-
-  const tableRows = rows.map(row =>
-    "<tr>" + headers.map(h => {
-      const val = row[h] === null || row[h] === undefined ? "—" : String(row[h]);
-      return `<td>${val.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
-    }).join("") + "</tr>"
-  ).join("");
-
-  const headerRow = "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
-
-  const html = `
-    <!DOCTYPE html>
-    <html lang="tr">
-    <head>
-      <meta charset="UTF-8">
-      <title>${title}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1a1a1a; }
-        .header { border-bottom: 3px solid #F25124; padding-bottom: 16px; margin-bottom: 20px; }
-        .logo { font-size: 24px; font-weight: 700; }
-        .logo .p { color: #1A2B3F; }
-        .logo .m { color: #F25124; }
-        h1 { font-size: 18px; margin-top: 8px; color: #333; }
-        .meta { font-size: 12px; color: #888; margin-top: 4px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-        th { background: #1A2B3F; color: #fff; padding: 10px 8px; text-align: left; font-weight: 600; }
-        td { padding: 8px; border-bottom: 1px solid #e0e0e0; }
-        tr:nth-child(even) td { background: #f7f7f7; }
-        .footer { margin-top: 24px; font-size: 11px; color: #aaa; text-align: center; border-top: 1px solid #e0e0e0; padding-top: 12px; }
-        @media print {
-          body { padding: 15px; }
-          th { background: #1A2B3F !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          tr:nth-child(even) td { background: #f7f7f7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <div class="logo"><span class="p">panormos</span> <span class="m">medya.</span></div>
-        <h1>${title}</h1>
-        <div class="meta">Yazdırma Tarihi: ${now} · Toplam ${rows.length} kayıt</div>
-      </div>
-      <table>
-        <thead>${headerRow}</thead>
-        <tbody>${tableRows}</tbody>
-      </table>
-      <div class="footer">Panormos Medya Yönetim Paneli · panormosmedya.com</div>
-    </body>
-    </html>
-  `;
-
-  const printWindow = window.open("", "_blank", "width=900,height=700");
-  if (!printWindow) {
-    swalAlert("Yazdırma penceresi açılamadı. Tarayıcının pop-up engelleyicisini kapatın.");
-    return;
-  }
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-  }, 300);
+  const sayisal = headers.map(h => rows.every(r => r[h] === null || r[h] === undefined || typeof r[h] === "number"));
+  const html = raporHTML({
+    baslik: title, altNot: rKacis(title), yatay: headers.length > 6,
+    bolumler: [
+      raporKapak({ ustYazi: "Panormos Medya · Liste", baslik: title, altBaslik: `${new Date().toLocaleString("tr-TR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })} · ${rows.length} kayıt` }),
+      raporTablo(headers, rows.map(r => headers.map(h => r[h] === null || r[h] === undefined ? "—" : (typeof r[h] === "number" ? rSayi(r[h]) : String(r[h])))), sayisal.map(x => x ? "sag" : "sol")),
+    ],
+  });
+  openPrintWindow(html);
 }
 
 // Müşteri takvimini yazdır (aylık ızgara + planlı günler + yapılan paylaşımlar)
@@ -1164,67 +1106,39 @@ function printMonthlyReport(client) {
 }
 
 // Sosyal medya aylık raporu PDF (müşteriye gönderilir)
-function printSocialReport(client, r, prev, monthLabel) {
-  const metrics = [
-    { key: "new_followers", label: "Yeni Takipçi", icon: "👥" },
-    { key: "total_followers", label: "Toplam Takipçi", icon: "🫂" },
-    { key: "reach", label: "Erişim", icon: "👁️" },
-    { key: "impressions", label: "Gösterim / İzlenme", icon: "📊" },
-    { key: "likes", label: "Beğeni", icon: "❤️" },
-    { key: "comments", label: "Yorum", icon: "💬" },
-    { key: "saves", label: "Kaydetme", icon: "🔖" },
-    { key: "shares", label: "Paylaşım", icon: "📤" },
-    { key: "profile_visits", label: "Profil Ziyareti", icon: "🔎" },
+async function printSocialReport(client, r, prev, monthLabel, list = []) {
+  await loadQuoteSettings();
+  const say = (k, o = r) => Number(o?.[k]) || 0;
+  const d = (k) => rDegisim(say(k), prev ? say(k, prev) : null);
+  const etkilesim = (o) => say("likes", o) + say("comments", o) + say("saves", o) + say("shares", o);
+  const oran = (o) => say("reach", o) ? (etkilesim(o) / say("reach", o)) * 100 : null;
+  const gecmis = (list.length ? list : [r]).filter(x => x.month_ref <= r.month_ref).slice(-6);
+  const etiket = gecmis.map(x => { const [y, m] = x.month_ref.split("-"); return TR_MONTHS[parseInt(m) - 1].slice(0, 3) + " " + y.slice(2); });
+  const seri = (k) => gecmis.map(x => say(k, x));
+  const kpi = REPORT_METRICS.map(m => ({ etiket: m.label, deger: say(m.key), degisim: d(m.key), renk: m.color }));
+  const o1 = oran(r), o0 = prev ? oran(prev) : null;
+  const enIyi = REPORT_METRICS.map(m => ({ m, d: d(m.key) })).filter(x => x.d && x.d.yuzde !== null && x.d.yuzde > 0).sort((a, b) => b.d.yuzde - a.d.yuzde)[0];
+  const vurgular = [
+    { baslik: `Toplam etkileşim: ${rSayi(etkilesim(r))}`, metin: `Beğeni, yorum, kaydetme ve paylaşımların toplamı${prev ? ` · önceki ay ${rSayi(etkilesim(prev))}` : ""}.`, renk: "#F25124" },
+    o1 !== null ? { baslik: `Etkileşim oranı %${o1.toFixed(1).replace(".", ",")}`, metin: `Erişilen her 100 hesaptan ${o1.toFixed(1).replace(".", ",")} tanesi içerikle etkileşime girdi${o0 !== null ? ` (önceki ay %${o0.toFixed(1).replace(".", ",")})` : ""}.`, renk: "#2D5BFF" } : null,
+    say("new_followers") ? { baslik: `${rSayi(say("new_followers"))} yeni takipçi`, metin: `Toplam takipçi ${rSayi(say("total_followers"))}${prev && say("total_followers", prev) ? ` · aylık büyüme %${((say("total_followers") - say("total_followers", prev)) / say("total_followers", prev) * 100).toFixed(1).replace(".", ",")}` : ""}.`, renk: "#22B07D" } : null,
+    enIyi ? { baslik: `En güçlü artış: ${enIyi.m.label}`, metin: `Önceki aya göre %${enIyi.d.yuzde} yükseldi (${rSayi(say(enIyi.m.key))}).`, renk: "#7B3FF2" } : null,
   ];
-  const fmt = (n) => (n || 0).toLocaleString("tr-TR");
-  const cards = metrics.map(m => {
-    const val = r[m.key] || 0;
-    const pv = prev ? (prev[m.key] || 0) : null;
-    const diff = pv !== null ? val - pv : null;
-    const pct = pv ? Math.round((diff / pv) * 100) : null;
-    let badge = "";
-    if (diff !== null && diff !== 0) {
-      const up = diff > 0;
-      badge = `<div class="diff ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${fmt(Math.abs(diff))}${pct !== null ? ` (%${Math.abs(pct)})` : ''}</div>`;
-    }
-    return `<div class="metric"><div class="mlbl">${m.icon} ${m.label}</div><div class="mval">${fmt(val)}</div>${badge}</div>`;
-  }).join("");
-
-  const html = `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${client.name} Rapor</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    body{font-family:-apple-system,'Segoe UI',Arial,sans-serif;padding:0;color:#1a1a1a;background:#fff}
-    .page{max-width:800px;margin:0 auto;padding:30px}
-    .hero{background:linear-gradient(135deg,#1A2B3F,#3a2d6b);color:#fff;border-radius:18px;padding:34px;margin-bottom:24px;position:relative;overflow:hidden}
-    .hero::after{content:"";position:absolute;top:-40px;right:-40px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(242,81,36,0.4),transparent 70%)}
-    .logo{font-size:20px;font-weight:700;position:relative}.logo .m{color:#F8906E}
-    .hero h1{font-size:26px;margin-top:14px;font-weight:800;position:relative}
-    .hero .period{font-size:15px;opacity:0.85;margin-top:4px;position:relative}
-    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
-    .metric{background:#f7f7f9;border-radius:14px;padding:18px;border-top:3px solid #6366F1}
-    .mlbl{font-size:12px;color:#888;margin-bottom:8px}
-    .mval{font-size:26px;font-weight:800;color:#1A2B3F}
-    .diff{font-size:12px;font-weight:700;margin-top:6px}
-    .diff.up{color:#0a7a4a}.diff.down{color:#c0392b}
-    .note{background:#eef2ff;border-radius:12px;padding:16px 18px;font-size:14px;color:#4338ca;margin-bottom:20px}
-    .footer{text-align:center;font-size:12px;color:#999;margin-top:26px;padding-top:16px;border-top:1px solid #eee}
-    .footer .co{color:#F25124;font-weight:700}
-    @media print{.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}.metric{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-  </style></head><body><div class="page">
-    <div class="hero">
-      <div class="logo">panormos <span class="m">medya.</span></div>
-      <h1>${client.name}</h1>
-      <div class="period">${monthLabel(r.month_ref)} — Aylık Sosyal Medya Performans Raporu</div>
-    </div>
-    <div class="metrics">${cards}</div>
-    ${r.notes ? `<div class="note">📝 ${r.notes}</div>` : ""}
-    <div class="footer">Bu rapor <span class="co">Panormos Medya</span> tarafından hazırlanmıştır.<br>İş birliğiniz için teşekkür ederiz · panormosmedya.com</div>
-  </div></body></html>`;
-
-  const w = window.open("", "_blank", "width=1000,height=850");
-  if (!w) { swalAlert("Yazdırma penceresi açılamadı. Pop-up engelleyiciyi kapatın."); return; }
-  w.document.write(html); w.document.close(); w.focus();
-  setTimeout(() => w.print(), 300);
+  const bolumler = [
+    raporKapak({ ustYazi: "Aylık sosyal medya performans raporu", baslik: client.name, altBaslik: `${monthLabel(r.month_ref)} · Hazırlayan: Panormos Medya`, rozetler: [`${rSayi(say("total_followers"))} takipçi`, `${rSayi(say("reach"))} erişim`, `${rSayi(etkilesim(r))} etkileşim`] }),
+    raporKPI(kpi, 3),
+    raporBolum("Öne çıkanlar", raporVurgular(vurgular)),
+    gecmis.length > 1 ? raporBolum("Aylık gelişim", `${raporIkili(
+      raporKutu("Erişim ve gösterim", grafikCizgi({ etiketler: etiket, seriler: [{ ad: "Erişim", degerler: seri("reach"), renk: "#F25124" }, { ad: "Gösterim / izlenme", degerler: seri("impressions"), renk: "#2D5BFF" }], yukseklik: 200 })),
+      raporKutu("Takipçi", grafikCizgi({ etiketler: etiket, seriler: [{ ad: "Toplam takipçi", degerler: seri("total_followers"), renk: "#22B07D" }], yukseklik: 200, sifirdan: false })))}
+      ${raporKutu("Etkileşimler", grafikCubuk({ etiketler: etiket, seriler: [{ ad: "Beğeni", degerler: seri("likes"), renk: "#EF4444" }, { ad: "Yorum", degerler: seri("comments"), renk: "#8B5CF6" }, { ad: "Kaydetme", degerler: seri("saves"), renk: "#F59E0B" }, { ad: "Paylaşım", degerler: seri("shares"), renk: "#06B6D4" }], yukseklik: 210 }))}`, "Son 6 ayın karşılaştırması") : "",
+    raporBolum("Bu ayın etkileşim dağılımı", raporIkili(
+      raporKutu("", grafikHalka({ dilimler: [{ ad: "Beğeni", deger: say("likes"), renk: "#EF4444" }, { ad: "Yorum", deger: say("comments"), renk: "#8B5CF6" }, { ad: "Kaydetme", deger: say("saves"), renk: "#F59E0B" }, { ad: "Paylaşım", deger: say("shares"), renk: "#06B6D4" }], merkez: rKisa(etkilesim(r)), merkezAlt: "etkileşim" })),
+      raporKutu("Erişim → etkileşim → profil", grafikYatayCubuk({ satirlar: [{ ad: "Erişim", deger: say("reach"), renk: "#F25124" }, { ad: "Gösterim", deger: say("impressions"), renk: "#2D5BFF" }, { ad: "Etkileşim", deger: etkilesim(r), renk: "#22B07D" }, { ad: "Profil ziyareti", deger: say("profile_visits"), renk: "#14B8A6" }, { ad: "Yeni takipçi", deger: say("new_followers"), renk: "#7B3FF2" }] })))),
+    r.notes ? `<div class="r-not"><b>Ajans notu:</b> ${rKacis(r.notes)}</div>` : "",
+  ];
+  const html = raporHTML({ baslik: `${client.name} · ${monthLabel(r.month_ref)} raporu`, altNot: `${rKacis(client.name)} · ${rKacis(monthLabel(r.month_ref))}`, bolumler });
+  downloadPdfFromHTML(html, `${client.name}-Sosyal-Medya-Raporu-${r.month_ref}.pdf`);
 }
 
 function MessagingPanel({clientId, clientName, onClose}) {
@@ -5148,7 +5062,7 @@ function ReportsPage({ clients, perms }) {
                       <div style={{ fontSize: 15, fontWeight: 700, color: T.textPrimary }}>{monthLabel(r.month_ref)}</div>
                       <div style={{ display: "flex", gap: 8 }}>
                         <Btn onClick={() => { const f = { client_id: r.client_id, month_ref: r.month_ref, notes: r.notes }; REPORT_METRICS.forEach(m => f[m.key] = r[m.key]); setForm(f); setModal(true); }} style={{ fontSize: 11, padding: "4px 10px" }}>✏️ Düzenle</Btn>
-                        <Btn onClick={() => printSocialReport(c, r, prev, monthLabel)} style={{ fontSize: 11, padding: "4px 10px", background: T.indigoDim, color: T.indigoText }}>📄 PDF</Btn>
+                        <Btn onClick={() => printSocialReport(c, r, prev, monthLabel, list)} style={{ fontSize: 11, padding: "4px 10px", background: T.indigoDim, color: T.indigoText }}>📄 PDF</Btn>
                         <button onClick={() => del(r.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
                       </div>
                     </div>
@@ -5961,6 +5875,51 @@ function dashboardGreeting(name, now = new Date()) {
   return { title: first ? `${salute}, ${first}` : salute, line: MOTIVATION_LINES[seed % MOTIVATION_LINES.length] };
 }
 
+// Ana Sayfa → grafikli genel özet raporu (PDF ya da yazıcı)
+async function raporPanelOzeti({ clients, staff, tasks, perms, totalRevenue, paidRevenue, pendingRevenue, monthlyTotal, totalPosts, doneTasks, activeTasks, taskProgress, todayPublish, todayShoot, todayName }, asPdf) {
+  await loadQuoteSettings();
+  const simdi = new Date();
+  const finans = !!perms.companyFinance;
+  const kpi = [
+    { etiket: "Aktif müşteri", deger: clients.length, renk: "#2D5BFF" },
+    { etiket: "Çalışan", deger: staff.length, renk: "#7B3FF2" },
+    { etiket: "Görev tamamlanma", deger: "%" + taskProgress, alt: `${doneTasks} tamamlandı · ${activeTasks} açık`, renk: "#22B07D" },
+    { etiket: "Tamamlanan paylaşım", deger: totalPosts, renk: "#FF2E88" },
+  ];
+  if (finans) kpi.push(
+    { etiket: "Aylık gelir (anlaşmalar)", deger: fmtMoney(monthlyTotal), renk: "#F25124" },
+    { etiket: "Toplam ciro", deger: fmtMoney(totalRevenue), renk: "#E0A800" },
+    { etiket: "Tahsil edilen", deger: fmtMoney(paidRevenue), renk: "#22B07D" },
+    { etiket: "Bekleyen tahsilat", deger: fmtMoney(pendingRevenue), renk: "#EF4444" },
+  );
+  // Son 6 ay: kesilen fatura ve tahsilat
+  const aylar = Array.from({ length: 6 }, (_, i) => { const d = new Date(simdi.getFullYear(), simdi.getMonth() - 5 + i, 1); return { k: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, e: TR_MONTHS[d.getMonth()].slice(0, 3) }; });
+  const faturalar = clients.flatMap(c => (c.invoices || []).map(i => ({ ...i, ay: String(i.date || "").slice(0, 7) })));
+  const kesilen = aylar.map(a => faturalar.filter(f => f.ay === a.k).reduce((t, f) => t + (Number(f.total) || 0), 0));
+  const tahsil = aylar.map(a => faturalar.filter(f => f.ay === a.k && f.status === "paid").reduce((t, f) => t + (Number(f.total) || 0), 0));
+  const kategoriler = Object.entries(clients.reduce((m, c) => { const k = c.category || "Diğer"; m[k] = (m[k] || 0) + 1; return m; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const ucretler = finans ? [...clients].filter(c => c.monthlyFee > 0).sort((a, b) => b.monthlyFee - a.monthlyFee).slice(0, 10) : [];
+  const gorevDilim = [{ ad: "Tamamlandı", deger: doneTasks, renk: "#22B07D" }, { ad: "Yapılacak", deger: tasks.filter(t => t.col === "todo").length, renk: "#F25124" }, { ad: "Planlayıcıya yüklendi", deger: tasks.filter(t => t.col === "planlayici").length, renk: "#7B3FF2" }];
+  const platformlar = Object.entries(clients.reduce((m, c) => { (c.platforms || []).forEach(p => { const ad = platformConfig[p]?.label || p; m[ad] = (m[ad] || 0) + 1; }); return m; }, {})).sort((a, b) => b[1] - a[1]);
+  const bugunSatir = [...todayPublish.map(c => ["Paylaşım", c.name, (c.publishTimes || []).join(", ") || "—"]), ...todayShoot.map(c => ["Çekim", c.name, "—"])];
+  const bolumler = [
+    raporKapak({ ustYazi: "Ajans durum raporu", baslik: "Panormos Medya · Genel Özet", altBaslik: simdi.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }), rozetler: [`${clients.length} aktif müşteri`, `${staff.length} çalışan`, `${tasks.length} görev`, `%${taskProgress} tamamlanma`] }),
+    raporKPI(kpi, 4),
+    raporBolum("Görevler ve iş akışı", raporIkili(
+      raporKutu("Görev dağılımı", grafikHalka({ dilimler: gorevDilim, merkez: "%" + taskProgress, merkezAlt: "tamamlandı" })),
+      raporKutu("Müşterilerin kullandığı platformlar", platformlar.length ? grafikYatayCubuk({ satirlar: platformlar.map(([ad, n], i) => ({ ad, deger: n, renk: RAPOR_PALET[i % RAPOR_PALET.length] })), birim: " müşteri" }) : "<div class='r-kucuk'>Kayıt yok</div>"))),
+    finans ? raporBolum("Finans", raporIkili(
+      raporKutu("Son 6 ay: kesilen fatura ve tahsilat (₺)", grafikCubuk({ etiketler: aylar.map(a => a.e), seriler: [{ ad: "Kesilen", degerler: kesilen, renk: "#2D5BFF" }, { ad: "Tahsil edilen", degerler: tahsil, renk: "#22B07D" }], yukseklik: 210 })),
+      raporKutu("Tahsilat durumu", grafikHalka({ dilimler: [{ ad: "Tahsil edilen", deger: paidRevenue, renk: "#22B07D" }, { ad: "Bekleyen", deger: pendingRevenue, renk: "#EF4444" }], merkez: totalRevenue ? "%" + Math.round(paidRevenue / totalRevenue * 100) : "—", merkezAlt: "tahsil edildi" })), "1.4fr 1fr")
+      + (ucretler.length ? raporKutu("Aylık anlaşma tutarına göre müşteriler (ilk 10)", grafikYatayCubuk({ satirlar: ucretler.map(c => ({ ad: c.name, alt: c.category || "", deger: c.monthlyFee, renk: "#F25124" })), birim: " ₺" })) : "")) : "",
+    raporBolum("Müşteri portföyü", raporIkili(
+      raporKutu("Sektörlere göre müşteriler", grafikHalka({ dilimler: kategoriler.map(([ad, n], i) => ({ ad, deger: n, renk: RAPOR_PALET[i % RAPOR_PALET.length] })), merkez: String(clients.length), merkezAlt: "müşteri" })),
+      raporKutu(`Bugün (${todayName})`, raporTablo(["İş", "Müşteri", "Saat"], bugunSatir)))),
+  ];
+  const html = raporHTML({ baslik: "Panormos Medya Genel Özet", altNot: "Ajans durum raporu · " + simdi.toLocaleDateString("tr-TR"), bolumler });
+  if (asPdf) downloadPdfFromHTML(html, `Panormos-Genel-Ozet-${todayStr()}.pdf`); else openPrintWindow(html);
+}
+
 function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allStaff, refreshData, currentStaff}) {
   const totalRevenue = clients.reduce((s,c)=>s+c.invoices.reduce((ss,i)=>ss+i.total,0),0);
   const paidRevenue = clients.reduce((s,c)=>s+c.invoices.filter(i=>i.status==="paid").reduce((ss,i)=>ss+i.total,0),0);
@@ -6019,23 +5978,10 @@ function DashboardPage({clients, staff, tasks, setPage, perms, allClients, allSt
           <div style={{fontSize:13,color:T.textMuted,marginTop:4}}>{today.toLocaleDateString("tr-TR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
         </>; })()}
       </div>
-      <Btn onClick={()=>{
-        const rows=[];
-        if(perms.companyFinance){
-          rows.push({"Bölüm":"Finansal","Bilgi":"Toplam Ciro","Değer":fmtMoney(totalRevenue)});
-          rows.push({"Bölüm":"Finansal","Bilgi":"Tahsil Edilen","Değer":fmtMoney(paidRevenue)});
-          rows.push({"Bölüm":"Finansal","Bilgi":"Bekleyen Tahsilat","Değer":fmtMoney(pendingRevenue)});
-          rows.push({"Bölüm":"Finansal","Bilgi":"Aylık Gelir","Değer":fmtMoney(monthlyTotal)});
-        }
-        rows.push({"Bölüm":"Genel","Bilgi":"Aktif Müşteri","Değer":clients.length});
-        rows.push({"Bölüm":"Genel","Bilgi":"Çalışan Sayısı","Değer":staff.length});
-        rows.push({"Bölüm":"Görev","Bilgi":"Tamamlanan","Değer":doneTasks});
-        rows.push({"Bölüm":"Görev","Bilgi":"Devam Eden","Değer":activeTasks});
-        rows.push({"Bölüm":"Görev","Bilgi":"İlerleme","Değer":"%"+taskProgress});
-        todayPublish.forEach(c=>rows.push({"Bölüm":"Bugün ("+todayName+")","Bilgi":"📅 Paylaşım","Değer":c.name+((c.publishTimes&&c.publishTimes.length)?" ("+c.publishTimes.join(", ")+")":"")}));
-        todayShoot.forEach(c=>rows.push({"Bölüm":"Bugün ("+todayName+")","Bilgi":"📷 Çekim","Değer":c.name}));
-        printData("Ana Sayfa Özeti", rows);
-      }} style={{fontSize:12,padding:"7px 14px",whiteSpace:"nowrap"}}>🖨️ Yazdır</Btn>
+      <div style={{display:"flex",gap:8,flexShrink:0}}>
+        <Btn onClick={()=>raporPanelOzeti({clients,staff,tasks,perms,totalRevenue,paidRevenue,pendingRevenue,monthlyTotal,totalPosts,doneTasks,activeTasks,taskProgress,todayPublish,todayShoot,todayName}, true)} style={{fontSize:12,padding:"7px 14px",whiteSpace:"nowrap",background:T.greenDim,color:T.greenText}}>📊 PDF Rapor</Btn>
+        <Btn onClick={()=>raporPanelOzeti({clients,staff,tasks,perms,totalRevenue,paidRevenue,pendingRevenue,monthlyTotal,totalPosts,doneTasks,activeTasks,taskProgress,todayPublish,todayShoot,todayName}, false)} style={{fontSize:12,padding:"7px 14px",whiteSpace:"nowrap"}}>🖨️ Yazdır</Btn>
+      </div>
     </div>
 
     {/* ☀️ Bugünün Özeti (sabah özeti panosu) */}
@@ -7042,6 +6988,213 @@ async function downloadPdfFromHTML(html, filename, orientation = "portrait", haz
   }
 }
 
+// ═══════════════ RAPOR MOTORU: antetli, grafikli, kurumsal PDF / yazdırma raporları ═══════════════
+// Tüm raporlar (Ana Sayfa özeti, müşteri Instagram raporu, aylık sosyal medya raporu, listeler) bu parçalardan kurulur.
+// Grafikler saf SVG üretir: yazdırmada ve PDF'te dış kitaplık gerekmez.
+const RAPOR_PALET = ["#F25124", "#2D5BFF", "#22B07D", "#7B3FF2", "#FF2E88", "#E0A800", "#14B8A6", "#EF4444", "#0EA5E9", "#A3E635"];
+const rSayi = (n) => (n === null || n === undefined || n === "" || isNaN(Number(n))) ? "—" : Number(n).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
+const rKisa = (n) => { n = Number(n) || 0; const a = Math.abs(n); const s = a >= 1e6 ? (a / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(".", ",").replace(",0", "") + "M" : a >= 1e3 ? (a / 1e3).toFixed(a >= 1e4 ? 0 : 1).replace(".", ",").replace(",0", "") + "B" : String(Math.round(a)); return (n < 0 ? "-" : "") + s; };
+const rKacis = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// Önceki döneme göre değişim: { yuzde, fark } ya da null
+const rDegisim = (simdi, once) => { const a = Number(simdi), b = Number(once); if (!isFinite(a) || !isFinite(b) || once === null || once === undefined) return null; if (b === 0) return a === 0 ? { yuzde: 0, fark: 0 } : { yuzde: null, fark: a }; return { yuzde: Math.round(((a - b) / b) * 100), fark: a - b }; };
+const rRozet = (d, tersIyi = false) => {
+  if (!d) return "";
+  const iyi = tersIyi ? d.fark < 0 : d.fark > 0, kotu = tersIyi ? d.fark > 0 : d.fark < 0;
+  const renk = iyi ? "#15803D" : kotu ? "#B91C1C" : "#6B7280", arka = iyi ? "#DCFCE7" : kotu ? "#FEE2E2" : "#F3F4F6";
+  const ok = d.fark > 0 ? "▲" : d.fark < 0 ? "▼" : "•";
+  const metin = d.yuzde === null ? (d.fark > 0 ? "+" : "") + rKisa(d.fark) : (d.yuzde > 0 ? "+" : "") + d.yuzde + "%";
+  return `<span class="r-rozet" style="color:${renk};background:${arka}">${ok} ${metin}</span>`;
+};
+// Eksen için "güzel" üst sınır ve adımlar
+const rEksen = (max, adet = 4) => { if (!(max > 0)) return { ust: 1, adimlar: [0, 1] }; const kaba = max / adet, us = Math.pow(10, Math.floor(Math.log10(kaba))); const n = kaba / us; const adim = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * us; const ust = Math.ceil(max / adim) * adim; const adimlar = []; for (let v = 0; v <= ust + 1e-9; v += adim) adimlar.push(v); return { ust, adimlar }; };
+
+// Dikey çubuk grafik (tek ya da çok seri). seriler: [{ ad, degerler:[], renk }]
+function grafikCubuk({ etiketler = [], seriler = [], yukseklik = 220, genislik = 700, degerGoster = true, vurgu = -1, birim = "" }) {
+  const padL = 44, padR = 12, padT = 26, padB = 30, W = genislik, H = yukseklik;
+  const icW = W - padL - padR, icH = H - padT - padB;
+  const hepsi = seriler.flatMap(s => s.degerler.map(v => Number(v) || 0));
+  const { ust, adimlar } = rEksen(Math.max(0, ...hepsi));
+  const n = Math.max(1, etiketler.length), grupW = icW / n, sN = Math.max(1, seriler.length);
+  const bw = Math.min(46, (grupW * 0.72) / sN), bosluk = 3;
+  const y = (v) => padT + icH - (v / ust) * icH;
+  let g = "";
+  adimlar.forEach(v => { g += `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="#E5E7EB" stroke-width="1"/><text x="${padL - 6}" y="${y(v) + 3.5}" font-size="9.5" text-anchor="end" fill="#9CA3AF">${rKisa(v)}</text>`; });
+  etiketler.forEach((e, i) => {
+    const x0 = padL + i * grupW + (grupW - (bw * sN + bosluk * (sN - 1))) / 2;
+    seriler.forEach((s, k) => {
+      const v = Number(s.degerler[i]) || 0, x = x0 + k * (bw + bosluk), h = Math.max(v > 0 ? 2 : 0, (v / ust) * icH);
+      const renk = s.renk || RAPOR_PALET[k % RAPOR_PALET.length], op = vurgu >= 0 && vurgu !== i ? 0.45 : 1;
+      g += `<rect x="${x}" y="${y(v) - (v > 0 ? 0 : 0)}" width="${bw}" height="${h}" rx="4" fill="${renk}" opacity="${op}"/>`;
+      if (degerGoster && v > 0) g += `<text x="${x + bw / 2}" y="${y(v) - 5}" font-size="9.5" font-weight="700" text-anchor="middle" fill="#1F2937">${rKisa(v)}${birim}</text>`;
+    });
+    g += `<text x="${padL + i * grupW + grupW / 2}" y="${H - 10}" font-size="10" text-anchor="middle" fill="${vurgu === i ? "#1A2B3F" : "#6B7280"}" font-weight="${vurgu === i ? 700 : 400}">${rKacis(e)}</text>`;
+  });
+  const lejant = seriler.length > 1 ? `<div class="r-lejant">${seriler.map((s, k) => `<span><i style="background:${s.renk || RAPOR_PALET[k % RAPOR_PALET.length]}"></i>${rKacis(s.ad)}</span>`).join("")}</div>` : "";
+  return `${lejant}<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+// Çizgi / alan grafiği. seriler: [{ ad, degerler:[], renk, alan:true }]
+function grafikCizgi({ etiketler = [], seriler = [], yukseklik = 220, genislik = 700, degerGoster = true, sifirdan = true }) {
+  const padL = 44, padR = 16, padT = 22, padB = 30, W = genislik, H = yukseklik;
+  const icW = W - padL - padR, icH = H - padT - padB;
+  const hepsi = seriler.flatMap(s => s.degerler.filter(v => v !== null && v !== undefined).map(Number));
+  const enAz = sifirdan ? 0 : Math.min(...hepsi, Infinity), enCok = Math.max(...hepsi, 0);
+  const aralik = Math.max(1, enCok - (isFinite(enAz) ? enAz : 0));
+  const taban = sifirdan ? 0 : Math.max(0, (isFinite(enAz) ? enAz : 0) - aralik * 0.15);
+  const { ust: ustHam, adimlar } = rEksen(enCok - taban);
+  const ust = taban + ustHam;
+  const n = Math.max(1, etiketler.length), adim = n > 1 ? icW / (n - 1) : 0;
+  const x = (i) => padL + (n > 1 ? i * adim : icW / 2), y = (v) => padT + icH - ((v - taban) / (ust - taban)) * icH;
+  let g = `<defs>${seriler.map((s, k) => `<linearGradient id="rg${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${s.renk || RAPOR_PALET[k]}" stop-opacity="0.28"/><stop offset="100%" stop-color="${s.renk || RAPOR_PALET[k]}" stop-opacity="0.02"/></linearGradient>`).join("")}</defs>`;
+  adimlar.forEach(v => { const yy = y(taban + v); g += `<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#E5E7EB"/><text x="${padL - 6}" y="${yy + 3.5}" font-size="9.5" text-anchor="end" fill="#9CA3AF">${rKisa(taban + v)}</text>`; });
+  seriler.forEach((s, k) => {
+    const renk = s.renk || RAPOR_PALET[k % RAPOR_PALET.length];
+    const pts = s.degerler.map((v, i) => (v === null || v === undefined) ? null : [x(i), y(Number(v))]);
+    const dolu = pts.filter(Boolean);
+    if (!dolu.length) return;
+    const yol = pts.map((p, i) => p ? `${(i === 0 || !pts[i - 1]) ? "M" : "L"}${p[0]},${p[1]}` : "").join(" ");
+    if (s.alan !== false) g += `<path d="${yol} L${dolu[dolu.length - 1][0]},${padT + icH} L${dolu[0][0]},${padT + icH} Z" fill="url(#rg${k})"/>`;
+    g += `<path d="${yol}" fill="none" stroke="${renk}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    pts.forEach((p, i) => { if (!p) return; g += `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#fff" stroke="${renk}" stroke-width="2"/>`; if (degerGoster) g += `<text x="${p[0]}" y="${p[1] - 9}" font-size="9.5" font-weight="700" text-anchor="middle" fill="#1F2937">${rKisa(s.degerler[i])}</text>`; });
+  });
+  etiketler.forEach((e, i) => { g += `<text x="${x(i)}" y="${H - 10}" font-size="10" text-anchor="middle" fill="#6B7280">${rKacis(e)}</text>`; });
+  const lejant = seriler.length > 1 ? `<div class="r-lejant">${seriler.map((s, k) => `<span><i style="background:${s.renk || RAPOR_PALET[k % RAPOR_PALET.length]}"></i>${rKacis(s.ad)}</span>`).join("")}</div>` : "";
+  return `${lejant}<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" xmlns="http://www.w3.org/2000/svg">${g}</svg>`;
+}
+
+// Halka (donut) grafik + yanında liste. dilimler: [{ ad, deger, renk }]
+function grafikHalka({ dilimler = [], merkez = "", merkezAlt = "", boyut = 150 }) {
+  const toplam = dilimler.reduce((s, d) => s + (Number(d.deger) || 0), 0);
+  const r = 56, c = 2 * Math.PI * r, cx = boyut / 2, cy = boyut / 2;
+  let acc = 0, g = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#F3F4F6" stroke-width="22"/>`;
+  dilimler.forEach((d, k) => {
+    const v = Number(d.deger) || 0; if (!v || !toplam) return;
+    const uz = (v / toplam) * c;
+    g += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.renk || RAPOR_PALET[k % RAPOR_PALET.length]}" stroke-width="22" stroke-dasharray="${uz} ${c - uz}" stroke-dashoffset="${-acc}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    acc += uz;
+  });
+  g += `<text x="${cx}" y="${cy + (merkezAlt ? 1 : 6)}" font-size="20" font-weight="800" text-anchor="middle" fill="#1A2B3F">${rKacis(merkez)}</text>`;
+  if (merkezAlt) g += `<text x="${cx}" y="${cy + 17}" font-size="9.5" text-anchor="middle" fill="#6B7280">${rKacis(merkezAlt)}</text>`;
+  const liste = dilimler.map((d, k) => { const v = Number(d.deger) || 0; const y = toplam ? Math.round((v / toplam) * 100) : 0; return `<div class="r-halka-satir"><i style="background:${d.renk || RAPOR_PALET[k % RAPOR_PALET.length]}"></i><span>${rKacis(d.ad)}</span><b>${rSayi(v)}</b><em>%${y}</em></div>`; }).join("");
+  return `<div class="r-halka"><svg viewBox="0 0 ${boyut} ${boyut}" width="${boyut}" height="${boyut}" xmlns="http://www.w3.org/2000/svg">${g}</svg><div class="r-halka-liste">${liste}</div></div>`;
+}
+
+// Yatay çubuklar (sıralama, en iyiler). satirlar: [{ ad, deger, alt, renk }]
+function grafikYatayCubuk({ satirlar = [], birim = "", renk = "#2D5BFF" }) {
+  const max = Math.max(1, ...satirlar.map(s => Number(s.deger) || 0));
+  return `<div class="r-yatay">${satirlar.map((s, k) => { const v = Number(s.deger) || 0; return `<div class="r-yatay-satir"><div class="r-yatay-ad"><b>${rKacis(s.ad)}</b>${s.alt ? `<span>${rKacis(s.alt)}</span>` : ""}</div><div class="r-yatay-bar"><i style="width:${Math.max(2, (v / max) * 100)}%;background:${s.renk || renk}"></i></div><div class="r-yatay-deger">${rSayi(v)}${birim}</div></div>`; }).join("")}</div>`;
+}
+
+// İlerleme halkası (yüzde)
+function grafikIlerleme(yuzde, etiket = "", renk = "#22B07D", boyut = 96) {
+  const r = 38, c = 2 * Math.PI * r, p = Math.max(0, Math.min(100, Number(yuzde) || 0));
+  return `<div class="r-ilerleme"><svg viewBox="0 0 ${boyut} ${boyut}" width="${boyut}" height="${boyut}" xmlns="http://www.w3.org/2000/svg"><circle cx="48" cy="48" r="${r}" fill="none" stroke="#F3F4F6" stroke-width="10"/><circle cx="48" cy="48" r="${r}" fill="none" stroke="${renk}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(p / 100) * c} ${c}" transform="rotate(-90 48 48)"/><text x="48" y="53" font-size="18" font-weight="800" text-anchor="middle" fill="#1A2B3F">%${Math.round(p)}</text></svg>${etiket ? `<div class="r-ilerleme-etiket">${rKacis(etiket)}</div>` : ""}</div>`;
+}
+
+// KPI kartları. kartlar: [{ etiket, deger, alt, degisim:{yuzde,fark}, renk, tersIyi }]
+function raporKPI(kartlar, sutun = 4) {
+  return `<div class="r-kpi" style="grid-template-columns:repeat(${sutun},1fr)">${kartlar.map((k, i) => `<div class="r-kart" style="border-top-color:${k.renk || RAPOR_PALET[i % RAPOR_PALET.length]}"><div class="r-kart-etiket">${rKacis(k.etiket)}</div><div class="r-kart-deger">${typeof k.deger === "number" ? rSayi(k.deger) : rKacis(k.deger ?? "—")}</div><div class="r-kart-alt">${k.degisim ? rRozet(k.degisim, k.tersIyi) : ""}${k.alt ? `<span>${rKacis(k.alt)}</span>` : ""}</div></div>`).join("")}</div>`;
+}
+// Bölüm: başlık + isteğe bağlı açıklama + içerik
+function raporBolum(baslik, icerik, aciklama = "") {
+  return `<section class="r-bolum"><div class="r-bolum-baslik"><h2>${rKacis(baslik)}</h2>${aciklama ? `<p>${rKacis(aciklama)}</p>` : ""}</div>${icerik}</section>`;
+}
+// İki sütunlu yerleşim (ör. grafik + grafik)
+const raporIkili = (sol, sag, oran = "1fr 1fr") => `<div class="r-ikili" style="grid-template-columns:${oran}">${sol}${sag}</div>`;
+// Kart kutusu (grafiklerin etrafı)
+const raporKutu = (baslik, icerik, alt = "") => `<div class="r-kutu">${baslik ? `<div class="r-kutu-baslik">${rKacis(baslik)}</div>` : ""}${icerik}${alt ? `<div class="r-kutu-alt">${rKacis(alt)}</div>` : ""}</div>`;
+// Tablo. hizalar: "sol" | "sag" dizisi
+function raporTablo(basliklar, satirlar, hizalar = []) {
+  const h = (i) => hizalar[i] === "sag" ? ' style="text-align:right"' : "";
+  return `<table class="r-tablo"><thead><tr>${basliklar.map((b, i) => `<th${h(i)}>${rKacis(b)}</th>`).join("")}</tr></thead><tbody>${satirlar.length ? satirlar.map(s => `<tr>${s.map((v, i) => `<td${h(i)}>${v === null || v === undefined ? "—" : (typeof v === "object" && v.html ? v.html : rKacis(v))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${basliklar.length}" style="text-align:center;color:#9CA3AF">Kayıt yok</td></tr>`}</tbody></table>`;
+}
+// Öne çıkanlar: [{ baslik, metin, renk }]
+const raporVurgular = (maddeler) => `<div class="r-vurgular">${maddeler.filter(Boolean).map((m, i) => `<div class="r-vurgu" style="border-left-color:${m.renk || RAPOR_PALET[i % RAPOR_PALET.length]}"><b>${rKacis(m.baslik)}</b><span>${rKacis(m.metin)}</span></div>`).join("")}</div>`;
+// Kapak şeridi
+function raporKapak({ ustYazi = "", baslik = "", altBaslik = "", rozetler = [], foto = "" }) {
+  return `<div class="r-kapak">${foto ? `<img class="r-kapak-foto" src="${rKacis(foto)}" alt="">` : ""}<div class="r-kapak-ic"><div class="r-kapak-ust">${rKacis(ustYazi)}</div><h1>${rKacis(baslik)}</h1>${altBaslik ? `<div class="r-kapak-alt">${rKacis(altBaslik)}</div>` : ""}${rozetler.length ? `<div class="r-kapak-rozetler">${rozetler.map(r => `<span>${rKacis(r)}</span>`).join("")}</div>` : ""}</div><div class="r-kapak-desen"></div></div>`;
+}
+
+const RAPOR_STYLES = `
+  @page { size: A4 portrait; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:0 13mm; font-size:10.5px; line-height:1.5; background:#fff; }
+  .ant-ust { position:fixed; top:0; left:0; right:0; height:24mm; padding:7mm 13mm 0; background:#fff; }
+  .ant-ust .ic { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:1.6px solid #1A2B3F; padding-bottom:5px; }
+  .ant-ust .logo { font-size:17px; font-weight:800; color:#1A2B3F; line-height:1; } .ant-ust .logo .m { color:#F25124; }
+  .ant-ust .unvan { font-size:8.5px; color:#6B7280; margin-top:4px; letter-spacing:0.03em; }
+  .ant-ust .iletisim { text-align:right; font-size:8.5px; color:#4B5563; line-height:1.5; }
+  .ant-ust .serit { height:2px; background:linear-gradient(90deg,#F25124,#FF2E88 40%,#2D5BFF); margin-top:2px; }
+  .ant-alt { position:fixed; bottom:0; left:0; right:0; height:18mm; padding:0 13mm 6mm; background:#fff; }
+  .ant-alt .ic { border-top:1px solid #D1D5DB; padding-top:5px; display:flex; justify-content:space-between; align-items:flex-start; font-size:7.8px; color:#6B7280; line-height:1.5; }
+  .ant-alt .ic b { color:#1A2B3F; } .ant-alt .paraf-alan { text-align:right; white-space:nowrap; }
+  table.sayfa { width:100%; border-collapse:collapse; margin:0; }
+  table.sayfa > thead > tr > td { height:26mm; padding:0; border:0; } table.sayfa > tfoot > tr > td { height:19mm; padding:0; border:0; } table.sayfa > tbody > tr > td { padding:0; border:0; }
+  .r-kapak { position:relative; overflow:hidden; border-radius:16px; background:linear-gradient(120deg,#0E0E14 0%,#1A2B3F 55%,#24395a 100%); color:#fff; padding:26px 28px; margin-bottom:16px; display:flex; align-items:center; gap:18px; }
+  .r-kapak-desen { position:absolute; right:-60px; top:-70px; width:240px; height:240px; border-radius:50%; background:radial-gradient(circle,rgba(242,81,36,.55),rgba(255,46,136,.18) 55%,transparent 72%); }
+  .r-kapak-ic { position:relative; z-index:1; flex:1; }
+  .r-kapak-foto { position:relative; z-index:1; width:64px; height:64px; border-radius:50%; object-fit:cover; border:3px solid rgba(255,255,255,.85); }
+  .r-kapak-ust { font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:#FFD23F; font-weight:700; }
+  .r-kapak h1 { font-size:24px; font-weight:800; letter-spacing:-0.01em; margin:5px 0 2px; }
+  .r-kapak-alt { font-size:12px; color:#CBD5E1; }
+  .r-kapak-rozetler { margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; }
+  .r-kapak-rozetler span { font-size:9.5px; font-weight:700; padding:4px 9px; border-radius:100px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); }
+  .r-kpi { display:grid; gap:9px; margin-bottom:14px; }
+  .r-kart { background:#FAFAFB; border:1px solid #E5E7EB; border-top:4px solid #F25124; border-radius:12px; padding:10px 12px; page-break-inside:avoid; }
+  .r-kart-etiket { font-size:8.8px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#6B7280; }
+  .r-kart-deger { font-size:21px; font-weight:800; color:#1A2B3F; letter-spacing:-0.02em; line-height:1.15; margin-top:4px; }
+  .r-kart-alt { font-size:9.5px; color:#6B7280; margin-top:5px; display:flex; gap:6px; align-items:center; flex-wrap:wrap; min-height:14px; }
+  .r-rozet { display:inline-block; font-size:9px; font-weight:800; padding:2px 7px; border-radius:100px; }
+  .r-bolum { margin:14px 0 6px; page-break-inside:auto; }
+  .r-bolum-baslik { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; border-left:4px solid #F25124; padding-left:10px; page-break-after:avoid; }
+  .r-bolum-baslik h2 { font-size:13px; font-weight:800; color:#1A2B3F; letter-spacing:-0.01em; }
+  .r-bolum-baslik p { font-size:9.5px; color:#6B7280; }
+  .r-ikili { display:grid; gap:10px; margin-bottom:10px; }
+  .r-kutu { background:#fff; border:1px solid #E5E7EB; border-radius:12px; padding:12px 12px 8px; page-break-inside:avoid; margin-bottom:10px; }
+  .r-kutu-baslik { font-size:10.5px; font-weight:800; color:#1A2B3F; margin-bottom:6px; }
+  .r-kutu-alt { font-size:9px; color:#9CA3AF; margin-top:4px; }
+  .r-lejant { display:flex; gap:12px; flex-wrap:wrap; font-size:9.5px; color:#4B5563; margin-bottom:4px; }
+  .r-lejant i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .r-halka { display:flex; align-items:center; gap:14px; }
+  .r-halka-liste { flex:1; }
+  .r-halka-satir { display:flex; align-items:center; gap:7px; font-size:10px; padding:3px 0; border-bottom:1px dashed #F3F4F6; }
+  .r-halka-satir i { width:10px; height:10px; border-radius:3px; flex-shrink:0; } .r-halka-satir span { flex:1; color:#4B5563; } .r-halka-satir b { color:#1A2B3F; } .r-halka-satir em { font-style:normal; color:#9CA3AF; width:34px; text-align:right; }
+  .r-yatay-satir { display:grid; grid-template-columns:150px 1fr 70px; gap:10px; align-items:center; padding:5px 0; border-bottom:1px dashed #F3F4F6; }
+  .r-yatay-ad b { display:block; font-size:10px; color:#1F2937; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .r-yatay-ad span { font-size:8.8px; color:#9CA3AF; }
+  .r-yatay-bar { height:12px; background:#F3F4F6; border-radius:100px; overflow:hidden; } .r-yatay-bar i { display:block; height:100%; border-radius:100px; }
+  .r-yatay-deger { font-size:10.5px; font-weight:800; color:#1A2B3F; text-align:right; }
+  .r-ilerleme { display:flex; flex-direction:column; align-items:center; } .r-ilerleme-etiket { font-size:9.5px; color:#6B7280; margin-top:2px; }
+  .r-tablo { width:100%; border-collapse:collapse; margin:4px 0 8px; font-size:9.8px; }
+  .r-tablo th { background:#1A2B3F; color:#fff; padding:6px 8px; text-align:left; font-size:9px; letter-spacing:.03em; }
+  .r-tablo td { padding:5px 8px; border-bottom:1px solid #EEF0F3; vertical-align:middle; }
+  .r-tablo tr:nth-child(even) td { background:#FAFAFB; }
+  .r-tablo img { width:34px; height:34px; object-fit:cover; border-radius:6px; display:block; }
+  .r-vurgular { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:6px; }
+  .r-vurgu { background:#FAFAFB; border:1px solid #E5E7EB; border-left:4px solid #F25124; border-radius:10px; padding:9px 11px; page-break-inside:avoid; }
+  .r-vurgu b { display:block; font-size:10.5px; color:#1A2B3F; margin-bottom:2px; } .r-vurgu span { font-size:9.8px; color:#4B5563; }
+  .r-not { background:#EEF2FF; border-radius:10px; padding:10px 12px; font-size:10.5px; color:#3730A3; margin:6px 0 10px; }
+  .r-son { margin-top:14px; padding:12px 14px; border-radius:12px; background:linear-gradient(90deg,#FFF4F0,#FFF9E8); font-size:10px; color:#4B5563; page-break-inside:avoid; }
+  .r-son b { color:#F25124; }
+  .r-kucuk { font-size:9px; color:#9CA3AF; margin-top:6px; }
+  @media print { html, body { height:auto; } body { padding:0 13mm; } .r-kapak, .r-kart, .r-tablo th, .r-tablo tr:nth-child(even) td, .r-yatay-bar i, .r-rozet, .r-son, .r-not, .ant-ust .serit { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+`;
+// Raporu antetli sayfaya yerleştirir. bolumler: HTML parçaları dizisi
+function raporHTML({ baslik = "Rapor", altNot = "", bolumler = [], kapanis = "", yatay = false }) {
+  const simdi = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>${rKacis(baslik)}</title><style>${RAPOR_STYLES}${yatay ? "@page { size: A4 landscape; }" : ""}</style></head><body>
+  ${antetHTML(altNot || rKacis(baslik), true)}
+  <table class="sayfa"><thead><tr><td></td></tr></thead><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
+  ${bolumler.filter(Boolean).join("\n")}
+  ${kapanis || `<div class="r-son"><b>Panormos Medya</b> tarafından ${simdi} tarihinde hazırlanmıştır · ${rKacis(QUOTE_SETTINGS.web)} · ${rKacis(QUOTE_SETTINGS.email)} · ${rKacis(QUOTE_SETTINGS.phone)}</div>`}
+  </td></tr></tbody></table></body></html>`;
+}
+// Raporu yazdırır ya da PDF indirir (şirket bilgileri yüklendikten sonra)
+async function raporGoster(html, dosyaAdi, asPdf) {
+  await loadQuoteSettings();
+  if (asPdf) downloadPdfFromHTML(typeof html === "function" ? html() : html, dosyaAdi, "portrait");
+  else openPrintWindow(typeof html === "function" ? html() : html);
+}
+
 const PRINT_STYLES = `
   @page { size: A4 portrait; margin: 0; }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -7267,12 +7420,12 @@ function sayiYaziyla(n) {
 const paraYazili = (n) => `${fmtMoney(n)} (${sayiYaziyla(n)} Türk Lirası)`;
 
 // Antetli kâğıt: her yazdırılan sayfanın üstünde ve altında Panormos Medya bilgileri
-function antetHTML(altNot) {
+function antetHTML(altNot, parafYok = false) {
   const S = QUOTE_SETTINGS;
   const vergi = (S.company_tax_office || S.company_tax_no) ? `${S.company_tax_office || "—"} V.D. · VKN ${S.company_tax_no || "—"}` : "";
   const altSol = [S.company_address, vergi].filter(Boolean).map(kacis).join(" · ");
   return `<div class="ant-ust"><div class="ic"><div><div class="logo">panormos <span class="m">medya.</span></div><div class="unvan">${kacis(S.company_title)}</div></div><div class="iletisim">${kacis(S.phone)} · ${kacis(S.email)}<br>${kacis(S.web)}${S.company_address ? "<br>" + kacis(S.company_address) : ""}</div></div><div class="serit"></div></div>
-  <div class="ant-alt"><div class="ic"><div><b>${kacis(S.company_title)}</b>${altSol ? "<br>" + altSol : ""}<br>${kacis(S.web)} · ${kacis(S.email)} · ${kacis(S.phone)}</div><div class="paraf-alan">${altNot || ""}<br>Paraf: AJANS ______ · MÜŞTERİ ______</div></div></div>`;
+  <div class="ant-alt"><div class="ic"><div><b>${kacis(S.company_title)}</b>${altSol ? "<br>" + altSol : ""}<br>${kacis(S.web)} · ${kacis(S.email)} · ${kacis(S.phone)}</div><div class="paraf-alan">${altNot || ""}${parafYok ? "" : "<br>Paraf: AJANS ______ · MÜŞTERİ ______"}</div></div></div>`;
 }
 
 // İmza bloğu: taraf adı, yetkili; yan yana Kaşe ve İmza kutuları; altında tarih
@@ -15025,4 +15178,6 @@ export {
   Btn, Select, Input, Textarea, Modal, FormField, StatCard, ModalActions, fmtMoney, sumAmount, todayStr, ymdOf,
   TR_MONTHS, monthRefLabel, currentMonthRef, exportPerfectExcel, downloadPdfFromHTML, PRINT_STYLES, footerHTML,
   cariHesapla, muhasebeHareketleri, invoiceDueDate, printClientStatement, bankNorm, bankCatLabel, swalAlert, swalConfirm, panelFetch,
+  raporHTML, raporKapak, raporKPI, raporBolum, raporIkili, raporKutu, raporTablo, raporVurgular, grafikCubuk, grafikCizgi, grafikHalka, grafikYatayCubuk, grafikIlerleme,
+  rSayi, rKisa, rKacis, rDegisim, RAPOR_PALET, loadQuoteSettings, openPrintWindow, openPreviewWindow,
 };

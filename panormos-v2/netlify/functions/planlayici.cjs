@@ -2,6 +2,7 @@
 //   GET  ?islem=hesaplar         → bağlı Instagram işletme hesapları
 //   GET  ?islem=istatistik&client=<id>&ay=YYYY-MM → müşterinin Instagram istatistikleri
 //   GET  ?islem=ozet&client=<id>&ay=YYYY-MM&adet=6 → son aylar özeti (grafik, önceki aya göre değişim)
+//   GET  ?islem=gorsel&url=<instagram görseli> → görseli base64 döndürür (PDF rapor için)
 //   POST { islem: "simdi", id }  → bir paylaşımı beklemeden ilerletir (Şimdi paylaş / Tekrar dene)
 const { yetkili } = require("../lib/auth.cjs");
 const { calistir, hesaplar, istatistikOnbellekli, aylikOzet } = require("../lib/planlayici.cjs");
@@ -16,6 +17,20 @@ exports.handler = async (event) => {
     if (event.httpMethod === "GET") {
       const islem = event.queryStringParameters?.islem;
       if (islem === "hesaplar") return YANIT(200, { hesaplar: await hesaplar() });
+      // Rapor PDF'i için Instagram görselini base64 verir (tarayıcı CDN'den doğrudan çizemez)
+      if (islem === "gorsel") {
+        const u = String(event.queryStringParameters?.url || "");
+        let host = ""; try { host = new URL(u).hostname; } catch (e) { return YANIT(400, { error: "Geçersiz adres" }); }
+        if (!/^https:/.test(u) || !/(\.cdninstagram\.com|\.fbcdn\.net|\.instagram\.com)$/.test(host)) return YANIT(400, { error: "İzin verilmeyen kaynak" });
+        const ctrl = new AbortController(); const zaman = setTimeout(() => ctrl.abort(), 8000);
+        const r = await fetch(u, { signal: ctrl.signal }).finally(() => clearTimeout(zaman));
+        if (!r.ok) return YANIT(502, { error: "Görsel alınamadı" });
+        const tip = r.headers.get("content-type") || "image/jpeg";
+        if (!/^image\//.test(tip)) return YANIT(415, { error: "Görsel değil" });
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (buf.length > 3 * 1024 * 1024) return YANIT(413, { error: "Görsel çok büyük" });
+        return YANIT(200, { veri: `data:${tip};base64,${buf.toString("base64")}` });
+      }
       if (islem === "istatistik" || islem === "ozet") {
         const q = event.queryStringParameters || {};
         if (!/^[0-9a-f-]{36}$/i.test(q.client || "") || !/^\d{4}-\d{2}$/.test(q.ay || "")) return YANIT(400, { error: "Eksik bilgi" });

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { T } from "./theme";
-import { Btn, Select, Input, Textarea, Modal, FormField, StatCard, swalAlert, swalConfirm, panelFetch, downloadPdfFromHTML } from "./App.jsx";
+import { Btn, Select, Input, Textarea, Modal, FormField, StatCard, swalAlert, swalConfirm, panelFetch, downloadPdfFromHTML, openPrintWindow, loadQuoteSettings,
+  raporHTML, raporKapak, raporKPI, raporBolum, raporIkili, raporKutu, raporTablo, raporVurgular, grafikCubuk, grafikCizgi, grafikHalka, grafikYatayCubuk, rSayi, rKisa, rDegisim, RAPOR_PALET } from "./App.jsx";
 import { MusteriReklamlari, reklamAmacAdi, reklamParaYaz } from "./Reklamlar.jsx";
 
 // Panel → Planlayıcı: müşterilerin Reels, Post, Kaydırmalı ve Hikaye paylaşımları.
@@ -395,25 +396,70 @@ export function InstagramIstatistik({ client }) {
   ];
   const ozet_ = ozetKutu; // PDF ve kutular bu listeyi kullanır
 
-  const pdf = () => {
-    const satir = medya.map(x => `<tr><td>${kacis(zamanYaz(x.zaman))}</td><td>${kacis(turAdi(x.tur))}</td><td class="ac">${kacis(x.aciklama || "")}</td><td>${sayiYaz(x.goruntulenme)}</td><td>${sayiYaz(x.erisim)}</td><td>${sayiYaz(x.begeni)}</td><td>${sayiYaz(x.yorum)}</td><td>${sayiYaz(x.kaydetme)}</td><td>${sayiYaz(x.paylasim)}</td></tr>`).join("");
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>rapor</title><style>
-      body{font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#111;margin:28px}
-      h1{font-size:20px;margin:0}.alt{color:#666;font-size:12px;margin:4px 0 18px}
-      .kutular{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
-      .k{border:1px solid #ddd;border-radius:10px;padding:10px 12px}.k b{display:block;font-size:20px;margin-top:4px}.k span{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:.05em}
-      table{width:100%;border-collapse:collapse;font-size:11px}th,td{border-bottom:1px solid #e5e5e5;padding:6px 5px;text-align:right}th{background:#f6f6f6;font-weight:700}
-      th:nth-child(-n+3),td:nth-child(-n+3){text-align:left}td.ac{max-width:220px;color:#444}
-      .son{margin-top:18px;font-size:10px;color:#888}</style></head><body>
-      <h1>${kacis(client.name)} · Instagram Raporu</h1>
-      <div class="alt">@${kacis(veri?.hesap?.kullanici || "")} · ${ayYaz(ay)} · Hazırlayan: Panormos Medya</div>
-      <div class="kutular">${ozet_.map(([l, v]) => `<div class="k"><span>${l}</span><b>${typeof v === "string" ? v : sayiYaz(v)}</b></div>`).join("")}</div>
-      ${tk.kayitVar && tk.gunler?.length ? `<div class="alt" style="margin-top:4px">Takipçi: ay başı ${sayiYaz(tk.baslangic)} → ay sonu ${sayiYaz(tk.bitis)}</div>` : ""}
-      ${ozet && ozet.filter(o => o.veriVar).length > 1 ? `<h2 style="font-size:14px;margin:6px 0 8px">Son aylar</h2><table style="margin-bottom:18px"><thead><tr><th>Ay</th><th>Paylaşım</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Takipçi</th></tr></thead><tbody>${ozet.filter(o => o.veriVar).map(o => `<tr><td>${kacis(ayYaz(o.ay))}</td><td>${sayiYaz(o.paylasim)}</td><td>${sayiYaz(o.goruntulenme)}</td><td>${sayiYaz(o.erisim)}</td><td>${sayiYaz(o.begeni)}</td><td>${sayiYaz(o.yorum)}</td><td>${sayiYaz(o.kaydetme)}</td><td>${sayiYaz(o.takipci)}</td></tr>`).join("")}</tbody></table>` : ""}
-      ${reklamlar.length ? `<h2 style="font-size:14px;margin:6px 0 8px">Reklamlar</h2><table style="margin-bottom:18px"><thead><tr><th>Reklam</th><th>Amaç</th><th>Tarih</th><th>Erişim</th><th>Gösterim</th><th>Tıklama</th><th>Harcama</th></tr></thead><tbody>${reklamlar.map(r => `<tr><td>${kacis(r.baslik || reklamAmacAdi(r.amac))}</td><td>${kacis(reklamAmacAdi(r.amac))}</td><td>${kacis(new Date(r.baslangic).toLocaleDateString("tr-TR"))}${r.bitis ? " – " + kacis(new Date(r.bitis).toLocaleDateString("tr-TR")) : ""}</td><td>${sayiYaz(r.sonuc?.erisim)}</td><td>${sayiYaz(r.sonuc?.gosterim)}</td><td>${sayiYaz(r.sonuc?.tiklama)}</td><td>${r.sonuc ? kacis(reklamParaYaz(r.sonuc.harcama)) : "—"}</td></tr>`).join("")}</tbody></table>` : ""}
-      <table><thead><tr><th>Tarih</th><th>Tür</th><th>Açıklama</th><th>Görüntülenme</th><th>Erişim</th><th>Beğeni</th><th>Yorum</th><th>Kaydetme</th><th>Paylaşım</th></tr></thead><tbody>${satir || `<tr><td colspan="9">Bu ay paylaşım yok.</td></tr>`}</tbody></table>
-      <div class="son">Veriler Instagram'dan ${new Date().toLocaleDateString("tr-TR")} tarihinde alındı.</div></body></html>`;
-    downloadPdfFromHTML(html, `${client.name}-instagram-${ay}.pdf`, "landscape");
+  // Grafikli, antetli aylık rapor (PDF ya da yazıcı). Görseller sunucu üzerinden alınır (Instagram CDN'i tarayıcıya izin vermez)
+  const [raporBusy, setRaporBusy] = useState(false);
+  const gorselVeri = async (url) => { try { const r = await panelFetch(`/.netlify/functions/planlayici?islem=gorsel&url=${encodeURIComponent(url)}`); const j = await r.json().catch(() => ({})); return r.ok && j.veri ? j.veri : ""; } catch (e) { return ""; } };
+  const rapor = async (asPdf) => {
+    setRaporBusy(true);
+    try {
+      await loadQuoteSettings();
+      const d = (k) => (buAyOz?.veriVar && oncekiOz?.veriVar) ? rDegisim(buAyOz[k], oncekiOz[k]) : null;
+      const etkilesim = top("begeni") + top("yorum") + top("kaydetme") + top("paylasim");
+      const erisim = veri?.genel?.reach ?? top("erisim"), goruntulenme = veri?.genel?.views ?? top("goruntulenme");
+      const oran = erisim ? etkilesim / erisim * 100 : null;
+      const sirali = [...medya].sort((a, b) => (Number(b.goruntulenme) || 0) - (Number(a.goruntulenme) || 0));
+      const enIyi = sirali.slice(0, 5);
+      const [foto, ...kucukler] = await Promise.all([veri?.hesap?.foto ? gorselVeri(veri.hesap.foto) : "", ...enIyi.map(x => x.gorsel ? gorselVeri(x.gorsel) : "")]);
+      const turler = ["reels", "carousel", "post", "story"].map(t => { const l = medya.filter(x => x.tur === t); return { t, adet: l.length, ort: l.length ? Math.round(l.reduce((s, x) => s + (Number(x.goruntulenme) || 0), 0) / l.length) : 0, etk: l.reduce((s, x) => s + (Number(x.begeni) || 0) + (Number(x.yorum) || 0) + (Number(x.kaydetme) || 0) + (Number(x.paylasim) || 0), 0) }; }).filter(x => x.adet);
+      const enIyiTur = [...turler].sort((a, b) => b.ort - a.ort)[0];
+      const gunler = GUNLER.map((g, i) => { const l = medya.filter(x => new Date(x.zaman).getDay() === i); return { g, adet: l.length, ort: l.length ? Math.round(l.reduce((s, x) => s + (Number(x.goruntulenme) || 0), 0) / l.length) : 0 }; }).filter(x => x.adet);
+      const enIyiGun = [...gunler].sort((a, b) => b.ort - a.ort)[0];
+      const aylar = (ozet || []).filter(o => o.veriVar);
+      const ayEt = aylar.map(o => { const [y, m] = o.ay.split("-").map(Number); return AYLAR[m - 1].slice(0, 3) + " " + String(y).slice(2); });
+      const yuzdeYaz = (x) => x ? (x.yuzde === null ? "" : ` (${x.yuzde > 0 ? "+" : ""}${x.yuzde}% önceki aya göre)`) : "";
+      const vurgular = [
+        { baslik: `${rSayi(erisim)} hesaba ulaşıldı`, metin: `İçerikler toplam ${rSayi(goruntulenme)} kez görüntülendi${yuzdeYaz(d("erisim"))}.`, renk: "#F25124" },
+        oran !== null ? { baslik: `Etkileşim oranı %${oran.toFixed(1).replace(".", ",")}`, metin: `Toplam ${rSayi(etkilesim)} etkileşim: beğeni, yorum, kaydetme ve paylaşım${yuzdeYaz(d("etkilesim"))}.`, renk: "#2D5BFF" } : null,
+        tk.kayitVar ? { baslik: `${tk.net > 0 ? "+" : ""}${rSayi(tk.net)} net takipçi`, metin: `${rSayi(tk.yeni)} yeni takipçi kazanıldı, ${rSayi(tk.ayrilan)} kişi ayrıldı. Ay sonu takipçi sayısı ${rSayi(tk.bitis ?? veri?.hesap?.takipci)}.`, renk: "#22B07D" } : { baslik: `${rSayi(veri?.hesap?.takipci)} takipçi`, metin: "Günlük takipçi hareketi arşivi ilk kayıttan sonra raporda yer alır.", renk: "#22B07D" },
+        enIyi[0] ? { baslik: "En çok izlenen içerik", metin: `${turAdi(enIyi[0].tur)} · ${zamanYaz(enIyi[0].zaman).split(" · ")[0]} · ${rSayi(enIyi[0].goruntulenme)} görüntülenme, ${rSayi(enIyi[0].begeni)} beğeni.`, renk: "#7B3FF2" } : null,
+        enIyiTur ? { baslik: `En verimli format: ${turAdi(enIyiTur.t)}`, metin: `${enIyiTur.adet} paylaşımda ortalama ${rSayi(enIyiTur.ort)} görüntülenme.`, renk: "#FF2E88" } : null,
+        enIyiGun ? { baslik: `En iyi gün: ${enIyiGun.g}`, metin: `${enIyiGun.g} günü yapılan paylaşımlar ortalama ${rSayi(enIyiGun.ort)} görüntülenme aldı.`, renk: "#E0A800" } : null,
+      ];
+      const kpi = [
+        { etiket: "Takipçi", deger: veri?.hesap?.takipci, degisim: d("takipci"), renk: "#22B07D" },
+        { etiket: "Erişilen hesap", deger: erisim, degisim: d("erisim"), renk: "#F25124" },
+        { etiket: "Görüntülenme", deger: goruntulenme, degisim: d("goruntulenme"), renk: "#2D5BFF" },
+        { etiket: "Etkileşim", deger: etkilesim, degisim: d("etkilesim"), renk: "#7B3FF2" },
+        { etiket: "Beğeni", deger: top("begeni"), degisim: d("begeni"), renk: "#EF4444" },
+        { etiket: "Yorum", deger: top("yorum"), degisim: d("yorum"), renk: "#8B5CF6" },
+        { etiket: "Kaydetme", deger: top("kaydetme"), degisim: d("kaydetme"), renk: "#F59E0B" },
+        { etiket: "Profil ziyareti", deger: veri?.genel?.profile_views ?? null, degisim: d("profil"), renk: "#14B8A6" },
+      ];
+      const tkGun = tk.kayitVar ? (tk.gunler || []) : [];
+      const reklamTop = (k) => reklamlar.reduce((s, r) => s + (Number(r.sonuc?.[k]) || 0), 0);
+      const gunYaz = (t) => new Date(t).toLocaleDateString("tr-TR");
+      const bolumler = [
+        raporKapak({ ustYazi: "Instagram aylık performans raporu", baslik: client.name, altBaslik: `@${veri?.hesap?.kullanici || ""} · ${ayYaz(ay)}`, foto, rozetler: [`${rSayi(veri?.hesap?.takipci)} takipçi`, `${medya.length} paylaşım`, `${rSayi(erisim)} erişim`, `${rSayi(etkilesim)} etkileşim`] }),
+        raporKPI(kpi, 4),
+        raporBolum("Öne çıkanlar", raporVurgular(vurgular)),
+        aylar.length > 1 ? raporBolum("Son aylar", raporIkili(
+          raporKutu("Erişim ve görüntülenme", grafikCizgi({ etiketler: ayEt, seriler: [{ ad: "Görüntülenme", degerler: aylar.map(o => o.goruntulenme), renk: "#2D5BFF" }, { ad: "Erişim", degerler: aylar.map(o => o.erisim), renk: "#F25124" }], yukseklik: 200 })),
+          raporKutu("Etkileşim", grafikCubuk({ etiketler: ayEt, seriler: [{ ad: "Etkileşim", degerler: aylar.map(o => o.etkilesim), renk: "#7B3FF2" }], yukseklik: 200, vurgu: aylar.findIndex(o => o.ay === ay) })))
+          + (aylar.filter(o => o.takipci != null).length > 1 ? raporKutu("Takipçi", grafikCizgi({ etiketler: ayEt, seriler: [{ ad: "Takipçi", degerler: aylar.map(o => o.takipci ?? null), renk: "#22B07D" }], yukseklik: 170, sifirdan: false })) : ""), "Önceki aylarla karşılaştırma") : "",
+        raporBolum("Bu ayın analizi", raporIkili(
+          raporKutu("Etkileşim dağılımı", grafikHalka({ dilimler: [{ ad: "Beğeni", deger: top("begeni"), renk: "#EF4444" }, { ad: "Yorum", deger: top("yorum"), renk: "#8B5CF6" }, { ad: "Kaydetme", deger: top("kaydetme"), renk: "#F59E0B" }, { ad: "Paylaşım", deger: top("paylasim"), renk: "#06B6D4" }], merkez: rKisa(etkilesim), merkezAlt: "etkileşim" })),
+          raporKutu("İçerik türlerine göre ortalama görüntülenme", turler.length ? grafikYatayCubuk({ satirlar: turler.map((x, i) => ({ ad: turAdi(x.t), alt: `${x.adet} paylaşım · ${rSayi(x.etk)} etkileşim`, deger: x.ort, renk: RAPOR_PALET[i % RAPOR_PALET.length] })) }) : "<div class='r-kucuk'>Bu ay paylaşım yok</div>"))
+          + (gunler.length > 1 ? raporKutu("Haftanın günlerine göre ortalama görüntülenme", grafikCubuk({ etiketler: gunler.map(x => x.g), seriler: [{ ad: "Ortalama görüntülenme", degerler: gunler.map(x => x.ort), renk: "#2D5BFF" }], yukseklik: 170 })) : "")
+          + (tkGun.length ? raporKutu("Günlük takipçi hareketi", grafikCubuk({ etiketler: tkGun.map(x => String(Number(x.gun.slice(8, 10)))), seriler: [{ ad: "Yeni", degerler: tkGun.map(x => x.yeni || 0), renk: "#22B07D" }, { ad: "Ayrılan", degerler: tkGun.map(x => x.ayrilan || 0), renk: "#EF4444" }], yukseklik: 170, degerGoster: false }), `Ay başı ${rSayi(tk.baslangic)} → ay sonu ${rSayi(tk.bitis)} takipçi`) : "")),
+        enIyi.length ? raporBolum("En iyi içerikler", raporTablo(["", "Tarih", "Tür", "Açıklama", "Görüntülenme", "Erişim", "Beğeni", "Yorum", "Kaydetme"], enIyi.map((x, i) => [{ html: kucukler[i] ? `<img src="${kucukler[i]}" alt="">` : "" }, zamanYaz(x.zaman).split(" · ")[0], turAdi(x.tur), (x.aciklama || "").slice(0, 70), rSayi(x.goruntulenme), rSayi(x.erisim), rSayi(x.begeni), rSayi(x.yorum), rSayi(x.kaydetme)]), ["sol", "sol", "sol", "sol", "sag", "sag", "sag", "sag", "sag"]), "Görüntülenmeye göre ilk 5") : "",
+        reklamlar.length ? raporBolum("Reklamlar", raporKPI([{ etiket: "Reklam", deger: reklamlar.length, renk: "#F25124" }, { etiket: "Erişim", deger: reklamTop("erisim"), renk: "#2D5BFF" }, { etiket: "Tıklama", deger: reklamTop("tiklama"), renk: "#22B07D" }, { etiket: "Harcama", deger: reklamParaYaz(reklamTop("harcama")), renk: "#E0A800" }], 4) + raporTablo(["Reklam", "Amaç", "Tarih", "Erişim", "Gösterim", "Tıklama", "Harcama"], reklamlar.map(r => [r.baslik || reklamAmacAdi(r.amac), reklamAmacAdi(r.amac), `${gunYaz(r.baslangic)}${r.bitis ? " – " + gunYaz(r.bitis) : ""}`, rSayi(r.sonuc?.erisim), rSayi(r.sonuc?.gosterim), rSayi(r.sonuc?.tiklama), reklamParaYaz(r.sonuc?.harcama)]), ["sol", "sol", "sol", "sag", "sag", "sag", "sag"])) : "",
+        medya.length ? raporBolum("Tüm paylaşımlar", raporTablo(["Tarih", "Tür", "Açıklama", "Görüntülenme", "Erişim", "Beğeni", "Yorum", "Kaydetme", "Paylaşım"], medya.map(x => [zamanYaz(x.zaman).split(" · ")[0], turAdi(x.tur), (x.aciklama || "").slice(0, 60), rSayi(x.goruntulenme), rSayi(x.erisim), rSayi(x.begeni), rSayi(x.yorum), rSayi(x.kaydetme), rSayi(x.paylasim)]), ["sol", "sol", "sol", "sag", "sag", "sag", "sag", "sag", "sag"]), `${medya.length} paylaşım`) : "",
+        `<div class="r-kucuk">Veriler Instagram'dan ${new Date().toLocaleDateString("tr-TR")} tarihinde alındı. Erişim ve görüntülenme hesap geneli değerlerdir; etkileşimler ay içindeki paylaşımların toplamıdır.</div>`,
+      ];
+      const html = raporHTML({ baslik: `${client.name} · Instagram ${ayYaz(ay)}`, altNot: `${kacis(client.name)} · Instagram raporu · ${kacis(ayYaz(ay))}`, bolumler });
+      if (asPdf) downloadPdfFromHTML(html, `${client.name}-Instagram-Raporu-${ay}.pdf`); else openPrintWindow(html);
+    } catch (e) { swalAlert("Rapor hazırlanamadı: " + e.message); }
+    setRaporBusy(false);
   };
 
   return <div>
@@ -422,7 +468,8 @@ export function InstagramIstatistik({ client }) {
       <Btn onClick={() => getir(true)} disabled={yukleniyor}>{yukleniyor ? "Alınıyor… (20-30 sn sürebilir)" : "Yenile"}</Btn>
       {veri?.onbellek && <span style={{ fontSize: 11, color: T.textMuted }}>Son güncelleme {new Date(veri.onbellek).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>}
       <div style={{ flex: 1 }} />
-      {veri?.bagli && <Btn variant="primary" onClick={pdf} disabled={yukleniyor}>📄 PDF rapor</Btn>}
+      {veri?.bagli && <Btn onClick={() => rapor(false)} disabled={yukleniyor || raporBusy}>🖨️ Yazdır</Btn>}
+      {veri?.bagli && <Btn variant="primary" onClick={() => rapor(true)} disabled={yukleniyor || raporBusy}>{raporBusy ? "Rapor hazırlanıyor…" : "📊 PDF Rapor"}</Btn>}
     </div>
     {hata && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim, padding: "10px 12px", borderRadius: 10, marginBottom: 12 }}>İstatistikler alınamadı: {hata}</div>}
     {veri && !veri.bagli && <div style={{ fontSize: 13, color: T.textSecondary, padding: 16, background: T.bgInput, borderRadius: 12 }}>Bu müşterinin Instagram hesabı henüz bağlı değil. Paylaşım Planlayıcı → Instagram hesapları sekmesinden bağlayın.</div>}
