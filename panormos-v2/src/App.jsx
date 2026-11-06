@@ -6960,7 +6960,8 @@ async function htmlToPdfBlob(html, orientation) {
         if (altR) pdf.addImage(altR.veri, "JPEG", 0, sayfaMm[1] - altR.mm, sayfaMm[0], altR.mm);
       }
     }
-    return pdf.output("blob");
+    // Çerçeve kaldırılınca onun dünyasında yaratılan Blob kullanılamaz hale gelebilir; veriyi ana sayfada yeniden sar
+    return new Blob([pdf.output("arraybuffer")], { type: "application/pdf" });
   } finally { fr.remove(); }
 }
 // hazirPencere: eski sürümden kalan, önceden açılmış pencere; artık gerekmediği için kapatılır
