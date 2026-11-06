@@ -69,7 +69,9 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
 
   const aktifMusteriler = useMemo(() => (clients || []).filter(c => !c.deletedAt).sort((a, b) => a.name.localeCompare(b.name, "tr")), [clients]);
   const musteriAdi = (id) => aktifMusteriler.find(c => c.id === id)?.name || "—";
-  const gorunen = planlar.filter(p => !musteriFiltre || p.client_id === musteriFiltre);
+  // Ayrılan müşterilerin paylaşımları listede görünmez (tekrar aktif edilince geri gelir)
+  const aktifIdler = useMemo(() => new Set(aktifMusteriler.map(c => c.id)), [aktifMusteriler]);
+  const gorunen = planlar.filter(p => aktifIdler.has(p.client_id) && (!musteriFiltre || p.client_id === musteriFiltre));
   const yaklasan = gorunen.filter(p => p.durum === "bekliyor" || p.durum === "hazirlaniyor").length;
   const hatali = gorunen.filter(p => p.durum === "hata").length;
   const buAyPaylasilan = gorunen.filter(p => p.durum === "paylasildi" && ayAnahtari(p.paylasildi_at || p.zaman) === ayAnahtari(new Date())).length;

@@ -267,7 +267,49 @@ const CLIENT_DELETE_REASONS = [
   { id: "contract_ended", label: "Sözleşme süresi sona erdi" },
   { id: "business_closed", label: "İşletme kapatıldı" },
   { id: "non_payment", label: "Ödeme yapmamasından dolayı sonlandırıldı" },
+  { id: "other", label: "Diğer" },
 ];
+
+// Müşteri ayrılınca: bekleyen planlı paylaşımlar iptal edilir, yayındaki reklamlar durdurulur.
+// Tekrar aktif edilince: zamanı geçmemiş iptaller sıraya döner, durdurulan reklamlar devam eder.
+const AYRILDI_NOTU = "Müşteri ayrıldı";
+async function musteriAyrildiTemizle(clientId) {
+  const ozet = [];
+  const { data: planlar } = await supabase.from('planli_paylasimlar').select('id').eq('client_id', clientId).in('durum', ['bekliyor', 'hata']);
+  if (planlar?.length) {
+    const { error } = await supabase.from('planli_paylasimlar').update({ durum: 'iptal', hata: AYRILDI_NOTU, updated_at: new Date().toISOString() }).eq('client_id', clientId).in('durum', ['bekliyor', 'hata']);
+    if (!error) ozet.push(`${planlar.length} planlı paylaşım iptal edildi`);
+  }
+  const { data: reklamlar } = await supabase.from('reklamlar').select('id').eq('client_id', clientId).in('durum', ['aktif', 'inceleme']);
+  let durduruldu = 0;
+  for (const r of reklamlar || []) {
+    try {
+      const y = await panelFetch('/.netlify/functions/reklam', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ islem: 'durdur', id: r.id }) });
+      if (y.ok) { await supabase.from('reklamlar').update({ musteri_ayrildi: true }).eq('id', r.id); durduruldu++; }
+    } catch (e) { /* Meta'ya ulaşılamadıysa reklam listede kalır, elle durdurulur */ }
+  }
+  if (reklamlar?.length) ozet.push(durduruldu === reklamlar.length ? `${durduruldu} reklam durduruldu` : `${durduruldu}/${reklamlar.length} reklam durduruldu (kalanını Reklamlar sayfasından durdurun)`);
+  return ozet;
+}
+async function musteriGeriGeldi(clientId) {
+  const ozet = [];
+  const simdi = new Date().toISOString();
+  const { data: planlar } = await supabase.from('planli_paylasimlar').select('id').eq('client_id', clientId).eq('durum', 'iptal').eq('hata', AYRILDI_NOTU).gt('zaman', simdi);
+  if (planlar?.length) {
+    const { error } = await supabase.from('planli_paylasimlar').update({ durum: 'bekliyor', hata: null, updated_at: simdi }).eq('client_id', clientId).eq('durum', 'iptal').eq('hata', AYRILDI_NOTU).gt('zaman', simdi);
+    if (!error) ozet.push(`${planlar.length} planlı paylaşım yeniden sıraya alındı`);
+  }
+  const { data: reklamlar } = await supabase.from('reklamlar').select('id').eq('client_id', clientId).eq('musteri_ayrildi', true).eq('durum', 'duraklatildi');
+  let devam = 0;
+  for (const r of reklamlar || []) {
+    try {
+      const y = await panelFetch('/.netlify/functions/reklam', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ islem: 'devam', id: r.id }) });
+      if (y.ok) { await supabase.from('reklamlar').update({ musteri_ayrildi: false }).eq('id', r.id); devam++; }
+    } catch (e) { /* elle devam ettirilir */ }
+  }
+  if (reklamlar?.length) ozet.push(devam === reklamlar.length ? `${devam} reklam yeniden yayına alındı` : `${devam}/${reklamlar.length} reklam yeniden yayına alındı (kalanını Reklamlar sayfasından başlatın)`);
+  return ozet;
+}
 
 // ─────────────────────────────────────────────
 // EMOJİ SİSTEMİ
@@ -1673,6 +1715,7 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       "İşletme Adı": c.name,
       "Kategori": c.category || "—",
       "Silme Sebebi": CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "—",
+      "Açıklama": c.delete_note || "—",
       "Bitiş Tarihi": c.deletion_date || "—",
       "Silme Tarihi": c.deleted_at ? new Date(c.deleted_at).toLocaleDateString("tr-TR") : "—",
     }));
@@ -1705,21 +1748,25 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       swalAlert("Lütfen silme sebebi ve bitiş tarihini seçin");
       return;
     }
-    if (!await swalConfirm("Bu müşteri silinecek (ayrılan müşteriler listesine taşınır).\n\nOnaylıyor musunuz?")) return;
+    if (deleteModal.reason === "other" && !(deleteModal.note || "").trim()) { swalAlert("\"Diğer\" seçtiyseniz açıklama yazın"); return; }
+    if (!await swalConfirm("Bu müşteri silinecek (ayrılan müşteriler listesine taşınır).\n\nBekleyen planlı paylaşımları iptal edilir, yayındaki reklamları durdurulur. Tekrar aktif edilirse geri açılır.\n\nOnaylıyor musunuz?")) return;
 
     const { error } = await supabase.from('clients').update({
       deleted_at: new Date().toISOString(),
       delete_reason: deleteModal.reason,
       deletion_date: deleteModal.date,
+      delete_note: (deleteModal.note || "").trim() || null,
     }).eq('id', clientId);
 
     if (error) {
-      swalAlert("HATA: Müşteri silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. SQL kodunu çalıştırdığınızdan emin olun.");
+      swalAlert("HATA: Müşteri silinemedi!\n\n" + error.message + "\n\nSupabase'de gerekli sütunlar eksik olabilir. supabase/musteri-silme-aciklama.sql dosyasını çalıştırdığınızdan emin olun.");
       return;
     }
 
     setClients(clients.filter(c => c.id !== clientId));
     setDeleteModal(null);
+    const ozet = await musteriAyrildiTemizle(clientId);
+    if (ozet.length) swalAlert("Müşteri ayrılanlara taşındı.\n\n" + ozet.join("\n"));
   };
 
   return <div>
@@ -1974,8 +2021,11 @@ function ClientsPage({clients,setClients,allClients,perms,currentStaff}) {
       <FormField label="Bitiş Tarihi">
         <Input type="date" value={deleteModal.date||""} onChange={e=>setDeleteModal({...deleteModal,date:e.target.value})} />
       </FormField>
+      <FormField label={deleteModal.reason==="other" ? "Açıklama (zorunlu)" : "Açıklama (isteğe bağlı)"}>
+        <Textarea placeholder="Neden ayrıldı, ne konuşuldu, tekrar görüşülecek mi..." value={deleteModal.note||""} onChange={e=>setDeleteModal({...deleteModal,note:e.target.value})} minHeight={90} />
+      </FormField>
       <div style={{background:T.bgSurface,border:`1px solid ${T.border}`,borderRadius:8,padding:"12px",marginBottom:16,fontSize:12,color:T.textMuted}}>
-        ⚠️ Bu müşteri silindi olarak işaretlenecek ve Excel çıktısında görünecektir.
+        ⚠️ Müşteri ayrılanlar listesine taşınır; bekleyen planlı paylaşımları iptal edilir, yayındaki reklamları durdurulur. Ana Sayfa'dan "Aktif Yap" ile geri alınabilir.
       </div>
       <ModalActions onClose={()=>setDeleteModal(null)} onSave={()=>handleDeleteClient(deleteModal.clientId)} />
     </Modal>}
@@ -6272,11 +6322,12 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
   const restoreClient = async (id, name) => {
     if (!await swalConfirm(`"${name}" tekrar aktif müşteri olacak. Onaylıyor musunuz?`)) return;
     setBusy(true);
-    const { error } = await supabase.from('clients').update({ deleted_at: null, delete_reason: null, deletion_date: null }).eq('id', id);
+    const { error } = await supabase.from('clients').update({ deleted_at: null, delete_reason: null, deletion_date: null, delete_note: null }).eq('id', id);
+    if (error) { setBusy(false); swalAlert("Hata: " + error.message); return; }
+    const ozet = await musteriGeriGeldi(id);
     setBusy(false);
-    if (error) { swalAlert("Hata: " + error.message); return; }
     await refreshData();
-    swalAlert(`"${name}" tekrar aktif müşteri! Bilgilerini düzenlemek için Müşteriler sayfasına gidebilirsiniz.`);
+    swalAlert(`"${name}" tekrar aktif müşteri!${ozet.length ? "\n\n" + ozet.join("\n") : ""}\n\nBilgilerini düzenlemek için Müşteriler sayfasına gidebilirsiniz.`);
   };
 
   const restoreStaff = async (id, name) => {
@@ -6308,6 +6359,7 @@ function DepartedSection({ allClients, allStaff, refreshData, perms }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: T.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</div>
         <div style={{ fontSize: 10, color: T.textMuted }}>{CLIENT_DELETE_REASONS.find(r => r.id === c.delete_reason)?.label || "Ayrıldı"}{c.deletion_date ? ` · ${c.deletion_date}` : ""}{c.deleted_at ? ` · Silindi: ${new Date(c.deleted_at).toLocaleDateString("tr-TR")}` : ""}</div>
+        {c.delete_note && <div style={{ fontSize: 11, color: T.textSecondary, marginTop: 3, whiteSpace: "pre-wrap" }} title="Silme açıklaması">📝 {c.delete_note}</div>}
       </div>
       {perms.manageClients && <button disabled={busy} onClick={() => restoreClient(c.id, c.name)} style={{ fontSize: 11, fontWeight: 600, padding: "6px 12px", borderRadius: 8, background: T.greenDim, color: T.greenText, border: `1px solid ${T.green}44`, cursor: busy ? "wait" : "pointer", whiteSpace: "nowrap" }}>↩ Aktif Yap</button>}
     </div>

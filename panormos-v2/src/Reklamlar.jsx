@@ -108,7 +108,9 @@ export default function ReklamlarPage({ clients, currentStaff }) {
     catch (e) { swalAlert("İşlem yapılamadı: " + e.message); }
   };
 
-  const liste = reklamlar.filter(r => (!musteriFiltre || r.client_id === musteriFiltre) && (!durumFiltre || (durumFiltre === "yayinda" ? ["inceleme", "aktif", "olusturuluyor"].includes(r.durum) : r.durum === durumFiltre)));
+  // Ayrılan müşterilerin reklamları listede görünmez (tekrar aktif edilince geri gelir)
+  const aktifIdler = useMemo(() => new Set(aktifMusteriler.map(c => c.id)), [aktifMusteriler]);
+  const liste = reklamlar.filter(r => aktifIdler.has(r.client_id) && (!musteriFiltre || r.client_id === musteriFiltre) && (!durumFiltre || (durumFiltre === "yayinda" ? ["inceleme", "aktif", "olusturuluyor"].includes(r.durum) : r.durum === durumFiltre)));
   const top = (k) => liste.reduce((s, r) => s + (Number(r.sonuc?.[k]) || 0), 0);
   const buAy = new Date(); buAy.setDate(1); buAy.setHours(0, 0, 0, 0);
   const buAyHarcama = reklamlar.filter(r => new Date(r.created_at) >= buAy).reduce((s, r) => s + (Number(r.sonuc?.harcama) || 0), 0);
