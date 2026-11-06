@@ -7130,11 +7130,24 @@ const SOZLESME_SART_VARSAYILAN = {
 const SOZLESME_STYLES = `
   @page { size: A4 portrait; margin: 0; }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:34px 38px; font-size:10px; line-height:1.5; }
-  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1A2B3F; padding-bottom:10px; margin-bottom:12px; }
-  .logo { font-size:15px; font-weight:800; color:#1A2B3F; }
-  .logo .m { color:#F25124; }
-  .head .no { text-align:right; font-size:9.5px; color:#6B7280; }
+  body { font-family:-apple-system,'Segoe UI',Arial,sans-serif; color:#1F2937; padding:0 13mm; font-size:10px; line-height:1.5; }
+  /* Antetli kâğıt: üst ve alt bilgi her sayfada tekrar eder (sabit konum + tablo thead/tfoot boşluğu) */
+  .ant-ust { position:fixed; top:0; left:0; right:0; height:24mm; padding:7mm 13mm 0; background:#fff; }
+  .ant-ust .ic { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:1.6px solid #1A2B3F; padding-bottom:5px; }
+  .ant-ust .logo { font-size:17px; font-weight:800; color:#1A2B3F; line-height:1; }
+  .ant-ust .logo .m { color:#F25124; }
+  .ant-ust .unvan { font-size:8.5px; color:#6B7280; margin-top:4px; letter-spacing:0.03em; }
+  .ant-ust .iletisim { text-align:right; font-size:8.5px; color:#4B5563; line-height:1.5; }
+  .ant-ust .serit { height:2px; background:linear-gradient(90deg,#F25124,#FF2E88 40%,#2D5BFF); margin-top:2px; }
+  .ant-alt { position:fixed; bottom:0; left:0; right:0; height:18mm; padding:0 13mm 6mm; background:#fff; }
+  .ant-alt .ic { border-top:1px solid #D1D5DB; padding-top:5px; display:flex; justify-content:space-between; align-items:flex-start; font-size:7.8px; color:#6B7280; line-height:1.5; }
+  .ant-alt .ic b { color:#1A2B3F; }
+  .ant-alt .paraf-alan { text-align:right; white-space:nowrap; }
+  table.sayfa { width:100%; border-collapse:collapse; margin:0; }
+  table.sayfa > thead > tr > td { height:26mm; padding:0; border:0; }
+  table.sayfa > tfoot > tr > td { height:19mm; padding:0; border:0; }
+  table.sayfa > tbody > tr > td { padding:0; border:0; font-size:10px; }
+  .belge-no { display:flex; justify-content:space-between; font-size:9.5px; color:#6B7280; margin-bottom:6px; }
   h1 { font-size:14.5px; color:#1A2B3F; text-align:center; margin:4px 0 12px; letter-spacing:0.02em; }
   h2 { font-size:10.5px; color:#1A2B3F; margin:11px 0 4px; text-transform:uppercase; letter-spacing:0.04em; page-break-after:avoid; }
   p { margin-bottom:4px; text-align:justify; }
@@ -7155,7 +7168,7 @@ const SOZLESME_STYLES = `
   .imza b { display:block; font-size:10.5px; }
   .imza small { display:block; color:#6B7280; margin-top:30px; }
   .paraf { font-size:8.5px; color:#8A8F98; margin-top:10px; display:flex; justify-content:space-between; }
-  @media print { html, body { height:auto; } body { padding:14mm 13mm; } th, .kutu { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  @media print { html, body { height:auto; } body { padding:0 13mm; } th, .kutu, .ant-ust .serit { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
 `;
 const tarihYaz = (ymd) => ymd ? new Date(ymd + "T00:00:00").toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" }) : "—";
 const ayEkle = (ymd, ay) => { const d = new Date(ymd + "T00:00:00"); d.setMonth(d.getMonth() + Number(ay || 0)); d.setDate(d.getDate() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -7170,6 +7183,14 @@ function sayiYaziyla(n) {
   return s.trim().replace(/\s+/g, " ");
 }
 const paraYazili = (n) => `${fmtMoney(n)} (${sayiYaziyla(n)} Türk Lirası)`;
+
+// Antetli kâğıt: her yazdırılan sayfanın üstünde ve altında Panormos Medya bilgileri
+function antetHTML(altNot) {
+  const S = QUOTE_SETTINGS;
+  const altSol = [S.company_title, S.company_address, S.company_tax_office || S.company_tax_no ? `${S.company_tax_office || "—"} V.D. · VKN ${S.company_tax_no || "—"}` : ""].filter(Boolean).map(kacis).join(" · ");
+  return `<div class="ant-ust"><div class="ic"><div><div class="logo">panormos <span class="m">medya.</span></div><div class="unvan">${kacis(S.company_title)}</div></div><div class="iletisim">${kacis(S.phone)} · ${kacis(S.email)}<br>${kacis(S.web)}${S.company_address ? "<br>" + kacis(S.company_address) : ""}</div></div><div class="serit"></div></div>
+  <div class="ant-alt"><div class="ic"><div><b>${kacis(S.company_title)}</b><br>${altSol.replace(kacis(S.company_title) + " · ", "")}<br>${kacis(S.web)} · ${kacis(S.email)} · ${kacis(S.phone)}</div><div class="paraf-alan">${altNot || ""}<br>Paraf: AJANS ______ · MÜŞTERİ ______</div></div></div>`;
+}
 
 function sozlesmeHTML(client, f) {
   const S = QUOTE_SETTINGS;
@@ -7190,7 +7211,9 @@ function sozlesmeHTML(client, f) {
   const m = (t) => `<p class="m">${bolum}.${++no} ${t}</p>`;
 
   return `<!DOCTYPE html><html lang="tr"><head><meta charset="UTF-8"><title>Sözleşme - ${kacis(client.name)}</title><style>${SOZLESME_STYLES}</style></head><body>
-  <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><div class="no">Sözleşme No: <b>${kacis(f.sozlesme_no)}</b><br>Düzenleme Tarihi: ${simdi}</div></div>
+  ${antetHTML(`Sözleşme No ${kacis(f.sozlesme_no)} · ${kacis(client.name)}`)}
+  <table class="sayfa"><thead><tr><td></td></tr></thead><tfoot><tr><td></td></tr></tfoot><tbody><tr><td>
+  <div class="belge-no"><span>Belge: Hizmet Sözleşmesi</span><span>Sözleşme No: <b>${kacis(f.sozlesme_no)}</b> · Düzenleme Tarihi: ${simdi}</span></div>
   <h1>SOSYAL MEDYA YÖNETİMİ VE DİJİTAL İÇERİK HİZMET SÖZLEŞMESİ</h1>
 
   ${B("Taraflar")}
@@ -7318,7 +7341,7 @@ function sozlesmeHTML(client, f) {
     <div><b>HİZMET VEREN (AJANS)</b>${kacis(S.company_title)}<br>${kacis(S.company_rep || "")}<small>Kaşe / İmza · Tarih: ____ / ____ / ________</small></div>
     <div><b>HİZMET ALAN (MÜŞTERİ)</b>${kacis(client.name)}<br>${kacis(f.musteri_yetkili || "")}<small>Kaşe / İmza · Tarih: ____ / ____ / ________</small></div>
   </div>
-  <div class="paraf"><span>Sözleşme No ${kacis(f.sozlesme_no)} · ${kacis(S.company_title)} — ${kacis(client.name)}</span><span>Paraf: AJANS ______ · MÜŞTERİ ______</span></div>
+  </td></tr></tbody></table>
   </body></html>`;
 }
 
