@@ -6804,6 +6804,7 @@ const NAV=[
   {id:"dashboard",label:"Ana Sayfa",icon:"🏠"},
   {id:"clients",label:"Müşteriler",icon:"🏢"},
   {id:"leads",label:"Soğuk Arama",icon:"📞"},
+  {id:"gorusmeler",label:"Görüşmeler",icon:"🤝"},
   {id:"pricing",label:"Fiyatlar",icon:"💰"},
   {id:"calendar",label:"Takvim",icon:"📅"},
   {id:"shoots",label:"Çekimler",icon:"📷"},
@@ -6829,7 +6830,7 @@ const NAV=[
 // Menü bölümleri (sırası ve başlıkları)
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
-  { label: "İş Takibi", ids: ["clients", "leads", "calendar", "shoots", "tasks", "planlayici", "reklamlar", "ideas"] },
+  { label: "İş Takibi", ids: ["clients", "leads", "gorusmeler", "calendar", "shoots", "tasks", "planlayici", "reklamlar", "ideas"] },
   { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
   { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "veteriner", "emlakpanelim"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
@@ -6842,6 +6843,7 @@ const NAV_ICON_PATHS = {
   dashboard: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   clients: <><rect x="4" y="3" width="16" height="18" rx="1.5" /><path d="M9 8h1M14 8h1M9 12h1M14 12h1M10 21v-4h4v4" /></>,
   leads: <path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1z" />,
+  gorusmeler: <><path d="M3 11l3-5h4l2 2 2-2h4l3 5" /><path d="M6 11l5 5 1.5-1.5L10 12" /><path d="M18 11l-4 4M15 15l-3 3-2-2M3 11h3M18 11h3" /></>,
   pricing: <><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" /><circle cx="7.5" cy="7.5" r="1.2" /></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></>,
   shoots: <><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.5" /></>,
@@ -8093,6 +8095,287 @@ function LeadsPage({ refreshData, currentStaff }) {
           </FormField>
           <FormField label="Notlar"><Textarea placeholder="Görüşme notları..." value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => { setModal(false); setEditId(null); }} onSave={saveLead} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// GÖRÜŞMELER - görüşülen / randevu alınan firmalar
+// ─────────────────────────────────────────────
+const GORUSME_DURUM = {
+  bekliyor:  { label: "Randevu Bekliyor", color: "#93A9FF", bg: "rgba(45,91,255,0.16)", dot: "#2D5BFF" },
+  gorusuldu: { label: "Görüşüldü",        color: "#FF9B78", bg: "rgba(242,81,36,0.16)", dot: "#F25124" },
+  anlasildi: { label: "Anlaşıldı",        color: "#7EE2A2", bg: "rgba(34,197,94,0.15)", dot: "#22C55E" },
+  olumsuz:   { label: "Olumsuz",          color: "#FCA5A5", bg: "rgba(239,68,68,0.13)", dot: "#EF4444" },
+};
+// Kullanıcı adı ya da bağlantı yazılmış olabilir; her durumda tıklanır bağlantı üretir
+function sosyalLink(tur, deger) {
+  const v = String(deger || "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  const ad = v.replace(/^@/, "").replace(/^.*\.com\//i, "").replace(/\/+$/, "");
+  if (tur === "instagram") return `https://instagram.com/${ad}`;
+  if (tur === "facebook") return `https://facebook.com/${ad}`;
+  if (tur === "tiktok") return `https://tiktok.com/@${ad}`;
+  return "https://" + v;
+}
+// Randevu bugün mü, geçti mi? Liste satırındaki etiket için
+function randevuEtiketi(zaman) {
+  if (!zaman) return null;
+  const d = new Date(zaman); if (isNaN(d)) return null;
+  const gun = localDay(zaman), bugun = localDay(new Date().toISOString());
+  const metin = d.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  if (gun === bugun) return { metin: "Bugün " + metin.slice(6), vurgu: true };
+  if (gun < bugun) return { metin, gecti: true };
+  return { metin };
+}
+// <input type="datetime-local"> için yerel saat değeri
+function yerelSaatDegeri(iso) {
+  if (!iso) return "";
+  const d = new Date(iso); if (isNaN(d)) return "";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function GorusmelerPage({ currentStaff }) {
+  const [kayitlar, setKayitlar] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tabloYok, setTabloYok] = useState(false);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [editId, setEditId] = useState(null);
+  const [filter, setFilter] = useState("acik"); // acik = bekliyor + gorusuldu
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState(null);
+  const [notModal, setNotModal] = useState(null); // görüşme notu ekle: { kayit, metin, durum }
+
+  const load = async () => {
+    const { data, error } = await supabase.from('gorusmeler').select('*').order('created_at', { ascending: false });
+    if (error && /gorusmeler/.test(error.message || "")) setTabloYok(true);
+    setKayitlar(data || []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const bosForm = { firma_adi: "", yetkili: "", telefon: "", eposta: "", instagram: "", facebook: "", tiktok: "", web: "", sektor: "", adres: "", randevu_zamani: "", durum: "bekliyor", notlar: "" };
+  const openAdd = () => { setEditId(null); setForm(bosForm); setModal(true); };
+  const openEdit = (k) => {
+    setEditId(k.id);
+    setForm({ ...bosForm, ...Object.fromEntries(Object.keys(bosForm).map(a => [a, k[a] ?? ""])), randevu_zamani: yerelSaatDegeri(k.randevu_zamani) });
+    setModal(true);
+  };
+
+  const kaydet = async () => {
+    if (!form.firma_adi?.trim()) { swalAlert("Firma adı zorunlu"); return; }
+    const payload = {
+      ...Object.fromEntries(Object.keys(bosForm).map(a => [a, String(form[a] ?? "").trim()])),
+      randevu_zamani: form.randevu_zamani ? new Date(form.randevu_zamani).toISOString() : null,
+      durum: form.durum || "bekliyor",
+      updated_at: new Date().toISOString(),
+    };
+    let error;
+    if (editId) ({ error } = await supabase.from('gorusmeler').update(payload).eq('id', editId));
+    else ({ error } = await supabase.from('gorusmeler').insert({ ...payload, ekleyen: currentStaff?.name || "" }));
+    if (error) { swalAlert("Kaydedilemedi: " + error.message + "\n\nsupabase/gorusmeler-kurulum.sql dosyasını Supabase'de çalıştırdığınızdan emin olun."); return; }
+    setModal(false); setForm({}); setEditId(null);
+    load();
+  };
+
+  const sil = async (k) => {
+    if (!await swalConfirm(`"${k.firma_adi}" kaydı silinsin mi?`)) return;
+    const { error } = await supabase.from('gorusmeler').delete().eq('id', k.id);
+    if (error) { swalAlert("Silinemedi: " + error.message); return; }
+    load();
+  };
+
+  // Görüşme notu ekler; istenirse durumu da değiştirir
+  const notKaydet = async () => {
+    const { kayit, metin, durum } = notModal;
+    const gecmis = metin.trim() ? [{ at: new Date().toISOString(), not: metin.trim(), by: currentStaff?.name || "" }, ...(Array.isArray(kayit.gecmis) ? kayit.gecmis : [])].slice(0, 50) : (kayit.gecmis || []);
+    const { error } = await supabase.from('gorusmeler').update({ gecmis, durum: durum || kayit.durum, updated_at: new Date().toISOString() }).eq('id', kayit.id);
+    if (error) { swalAlert("Not kaydedilemedi: " + error.message); return; }
+    setNotModal(null);
+    load();
+  };
+
+  const durumDegistir = async (k, durum) => {
+    const { error } = await supabase.from('gorusmeler').update({ durum, updated_at: new Date().toISOString() }).eq('id', k.id);
+    if (error) { swalAlert("Durum değişmedi: " + error.message); return; }
+    load();
+  };
+
+  const aranan = bankNorm(search);
+  const filtered = kayitlar.filter(k => {
+    if (aranan && !bankNorm([k.firma_adi, k.yetkili, k.telefon, k.instagram, k.sektor, k.adres, k.notlar].filter(Boolean).join(" ")).includes(aranan)) return false;
+    if (filter === "acik") return k.durum === "bekliyor" || k.durum === "gorusuldu";
+    if (filter === "all") return true;
+    return k.durum === filter;
+  }).sort((a, b) => {
+    // Randevusu olanlar en yakın tarihe göre önce, sonra eklenme sırasına göre
+    if (a.randevu_zamani && b.randevu_zamani) return String(a.randevu_zamani).localeCompare(String(b.randevu_zamani));
+    if (a.randevu_zamani) return -1; if (b.randevu_zamani) return 1;
+    return String(b.created_at).localeCompare(String(a.created_at));
+  });
+
+  const bugun = localDay(new Date().toISOString());
+  const bugunRandevu = kayitlar.filter(k => k.randevu_zamani && localDay(k.randevu_zamani) === bugun && k.durum === "bekliyor").length;
+  const sayi = (d) => kayitlar.filter(k => k.durum === d).length;
+  const FILTER_TABS = [
+    { id: "acik", l: "Açık Görüşmeler" },
+    { id: "bekliyor", l: "Randevu Bekliyor" },
+    { id: "gorusuldu", l: "Görüşüldü" },
+    { id: "anlasildi", l: "Anlaşıldı" },
+    { id: "olumsuz", l: "Olumsuz" },
+    { id: "all", l: "Tümü" },
+  ];
+  const SOSYAL = [["instagram", "📸 Instagram"], ["facebook", "📘 Facebook"], ["tiktok", "🎵 TikTok"], ["web", "🌐 Web sitesi"]];
+  const kucukBtn = { fontSize: 12, padding: "7px 14px" };
+
+  const excel = async () => {
+    const rows = filtered.map(k => ({
+      "Firma": k.firma_adi, "Yetkili": k.yetkili || "—", "Telefon": k.telefon || "—", "E-posta": k.eposta || "—",
+      "Instagram": k.instagram || "—", "Facebook": k.facebook || "—", "TikTok": k.tiktok || "—", "Web": k.web || "—",
+      "Sektör": k.sektor || "—", "Randevu": k.randevu_zamani ? new Date(k.randevu_zamani).toLocaleString("tr-TR") : "—",
+      "Durum": GORUSME_DURUM[k.durum]?.label || k.durum, "Not": k.notlar || "—",
+    }));
+    await exportPerfectExcel([{ name: "Görüşmeler", rows, title: "PANORMOS MEDYA — GÖRÜŞMELER" }], `panormos-gorusmeler-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 18 }}>
+        <StatCard label="Bugünkü Randevular" value={bugunRandevu} color={bugunRandevu > 0 ? T.redText : undefined} sub="Bugün görüşülecek" />
+        <StatCard label="Randevu Bekliyor" value={sayi("bekliyor")} color={T.indigoText} sub="Görüşme planlandı" />
+        <StatCard label="Görüşüldü" value={sayi("gorusuldu")} color={T.amberText} sub="Karar bekleniyor" />
+        <StatCard label="Anlaşıldı" value={sayi("anlasildi")} color={T.greenText} sub="Olumlu sonuçlandı" />
+      </div>
+
+      {tabloYok && (
+        <Card style={{ padding: 16, marginBottom: 16, borderColor: T.amber }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.textPrimary, marginBottom: 6 }}>Kurulum gerekiyor</div>
+          <div style={{ fontSize: 12.5, color: T.textSecondary, lineHeight: 1.6 }}>Görüşmeler tablosu henüz veritabanında yok. <b>supabase/gorusmeler-kurulum.sql</b> dosyasını Supabase SQL Editor'de bir kez çalıştırın, sonra bu sayfayı yenileyin.</div>
+        </Card>
+      )}
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Btn variant="primary" onClick={openAdd}>+ Yeni Görüşme</Btn>
+        <Btn onClick={excel} style={{ background: T.greenDim, color: T.greenText }}>📊 Excel</Btn>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, flexWrap: "wrap" }}>
+        {FILTER_TABS.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{ fontSize: 12, fontWeight: filter === f.id ? 600 : 400, padding: "6px 12px", borderRadius: 8, background: filter === f.id ? T.amber : T.bgInput, color: filter === f.id ? T.white : T.textSecondary, border: `1px solid ${filter === f.id ? T.amber : T.border}`, cursor: "pointer" }}>{f.l}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14 }}>
+        <div style={{ flex: 1, maxWidth: 420 }}><Input placeholder="Ara: firma, yetkili, telefon, Instagram" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        <div style={{ fontSize: 12, color: T.textMuted }}>{filtered.length} kayıt</div>
+      </div>
+
+      {loading ? <div style={{ textAlign: "center", color: T.textMuted, padding: 30 }}>Yükleniyor...</div>
+        : filtered.length === 0 ? <div style={{ textAlign: "center", color: T.textMuted, padding: 40 }}>{search ? "Aramanıza uyan kayıt yok." : "Henüz kayıt yok. \"+ Yeni Görüşme\" ile firmayı ekleyin."}</div>
+          : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {filtered.map(k => {
+                const st = GORUSME_DURUM[k.durum] || GORUSME_DURUM.bekliyor;
+                const isOpen = expanded === k.id;
+                const rnd = randevuEtiketi(k.randevu_zamani);
+                const tel = String(k.telefon || "").split(" / ")[0].replace(/[^0-9+]/g, "");
+                const wa = leadWaPhone(k.telefon);
+                return (
+                  <div key={k.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+                    <div onClick={() => setExpanded(isOpen ? null : k.id)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", cursor: "pointer", borderLeft: `3px solid ${st.dot}` }}>
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: st.dot, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#fff", flexShrink: 0 }}>🤝</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: T.textPrimary }}>{k.firma_adi}</div>
+                        <div style={{ fontSize: 11, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{[k.yetkili, k.telefon, k.instagram ? "@" + k.instagram.replace(/^@/, "").replace(/^.*\.com\//i, "").replace(/\/+$/, "") : "", k.sektor].filter(Boolean).join(" · ") || "—"}</div>
+                      </div>
+                      {rnd && k.durum === "bekliyor" && <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 9px", borderRadius: 6, whiteSpace: "nowrap", background: rnd.vurgu ? T.redDim : T.bgInput, color: rnd.vurgu ? T.redText : rnd.gecti ? T.textMuted : T.textSecondary, textDecoration: rnd.gecti ? "line-through" : "none" }}>📅 {rnd.metin}</span>}
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 6, background: st.bg, color: st.color }}>{st.label}</span>
+                      <span style={{ fontSize: 13, color: T.textMuted, transform: isOpen ? "rotate(90deg)" : "none", transition: "0.2s" }}>›</span>
+                    </div>
+                    {isOpen && (
+                      <div style={{ padding: "0 18px 16px", borderTop: `1px solid ${T.border}` }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "14px 0" }}>
+                          <div>
+                            <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>İletişim</div>
+                            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.8 }}>
+                              <div>👤 {k.yetkili || "—"}</div>
+                              <div>📞 {k.telefon || "—"}</div>
+                              <div>✉️ {k.eposta || "—"}</div>
+                              <div>📍 {k.adres || "—"}</div>
+                              {k.randevu_zamani && <div>📅 Randevu: {new Date(k.randevu_zamani).toLocaleString("tr-TR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</div>}
+                              {k.ekleyen && <div style={{ color: T.textMuted }}>Ekleyen: {k.ekleyen} · {new Date(k.created_at).toLocaleDateString("tr-TR")}</div>}
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>Sosyal Medya</div>
+                            <div style={{ fontSize: 12, color: T.textSecondary, lineHeight: 1.8 }}>
+                              {SOSYAL.map(([a, l]) => <div key={a}>{l.split(" ")[0]} {k[a] ? <a href={sosyalLink(a, k[a])} target="_blank" rel="noopener noreferrer" style={{ color: T.indigoText }}>{k[a]}</a> : "—"}</div>)}
+                            </div>
+                          </div>
+                        </div>
+                        {k.notlar && <div style={{ fontSize: 12, color: T.textMuted, marginBottom: 12, padding: "8px 12px", background: T.bgInput, borderRadius: 8, whiteSpace: "pre-wrap" }}>📝 {k.notlar}</div>}
+                        {Array.isArray(k.gecmis) && k.gecmis.length > 0 && (
+                          <div style={{ marginBottom: 12, padding: "10px 12px", background: T.bgInput, borderRadius: 8 }}>
+                            <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>Görüşme Notları</div>
+                            {k.gecmis.slice(0, 8).map((g, gi) => (
+                              <div key={gi} style={{ fontSize: 12, color: T.textSecondary, padding: "3px 0" }}>
+                                <span style={{ color: T.textMuted }}>{new Date(g.at).toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>{g.by ? ` · ${g.by}` : ""} — {g.not}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                          {tel && <a href={`tel:${tel}`} style={{ textDecoration: "none" }}><Btn style={{ ...kucukBtn, background: T.greenDim, color: T.greenText }}>📞 Ara</Btn></a>}
+                          {wa && <a href={`https://wa.me/${wa}`} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}><Btn style={{ ...kucukBtn, background: "#25D366", color: "#fff", border: "1px solid transparent" }}>💬 WhatsApp</Btn></a>}
+                          {k.instagram && <a href={sosyalLink("instagram", k.instagram)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}><Btn style={kucukBtn}>📸 Instagram'ı Aç</Btn></a>}
+                          <Btn onClick={() => setNotModal({ kayit: k, metin: "", durum: k.durum })} style={{ ...kucukBtn, background: T.amberDim, color: T.amberText }}>📝 Görüşme Notu</Btn>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>Durum:</span>
+                          {Object.entries(GORUSME_DURUM).map(([d, c]) => <button key={d} onClick={() => k.durum !== d && durumDegistir(k, d)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 7, cursor: "pointer", background: k.durum === d ? c.bg : T.bgInput, color: k.durum === d ? c.color : T.textSecondary, border: `1px solid ${k.durum === d ? c.color + "66" : T.border}` }}>{c.label}</button>)}
+                          <div style={{ flex: 1 }} />
+                          <Btn onClick={() => openEdit(k)} style={kucukBtn}>✏️ Düzenle</Btn>
+                          <Btn onClick={() => sil(k)} style={{ ...kucukBtn, background: T.redDim, color: T.redText }}>🗑 Sil</Btn>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+      {modal && (
+        <Modal title={editId ? "✏️ Görüşmeyi Düzenle" : "Yeni Görüşme"} onClose={() => setModal(false)} width={720}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+            <FormField label="Firma Adı *"><Input placeholder="Örn: Agrotas İnşaat" value={form.firma_adi || ""} onChange={e => setForm(f => ({ ...f, firma_adi: e.target.value }))} /></FormField>
+            <FormField label="Yetkili"><Input placeholder="Görüşülen kişi" value={form.yetkili || ""} onChange={e => setForm(f => ({ ...f, yetkili: e.target.value }))} /></FormField>
+            <FormField label="Telefon"><Input placeholder="05xx xxx xx xx" value={form.telefon || ""} onChange={e => setForm(f => ({ ...f, telefon: e.target.value }))} /></FormField>
+            <FormField label="E-posta"><Input placeholder="isteğe bağlı" value={form.eposta || ""} onChange={e => setForm(f => ({ ...f, eposta: e.target.value }))} /></FormField>
+            <FormField label="📸 Instagram"><Input placeholder="@kullaniciadi ya da bağlantı" value={form.instagram || ""} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} /></FormField>
+            <FormField label="📘 Facebook"><Input placeholder="sayfa adı ya da bağlantı" value={form.facebook || ""} onChange={e => setForm(f => ({ ...f, facebook: e.target.value }))} /></FormField>
+            <FormField label="🎵 TikTok"><Input placeholder="@kullaniciadi ya da bağlantı" value={form.tiktok || ""} onChange={e => setForm(f => ({ ...f, tiktok: e.target.value }))} /></FormField>
+            <FormField label="🌐 Web Sitesi"><Input placeholder="www.firma.com" value={form.web || ""} onChange={e => setForm(f => ({ ...f, web: e.target.value }))} /></FormField>
+            <FormField label="Sektör"><Input placeholder="İnşaat, kafe, mobilya..." value={form.sektor || ""} onChange={e => setForm(f => ({ ...f, sektor: e.target.value }))} /></FormField>
+            <FormField label="Adres"><Input placeholder="isteğe bağlı" value={form.adres || ""} onChange={e => setForm(f => ({ ...f, adres: e.target.value }))} /></FormField>
+            <FormField label="📅 Randevu Tarihi ve Saati"><Input type="datetime-local" value={form.randevu_zamani || ""} onChange={e => setForm(f => ({ ...f, randevu_zamani: e.target.value }))} /></FormField>
+            <FormField label="Durum"><Select value={form.durum || "bekliyor"} onChange={e => setForm(f => ({ ...f, durum: e.target.value }))}>{Object.entries(GORUSME_DURUM).map(([d, c]) => <option key={d} value={d}>{c.label}</option>)}</Select></FormField>
+          </div>
+          <FormField label="Notlar"><Textarea placeholder="Ne istiyor, ne konuşuldu, dikkat edilecekler..." value={form.notlar || ""} onChange={e => setForm(f => ({ ...f, notlar: e.target.value }))} minHeight={90} /></FormField>
+          <ModalActions onClose={() => setModal(false)} onSave={kaydet} />
+        </Modal>
+      )}
+
+      {notModal && (
+        <Modal title={`Görüşme Notu — ${notModal.kayit.firma_adi}`} onClose={() => setNotModal(null)} width={480}>
+          <FormField label="Ne Konuşuldu"><Textarea placeholder="Örn: Teklif istedi, hafta sonu dönüş yapacak" value={notModal.metin} onChange={e => setNotModal(m => ({ ...m, metin: e.target.value }))} /></FormField>
+          <FormField label="Yeni Durum"><Select value={notModal.durum} onChange={e => setNotModal(m => ({ ...m, durum: e.target.value }))}>{Object.entries(GORUSME_DURUM).map(([d, c]) => <option key={d} value={d}>{c.label}</option>)}</Select></FormField>
+          <ModalActions onClose={() => setNotModal(null)} onSave={notKaydet} />
         </Modal>
       )}
     </div>
@@ -14112,6 +14395,7 @@ export default function App() {
         {page==="dashboard"&&<DashboardPage clients={clients} staff={staff} tasks={tasks} setPage={setPage} perms={perms} allClients={allClients} allStaff={allStaff} refreshData={refreshData} currentStaff={currentStaff}/>}
         {page==="clients"&&<ClientsPage clients={clients} setClients={setClients} allClients={allClients} perms={perms} currentStaff={currentStaff}/>}
         {page==="leads"&&<LeadsPage refreshData={refreshData} currentStaff={currentStaff}/>}
+        {page==="gorusmeler"&&<GorusmelerPage currentStaff={currentStaff}/>}
         {page==="pricing"&&<PricingPage/>}
         {page==="calendar"&&<CalendarPage clients={clients} staff={staff} setPage={setPage}/>}
         {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
