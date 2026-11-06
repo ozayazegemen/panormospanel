@@ -13963,20 +13963,29 @@ const BASE_CSS = `
 
 const RESPONSIVE_CSS = `
 /* ---------- TABLET (≤1024px) ---------- */
+/* Not: Kodda "repeat(4,1fr)" (boşluksuz) ve "repeat(4, 1fr)" (boşluklu) iki yazım da var; ikisi de yakalanır */
 @media (max-width: 1024px) {
-  [style*="repeat(6, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
-  [style*="repeat(5, 1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
-  [style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="repeat(6, 1fr)"], [style*="repeat(6,1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+  [style*="repeat(5, 1fr)"], [style*="repeat(5,1fr)"] { grid-template-columns: repeat(3, 1fr) !important; }
+  [style*="repeat(4, 1fr)"], [style*="repeat(4,1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 /* ---------- TELEFON (≤760px) ---------- */
 @media (max-width: 760px) {
-  [style*="repeat(6, 1fr)"],
-  [style*="repeat(5, 1fr)"],
-  [style*="repeat(4, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
-  [style*="repeat(3, 1fr)"] { grid-template-columns: 1fr !important; }
-  [style*="repeat(2, 1fr)"] { grid-template-columns: 1fr !important; }
+  /* Sayfa telefondan geniş olmasın: taşan içerik kendi kutusunda kaydırılır */
+  html, body, #root { max-width: 100vw; overflow-x: hidden; }
+  .pm-app { max-width: 100vw; overflow-x: hidden; }
+  /* Izgara hücreleri içeriğine göre genişleyip sayfayı taşırmasın */
+  [style*="grid-template-columns"] > * { min-width: 0; }
+
+  [style*="repeat(6, 1fr)"], [style*="repeat(6,1fr)"],
+  [style*="repeat(5, 1fr)"], [style*="repeat(5,1fr)"],
+  [style*="repeat(4, 1fr)"], [style*="repeat(4,1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="repeat(3, 1fr)"], [style*="repeat(3,1fr)"] { grid-template-columns: 1fr !important; }
+  [style*="repeat(2, 1fr)"], [style*="repeat(2,1fr)"] { grid-template-columns: 1fr !important; }
   [style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+  /* İkili istatistik kutuları telefonda sığsın */
+  [style*="repeat(2, 1fr)"] .pm-sayi, [style*="repeat(4,1fr)"] .pm-sayi, [style*="repeat(4, 1fr)"] .pm-sayi { font-size: 19px !important; }
 
   /* Takvim hücreleri daralsın (7 kolon korunur) */
   [style*="repeat(7, 1fr)"] { gap: 3px !important; }
@@ -13999,9 +14008,9 @@ const RESPONSIVE_CSS = `
 
 /* ---------- KÜÇÜK TELEFON (≤430px) ---------- */
 @media (max-width: 430px) {
-  [style*="repeat(4, 1fr)"],
-  [style*="repeat(5, 1fr)"],
-  [style*="repeat(6, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+  [style*="repeat(4, 1fr)"], [style*="repeat(4,1fr)"],
+  [style*="repeat(5, 1fr)"], [style*="repeat(5,1fr)"],
+  [style*="repeat(6, 1fr)"], [style*="repeat(6,1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
   .pm-modal { padding: 14px 12px !important; }
 }
 `;
