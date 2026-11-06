@@ -443,8 +443,8 @@ export function InstagramIstatistik({ client }) {
         raporKPI(kpi, 4),
         raporBolum("Öne çıkanlar", raporVurgular(vurgular)),
         aylar.length > 1 ? raporBolum("Son aylar", raporIkili(
-          raporKutu("Erişim ve görüntülenme", grafikCizgi({ etiketler: ayEt, seriler: [{ ad: "Görüntülenme", degerler: aylar.map(o => o.goruntulenme), renk: "#2D5BFF" }, { ad: "Erişim", degerler: aylar.map(o => o.erisim), renk: "#F25124" }], yukseklik: 200 })),
-          raporKutu("Etkileşim", grafikCubuk({ etiketler: ayEt, seriler: [{ ad: "Etkileşim", degerler: aylar.map(o => o.etkilesim), renk: "#7B3FF2" }], yukseklik: 200, vurgu: aylar.findIndex(o => o.ay === ay) })))
+          raporKutu("Erişim ve görüntülenme", grafikCizgi({ etiketler: ayEt, seriler: [{ ad: "Görüntülenme", degerler: aylar.map(o => o.goruntulenme), renk: "#2D5BFF" }, { ad: "Erişim", degerler: aylar.map(o => o.erisim), renk: "#F25124" }], yukseklik: 190, genislik: 330 })),
+          raporKutu("Etkileşim", grafikCubuk({ etiketler: ayEt, seriler: [{ ad: "Etkileşim", degerler: aylar.map(o => o.etkilesim), renk: "#7B3FF2" }], yukseklik: 190, genislik: 330, vurgu: aylar.findIndex(o => o.ay === ay) })))
           + (aylar.filter(o => o.takipci != null).length > 1 ? raporKutu("Takipçi", grafikCizgi({ etiketler: ayEt, seriler: [{ ad: "Takipçi", degerler: aylar.map(o => o.takipci ?? null), renk: "#22B07D" }], yukseklik: 170, sifirdan: false })) : ""), "Önceki aylarla karşılaştırma") : "",
         raporBolum("Bu ayın analizi", raporIkili(
           raporKutu("Etkileşim dağılımı", grafikHalka({ dilimler: [{ ad: "Beğeni", deger: top("begeni"), renk: "#EF4444" }, { ad: "Yorum", deger: top("yorum"), renk: "#8B5CF6" }, { ad: "Kaydetme", deger: top("kaydetme"), renk: "#F59E0B" }, { ad: "Paylaşım", deger: top("paylasim"), renk: "#06B6D4" }], merkez: rKisa(etkilesim), merkezAlt: "etkileşim" })),

@@ -1129,8 +1129,8 @@ async function printSocialReport(client, r, prev, monthLabel, list = []) {
     raporKPI(kpi, 3),
     raporBolum("Öne çıkanlar", raporVurgular(vurgular)),
     gecmis.length > 1 ? raporBolum("Aylık gelişim", `${raporIkili(
-      raporKutu("Erişim ve gösterim", grafikCizgi({ etiketler: etiket, seriler: [{ ad: "Erişim", degerler: seri("reach"), renk: "#F25124" }, { ad: "Gösterim / izlenme", degerler: seri("impressions"), renk: "#2D5BFF" }], yukseklik: 200 })),
-      raporKutu("Takipçi", grafikCizgi({ etiketler: etiket, seriler: [{ ad: "Toplam takipçi", degerler: seri("total_followers"), renk: "#22B07D" }], yukseklik: 200, sifirdan: false })))}
+      raporKutu("Erişim ve gösterim", grafikCizgi({ etiketler: etiket, seriler: [{ ad: "Erişim", degerler: seri("reach"), renk: "#F25124" }, { ad: "Gösterim / izlenme", degerler: seri("impressions"), renk: "#2D5BFF" }], yukseklik: 190, genislik: 330 })),
+      raporKutu("Takipçi", grafikCizgi({ etiketler: etiket, seriler: [{ ad: "Toplam takipçi", degerler: seri("total_followers"), renk: "#22B07D" }], yukseklik: 190, genislik: 330, sifirdan: false })))}
       ${raporKutu("Etkileşimler", grafikCubuk({ etiketler: etiket, seriler: [{ ad: "Beğeni", degerler: seri("likes"), renk: "#EF4444" }, { ad: "Yorum", degerler: seri("comments"), renk: "#8B5CF6" }, { ad: "Kaydetme", degerler: seri("saves"), renk: "#F59E0B" }, { ad: "Paylaşım", degerler: seri("shares"), renk: "#06B6D4" }], yukseklik: 210 }))}`, "Son 6 ayın karşılaştırması") : "",
     raporBolum("Bu ayın etkileşim dağılımı", raporIkili(
       raporKutu("", grafikHalka({ dilimler: [{ ad: "Beğeni", deger: say("likes"), renk: "#EF4444" }, { ad: "Yorum", deger: say("comments"), renk: "#8B5CF6" }, { ad: "Kaydetme", deger: say("saves"), renk: "#F59E0B" }, { ad: "Paylaşım", deger: say("shares"), renk: "#06B6D4" }], merkez: rKisa(etkilesim(r)), merkezAlt: "etkileşim" })),
@@ -5909,7 +5909,7 @@ async function raporPanelOzeti({ clients, staff, tasks, perms, totalRevenue, pai
       raporKutu("Görev dağılımı", grafikHalka({ dilimler: gorevDilim, merkez: "%" + taskProgress, merkezAlt: "tamamlandı" })),
       raporKutu("Müşterilerin kullandığı platformlar", platformlar.length ? grafikYatayCubuk({ satirlar: platformlar.map(([ad, n], i) => ({ ad, deger: n, renk: RAPOR_PALET[i % RAPOR_PALET.length] })), birim: " müşteri" }) : "<div class='r-kucuk'>Kayıt yok</div>"))),
     finans ? raporBolum("Finans", raporIkili(
-      raporKutu("Son 6 ay: kesilen fatura ve tahsilat (₺)", grafikCubuk({ etiketler: aylar.map(a => a.e), seriler: [{ ad: "Kesilen", degerler: kesilen, renk: "#2D5BFF" }, { ad: "Tahsil edilen", degerler: tahsil, renk: "#22B07D" }], yukseklik: 210 })),
+      raporKutu("Son 6 ay: kesilen fatura ve tahsilat (₺)", grafikCubuk({ etiketler: aylar.map(a => a.e), seriler: [{ ad: "Kesilen", degerler: kesilen, renk: "#2D5BFF" }, { ad: "Tahsil edilen", degerler: tahsil, renk: "#22B07D" }], yukseklik: 210, genislik: 400 })),
       raporKutu("Tahsilat durumu", grafikHalka({ dilimler: [{ ad: "Tahsil edilen", deger: paidRevenue, renk: "#22B07D" }, { ad: "Bekleyen", deger: pendingRevenue, renk: "#EF4444" }], merkez: totalRevenue ? "%" + Math.round(paidRevenue / totalRevenue * 100) : "—", merkezAlt: "tahsil edildi" })), "1.4fr 1fr")
       + (ucretler.length ? raporKutu("Aylık anlaşma tutarına göre müşteriler (ilk 10)", grafikYatayCubuk({ satirlar: ucretler.map(c => ({ ad: c.name, alt: c.category || "", deger: c.monthlyFee, renk: "#F25124" })), birim: " ₺" })) : "")) : "",
     raporBolum("Müşteri portföyü", raporIkili(
@@ -7106,7 +7106,7 @@ const raporKutu = (baslik, icerik, alt = "") => `<div class="r-kutu">${baslik ? 
 // Tablo. hizalar: "sol" | "sag" dizisi
 function raporTablo(basliklar, satirlar, hizalar = []) {
   const h = (i) => hizalar[i] === "sag" ? ' style="text-align:right"' : "";
-  return `<table class="r-tablo"><thead><tr>${basliklar.map((b, i) => `<th${h(i)}>${rKacis(b)}</th>`).join("")}</tr></thead><tbody>${satirlar.length ? satirlar.map(s => `<tr>${s.map((v, i) => `<td${h(i)}>${v === null || v === undefined ? "—" : (typeof v === "object" && v.html ? v.html : rKacis(v))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${basliklar.length}" style="text-align:center;color:#9CA3AF">Kayıt yok</td></tr>`}</tbody></table>`;
+  return `<table class="r-tablo"><thead><tr>${basliklar.map((b, i) => `<th${h(i)}>${rKacis(b)}</th>`).join("")}</tr></thead><tbody>${satirlar.length ? satirlar.map(s => `<tr>${s.map((v, i) => `<td${h(i)}>${v === null || v === undefined ? "—" : (typeof v === "object" && v !== null && "html" in v ? (v.html || "") : rKacis(v))}</td>`).join("")}</tr>`).join("") : `<tr><td colspan="${basliklar.length}" style="text-align:center;color:#9CA3AF">Kayıt yok</td></tr>`}</tbody></table>`;
 }
 // Öne çıkanlar: [{ baslik, metin, renk }]
 const raporVurgular = (maddeler) => `<div class="r-vurgular">${maddeler.filter(Boolean).map((m, i) => `<div class="r-vurgu" style="border-left-color:${m.renk || RAPOR_PALET[i % RAPOR_PALET.length]}"><b>${rKacis(m.baslik)}</b><span>${rKacis(m.metin)}</span></div>`).join("")}</div>`;
