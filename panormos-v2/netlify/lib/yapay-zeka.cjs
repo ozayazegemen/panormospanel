@@ -92,7 +92,13 @@ const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models";
 async function geminiIstek(model, govde) {
   const r = await fetch(`${GEMINI}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.error?.message || `Gemini ${r.status}`); e.kod = r.status; throw e; }
+  if (!r.ok) {
+    let mesaj = j.error?.message || `Gemini ${r.status}`;
+    // Google'ın uzun İngilizce kota mesajı yerine kısa Türkçe açıklama
+    if (/quota|RESOURCE_EXHAUSTED/i.test(mesaj) && /free.?tier|limit: 0/i.test(mesaj)) mesaj = "Gemini görsel modeli bu projede ücretsiz katmanda kullanılamıyor: anahtarın ait olduğu Google projesinde faturalandırma (ön ödeme bakiyesi) açık olmalı. aistudio.google.com → Billing.";
+    else if (/quota|RESOURCE_EXHAUSTED|429/i.test(mesaj)) mesaj = "Gemini kotası doldu ya da bakiye bitti; birkaç dakika sonra tekrar deneyin ya da aistudio.google.com → Billing'den bakiye ekleyin.";
+    const e = new Error(mesaj); e.kod = r.status; throw e;
+  }
   return j;
 }
 // Model adı değişebiliyor: ortam değişkeni, yoksa sırayla bilinen adlar denenir
