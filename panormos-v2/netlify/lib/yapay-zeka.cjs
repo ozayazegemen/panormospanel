@@ -1,0 +1,219 @@
+// Yapay zekâ ile görsel ve video üretimi (Paylaşım Planlayıcı → "Yapay zekâ ile oluştur").
+// Sağlayıcılar (anahtar Netlify ortam değişkeninde tanımlıysa panelde görünür):
+//   gemini            Nano Banana (Google Gemini görsel modeli)            GEMINI_API_KEY
+//   openai            ChatGPT görseli (OpenAI gpt-image)                    OPENAI_API_KEY
+//   higgsfield_soul   Higgsfield Soul (görsel)                              HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET
+//   higgsfield_kling  Higgsfield Kling 2.6 (başlangıç görselinden video)    HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET
+// Üretim uzun sürebildiği için arka plan işlevinde çalışır; durum ve sonuç "planlayici" deposunda
+// ai/<is>/sonuc.json dosyasında tutulur, panel bunu sorar. Üretilen dosyalar ai/<is>/ altına yazılır ve
+// planlı paylaşıma doğrudan eklenebilir (aynı depo).
+const crypto = require("crypto");
+const { imzaliBaglanti } = require("./planlayici.cjs");
+
+const DEPO = "planlayici";
+const ORANLAR = ["1:1", "4:5", "9:16", "16:9"];
+
+function depoAyar() {
+  const ADRES = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+  const ANAHTAR = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!ADRES || !ANAHTAR) throw new Error("Sunucu ayarı eksik (SUPABASE_URL / SUPABASE_SERVICE_KEY).");
+  return { ADRES, ANAHTAR, basliklar: { apikey: ANAHTAR, Authorization: `Bearer ${ANAHTAR}` } };
+}
+const kodluYol = (yol) => yol.split("/").map(encodeURIComponent).join("/");
+
+async function depoyaYaz(yol, govde, tip) {
+  const { ADRES, basliklar } = depoAyar();
+  const r = await fetch(`${ADRES}/storage/v1/object/${DEPO}/${kodluYol(yol)}`, { method: "POST", headers: { ...basliklar, "Content-Type": tip, "x-upsert": "true" }, body: govde });
+  if (!r.ok) throw new Error(`Depoya yazılamadı (${r.status}): ${(await r.text()).slice(0, 200)}`);
+}
+async function depodanOku(yol) {
+  const { ADRES, basliklar } = depoAyar();
+  const r = await fetch(`${ADRES}/storage/v1/object/${DEPO}/${kodluYol(yol)}`, { headers: basliklar });
+  if (r.status === 404 || r.status === 400) return null;
+  if (!r.ok) throw new Error(`Depodan okunamadı (${r.status})`);
+  return r;
+}
+
+// İş durumu: ai/<is>/sonuc.json
+const durumYolu = (is) => `ai/${is}/sonuc.json`;
+async function durumYaz(is, durum) { await depoyaYaz(durumYolu(is), Buffer.from(JSON.stringify({ ...durum, guncellendi: new Date().toISOString() })), "application/json"); }
+async function durumOku(is) {
+  const r = await depodanOku(durumYolu(is));
+  if (!r) return null;
+  try { return await r.json(); } catch (e) { return null; }
+}
+
+// Arka plan işlevi çağrısının imzası: iş kimliği servis anahtarıyla imzalanır, dışarıdan üretilemez
+function isImzasi(is) {
+  const { ANAHTAR } = depoAyar();
+  return crypto.createHmac("sha256", ANAHTAR).update("yapay-zeka:" + is).digest("hex");
+}
+
+function saglayicilar() {
+  const hf = !!(process.env.HIGGSFIELD_KEY_ID && process.env.HIGGSFIELD_KEY_SECRET);
+  return [
+    { id: "gemini", ad: "Nano Banana (Gemini)", tur: "gorsel", hazir: !!process.env.GEMINI_API_KEY, anahtar: "GEMINI_API_KEY" },
+    { id: "openai", ad: "ChatGPT görseli (OpenAI)", tur: "gorsel", hazir: !!process.env.OPENAI_API_KEY, anahtar: "OPENAI_API_KEY" },
+    { id: "higgsfield_soul", ad: "Higgsfield Soul (görsel)", tur: "gorsel", hazir: hf, anahtar: "HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET" },
+    { id: "higgsfield_kling", ad: "Higgsfield Kling 2.6 (görselden video)", tur: "video", hazir: hf, anahtar: "HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET" },
+  ];
+}
+const metinHazir = () => !!process.env.GEMINI_API_KEY;
+
+// ───────────── Gemini ─────────────
+const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models";
+async function geminiIstek(model, govde) {
+  const r = await fetch(`${GEMINI}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error?.message || `Gemini ${r.status}`); e.kod = r.status; throw e; }
+  return j;
+}
+// Model adı değişebiliyor: ortam değişkeni, yoksa sırayla bilinen adlar denenir
+async function geminiDene(modeller, govde) {
+  let son = null;
+  for (const m of modeller.filter(Boolean)) {
+    try { return await geminiIstek(m, govde); }
+    catch (e) { son = e; if (!(e.kod === 404 || /not found|not supported|unsupported/i.test(e.message))) throw e; }
+  }
+  throw son || new Error("Gemini modeli bulunamadı");
+}
+async function geminiGorsel({ istem, oran, referanslar = [] }) {
+  const parts = [{ text: istem }];
+  for (const ref of referanslar) parts.push({ inline_data: { mime_type: ref.tip, data: ref.veri.toString("base64") } });
+  const j = await geminiDene([process.env.GEMINI_GORSEL_MODEL, "gemini-3.1-flash-image", "gemini-2.5-flash-image"], {
+    contents: [{ parts }],
+    generationConfig: { responseModalities: ["IMAGE", "TEXT"], imageConfig: { aspectRatio: oran } },
+  });
+  const p = (j.candidates?.[0]?.content?.parts || []).find(x => x.inlineData || x.inline_data);
+  const id = p?.inlineData || p?.inline_data;
+  if (!id?.data) {
+    const neden = j.candidates?.[0]?.finishReason || j.promptFeedback?.blockReason || "";
+    throw new Error("Gemini görsel üretmedi" + (neden ? ` (${neden})` : "") + ". İstemi değiştirip tekrar deneyin.");
+  }
+  return [{ veri: Buffer.from(id.data, "base64"), tip: id.mimeType || id.mime_type || "image/png" }];
+}
+async function geminiMetin(istem) {
+  const j = await geminiDene([process.env.GEMINI_METIN_MODEL, "gemini-2.5-flash", "gemini-3-flash"], { contents: [{ parts: [{ text: istem }] }] });
+  return (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
+}
+
+// ───────────── OpenAI ─────────────
+async function openaiGorsel({ istem, oran }) {
+  const boyut = oran === "16:9" ? "1536x1024" : oran === "1:1" ? "1024x1024" : "1024x1536"; // 4:5 ve 9:16 dikey
+  const r = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: JSON.stringify({ model: process.env.OPENAI_GORSEL_MODEL || "gpt-image-1", prompt: istem, size: boyut, n: 1, quality: process.env.OPENAI_GORSEL_KALITE || "medium" }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || `OpenAI ${r.status}`);
+  const d = j.data?.[0];
+  if (d?.b64_json) return [{ veri: Buffer.from(d.b64_json, "base64"), tip: "image/png" }];
+  if (d?.url) { const g = await fetch(d.url); return [{ veri: Buffer.from(await g.arrayBuffer()), tip: g.headers.get("content-type") || "image/png" }]; }
+  throw new Error("OpenAI görsel döndürmedi.");
+}
+
+// ───────────── Higgsfield ─────────────
+const HF = "https://api.higgsfield.ai";
+function hfBasliklar() { return { "Content-Type": "application/json", Authorization: `Key ${process.env.HIGGSFIELD_KEY_ID}:${process.env.HIGGSFIELD_KEY_SECRET}` }; }
+async function hfBaslat(yol, govde) {
+  const r = await fetch(`${HF}/${yol}`, { method: "POST", headers: { ...hfBasliklar(), "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(govde) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || j.message || j.error || `Higgsfield ${r.status}`);
+  if (!j.status_url) throw new Error("Higgsfield istek kabul etmedi.");
+  return j;
+}
+// Bitene kadar bekler (en çok sureSn saniye); ilerlemeyi geri çağrıyla bildirir
+async function hfBekle(statusUrl, sureSn, ilerleme) {
+  const bitis = Date.now() + sureSn * 1000;
+  let son = null;
+  while (Date.now() < bitis) {
+    const r = await fetch(statusUrl, { headers: hfBasliklar() });
+    const j = await r.json().catch(() => ({}));
+    son = j;
+    const s = String(j.status || "").toLowerCase();
+    if (s === "completed") return j;
+    if (["failed", "error", "cancelled", "canceled", "nsfw", "rejected"].includes(s)) throw new Error("Higgsfield üretemedi" + (j.error || j.detail ? `: ${j.error || j.detail}` : ` (${s})`));
+    if (ilerleme) await ilerleme(s || "bekliyor");
+    await new Promise(res => setTimeout(res, 4000));
+  }
+  throw new Error("Higgsfield zamanında bitiremedi" + (son?.status ? ` (${son.status})` : ""));
+}
+async function indir(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Üretilen dosya indirilemedi (${r.status})`);
+  return { veri: Buffer.from(await r.arrayBuffer()), tip: r.headers.get("content-type") || "application/octet-stream" };
+}
+async function higgsfieldSoul({ istem, oran, referansUrl, ilerleme }) {
+  const hfOran = oran === "4:5" ? "3:4" : oran; // Soul 4:5 bilmez
+  const g = { prompt: istem, aspect_ratio: hfOran, resolution: "1080p", batch_size: 1, enhance_prompt: true };
+  if (referansUrl) g.image_reference_url = referansUrl;
+  const b = await hfBaslat("higgsfield-ai/soul/standard", g);
+  const s = await hfBekle(b.status_url, 600, ilerleme);
+  const url = s.images?.[0]?.url;
+  if (!url) throw new Error("Higgsfield görsel adresi döndürmedi.");
+  const d = await indir(url);
+  return [{ ...d, tip: /image\//.test(d.tip) ? d.tip : "image/png" }];
+}
+async function higgsfieldKling({ istem, oran, baslangicUrl, sure, ilerleme }) {
+  if (!baslangicUrl) throw new Error("Video için bir başlangıç görseli seçin.");
+  const g = { prompt: istem || "Doğal, akıcı, sinematik hareket", image_url: baslangicUrl, duration: sure === 10 ? 10 : 5, aspect_ratio: oran === "16:9" ? "16:9" : oran === "1:1" ? "1:1" : "9:16", sound: "off" };
+  const b = await hfBaslat("kling-video/v2.6/pro/image-to-video", g);
+  const s = await hfBekle(b.status_url, 840, ilerleme);
+  const url = s.video?.url;
+  if (!url) throw new Error("Higgsfield video adresi döndürmedi.");
+  const d = await indir(url);
+  return [{ ...d, tip: /video\//.test(d.tip) ? d.tip : "video/mp4" }];
+}
+
+// ───────────── Üretim (arka plan) ─────────────
+const uzanti = (tip) => tip.includes("png") ? "png" : tip.includes("webp") ? "webp" : tip.includes("mp4") ? "mp4" : tip.includes("quicktime") ? "mov" : tip.includes("video") ? "mp4" : "jpg";
+
+async function uret(is, istek) {
+  const { saglayici, istem, oran = "1:1", sure = 5, referansYolu = null, musteriAd = "" } = istek;
+  if (!ORANLAR.includes(oran)) throw new Error("Geçersiz oran");
+  const ilerleme = async (asama) => { try { await durumYaz(is, { durum: "calisiyor", asama }); } catch (e) { /* önemsiz */ } };
+  await durumYaz(is, { durum: "calisiyor", asama: "başladı", saglayici });
+  let ciktilar;
+  if (saglayici === "gemini") {
+    const referanslar = [];
+    if (referansYolu) { const r = await depodanOku(referansYolu); if (r) referanslar.push({ veri: Buffer.from(await r.arrayBuffer()), tip: r.headers.get("content-type") || "image/jpeg" }); }
+    ciktilar = await geminiGorsel({ istem, oran, referanslar });
+  } else if (saglayici === "openai") {
+    ciktilar = await openaiGorsel({ istem, oran });
+  } else if (saglayici === "higgsfield_soul") {
+    ciktilar = await higgsfieldSoul({ istem, oran, referansUrl: referansYolu ? await imzaliBaglanti(referansYolu) : null, ilerleme });
+  } else if (saglayici === "higgsfield_kling") {
+    ciktilar = await higgsfieldKling({ istem, oran, sure, baslangicUrl: referansYolu ? await imzaliBaglanti(referansYolu) : null, ilerleme });
+  } else throw new Error("Bilinmeyen sağlayıcı");
+
+  const dosyalar = [];
+  for (let i = 0; i < ciktilar.length; i++) {
+    const c = ciktilar[i];
+    const video = /^video\//.test(c.tip);
+    const yol = `ai/${is}/${i + 1}.${uzanti(c.tip)}`;
+    await depoyaYaz(yol, c.veri, c.tip);
+    dosyalar.push({ yol, tur: video ? "video" : "resim", ad: `${(musteriAd || "yapay-zeka").slice(0, 30)} ${video ? "video" : "görsel"} ${i + 1}.${uzanti(c.tip)}` });
+  }
+  await durumYaz(is, { durum: "tamam", saglayici, dosyalar });
+  return dosyalar;
+}
+
+// İstem ve açıklama önerileri (Gemini metin)
+async function istemOner({ musteriAd, sektor, tur, konu, kanal }) {
+  const metin = await geminiMetin([
+    "Sen bir sosyal medya görsel yönetmenisin. Aşağıdaki bilgilerle, görsel üreten yapay zekâya verilecek TEK bir istem (prompt) yaz.",
+    "İstem İngilizce olsun (görsel modelleri İngilizce istemle daha iyi çalışır), 2-4 cümle, somut: sahne, ışık, kamera açısı, renk paleti, atmosfer. Metin ve logo isteme. Sadece istemi yaz, başka bir şey yazma.",
+    `Marka / işletme: ${musteriAd || "-"}`, `Sektör: ${sektor || "-"}`, `İçerik türü: ${tur || "-"} (${kanal || "Instagram"})`, `Konu / istenen: ${konu || "markaya uygun dikkat çekici bir paylaşım görseli"}`,
+  ].join("\n"));
+  return metin.replace(/^["'`]+|["'`]+$/g, "");
+}
+async function aciklamaOner({ musteriAd, sektor, tur, konu, istem }) {
+  const metin = await geminiMetin([
+    "Sen Türkçe yazan bir sosyal medya metin yazarısın. Aşağıdaki paylaşım için Instagram açıklaması yaz.",
+    "Kurallar: TDK yazımına uy, samimi ama profesyonel, 2-4 kısa cümle, sonunda 5-8 ilgili #etiket. Emoji kullanma. Sadece açıklamayı yaz.",
+    `Marka / işletme: ${musteriAd || "-"}`, `Sektör: ${sektor || "-"}`, `İçerik türü: ${tur || "-"}`, `Konu: ${konu || "-"}`, istem ? `Görselin tarifi: ${istem}` : "",
+  ].filter(Boolean).join("\n"));
+  return metin;
+}
+
+module.exports = { saglayicilar, metinHazir, uret, durumOku, durumYaz, isImzasi, istemOner, aciklamaOner, ORANLAR };

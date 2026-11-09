@@ -212,6 +212,19 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
 
 function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, onKaydedildi }) {
   const [kaydediyor, setKaydediyor] = useState(false);
+  const [yz, setYz] = useState(false); // yapay zekâ stüdyosu açık mı
+  const [onerBekle, setOnerBekle] = useState(false);
+  const aciklamaOner = async () => {
+    const c = musteriler.find(x => x.id === form.client_id);
+    setOnerBekle(true);
+    try {
+      const r = await panelFetch("/.netlify/functions/yapay-zeka", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ islem: "aciklama", musteriAd: c?.name || "", sektor: c?.category || "", tur: turAdi(form.icerik_turu), konu: (form.aciklama || "").slice(0, 300) }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `Hata ${r.status}`);
+      setForm(f => ({ ...f, aciklama: j.metin || f.aciklama }));
+    } catch (e) { swalAlert("Öneri alınamadı: " + e.message); }
+    setOnerBekle(false);
+  };
   const client = musteriler.find(c => c.id === form.client_id);
   const hesaplar = musteriHesaplari(igBag[form.client_id]);
   const tarih = form.gun && form.saat ? new Date(`${form.gun}T${form.saat}`) : new Date();
@@ -292,7 +305,14 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
         <button onClick={() => cikar(i)} style={{ border: "none", background: "transparent", color: T.textMuted, cursor: "pointer" }}>✕</button>
       </div>)}</div>}
     </FormField>
-    {form.icerik_turu !== "story" && <FormField label="Açıklama ve etiketler"><Textarea value={form.aciklama} onChange={e => setForm(f => ({ ...f, aciklama: e.target.value }))} placeholder="Paylaşım metni, #etiketler" minHeight={100} /></FormField>}
+    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+      <Btn onClick={() => setYz(true)}>✨ Yapay zekâ ile görsel / video oluştur</Btn>
+      <span style={{ fontSize: 11.5, color: T.textMuted }}>Nano Banana, ChatGPT ve Higgsfield ile; üretilen dosya doğrudan bu plana eklenir.</span>
+    </div>
+    {form.icerik_turu !== "story" && <FormField label="Açıklama ve etiketler">
+      <Textarea value={form.aciklama} onChange={e => setForm(f => ({ ...f, aciklama: e.target.value }))} placeholder="Paylaşım metni, #etiketler" minHeight={100} />
+      <div style={{ marginTop: 6 }}><Btn onClick={aciklamaOner} disabled={onerBekle || !form.client_id} style={{ fontSize: 11, padding: "4px 9px" }}>{onerBekle ? "Yazılıyor…" : "✍️ Açıklama öner (Gemini)"}</Btn></div>
+    </FormField>}
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
       <FormField label="Tarih"><Input type="date" value={form.gun} onChange={e => setForm(f => ({ ...f, gun: e.target.value }))} /></FormField>
       <FormField label="Saat"><Input type="time" value={form.saat} onChange={e => setForm(f => ({ ...f, saat: e.target.value }))} /></FormField>
@@ -302,6 +322,167 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
       <Btn onClick={() => setForm(null)} disabled={kaydediyor}>Vazgeç</Btn>
       <Btn variant="primary" onClick={kaydet} disabled={kaydediyor}>{kaydediyor ? "Yükleniyor…" : (form.id ? "Kaydet" : "Planla")}</Btn>
     </div>
+    {yz && <YapayZekaStudyosu form={form} setForm={setForm} client={client} onKapat={() => setYz(false)} />}
+  </Modal>;
+}
+
+// ─────────────────────────────────────────────
+// Yapay zekâ stüdyosu: Nano Banana (Gemini), ChatGPT (OpenAI), Higgsfield Soul (görsel) ve Kling (görselden video).
+// Üretim sunucuda arka planda yapılır; burada durum sorulur, biten dosya plana eklenir.
+// ─────────────────────────────────────────────
+const SAGLAYICI_IPUCU = {
+  gemini: "Hızlı ve ucuz. Fotoğraf gerçekçiliği iyi; referans görsel verilebilir (ör. ürün fotoğrafı).",
+  openai: "Metin ve kompozisyon kurgusu güçlü; 15-60 saniye sürebilir.",
+  higgsfield_soul: "Moda ve yaşam tarzı görsellerinde çok gerçekçi; 1-3 dakika sürebilir.",
+  higgsfield_kling: "Seçilen görseli 5 ya da 10 saniyelik videoya çevirir (Reels için); 2-6 dakika sürebilir.",
+};
+function YapayZekaStudyosu({ form, setForm, client, onKapat }) {
+  const [bilgi, setBilgi] = useState(null);
+  const [saglayici, setSaglayici] = useState("");
+  const [istem, setIstem] = useState("");
+  const [konu, setKonu] = useState("");
+  const [oran, setOran] = useState(form.icerik_turu === "story" || form.icerik_turu === "reels" ? "9:16" : "4:5");
+  const [sure, setSure] = useState(5);
+  const [referans, setReferans] = useState("");
+  const [is, setIs] = useState(null);
+  const [durum, setDurum] = useState(null);
+  const [mesgul, setMesgul] = useState(false);
+  const [onerBekle, setOnerBekle] = useState(false);
+  const [hata, setHata] = useState("");
+  const [uretilenler, setUretilenler] = useState([]); // bu oturumda üretilen görseller (videoya başlangıç olabilir)
+
+  useEffect(() => {
+    panelFetch("/.netlify/functions/yapay-zeka?islem=saglayicilar").then(r => r.json()).then(j => {
+      setBilgi(j);
+      const ilk = (j.saglayicilar || []).find(s => s.hazir && s.tur === "gorsel") || (j.saglayicilar || []).find(s => s.hazir);
+      if (ilk) setSaglayici(ilk.id);
+    }).catch(() => setHata("Sağlayıcı bilgisi alınamadı."));
+  }, []);
+
+  // İş durumu: bitene kadar 3 saniyede bir sorulur
+  useEffect(() => {
+    if (!is) return;
+    let iptal = false;
+    const sor = async () => {
+      try {
+        const r = await panelFetch(`/.netlify/functions/yapay-zeka?islem=durum&is=${is}`);
+        const j = await r.json().catch(() => ({}));
+        if (iptal) return;
+        setDurum(j);
+        if (j.durum === "tamam") { setMesgul(false); setUretilenler(u => [...u, ...(j.dosyalar || []).filter(d => d.tur !== "video").map((d, i) => ({ ...d, onizleme: j.onizleme?.[i] }))]); return; }
+        if (j.durum === "hata") { setMesgul(false); setHata(j.hata || "Üretilemedi."); return; }
+      } catch (e) { /* ağ hatası: tekrar denenir */ }
+      if (!iptal) setTimeout(sor, 3000);
+    };
+    sor();
+    return () => { iptal = true; };
+  }, [is]);
+
+  const liste = (bilgi?.saglayicilar || []).filter(s => s.hazir);
+  const secili = liste.find(s => s.id === saglayici);
+  const video = secili?.tur === "video";
+  const referansSecenekleri = [
+    ...(form.dosyalar || []).filter(d => d.yol && d.tur !== "video").map(d => ({ yol: d.yol, ad: `Plandaki: ${d.ad || d.yol.split("/").pop()}` })),
+    ...uretilenler.map(d => ({ yol: d.yol, ad: `Üretilen: ${d.ad}` })),
+  ];
+
+  const istemOner = async () => {
+    setOnerBekle(true); setHata("");
+    try {
+      const r = await panelFetch("/.netlify/functions/yapay-zeka", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ islem: "istem", musteriAd: client?.name || "", sektor: client?.category || "", tur: turAdi(form.icerik_turu), konu }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `Hata ${r.status}`);
+      setIstem(j.metin || "");
+    } catch (e) { setHata("İstem önerilemedi: " + e.message); }
+    setOnerBekle(false);
+  };
+
+  const baslat = async () => {
+    if (!secili) return;
+    if (!video && !istem.trim()) { setHata("Ne üretileceğini yazın ya da 'İstem öner' deyin."); return; }
+    if (video && !referans) { setHata("Video için başlangıç görseli seçin."); return; }
+    setHata(""); setDurum(null); setMesgul(true);
+    try {
+      const r = await panelFetch("/.netlify/functions/yapay-zeka", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ islem: "baslat", saglayici, istem, oran, sure, referansYolu: referans || null, musteriAd: client?.name || "" }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || `Hata ${r.status}`);
+      setIs(j.is);
+    } catch (e) { setHata(e.message); setMesgul(false); }
+  };
+
+  const kullan = () => {
+    const yeni = (durum?.dosyalar || []).map(d => ({ yol: d.yol, tur: d.tur, ad: d.ad }));
+    if (!yeni.length) return;
+    setForm(f => f.icerik_turu === "carousel"
+      ? { ...f, dosyalar: [...(f.dosyalar || []), ...yeni].slice(0, 10) }
+      : { ...f, dosyalar: yeni.slice(0, 1), yeniDosyalar: [] });
+    onKapat();
+  };
+
+  const bitti = durum?.durum === "tamam";
+  const uyari = bitti && form.icerik_turu === "reels" && (durum.dosyalar || []).every(d => d.tur !== "video") ? "Reels için video gerekir: bu görseli seçip Higgsfield Kling ile videoya çevirebilirsiniz." : "";
+
+  return <Modal title="✨ Yapay zekâ ile oluştur" onClose={() => !mesgul && onKapat()} width={640}>
+    {bilgi && liste.length === 0 && <div style={{ fontSize: 13, lineHeight: 1.6, color: T.textSecondary, background: T.bgInput, padding: 14, borderRadius: 12 }}>
+      Henüz hiçbir yapay zekâ anahtarı tanımlı değil. Netlify → Environment variables bölümüne en az birini ekleyin, sonra yeniden yayınlayın:
+      <ul style={{ margin: "8px 0 0 18px" }}>{(bilgi.saglayicilar || []).map(s => <li key={s.id}><b>{s.ad}</b>: <code>{s.anahtar}</code></li>)}</ul>
+    </div>}
+    {liste.length > 0 && <>
+      <FormField label="Araç">
+        <Select value={saglayici} onChange={e => { setSaglayici(e.target.value); setDurum(null); setIs(null); setHata(""); }}>{liste.map(s => <option key={s.id} value={s.id}>{s.ad}</option>)}</Select>
+        {secili && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 4 }}>{SAGLAYICI_IPUCU[secili.id]}</div>}
+      </FormField>
+      {!video && <>
+        <FormField label="Konu (kısa, Türkçe)">
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ flex: 1 }}><Input value={konu} onChange={e => setKonu(e.target.value)} placeholder={`Örn. ${client?.name || "işletme"} için hafta sonu kahvaltı duyurusu`} /></div>
+            {bilgi?.metin && <Btn onClick={istemOner} disabled={onerBekle}>{onerBekle ? "Yazılıyor…" : "İstem öner"}</Btn>}
+          </div>
+        </FormField>
+        <FormField label="İstem (görsel modeline giden tarif; İngilizce daha iyi sonuç verir)"><Textarea value={istem} onChange={e => setIstem(e.target.value)} minHeight={90} placeholder="A cozy seaside breakfast table at golden hour, fresh cheese and olives, soft natural light…" /></FormField>
+      </>}
+      {video && <>
+        <FormField label="Başlangıç görseli">
+          <Select value={referans} onChange={e => setReferans(e.target.value)}>
+            <option value="">Seçin</option>
+            {referansSecenekleri.map(o => <option key={o.yol} value={o.yol}>{o.ad}</option>)}
+          </Select>
+          {referansSecenekleri.length === 0 && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 4 }}>Önce bir görsel üretin ya da planı görselle kaydedip düzenleyin; yüklenen görseller burada çıkar.</div>}
+        </FormField>
+        <FormField label="Hareket tarifi (isteğe bağlı)"><Textarea value={istem} onChange={e => setIstem(e.target.value)} minHeight={60} placeholder="Slow cinematic push-in, gentle camera movement, natural lighting" /></FormField>
+        <FormField label="Süre">
+          <div style={{ display: "flex", gap: 6 }}>{[5, 10].map(n => <Btn key={n} variant={sure === n ? "primary" : "ghost"} onClick={() => setSure(n)}>{n} sn</Btn>)}</div>
+        </FormField>
+      </>}
+      {!video && (saglayici === "gemini" || saglayici === "higgsfield_soul") && referansSecenekleri.length > 0 && <FormField label="Referans görsel (isteğe bağlı)">
+        <Select value={referans} onChange={e => setReferans(e.target.value)}><option value="">Yok</option>{referansSecenekleri.map(o => <option key={o.yol} value={o.yol}>{o.ad}</option>)}</Select>
+      </FormField>}
+      <FormField label="Oran">
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[["1:1", "Kare 1:1"], ["4:5", "Post 4:5"], ["9:16", "Hikaye / Reels 9:16"], ["16:9", "Yatay 16:9"]].map(([k, l]) => <Btn key={k} variant={oran === k ? "primary" : "ghost"} onClick={() => setOran(k)}>{l}</Btn>)}
+        </div>
+      </FormField>
+      {hata && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim || "rgba(229,72,77,.12)", padding: "8px 12px", borderRadius: 9, marginBottom: 12 }}>{hata}</div>}
+      {mesgul && <div style={{ fontSize: 12.5, color: T.textSecondary, padding: "10px 12px", background: T.bgInput, borderRadius: 9, marginBottom: 12 }}>Üretiliyor… {durum?.asama ? `(${durum.asama})` : ""} Bu pencereyi kapatmayın.</div>}
+      {bitti && <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 10 }}>
+          {(durum.dosyalar || []).map((d, i) => <div key={d.yol} style={{ border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden", background: T.bgInput }}>
+            {d.tur === "video"
+              ? <video src={durum.onizleme?.[i] || undefined} controls style={{ width: "100%", display: "block", maxHeight: 280 }} />
+              : <img src={durum.onizleme?.[i] || undefined} alt="" style={{ width: "100%", display: "block" }} />}
+            <div style={{ fontSize: 11, color: T.textMuted, padding: "4px 8px" }}>{d.ad}</div>
+          </div>)}
+        </div>
+        {uyari && <div style={{ fontSize: 12, color: T.amberText || "#E8A100", marginTop: 8 }}>{uyari}</div>}
+      </div>}
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+        <Btn onClick={onKapat} disabled={mesgul}>Kapat</Btn>
+        {bitti && <Btn onClick={baslat} disabled={mesgul}>Yeniden üret</Btn>}
+        {!bitti && <Btn variant="primary" onClick={baslat} disabled={mesgul || !secili}>{mesgul ? "Üretiliyor…" : (video ? "Videoyu üret" : "Görseli üret")}</Btn>}
+        {bitti && <Btn variant="primary" onClick={kullan}>Bu dosyayı plana ekle</Btn>}
+      </div>
+    </>}
+    {!bilgi && !hata && <div style={{ fontSize: 12, color: T.textMuted }}>Hazırlanıyor…</div>}
   </Modal>;
 }
 
