@@ -425,6 +425,17 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
   const sureler = secili?.sureler || [5, 10];
   useEffect(() => { if (video && !sureler.includes(sure)) setSure(sureler[0]); }, [saglayici]); // araç değişince geçerli süreye dön
   const medyaGorselleri = (client.media || []).filter(m => m.type === "image" && m.storageType === "supabase" && m.storagePath);
+  // Kaydedilenler: müşterinin daha önce Stüdyo'da kaydettiği ya da yüklediği görsel ve videolar (önizleme bağlantıları imzalanır)
+  const kayitlilar = (client.media || []).filter(m => (m.type === "image" || m.type === "video") && m.storageType === "supabase" && m.storagePath).slice(0, 24);
+  const [kayitOnizleme, setKayitOnizleme] = useState({});
+  useEffect(() => {
+    const eksik = kayitlilar.map(m => m.storagePath).filter(y => !kayitOnizleme[y]);
+    if (!eksik.length) return;
+    supabase.storage.from(MUSTERI_DEPO).createSignedUrls(eksik, 3600).then(({ data }) => {
+      const m = {}; (data || []).forEach(x => { if (x.signedUrl) m[x.path] = x.signedUrl; });
+      setKayitOnizleme(o => ({ ...o, ...m }));
+    }).catch(() => {});
+  }, [kayitlilar.map(m => m.storagePath).join("|")]);
 
   // Logo / fotoğraf yükleme: müşterinin Medya deposuna gider, referans olarak eklenir
   const dosyaYukle = async (e) => {
@@ -522,7 +533,7 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
         <input ref={dosyaRef} type="file" accept="image/*" multiple onChange={dosyaYukle} style={{ display: "none" }} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <Btn onClick={() => dosyaRef.current?.click()} disabled={yukleniyor}>{yukleniyor ? `Yükleniyor… ${yuklemeYuzde != null ? `%${yuklemeYuzde}` : ""}` : "⬆ Logo / fotoğraf yükle"}</Btn>
-          {medyaGorselleri.length > 0 && <div style={{ minWidth: 200 }}><Select value="" onChange={e => medyadanEkle(e.target.value)}><option value="">+ Medya'dan seç</option>{medyaGorselleri.map(m => <option key={m.id} value={m.storagePath}>{m.name}</option>)}</Select></div>}
+          {medyaGorselleri.length > 0 && <div style={{ minWidth: 200 }}><Select value="" onChange={e => medyadanEkle(e.target.value)}><option value="">+ Kaydedilenlerden seç</option>{medyaGorselleri.map(m => <option key={m.id} value={m.storagePath}>{m.name}</option>)}</Select></div>}
         </div>
         {referanslar.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
           {referanslar.map((r, i) => <div key={r.yol} style={{ position: "relative", width: 86, height: 86, borderRadius: 10, overflow: "hidden", border: `2px solid ${i === 0 ? T.amber : T.border}`, background: T.bgInput }} title={r.ad}>
@@ -587,7 +598,7 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
             </div>)}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-            <Btn variant="primary" onClick={medyayaKaydet} disabled={kaydedildi}>{kaydedildi ? "✓ Medya'ya kaydedildi" : "💾 Medya'ya kaydet"}</Btn>
+            <Btn variant="primary" onClick={medyayaKaydet} disabled={kaydedildi}>{kaydedildi ? "✓ Kaydedildi" : "💾 Kaydet"}</Btn>
             <Btn onClick={() => baslat(saglayici)} disabled={mesgul}>Yeniden üret</Btn>
             {bilgi?.metin && <Btn onClick={aciklamaOner} disabled={aciklamaBekle}>{aciklamaBekle ? "Yazılıyor…" : "✍️ Açıklama öner"}</Btn>}
           </div>
@@ -595,9 +606,21 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
             <Textarea value={aciklama} onChange={e => setAciklama(e.target.value)} minHeight={110} />
             <div style={{ marginTop: 6 }}><Btn onClick={() => { navigator.clipboard?.writeText(aciklama); }}>Kopyala</Btn></div>
           </div>}
-          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10 }}>Kaydedilen dosya Medya sekmesinde görünür; Paylaşım Planlayıcı'da plana eklemek için oradan kullanabilirsiniz.</div>
+          <div style={{ fontSize: 11, color: T.textMuted, marginTop: 10 }}>Kaydedilen dosya aşağıdaki "Kaydedilenler" bölümünde saklanır; indirip Paylaşım Planlayıcı'da kullanabilirsiniz.</div>
         </>}
       </div>
+      {kayitlilar.length > 0 && <div style={kutu}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.textPrimary, marginBottom: 8 }}>Kaydedilenler ({kayitlilar.length})</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(96px,1fr))", gap: 8 }}>
+          {kayitlilar.map(m => { const u = kayitOnizleme[m.storagePath]; return <div key={m.id} title={m.name} style={{ position: "relative", borderRadius: 8, overflow: "hidden", border: `1px solid ${T.border}`, background: T.bgInput, aspectRatio: "1 / 1" }}>
+            {u ? (m.type === "video" ? <video src={u} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ fontSize: 10, padding: 6, color: T.textMuted }}>{m.type === "video" ? "🎬" : "🖼"} {m.name}</div>}
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, display: "flex", justifyContent: "space-between", gap: 4, padding: "3px 5px", background: "rgba(0,0,0,.55)", fontSize: 10 }}>
+              {u && <a href={u} target="_blank" rel="noreferrer" download={m.name} style={{ color: "#fff", textDecoration: "none" }}>İndir</a>}
+              {m.type === "image" && <button onClick={() => medyadanEkle(m.storagePath)} style={{ border: "none", background: "transparent", color: "#FFD27A", cursor: "pointer", fontSize: 10, padding: 0 }}>Referans</button>}
+            </div>
+          </div>; })}
+        </div>
+      </div>}
     </div>
   </div>;
 }

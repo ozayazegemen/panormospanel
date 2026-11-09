@@ -1936,11 +1936,11 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   const [mailModal, setMailModal] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
-  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"insta",lbl:"📈 Instagram"},{id:"ai",lbl:"✨ Asistan"},{id:"studyo",lbl:"🎨 Stüdyo"}];
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"insta",lbl:"📈 Instagram"},{id:"ai",lbl:"✨ Asistan"},{id:"studyo",lbl:"🎨 Stüdyo"}];
   const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}, {id:"contract",lbl:"📜 Sözleşme"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
-  const safeTab = ((currentTab === "invoices" || currentTab === "contract") && !perms.finance) ? "overview" : currentTab;
+  const safeTab = (((currentTab === "invoices" || currentTab === "contract") && !perms.finance) || currentTab === "media") ? "overview" : currentTab;
 
   // Bu müşterinin TÜM bilgilerini Excel'e aktar (birden çok sayfa)
   const exportClientAll = async () => {
@@ -2024,7 +2024,6 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {tabs.map(t=>{const active=safeTab===t.id;return <button key={t.id} onClick={()=>setTab(t.id)} style={{fontSize:12,fontWeight:active?600:400,padding:"11px 16px",color:active?T.amberText:T.textMuted,background:"none",border:"none",borderBottom:`2px solid ${active?T.amber:"transparent"}`,cursor:"pointer",transition:"all 0.12s",whiteSpace:"nowrap"}}>{t.lbl}</button>;})}
       <div style={{marginLeft:"auto",display:"flex",gap:6}}>
         {safeTab==="posts"&&<Btn variant="primary" onClick={()=>{setModal("addPost");setForm({clientId:client.id});}} style={{fontSize:11,padding:"5px 10px"}}>+ Paylaşım</Btn>}
-        {safeTab==="media"&&<Btn variant="primary" onClick={()=>setUploadPanel(true)} style={{fontSize:11,padding:"5px 10px"}}>⬆ Dosya Yükle</Btn>}
         <Btn onClick={exportClientAll} style={{fontSize:11,padding:"5px 10px",background:T.greenDim,color:T.greenText}}>📊 Excel'e Aktar</Btn>
         <Btn onClick={()=>printClientDetail(client, perms)} style={{fontSize:11,padding:"5px 10px"}}>🖨️ Yazdır</Btn>
         <Btn onClick={()=>printMonthlyReport(client)} style={{fontSize:11,padding:"5px 10px",background:T.indigoDim,color:T.indigoText}}>📄 Aylık Rapor</Btn>
@@ -2039,7 +2038,6 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="overview"&&<ClientOverview client={client} perms={perms}/>}
       {safeTab==="posts"&&<ClientPosts client={client} setClients={setClients}/>}
       {safeTab==="calendar"&&<ClientCalendar client={client}/>}
-      {safeTab==="media"&&<ClientMedia client={client}/>}
       {safeTab==="insta"&&<InstagramIstatistik client={client}/>}
       {safeTab==="ai"&&<ClientAI client={client}/>}
       {safeTab==="studyo"&&<GorselStudyosu client={client} currentStaff={currentStaff} setClients={setClients}/>}
