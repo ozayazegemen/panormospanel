@@ -65,8 +65,9 @@ function saglayicilar() {
   return [
     { id: "gemini", ad: "Nano Banana (Gemini)", tur: "gorsel", hazir: !!process.env.GEMINI_API_KEY, anahtar: "GEMINI_API_KEY" },
     { id: "openai", ad: "ChatGPT görseli (OpenAI)", tur: "gorsel", hazir: !!process.env.OPENAI_API_KEY, anahtar: "OPENAI_API_KEY" },
+    { id: "gemini_video", ad: "Google video (Gemini Omni)", tur: "video", hazir: !!process.env.GEMINI_API_KEY, anahtar: "GEMINI_API_KEY", sureler: [5, 8, 10, 15], referansZorunlu: false },
     { id: "higgsfield_soul", ad: "Higgsfield Soul (görsel)", tur: "gorsel", hazir: hf, anahtar: "HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET" },
-    { id: "higgsfield_kling", ad: "Higgsfield Kling 2.6 (görselden video)", tur: "video", hazir: hf, anahtar: "HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET" },
+    { id: "higgsfield_kling", ad: "Higgsfield Kling 2.6 (görselden video)", tur: "video", hazir: hf, anahtar: "HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET", sureler: [5, 10], referansZorunlu: true },
   ];
 }
 // Metin önerileri (istem, açıklama): Gemini varsa o, yoksa Panormos'ta zaten tanımlı Anthropic anahtarı
@@ -127,6 +128,49 @@ async function geminiGorsel({ istem, oran, referanslar = [] }) {
   }
   return [{ veri: Buffer.from(id.data, "base64"), tip: id.mimeType || id.mime_type || "image/png" }];
 }
+// Video: Gemini Omni (Interactions API). Eşzamanlı çalışır, 1-3 dk sürebilir; arka plan işlevinde çağrılır.
+async function geminiVideo({ istem, oran, sure, referanslar = [] }) {
+  const model = process.env.GEMINI_VIDEO_MODEL || "gemini-omni-1.2-flash";
+  const input = [];
+  for (const ref of referanslar.slice(0, 6)) input.push({ type: "image", mime_type: ref.tip, data: ref.veri.toString("base64") });
+  input.push({ type: "text", text: istem || "Turn this into realistic, smooth cinematic footage with natural motion." });
+  const govde = {
+    model, input,
+    response_format: { type: "video", aspect_ratio: oran === "16:9" ? "16:9" : "9:16", resolution: process.env.GEMINI_VIDEO_COZUNURLUK || "720p", duration: `${Math.min(15, Math.max(3, sure || 8))}s` },
+    background: false, store: false, stream: false,
+  };
+  if (referanslar.length) govde.generation_config = { video_config: { task: "image_to_video" } };
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions?key=${process.env.GEMINI_API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    let mesaj = j.error?.message || `Gemini video ${r.status}`;
+    if (/quota|RESOURCE_EXHAUSTED|429/i.test(mesaj)) mesaj = "Gemini video kotası ya da bakiye yetersiz; aistudio.google.com → Billing.";
+    throw new Error(mesaj);
+  }
+  // Çıktı: steps[].type == "model_output" → content[].type == "video" (data base64 ya da uri)
+  const adimlar = Array.isArray(j.steps) ? j.steps : [];
+  let blok = null;
+  for (const a of adimlar) if (a?.type === "model_output") for (const c of a.content || []) if (c?.type === "video") blok = c;
+  if (!blok && j.output_video?.data) blok = { data: j.output_video.data, mime_type: j.output_video.mime_type };
+  if (!blok) throw new Error("Gemini video üretmedi" + (j.error?.message ? `: ${j.error.message}` : "") + ". İstemi değiştirip tekrar deneyin.");
+  if (blok.data) return [{ veri: Buffer.from(blok.data, "base64"), tip: blok.mime_type || "video/mp4" }];
+  if (blok.uri) {
+    // uri teslimatı: dosya hazır olana kadar bekle, sonra indir
+    const id = String(blok.uri).split("/files/")[1]?.split(/[?:]/)[0];
+    if (!id) throw new Error("Gemini video adresi anlaşılamadı.");
+    for (let i = 0; i < 60; i++) {
+      const d = await fetch(`https://generativelanguage.googleapis.com/v1beta/files/${id}?key=${process.env.GEMINI_API_KEY}`).then(x => x.json()).catch(() => ({}));
+      if (d.state === "ACTIVE") break;
+      if (d.state === "FAILED") throw new Error("Gemini video dosyası hazırlanamadı.");
+      await new Promise(res => setTimeout(res, 3000));
+    }
+    const v = await fetch(`https://generativelanguage.googleapis.com/v1beta/files/${id}:download?alt=media&key=${process.env.GEMINI_API_KEY}`);
+    if (!v.ok) throw new Error(`Gemini video indirilemedi (${v.status})`);
+    return [{ veri: Buffer.from(await v.arrayBuffer()), tip: "video/mp4" }];
+  }
+  throw new Error("Gemini video çıktısı boş.");
+}
+
 async function geminiMetin(istem) {
   const j = await geminiDene([process.env.GEMINI_METIN_MODEL, "gemini-2.5-flash", "gemini-3-flash"], { contents: [{ parts: [{ text: istem }] }] });
   return (j.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("").trim();
@@ -216,6 +260,11 @@ async function uret(is, istek) {
     const gorseller = [];
     for (const ref of referanslar) { const r = await depodanOku(ref.yol, ref.depo); if (r) gorseller.push({ veri: Buffer.from(await r.arrayBuffer()), tip: r.headers.get("content-type") || "image/jpeg" }); }
     ciktilar = await geminiGorsel({ istem, oran, referanslar: gorseller });
+  } else if (saglayici === "gemini_video") {
+    const gorseller = [];
+    for (const ref of referanslar) { const r = await depodanOku(ref.yol, ref.depo); if (r) gorseller.push({ veri: Buffer.from(await r.arrayBuffer()), tip: r.headers.get("content-type") || "image/jpeg" }); }
+    await ilerleme("video üretiliyor (1-3 dk)");
+    ciktilar = await geminiVideo({ istem, oran, sure, referanslar: gorseller });
   } else if (saglayici === "openai") {
     ciktilar = await openaiGorsel({ istem, oran });
   } else if (saglayici === "higgsfield_soul") {

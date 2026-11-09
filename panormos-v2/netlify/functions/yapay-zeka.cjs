@@ -42,15 +42,18 @@ exports.handler = async (event) => {
       if (!s) return YANIT(400, { error: "Sağlayıcı seçin." });
       if (!s.hazir) return YANIT(400, { error: `${s.ad} için anahtar tanımlı değil (Netlify: ${s.anahtar}).` });
       const istem = String(g.istem || "").trim().slice(0, 2000);
-      if (!istem && s.id !== "higgsfield_kling") return YANIT(400, { error: "Ne üretileceğini yazın." });
+      // İstem boşsa yalnızca referans görselli video (canlandırma) kabul edilir; kontrol aşağıda
       const oran = ORANLAR.includes(g.oran) ? g.oran : "1:1";
       const hamRef = Array.isArray(g.referanslar) ? g.referanslar : (g.referansYolu ? [{ yol: g.referansYolu, depo: g.referansDepo }] : []);
       const referanslar = [];
       for (const r of hamRef.slice(0, 6)) { const yol = guvenliYol(r?.yol); if (!yol) return YANIT(400, { error: "Geçersiz dosya yolu" }); referanslar.push({ yol, depo: r.depo === MUSTERI_DEPO ? MUSTERI_DEPO : undefined }); }
-      if (s.id === "higgsfield_kling" && !referanslar.length) return YANIT(400, { error: "Video için başlangıç görseli seçin." });
+      if (s.referansZorunlu && !referanslar.length) return YANIT(400, { error: "Video için başlangıç görseli seçin." });
+      if (!istem && !referanslar.length) return YANIT(400, { error: "Ne üretileceğini yazın." });
       const is = crypto.randomUUID();
       const clientId = /^[0-9a-f-]{36}$/i.test(String(g.clientId || "")) ? String(g.clientId) : null;
-      const istek = { saglayici: s.id, istem, oran, sure: Number(g.sure) === 10 ? 10 : 5, referanslar, musteriAd: String(g.musteriAd || "").slice(0, 60), clientId };
+      const sureler = s.sureler || [5, 10];
+      const sure = sureler.includes(Number(g.sure)) ? Number(g.sure) : sureler[0];
+      const istek = { saglayici: s.id, istem, oran, sure, referanslar, musteriAd: String(g.musteriAd || "").slice(0, 60), clientId };
       await durumYaz(is, { durum: "bekliyor", asama: "sıraya alındı", saglayici: s.id });
       // Arka plan işlevi: uzun sürebilir, hemen 202 döner. Çağrı iş kimliğiyle imzalanır.
       const kok = (process.env.URL || "https://panormosmedya.com").replace(/\/+$/, "");

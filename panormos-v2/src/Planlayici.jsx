@@ -315,6 +315,7 @@ const SAGLAYICI_IPUCU = {
   openai: "ChatGPT görseli: kompozisyon ve metin kurgusu güçlü; 15-60 sn sürebilir. Referans görsel kullanmaz.",
   higgsfield_soul: "Higgsfield Soul: moda ve yaşam tarzı görsellerinde çok gerçekçi; 1-3 dk. İlk referansı stil ipucu olarak kullanır.",
   higgsfield_kling: "Higgsfield Kling: seçili görseli 5 ya da 10 saniyelik videoya çevirir (canlandırma); 2-6 dk.",
+  gemini_video: "Google video (Gemini Omni): yazıdan ya da yüklediğiniz görsellerden 3-15 saniyelik sesli video; 1-3 dk. 10 sn klip yaklaşık 0,70 $ (720p).",
 };
 const MUSTERI_DEPO = "client-media";
 const boyutYaz = (b) => b ? (b / 1048576).toFixed(2) + " MB" : "";
@@ -366,10 +367,11 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
   }, [is]);
 
   const liste = (bilgi?.saglayicilar || []).filter(s => s.hazir);
-  const gorselAraclar = liste.filter(s => s.tur === "gorsel");
-  const videoArac = liste.find(s => s.id === "higgsfield_kling");
+  const videoArac = liste.find(s => s.id === "gemini_video") || liste.find(s => s.tur === "video");
   const secili = liste.find(s => s.id === saglayici);
   const video = secili?.tur === "video";
+  const sureler = secili?.sureler || [5, 10];
+  useEffect(() => { if (video && !sureler.includes(sure)) setSure(sureler[0]); }, [saglayici]); // araç değişince geçerli süreye dön
   const medyaGorselleri = (client.media || []).filter(m => m.type === "image" && m.storageType === "supabase" && m.storagePath);
 
   // Logo / fotoğraf yükleme: müşterinin Medya deposuna gider, referans olarak eklenir
@@ -411,7 +413,8 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
     const arac = liste.find(s => s.id === aracId); if (!arac) return;
     const videoMu = arac.tur === "video";
     if (!videoMu && !istem.trim() && !konu.trim()) { setHata("Ne üretileceğini yazın ya da 'İstem öner' deyin."); return; }
-    if (videoMu && !referanslar.length) { setHata("Canlandırmak için önce bir görsel yükleyin ya da üretin ve referans olarak ekleyin."); return; }
+    if (videoMu && arac.referansZorunlu && !referanslar.length) { setHata("Canlandırmak için önce bir görsel yükleyin ya da üretin ve referans olarak ekleyin."); return; }
+    if (videoMu && !referanslar.length && !istem.trim() && !konu.trim()) { setHata("Videonun ne olacağını yazın ya da bir görsel ekleyin."); return; }
     setHata(""); setDurum(null); setMesgul(true); setAciklama("");
     try {
       const r = await panelFetch("/.netlify/functions/yapay-zeka", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ islem: "baslat", saglayici: aracId, istem: istem.trim() || konu.trim(), oran, sure, referanslar: referanslar.map(x => ({ yol: x.yol, depo: x.depo })), musteriAd: client?.name || "", clientId: client.id }) });
@@ -477,7 +480,7 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
 
       <div style={kutu}>
         <div style={{ fontSize: 12.5, fontWeight: 700, color: T.textPrimary, marginBottom: 8 }}>2. Ne istiyorsunuz?</div>
-        <FormField label="Konu (Türkçe, kısa)">
+        <FormField label={video ? "Ne olsun? (Türkçe, kısa; görsel seçtiyseniz hareketi tarif edin)" : "Konu (Türkçe, kısa)"}>
           <div style={{ display: "flex", gap: 8 }}>
             <div style={{ flex: 1 }}><Input value={konu} onChange={e => setKonu(e.target.value)} placeholder={`Örn. ${client?.name || "işletme"} için hafta sonu kahvaltı duyurusu, logomuz köşede`} /></div>
             {bilgi?.metin && <Btn onClick={istemOner} disabled={onerBekle}>{onerBekle ? "Yazılıyor…" : "İstem öner"}</Btn>}
@@ -497,12 +500,12 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
           {liste.map(s => <Btn key={s.id} variant={saglayici === s.id ? "primary" : "ghost"} onClick={() => { setSaglayici(s.id); setHata(""); }}>{s.ad}</Btn>)}
         </div>
         {secili && <div style={{ fontSize: 11.5, color: T.textMuted, marginBottom: 10 }}>{SAGLAYICI_IPUCU[secili.id]}</div>}
-        {video && <FormField label="Video süresi"><div style={{ display: "flex", gap: 6 }}>{[5, 10].map(n => <Btn key={n} variant={sure === n ? "primary" : "ghost"} onClick={() => setSure(n)}>{n} sn</Btn>)}</div></FormField>}
+        {video && <FormField label="Video süresi"><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{sureler.map(n => <Btn key={n} variant={sure === n ? "primary" : "ghost"} onClick={() => setSure(n)}>{n} sn</Btn>)}</div></FormField>}
         {hata && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim || "rgba(229,72,77,.12)", padding: "8px 12px", borderRadius: 9, marginBottom: 10 }}>{hata}</div>}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {!video && <Btn variant="primary" onClick={() => baslat(saglayici)} disabled={mesgul || !secili}>{mesgul ? "Üretiliyor…" : "✨ Görsel üret"}</Btn>}
-          {video && <Btn variant="primary" onClick={() => baslat(saglayici)} disabled={mesgul || !referanslar.length}>{mesgul ? "Üretiliyor…" : "🎬 Canlandır (video üret)"}</Btn>}
-          {!video && videoArac && referanslar.length > 0 && <Btn onClick={() => baslat("higgsfield_kling")} disabled={mesgul}>🎬 İlk referansı canlandır</Btn>}
+          {video && <Btn variant="primary" onClick={() => baslat(saglayici)} disabled={mesgul || (secili?.referansZorunlu && !referanslar.length)}>{mesgul ? "Üretiliyor…" : (referanslar.length ? "🎬 Canlandır (video üret)" : "🎬 Video üret")}</Btn>}
+          {!video && videoArac && referanslar.length > 0 && <Btn onClick={() => baslat(videoArac.id)} disabled={mesgul}>🎬 İlk referansı canlandır</Btn>}
         </div>
         {mesgul && <div style={{ fontSize: 12, color: T.textSecondary, marginTop: 10 }}>Üretiliyor… {durum?.asama ? `(${durum.asama})` : ""} Sayfadan ayrılmayın.</div>}
       </div>
