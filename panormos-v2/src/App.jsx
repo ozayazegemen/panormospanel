@@ -5720,7 +5720,6 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <PermToggle label="💰 Müşteri Ücretleri (aylık paket, müşteri faturaları)" checked={form.perm_finance} onChange={()=>setForm(f=>({...f,perm_finance:!f.perm_finance}))} />
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={form.perm_manage_clients} onChange={()=>setForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={form.perm_manage_staff} onChange={()=>setForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
-            <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={form.perm_reports} onChange={()=>setForm(f=>({...f,perm_reports:!f.perm_reports}))} />
           </>}
         </div>
       </div>
@@ -5760,7 +5759,6 @@ function StaffPage({staff,setStaff,allStaff,perms}) {
             <PermToggle label="💰 Müşteri Ücretleri (aylık paket, müşteri faturaları)" checked={editForm.perm_finance} onChange={()=>setEditForm(f=>({...f,perm_finance:!f.perm_finance}))} />
             <PermToggle label="🏢 Müşteri Yönetimi (ekleme, silme)" checked={editForm.perm_manage_clients} onChange={()=>setEditForm(f=>({...f,perm_manage_clients:!f.perm_manage_clients}))} />
             <PermToggle label="👥 Çalışan Yönetimi (ekleme, silme, yetki)" checked={editForm.perm_manage_staff} onChange={()=>setEditForm(f=>({...f,perm_manage_staff:!f.perm_manage_staff}))} />
-            <PermToggle label="📊 Raporlama (sosyal medya aylık raporları)" checked={editForm.perm_reports} onChange={()=>setEditForm(f=>({...f,perm_reports:!f.perm_reports}))} />
           </>}
         </div>
       </div>
@@ -6795,7 +6793,6 @@ const NAV=[
   {id:"tasks",label:"Görevler",icon:"📋"},
   {id:"planlayici",label:"Paylaşım Planlayıcı",icon:"🗓️"},
   {id:"reklamlar",label:"Reklamlar",icon:"📣"},
-  {id:"reports",label:"Raporlar",icon:"📊"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"mail",label:"E-posta",icon:"📧"},
   {id:"blog",label:"Blog",icon:"✍️"},
@@ -6813,7 +6810,7 @@ const NAV=[
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "gorusmeler", "calendar", "shoots", "tasks", "planlayici", "reklamlar", "ideas"] },
-  { label: "İçerik ve İletişim", ids: ["reports", "messages", "mail", "blog"] },
+  { label: "İçerik ve İletişim", ids: ["messages", "mail", "blog"] },
   { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "veteriner", "emlakpanelim"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
   { label: "Yönetim", ids: ["inventory", "staff"] },
@@ -15140,7 +15137,6 @@ export default function App() {
         {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
         {page==="ideas"&&<IdeasPage currentStaff={currentStaff} clients={clients}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
-        {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
         {page==="yearly"&&<YearlyBackupPage clients={clients} staff={staff} tasks={tasks} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
         {page==="mail"&&<MailPage clients={allClients||clients} currentStaff={currentStaff} onUnreadChange={refreshUnreadMails}/>}

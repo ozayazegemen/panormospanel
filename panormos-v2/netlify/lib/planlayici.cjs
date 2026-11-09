@@ -156,7 +156,7 @@ async function ilerlet(db, p, musteri, zorla = false) {
       } catch (e) { /* paylaşım yapıldı; kayıt hatası ayrıca yazılır */ }
       // publishes.id sayı; planli_paylasimlar.publish_id uuid sütunu → numara meta'ya yazılır (uuid ise sütuna da)
       const uuidMi = /^[0-9a-f-]{36}$/i.test(String(publishId || ""));
-      const bitti = { durum: "paylasildi", ig_medya_id: yayin.id, baglanti, paylasildi_at: simdi, meta: { ...meta, publish_kayit: publishId }, hata: publishId ? null : "Paylaşıldı ama hak kaydı yazılamadı; Raporlar'dan elle ekleyin." };
+      const bitti = { durum: "paylasildi", ig_medya_id: yayin.id, baglanti, paylasildi_at: simdi, meta: { ...meta, publish_kayit: publishId }, hata: publishId ? null : "Paylaşıldı ama hak kaydı yazılamadı; müşterinin Paylaşımlar sekmesinden elle ekleyin." };
       if (uuidMi) bitti.publish_id = publishId;
       try { await guncelle(db, p.id, bitti); }
       catch (e) { await guncelle(db, p.id, { durum: "paylasildi", ig_medya_id: yayin.id, paylasildi_at: simdi, hata: null }); } // yayın yapıldı; kayıt hatası "hata" göstermesin
