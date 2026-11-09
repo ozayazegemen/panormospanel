@@ -1279,12 +1279,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
               storage_type: 'google_drive',
               uploader_id: uploaderId, uploader_name: uploaderName, uploaded_at: nowIso(),
             });
-            // Ekip görünürlüğü için drive_files tablosuna da kaydet
-            await supabase.from('drive_files').insert({
-              name: file.name, link, file_id: driveFile.id,
-              uploader_id: uploaderId, uploader_name: uploaderName,
-              client_id: clientId, uploaded_at: nowIso(),
-            });
             successCount++;
           } catch (err) {
             console.error("Dosya yüklenemedi:", file.name, err);
@@ -1321,14 +1315,6 @@ function FileUploadPanel({clientId, onClose, onUploadComplete}) {
             storage_path: data.path,
             storage_type: 'supabase',
             uploader_id: uploaderId, uploader_name: uploaderName, uploaded_at: nowIso(),
-          });
-          // Merkezi Dosyalar sayfasında da görünsün (public URL ile)
-          let publicUrl = "";
-          try { publicUrl = supabase.storage.from('client-media').getPublicUrl(data.path).data.publicUrl || ""; } catch(e) {}
-          await supabase.from('drive_files').insert({
-            name: file.name, link: publicUrl, file_id: data.path,
-            uploader_id: uploaderId, uploader_name: uploaderName,
-            client_id: clientId, uploaded_at: nowIso(),
           });
         }
       } catch (err) {
@@ -6810,7 +6796,6 @@ const NAV=[
   {id:"planlayici",label:"Paylaşım Planlayıcı",icon:"🗓️"},
   {id:"reklamlar",label:"Reklamlar",icon:"📣"},
   {id:"reports",label:"Raporlar",icon:"📊"},
-  {id:"files",label:"Dosyalar",icon:"📁"},
   {id:"messages",label:"Mesajlar",icon:"💬"},
   {id:"mail",label:"E-posta",icon:"📧"},
   {id:"blog",label:"Blog",icon:"✍️"},
@@ -6828,7 +6813,7 @@ const NAV=[
 const NAV_GROUPS = [
   { label: "", ids: ["dashboard"] },
   { label: "İş Takibi", ids: ["clients", "leads", "gorusmeler", "calendar", "shoots", "tasks", "planlayici", "reklamlar", "ideas"] },
-  { label: "İçerik ve İletişim", ids: ["reports", "files", "messages", "mail", "blog"] },
+  { label: "İçerik ve İletişim", ids: ["reports", "messages", "mail", "blog"] },
   { label: "Ürünlerimiz", ids: ["qrmenu", "haber266", "veteriner", "emlakpanelim"] },
   { label: "Finans", ids: ["pricing", "accounting", "yearly"] },
   { label: "Yönetim", ids: ["inventory", "staff"] },
@@ -15155,7 +15140,6 @@ export default function App() {
         {page==="shoots"&&<ShootsPage clients={clients} staff={staff} currentStaff={currentStaff} refreshData={refreshData}/>}
         {page==="ideas"&&<IdeasPage currentStaff={currentStaff} clients={clients}/>}
         {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks} clients={clients} staff={staff} refreshData={refreshData} currentStaff={currentStaff} perms={perms}/>}
-        {page==="files"&&<DriveFilesPage clients={clients}/>}
         {page==="reports"&&<ReportsPage clients={clients} perms={perms}/>}
         {page==="yearly"&&<YearlyBackupPage clients={clients} staff={staff} tasks={tasks} perms={perms}/>}
         {page==="messages"&&<MessagesPage currentStaff={currentStaff} staff={staff}/>}
