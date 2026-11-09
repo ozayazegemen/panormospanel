@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>266digitale — Balıkesir'in haber sitesi | Son dakika Balıkesir haberleri</title>
+<meta name="description" content="266digitale: Balıkesir ve Türkiye'den son dakika haberler, sokak röportajları, video ve foto galeriler.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --zemin:#f2f2f2; --kart:#fff; --murekkep:#111114; --gri:#62626b; --acik-gri:#9a9aa3; --cizgi:#e4e4e7;
+  --kirmizi:#e30613; --kirmizi-koyu:#b0040e; --lacivert:#0c1220; --sari:#ffcc00;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--zemin);color:var(--murekkep);font:15px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{font:inherit;cursor:pointer}
+.ic{max-width:1280px;margin:0 auto;padding:0 16px}
+
+.onizleme{background:var(--sari);color:#111;font-size:12px;font-weight:700;text-align:center;padding:5px 12px}
+
+/* Üst piyasa/hava bandı */
+.ust-band{background:var(--lacivert);color:#cfd3dc;font-size:12.5px}
+.ust-band .ic{display:flex;align-items:center;gap:18px;height:34px;overflow:hidden;white-space:nowrap}
+.ust-band .tarih{color:#fff;font-weight:600}
+.ust-band .veri{display:flex;gap:16px;overflow:hidden}
+.ust-band .veri b{color:#fff;font-weight:700;margin-left:4px}
+.ust-band .yuk{color:#2ecc71}.ust-band .dus{color:#ff5a5f}
+.ust-band .sag{margin-left:auto;display:flex;gap:14px}
+.ust-band .sag a:hover{color:#fff}
+
+/* Başlık */
+.baslik-alani{background:#fff;border-bottom:1px solid var(--cizgi)}
+.baslik-alani .ic{display:flex;align-items:center;justify-content:space-between;height:84px;gap:20px}
+.logo{display:flex;align-items:center;font:900 34px/1 Archivo;letter-spacing:-1.6px}
+.logo .kod{background:var(--kirmizi);color:#fff;padding:7px 9px 6px;border-radius:6px;margin-right:6px;letter-spacing:-1px}
+.logo .nokta{color:var(--kirmizi)}
+.arama{flex:1;max-width:420px;position:relative}
+.arama input{width:100%;border:1px solid var(--cizgi);background:#f7f7f8;border-radius:999px;padding:11px 16px 11px 42px;font:inherit}
+.arama svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--acik-gri)}
+.baslik-sag{display:flex;gap:10px;align-items:center}
+.bulten-d{border:1px solid var(--cizgi);background:#fff;padding:10px 14px;border-radius:6px;font-weight:700;font-size:13px}
+.hamburger{display:none;border:1px solid var(--cizgi);background:#fff;border-radius:6px;width:42px;height:42px;place-items:center}
+
+/* Kategori menüsü */
+nav.kategoriler{background:#fff;border-bottom:3px solid var(--kirmizi);position:sticky;top:0;z-index:60;box-shadow:0 2px 10px rgba(0,0,0,.04)}
+nav.kategoriler .ic{display:flex;align-items:center;gap:2px;height:50px;overflow-x:auto;scrollbar-width:none}
+nav.kategoriler .ic::-webkit-scrollbar{display:none}
+nav.kategoriler a{font:800 14px Archivo;letter-spacing:.02em;text-transform:uppercase;padding:0 14px;height:50px;display:flex;align-items:center;white-space:nowrap;border-bottom:3px solid transparent;margin-bottom:-3px}
+nav.kategoriler a:hover,nav.kategoriler a.aktif{color:var(--kirmizi);border-bottom-color:var(--kirmizi)}
+nav.kategoriler a.mini-logo{display:none;font:900 18px Archivo;color:#fff;background:var(--kirmizi);padding:4px 7px;height:auto;border-radius:5px;margin:0 8px 0 0;border:0}
+nav.kategoriler.yapisik a.mini-logo{display:flex}
+
+/* Son dakika */
+.son-dakika{background:var(--kirmizi);color:#fff}
+.son-dakika .ic{display:flex;align-items:center;height:42px;gap:14px}
+.son-dakika .etiket{background:#fff;color:var(--kirmizi);font:900 12px Archivo;letter-spacing:.08em;padding:5px 10px;border-radius:3px;white-space:nowrap}
+.kayan{flex:1;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+.kayan-ic{display:inline-flex;gap:46px;white-space:nowrap;animation:kay 60s linear infinite;font-weight:600;font-size:14px}
+.kayan-ic a::before{content:"";display:inline-block;width:6px;height:6px;background:#fff;border-radius:50%;margin-right:10px;vertical-align:2px}
+.kayan:hover .kayan-ic{animation-play-state:paused}
+@keyframes kay{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* Görsel yer tutucu */
+.g{position:relative;overflow:hidden;background:#222;display:block}
+.g .z{position:absolute;inset:0;transition:transform .5s ease}
+.g .d{position:absolute;inset:0;opacity:.14;background-image:radial-gradient(rgba(255,255,255,.9) 1px,transparent 1px);background-size:13px 13px}
+.g .y{position:absolute;right:10px;top:10px;color:rgba(255,255,255,.7);font:800 10px Archivo;letter-spacing:.14em;text-transform:uppercase}
+a:hover .g .z{transform:scale(1.05)}
+.etk{display:inline-block;font:800 11px Archivo;letter-spacing:.08em;text-transform:uppercase;color:var(--kirmizi)}
+.etk.kutu{background:var(--kirmizi);color:#fff;padding:3px 7px;border-radius:3px}
+.saat{font-size:12px;color:var(--acik-gri)}
+
+/* Reklam alanı */
+.reklam{background:repeating-linear-gradient(45deg,#e9e9ec,#e9e9ec 10px,#e3e3e7 10px,#e3e3e7 20px);border:1px dashed #c9c9cf;color:#8a8a93;display:grid;place-items:center;font:700 12px Inter;letter-spacing:.12em;text-transform:uppercase;text-align:center}
+.reklam.billboard{height:250px;margin:18px auto 0;max-width:970px}
+.reklam.kare{height:250px}
+.reklam.dikey{height:600px}
+
+/* Manşet */
+.manset-alani{padding-top:18px}
+.manset-izgara{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px}
+.manset{position:relative;background:#000;border-radius:4px;overflow:hidden;aspect-ratio:16/10}
+.manset .slayt{position:absolute;inset:0;opacity:0;transition:opacity .45s ease;display:block}
+.manset .slayt.aktif{opacity:1;z-index:1}
+.manset .slayt .g{position:absolute;inset:0}
+.manset .g .y{display:none}
+.manset .karart{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.88))}
+.manset .yazi{position:absolute;left:0;right:0;bottom:46px;padding:0 28px;color:#fff}
+.manset h1{font:900 40px/1.08 Archivo;letter-spacing:-1px;margin-top:10px;text-shadow:0 2px 12px rgba(0,0,0,.3)}
+.manset p{margin-top:8px;color:rgba(255,255,255,.85);font-size:16px;max-width:760px}
+.manset .numaralar{position:absolute;left:0;right:0;bottom:0;z-index:3;display:flex;background:rgba(0,0,0,.72)}
+.manset .numaralar button{flex:1;border:0;background:none;color:#bbb;font:800 14px Archivo;height:38px;border-top:3px solid transparent}
+.manset .numaralar button.aktif,.manset .numaralar button:hover{color:#fff;background:var(--kirmizi);border-top-color:#fff}
+.manset .tumu{position:absolute;z-index:3;top:14px;right:14px;background:rgba(0,0,0,.55);color:#fff;font:700 12px Inter;padding:6px 10px;border-radius:999px}
+.surmanset{display:grid;grid-template-rows:repeat(3,1fr);gap:12px}
+.sm{position:relative;border-radius:4px;overflow:hidden;display:block;min-height:0}
+.sm .g{position:absolute;inset:0}
+.sm .karart{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 30%,rgba(0,0,0,.85))}
+.sm .yazi{position:absolute;left:14px;right:14px;bottom:12px;color:#fff}
+.sm h3{font:800 18px/1.18 Archivo;margin-top:6px}
+
+/* Öne çıkanlar */
+.one-cikan{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:16px}
+.oc{background:#fff;border-radius:4px;overflow:hidden;display:block;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.oc .g{aspect-ratio:16/10}
+.oc .metin{display:block;padding:12px 14px 14px}
+.oc h3{font:800 16px/1.25 Archivo;margin-top:4px}
+.oc:hover h3,.yatay:hover h4,.kart:hover h3,.buyuk:hover h3{color:var(--kirmizi)}
+
+/* Bölüm başlığı */
+.bolum{margin-top:30px}
+.bb{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--murekkep);margin-bottom:16px;gap:12px}
+.bb h2{font:900 20px Archivo;letter-spacing:-.2px;text-transform:uppercase;background:var(--murekkep);color:#fff;padding:8px 14px 6px;margin-bottom:-2px;white-space:nowrap}
+.bb.kirmizi{border-color:var(--kirmizi)}.bb.kirmizi h2{background:var(--kirmizi)}
+.bb .alt-menu{display:flex;gap:14px;font-size:13px;font-weight:600;color:var(--gri);overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.bb .alt-menu a:hover{color:var(--kirmizi)}
+
+/* Ana + yan sütun */
+.duzen{display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:24px;margin-top:30px}
+.yan-sutun>*{margin-bottom:22px}
+.kutu{background:#fff;border-radius:4px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.kb{font:900 16px Archivo;text-transform:uppercase;letter-spacing:.02em;border-bottom:2px solid var(--kirmizi);padding-bottom:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kb small{font:600 12px Inter;color:var(--acik-gri);text-transform:none}
+
+/* Kategori blokları */
+.kat-blok{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px}
+.kat-blok .buyuk{background:#fff;border-radius:4px;overflow:hidden;display:block}
+.kat-blok .buyuk .g{aspect-ratio:16/10}
+.kat-blok .buyuk .metin{display:block;padding:14px 16px 16px}
+.kat-blok .buyuk h3{font:900 23px/1.15 Archivo;letter-spacing:-.4px;margin:4px 0 6px}
+.kat-blok .buyuk p{color:var(--gri);font-size:14px;margin-bottom:6px}
+.liste{display:flex;flex-direction:column;gap:10px}
+.yatay{display:grid;grid-template-columns:128px minmax(0,1fr);gap:12px;background:#fff;border-radius:4px;overflow:hidden;align-items:center;padding-right:10px}
+.yatay .g{aspect-ratio:16/11}
+.yatay h4{font:800 14.5px/1.25 Archivo}
+.dortlu{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:14px}
+.kart{display:block;background:#fff;border-radius:4px;overflow:hidden}
+.kart .g{aspect-ratio:16/10}
+.kart .metin{display:block;padding:10px 12px 12px}
+.kart h3{font:800 14.5px/1.25 Archivo}
+
+/* Çok okunanlar */
+.cok-okunan ol{list-style:none;counter-reset:s}
+.cok-okunan li{counter-increment:s;display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;padding:10px 0;border-top:1px solid var(--cizgi);align-items:start}
+.cok-okunan li:first-child{border-top:0}
+.cok-okunan li::before{content:counter(s);font:900 30px/1 Archivo;color:var(--kirmizi)}
+.cok-okunan a{font:700 14px/1.3 Archivo}
+.cok-okunan a:hover{color:var(--kirmizi)}
+
+/* Hava durumu */
+.hava-ust{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:2px solid var(--kirmizi);padding-bottom:8px}
+.hava-ust .kb{border:0;margin:0;padding:0}
+.hava-ust select{border:1px solid var(--cizgi);border-radius:6px;padding:6px 8px;font:600 13px Inter;background:#fff}
+.hava-simdi{display:flex;align-items:center;gap:14px;margin:12px 0}
+.hava-simdi .derece{font:900 52px/1 Archivo;letter-spacing:-2px}
+.hava-simdi .ikon{font-size:44px;line-height:1}
+.hava-simdi small{display:block;color:var(--gri);font-size:13px}
+.hava-gunler{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;text-align:center;font-size:12px;border-top:1px solid var(--cizgi);padding-top:10px}
+.hava-gunler b{display:block;font:800 13px Archivo}
+.hava-gunler span{font-size:20px;display:block;margin:2px 0}
+
+/* Piyasa */
+.piyasa table{width:100%;border-collapse:collapse;font-size:14px}
+.piyasa td{padding:8px 0;border-top:1px solid var(--cizgi)}
+.piyasa tr:first-child td{border-top:0}
+.piyasa td:nth-child(2){text-align:right;font-weight:800;font-family:Archivo}
+.piyasa td:nth-child(3){text-align:right;width:76px;font-size:12px;font-weight:700}
+
+/* Namaz ve eczane */
+.vakitler{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+.vakitler div{background:#f6f6f7;border-radius:6px;padding:8px 4px}
+.vakitler div.simdi{background:var(--kirmizi);color:#fff}
+.vakitler small{display:block;font-size:11px;font-weight:600;opacity:.8}
+.vakitler b{font:800 17px Archivo}
+.eczane ul{list-style:none}
+.eczane li{padding:9px 0;border-top:1px solid var(--cizgi);font-size:13.5px}
+.eczane li:first-child{border-top:0}
+.eczane b{display:block;font:800 14px Archivo}
+.eczane span{color:var(--gri)}
+
+/* Puan durumu */
+.puan table{width:100%;border-collapse:collapse;font-size:13px}
+.puan th{font-size:11px;color:var(--acik-gri);text-align:right;padding:4px 0;font-weight:700}
+.puan th:nth-child(2){text-align:left}
+.puan td{padding:7px 0;border-top:1px solid var(--cizgi);text-align:right}
+.puan td:nth-child(1){width:22px;text-align:left;font-weight:800;color:var(--acik-gri)}
+.puan td:nth-child(2){text-align:left;font-weight:700}
+.puan tr.biz td{color:var(--kirmizi)}
+.puan td:last-child{font-weight:900;font-family:Archivo}
+
+/* Video bandı */
+.video-band{background:var(--lacivert);color:#fff;margin-top:34px;padding:30px 0 34px}
+.video-band .bb{border-color:var(--kirmizi)}
+.video-band .bb h2{background:var(--kirmizi)}
+.video-band .bb .alt-menu{color:#aab}
+.video-izgara{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.video-buyuk{position:relative;display:block;border-radius:4px;overflow:hidden;aspect-ratio:16/9}
+.video-buyuk .g,.vk .g,.reel .g,.foto .g{position:absolute;inset:0}
+.video-buyuk .karart,.vk .karart{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.85))}
+.oynat{position:absolute;display:grid;place-items:center;border-radius:50%;background:rgba(227,6,19,.92);box-shadow:0 6px 20px rgba(0,0,0,.35)}
+.video-buyuk .oynat{width:74px;height:74px;left:50%;top:50%;transform:translate(-50%,-50%)}
+.video-buyuk .yazi{position:absolute;left:20px;right:20px;bottom:18px}
+.video-buyuk h3{font:900 26px/1.15 Archivo;margin-top:6px}
+.sure{position:absolute;z-index:2;right:10px;top:10px;background:rgba(0,0,0,.7);font:700 12px Inter;padding:3px 7px;border-radius:4px}
+.video-kucuk{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vk{position:relative;display:block;border-radius:4px;overflow:hidden;aspect-ratio:16/10}
+.vk .oynat{width:38px;height:38px;left:10px;bottom:10px}
+.vk h4{position:absolute;left:56px;right:10px;bottom:10px;font:800 13px/1.25 Archivo}
+.dikey-seritler{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,1fr);gap:12px;overflow-x:auto;margin-top:16px;scrollbar-width:thin}
+.reel{position:relative;aspect-ratio:9/16;border-radius:8px;overflow:hidden;display:block}
+.reel .karart{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.2),rgba(0,0,0,0) 30%,rgba(0,0,0,.85))}
+.reel .rozet{position:absolute;top:10px;left:10px;background:var(--kirmizi);font:800 10px Archivo;letter-spacing:.08em;padding:3px 7px;border-radius:3px}
+.reel b{position:absolute;left:12px;right:12px;bottom:12px;font:800 14px/1.25 Archivo}
+
+/* Foto galeri */
+.foto-izgara{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.foto{position:relative;display:block;border-radius:4px;overflow:hidden;aspect-ratio:4/3}
+.foto .karart{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.85))}
+.foto .adet{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.65);color:#fff;font:700 12px Inter;padding:3px 8px;border-radius:999px}
+.foto h4{position:absolute;left:12px;right:12px;bottom:10px;color:#fff;font:800 15px/1.25 Archivo}
+
+/* Yazarlar */
+.yazarlar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.yazar{background:#fff;border-radius:4px;padding:16px;display:flex;gap:12px;align-items:center}
+.yazar .avatar{width:62px;height:62px;border-radius:50%;flex:none;display:grid;place-items:center;color:#fff;font:900 20px Archivo}
+.yazar b{display:block;font:800 14px Archivo}
+.yazar .yb{display:block;font:700 13.5px/1.3 Archivo;color:var(--gri);margin-top:4px}
+.yazar:hover .yb{color:var(--kirmizi)}
+
+/* İhbar */
+.ihbar{margin-top:34px;background:linear-gradient(110deg,var(--kirmizi),#ff5b1f);color:#fff;border-radius:6px;padding:30px;display:grid;grid-template-columns:minmax(0,1.4fr) auto;gap:20px;align-items:center}
+.ihbar h2{font:900 30px/1.1 Archivo;letter-spacing:-.6px}
+.ihbar p{opacity:.92;margin-top:6px}
+.ihbar .d{display:flex;gap:10px;flex-wrap:wrap}
+.ihbar .d a{background:#fff;color:#111;font-weight:800;padding:12px 18px;border-radius:6px}
+.ihbar .d a.s{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.55)}
+
+/* Alt bilgi */
+footer{background:var(--lacivert);color:#aeb3bf;margin-top:40px;padding:40px 0 22px;font-size:14px}
+.f-ust{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-bottom:24px;border-bottom:1px solid #222a3a;flex-wrap:wrap}
+footer .logo{color:#fff}
+.f-sosyal{display:flex;gap:8px;flex-wrap:wrap}
+.f-sosyal a{border:1px solid #2c3446;border-radius:6px;padding:8px 12px;color:#fff;font-weight:600;font-size:13px}
+.f-sosyal a:hover{background:var(--kirmizi);border-color:var(--kirmizi)}
+.f-menu{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px;padding:26px 0}
+.f-menu h5{color:#fff;font:800 13px Archivo;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+.f-menu a{display:block;padding:3px 0}
+.f-menu a:hover{color:#fff}
+.f-alt{border-top:1px solid #222a3a;padding-top:18px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12.5px}
+
+/* Haber detayı */
+.detay{position:fixed;inset:0;z-index:100;background:var(--zemin);overflow-y:auto;display:none}
+.detay.acik{display:block;animation:gel .2s ease}
+@keyframes gel{from{opacity:0}to{opacity:1}}
+.detay-ust{position:sticky;top:0;background:#fff;border-bottom:3px solid var(--kirmizi);z-index:2}
+.detay-ust .ic{display:flex;align-items:center;justify-content:space-between;height:60px;position:relative}
+.detay-ust .logo{font-size:24px}
+.kapat{width:40px;height:40px;border-radius:50%;border:1px solid var(--cizgi);background:#fff;font-size:18px}
+.ilerleme{position:absolute;left:0;bottom:-3px;height:3px;background:var(--sari);width:0}
+.makale-duzen{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;padding:24px 16px 60px}
+.makale{background:#fff;border-radius:4px;padding:28px 34px}
+.kirinti{font-size:12.5px;color:var(--gri);margin-bottom:12px}
+.kirinti a{color:var(--kirmizi);font-weight:600}
+.makale h1{font:900 40px/1.1 Archivo;letter-spacing:-1px;margin:8px 0 14px}
+.makale .spot{font:600 19px/1.5 Inter;color:#33333a;margin-bottom:16px}
+.makale .kunye{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--cizgi);border-bottom:1px solid var(--cizgi);margin-bottom:20px;font-size:13px;color:var(--gri)}
+.makale .kunye b{color:var(--murekkep)}
+.makale .paylas{margin-left:auto;display:flex;gap:6px}
+.makale .paylas a{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font:800 13px Archivo}
+.makale>.g{aspect-ratio:16/9;border-radius:4px}
+.makale figcaption{font-size:12.5px;color:var(--gri);margin:6px 0 22px}
+.makale .govde p{font-size:18px;line-height:1.75;margin-bottom:18px}
+.makale .govde h2{font:900 24px Archivo;margin:28px 0 10px}
+.makale blockquote{border-left:5px solid var(--kirmizi);padding:4px 0 4px 18px;font:800 21px/1.4 Archivo;margin:24px 0}
+.makale .etiketler{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+.makale .etiketler a{background:#f2f2f4;border-radius:4px;padding:6px 10px;font-size:13px;font-weight:600}
+.ilgili{margin-top:26px}
+.ilgili .dortlu{grid-template-columns:repeat(3,minmax(0,1fr))}
+
+/* Mobil menü */
+.mobil-menu{display:none;position:fixed;inset:0;z-index:90;background:#fff;padding:20px;overflow-y:auto}
+.mobil-menu.acik{display:block}
+.mobil-menu .ust{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.mobil-menu a.m{display:block;font:900 24px/1.9 Archivo;border-bottom:1px solid var(--cizgi)}
+
+@media (max-width:1100px){
+  .duzen,.makale-duzen{grid-template-columns:minmax(0,1fr)}
+  .manset-izgara{grid-template-columns:minmax(0,1fr)}
+  .surmanset{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:none}
+  .sm{aspect-ratio:4/3}
+  .arama,.bulten-d{display:none}
+  .f-menu{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .reklam.dikey{display:none}
+}
+@media (max-width:720px){
+  .ic{padding:0 12px}
+  .ust-band .sag{display:none}
+  .baslik-alani .ic{height:66px}
+  .logo{font-size:26px}
+    .hamburger{display:grid}
+  .manset{aspect-ratio:4/5}
+  .manset h1{font-size:26px}
+  .manset p{display:none}
+  .manset .yazi{padding:0 16px}
+  .manset .numaralar button{font-size:12px}
+  .surmanset{grid-template-columns:minmax(0,1fr)}
+  .sm{aspect-ratio:16/9}
+  .one-cikan,.dortlu,.foto-izgara,.yazarlar{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kat-blok,.video-izgara{grid-template-columns:minmax(0,1fr)}
+  .yatay{grid-template-columns:110px minmax(0,1fr)}
+  .reklam.billboard{height:100px}
+  .ihbar{grid-template-columns:minmax(0,1fr)}
+  .ihbar h2{font-size:24px}
+  .makale{padding:18px}
+  .makale h1{font-size:28px}
+  .makale .govde p{font-size:17px}
+  .ilgili .dortlu{grid-template-columns:minmax(0,1fr)}
+  .f-menu{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .yazar{flex-direction:column;text-align:center}
+}
+
+/* Kategori sayfası */
+.kat-baslik{background:#fff;border-bottom:1px solid var(--cizgi);padding:18px 0 14px}
+.kat-baslik .kirinti{font-size:12.5px;color:var(--gri)}
+.kat-baslik .kirinti a{color:var(--kirmizi);font-weight:600}
+.kat-baslik h1{font:900 38px/1.1 Archivo;letter-spacing:-1px;text-transform:uppercase;margin:6px 0 4px;display:flex;align-items:center;gap:12px}
+.kat-baslik h1::before{content:"";width:8px;height:32px;background:var(--kirmizi);border-radius:2px}
+.kat-alt{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.kat-alt a{border:1px solid var(--cizgi);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;color:var(--gri)}
+.kat-alt a:hover,.kat-alt a.secili{border-color:var(--kirmizi);color:#fff;background:var(--kirmizi)}
+.uclu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}
+.uclu .kart h3{font-size:15.5px}
+.uclu .kart p{color:var(--gri);font-size:13.5px;margin-top:4px}
+.daha{display:block;margin:22px auto 0;border:2px solid var(--murekkep);background:#fff;font:800 14px Archivo;letter-spacing:.04em;text-transform:uppercase;padding:12px 26px;border-radius:4px}
+.daha:hover{background:var(--murekkep);color:#fff}
+.sd-liste{background:#fff;border-radius:4px}
+.sd-satir{display:grid;grid-template-columns:70px 140px minmax(0,1fr);gap:14px;align-items:center;padding:12px 14px;border-top:1px solid var(--cizgi)}
+.sd-satir:first-child{border-top:0}
+.sd-satir .zaman{font:900 18px Archivo;color:var(--kirmizi)}
+.sd-satir .g{aspect-ratio:16/10;border-radius:3px}
+.sd-satir h3{font:800 17px/1.25 Archivo;margin-top:2px}
+.sd-satir:hover h3{color:var(--kirmizi)}
+.video-sayfa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.video-sayfa .vk{aspect-ratio:16/10}
+.reel-izgara{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.yazar-sayfa{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:720px){
+  .kat-baslik h1{font-size:28px}
+  .uclu,.video-sayfa{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .reel-izgara{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .yazar-sayfa{grid-template-columns:minmax(0,1fr)}
+  .sd-satir{grid-template-columns:52px minmax(0,1fr)}
+  .sd-satir .g{display:none}
+}
+
+/* Fotoğraf büyütme */
+.buyutec{position:fixed;inset:0;z-index:300;background:rgba(5,5,8,.94);display:none;align-items:center;justify-content:center;touch-action:pan-y}
+.buyutec.acik{display:flex}
+.buyutec img{max-width:92vw;max-height:84vh;object-fit:contain;border-radius:4px;box-shadow:0 10px 40px rgba(0,0,0,.5);user-select:none}
+.buyutec .ok{position:absolute;top:50%;transform:translateY(-50%);width:54px;height:54px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:30px;line-height:1;display:grid;place-items:center}
+.buyutec .ok:hover{background:var(--kirmizi)}
+.buyutec .ok.sol{left:18px}.buyutec .ok.sag{right:18px}
+.buyutec .kapa{position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:20px}
+.buyutec .kapa:hover{background:var(--kirmizi)}
+.buyutec .sayac{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font:700 14px Inter;background:rgba(255,255,255,.12);padding:6px 14px;border-radius:999px}
+@media (max-width:720px){.buyutec .ok{width:44px;height:44px;font-size:24px}.buyutec .ok.sol{left:8px}.buyutec .ok.sag{right:8px}}
+
+.reklam.dolu{background:none;border:0;height:auto!important;display:block;text-align:center}
+.reklam.dolu a{display:block}
+.reklam.dolu img{max-width:100%;height:auto;display:block;margin:0 auto;border-radius:4px}
+.reklam.dolu .rk-etiket{display:block;font:600 10px Inter;letter-spacing:.12em;color:#9a9aa3;text-transform:uppercase;margin-bottom:4px}
+</style>
+</head>
+<body>
+
+<div class="onizleme">Tasarım önizlemesi — Panormos Medya · Haberler, görseller ve reklam alanları örnektir</div>
+
+<div class="ust-band">
+  <div class="ic">
+    <span class="tarih" id="tarih"></span>
+    <div class="veri" id="piyasaBand"><span>Piyasalar yükleniyor…</span></div>
+    <div class="sag"><a href="#">Künye</a><a href="#">Reklam</a><a href="#">İletişim</a></div>
+  </div>
+</div>
+
+<div class="baslik-alani">
+  <div class="ic">
+    <a href="#/" class="logo" aria-label="266digitale ana sayfa"><span class="kod">266</span><span>digitale</span><span class="nokta">.</span></a>
+    <label class="arama"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input placeholder="Haber ya da konu ara"></label>
+    <div class="baslik-sag">
+      <a href="#" class="bulten-d">WhatsApp Kanalı</a>
+      <button class="hamburger" id="hamburger" aria-label="Menü"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+    </div>
+  </div>
+</div>
+
+<nav class="kategoriler" id="kategoriler">
+  <div class="ic">
+    <a href="#/" class="mini-logo">266</a>
+    <span id="navLinkler"></span>
+  </div>
+</nav>
+
+<div class="mobil-menu" id="mobilMenu">
+  <div class="ust"><span class="logo"><span class="kod">266</span>digitale<span class="nokta">.</span></span><button class="kapat" id="mobilKapat">✕</button></div>
+  <div id="mobilLinkler"></div>
+</div>
+
+<div class="son-dakika">
+  <div class="ic">
+    <span class="etiket">SON DAKİKA</span>
+    <div class="kayan"><div class="kayan-ic" id="kayan"></div></div>
+  </div>
+</div>
+
+<div id="anasayfa">
+<main class="ic">
+  <div class="reklam billboard" data-yer="ust">Reklam alanı · 970×250</div>
+
+  <section class="manset-alani">
+    <div class="manset-izgara">
+      <div class="manset" id="manset"></div>
+      <div class="surmanset" id="surmanset"></div>
+    </div>
+    <div class="one-cikan" id="oneCikan"></div>
+  </section>
+
+  <div class="duzen">
+    <div>
+      <section class="bolum" id="gundem" style="margin-top:0">
+        <div class="bb"><h2>Gündem</h2><div class="alt-menu"><a href="#">Türkiye</a><a href="#">Dünya</a><a href="#">Politika</a><a href="#">Tümü →</a></div></div>
+        <div class="kat-blok" id="gundemBlok"></div>
+        <div class="dortlu" id="gundemDortlu"></div>
+      </section>
+
+      <section class="bolum" id="balikesir">
+        <div class="bb kirmizi"><h2>Balıkesir</h2><div class="alt-menu"><a href="#/balikesir">Tümü →</a></div></div>
+        <div class="kat-blok" id="balikesirBlok"></div>
+        <div class="dortlu" id="balikesirDortlu"></div>
+      </section>
+
+      <div class="reklam" data-yer="ara" style="height:110px;margin-top:26px">Reklam alanı · 728×90</div>
+
+      <section class="bolum" id="ekonomi">
+        <div class="bb"><h2>Ekonomi</h2><div class="alt-menu"><a href="#">Piyasalar</a><a href="#">Tarım</a><a href="#">Emlak</a><a href="#">Tümü →</a></div></div>
+        <div class="kat-blok" id="ekonomiBlok"></div>
+      </section>
+
+      <section class="bolum" id="spor">
+        <div class="bb"><h2>Spor</h2><div class="alt-menu"><a href="#">Futbol</a><a href="#">Basketbol</a><a href="#">Voleybol</a><a href="#">Amatör</a><a href="#">Tümü →</a></div></div>
+        <div class="kat-blok" id="sporBlok"></div>
+        <div class="dortlu" id="sporDortlu"></div>
+      </section>
+    </div>
+
+    <aside class="yan-sutun">
+      <div class="reklam kare" data-yer="yan_kare">Reklam alanı · 300×250</div>
+      <div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar <small>Son 24 saat</small></h3><ol id="cokOkunan"></ol></div>
+      <div class="kutu">
+        <h3 class="kb">Hava durumu <small>Balıkesir</small></h3>
+        <div id="hava"><p class="saat" style="margin-top:10px">Yükleniyor…</p></div>
+      </div>
+      <div class="kutu piyasa"><h3 class="kb">Döviz <small id="piyasaSaat"></small></h3><table id="piyasaTablo"><tr><td>Yükleniyor…</td></tr></table></div>
+      <div class="kutu"><h3 class="kb">Namaz vakitleri <small>Balıkesir</small></h3><div class="vakitler" id="vakitler"><div>Yükleniyor…</div></div></div>
+      <div class="kutu eczane"><h3 class="kb">Nöbetçi eczaneler <small>Örnek</small></h3><ul id="eczane"></ul></div>
+      <div class="kutu puan"><h3 class="kb">Puan durumu <small>Örnek</small></h3><table id="puan"></table></div>
+      <div class="reklam dikey" data-yer="yan_dikey">Reklam alanı · 300×600</div>
+    </aside>
+  </div>
+</main>
+
+<section class="video-band" id="video">
+  <div class="ic">
+    <div class="bb"><h2>266 Sokakta</h2><div class="alt-menu"><a href="#">Röportajlar</a><a href="#">Haber videoları</a><a href="#">Tüm videolar →</a></div></div>
+    <div class="video-izgara">
+      <a href="#" class="video-buyuk" data-haber="20" id="videoBuyuk"></a>
+      <div class="video-kucuk" id="videoKucuk"></div>
+    </div>
+    <div class="dikey-seritler" id="reels"></div>
+  </div>
+</section>
+
+<main class="ic">
+  <section class="bolum" id="foto">
+    <div class="bb"><h2>Foto Galeri</h2><div class="alt-menu"><a href="#">Tümü →</a></div></div>
+    <div class="foto-izgara" id="fotoGaleri"></div>
+  </section>
+
+  <section class="bolum" id="yazarlar">
+    <div class="bb"><h2>Yazarlar</h2><div class="alt-menu"><a href="#">Tüm yazarlar →</a></div></div>
+    <div class="yazarlar" id="yazarListe"></div>
+  </section>
+
+  <section class="bolum" id="yasam">
+    <div class="bb"><h2>Yaşam ve kültür</h2><div class="alt-menu"><a href="#">Tümü →</a></div></div>
+    <div class="dortlu" id="yasamDortlu" style="margin-top:0"></div>
+  </section>
+
+  <section class="ihbar">
+    <div><h2>Mahallende bir şey mi oluyor?</h2><p>Fotoğrafını, videosunu gönder; haberi birlikte yapalım. İstersen kimliğin gizli kalır.</p></div>
+    <div class="d"><a href="#">WhatsApp ihbar hattı</a><a href="#" class="s">Haber gönder</a></div>
+  </section>
+</main>
+
+</div>
+
+<div id="katSayfa" hidden>
+  <div class="kat-baslik"><div class="ic"><div class="kirinti"><a href="#/">Ana sayfa</a> › <span id="katKirinti"></span></div><h1 id="katAd"></h1><div class="kat-alt" id="katAlt"></div></div></div>
+  <div class="ic duzen" style="margin-top:22px">
+    <div id="katIcerik"></div>
+    <aside class="yan-sutun"><div class="reklam kare" data-yer="yan_kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan3"></ol></div><div class="reklam dikey" data-yer="yan_dikey">Reklam alanı · 300×600</div></aside>
+  </div>
+</div>
+
+<footer>
+  <div class="ic">
+    <div class="f-ust">
+      <a href="#" class="logo"><span class="kod">266</span>digitale<span class="nokta">.</span></a>
+      <div class="f-sosyal"><a href="#">Instagram</a><a href="#">TikTok</a><a href="#">YouTube</a><a href="#">X</a><a href="#">Facebook</a><a href="#">WhatsApp</a></div>
+    </div>
+    <div class="f-menu">
+      <div><h5>Haberler</h5><a href="#/son-dakika">Son Dakika</a><a href="#/gundem">Gündem</a><a href="#/balikesir">Balıkesir</a><a href="#/ekonomi">Ekonomi</a><a href="#/spor">Spor</a></div>
+      <div><h5>Gündem</h5><a href="#/yasam">Yaşam</a><a href="#/saglik">Sağlık</a><a href="#/egitim">Eğitim</a><a href="#/teknoloji">Teknoloji</a></div>
+      <div><h5>Multimedya</h5><a href="#/266-sokakta">266 Sokakta</a><a href="#/266-sokakta">Video</a><a href="#/foto-galeri">Foto Galeri</a><a href="#/yazarlar">Yazarlar</a></div>
+      <div><h5>Hizmetler</h5><a href="#">Hava durumu</a><a href="#">Namaz vakitleri</a><a href="#">Nöbetçi eczaneler</a><a href="#">Döviz</a></div>
+      <div><h5>Kurumsal</h5><a href="#">Künye</a><a href="#">Yayın ilkeleri</a><a href="#">Reklam</a><a href="#">Gizlilik</a><a href="#">İletişim</a></div>
+    </div>
+    <div class="f-alt">
+      <span>© <span id="yil"></span> 266digitale, Panormos Medya Sanayi ve Ticaret Limited Şirketi'ne aittir. Tüm hakları saklıdır.</span>
+      <span>Tasarım önizlemesi: Panormos Medya</span>
+    </div>
+  </div>
+</footer>
+
+<div class="detay" id="detay" aria-hidden="true">
+  <div class="detay-ust"><div class="ic">
+    <a href="#" class="logo" data-kapat><span class="kod">266</span>digitale<span class="nokta">.</span></a>
+    <button class="kapat" data-kapat aria-label="Kapat">✕</button>
+    <div class="ilerleme" id="ilerleme"></div>
+  </div></div>
+  <div class="ic makale-duzen">
+    <div><article class="makale" id="makale"></article><div class="ilgili"><div class="bb"><h2>İlgili haberler</h2></div><div class="dortlu" id="ilgili" style="margin-top:0"></div></div></div>
+    <aside class="yan-sutun"><div class="reklam kare" data-yer="yan_kare">Reklam alanı · 300×250</div><div class="kutu cok-okunan"><h3 class="kb">Çok okunanlar</h3><ol id="cokOkunan2"></ol></div><div class="reklam dikey" data-yer="yan_dikey">Reklam alanı · 300×600</div></aside>
+  </div>
+</div>
+
+<div class="buyutec" id="buyutec" aria-hidden="true"><img alt="" id="buyutecResim"><button class="ok sol" id="buyutecSol" aria-label="Önceki">‹</button><button class="ok sag" id="buyutecSag" aria-label="Sonraki">›</button><button class="kapa" id="buyutecKapa" aria-label="Kapat">✕</button><span class="sayac" id="buyutecSayac"></span></div>
+<script type="module">
+// ÖRNEK İÇERİK — gerçek haberler panelden (Haber Masası) gelecek
+const RENK = [['#0f2a4a','#2f6fb3'],['#5a0a0e','#e30613'],['#123d26','#4c9a2a'],['#2a1d5c','#6d4bd8'],['#0b3b52','#1aa3d9'],['#6b2a07','#e88a12'],['#2f2f36','#8f8f99'],['#5b1035','#d6336c'],['#0f3f3b','#22b3a3'],['#1b2230','#e30613']];
+const H = [
+  ['Gündem','Balıkesir','Sahil ve şehir parklarında yeni düzenleme: yürüyüş ve bisiklet yolları genişliyor','Belediye, yaya ve bisiklet yollarının genişletilmesi için çalışma başlattı. Vatandaşlar ne düşünüyor?','12 dk'],
+  ['Balıkesir','Balıkesir','Kent merkezinde trafik düzenlemesi: hangi yollar tek yön oluyor?','Yeni düzenleme pazartesi günü yürürlüğe giriyor.','35 dk'],
+  ['Ekonomi','Balıkesir','Pirinç ve zeytinde hasat sona yaklaştı: üretici fiyattan memnun mu?','Çiftçiler bu yılki rekolteyi değerlendirdi.','1 sa'],
+  ['Spor','Balıkesir','Hafta sonu kritik maç: taraftar tribünleri dolduracak','Biletler satışa çıktı, yoğunluk bekleniyor.','2 sa'],
+  ['Yaşam','Balıkesir','Sezon kapanırken turizmcinin yüzü gülüyor mu?','Turizmciler sezonu değerlendirdi.','3 sa'],
+  ['Balıkesir','Balıkesir','Zeytin hasadı için işçi arayışı başladı: yevmiyeler ne kadar?','Hasat hazırlıkları sürüyor.','4 sa'],
+  ['Balıkesir','Balıkesir','Kış öncesi iskele ve liman bakımları tamamlandı','Feribot ve tekne seferlerinin aksamaması için yapılan bakım bitti.','5 sa'],
+  ['Balıkesir','Balıkesir','Ayran ve yöresel lezzetler festivali için geri sayım başladı','Organizasyon komitesi programı açıkladı.','6 sa'],
+  ['Balıkesir','Balıkesir','Semt pazarları yenileniyor: tezgâhlar nereye taşınacak?','Yenileme süresince pazarlar geçici alanda kurulacak.','7 sa'],
+  ['Spor','Balıkesir','Basketbolda Avrupa heyecanı: salon kapalı gişe','Takım maç öncesi son antrenmanını yaptı.','2 sa'],
+  ['Spor','Balıkesir','Amatör ligde derbi günü: şehir ayakta','','5 sa'],
+  ['Spor','Balıkesir','Yüzme şampiyonasında gençlerden 6 madalya','','8 sa'],
+  ['Ekonomi','Balıkesir','Limanda ihracat hareketliliği: yük trafiği artıyor','Konteyner sayısındaki artış kente nasıl yansıyor?','3 sa'],
+  ['Ekonomi','Türkiye','Kira fiyatları: son bir yılda ne kadar arttı?','','6 sa'],
+  ['Ekonomi','Balıkesir','Madencilik sektörüne yeni yatırım: istihdam beklentisi','','9 sa'],
+  ['Yaşam','Balıkesir','Köy kahvesinden dijitale: 80 yaşında YouTuber oldu','','1 gün'],
+  ['Yaşam','Balıkesir','Mermer atölyesi: ustalar mesleği gençlere öğretiyor','','1 gün'],
+  ['Yaşam','Balıkesir','Kuş cenneti göçmen misafirlerini ağırlıyor','','1 gün'],
+  ['Yaşam','Balıkesir','Geleneksel halı dokuması yeniden tezgâhta','','2 gün'],
+  ['Gündem','Türkiye','Okul servislerine yeni denetim: veliler ne diyor?','Denetimler dönem boyunca sürecek.','1 sa'],
+  ['266 Sokakta','Balıkesir','"Asgari ücretle kira nasıl ödenir?" Sokağa sorduk','Mikrofonu uzattık, Balıkesirliler anlattı.','2 sa'],
+  ['Gündem','Balıkesir','Şehirlerarası otobüs terminalinde yenileme çalışması','','2 sa'],
+  ['Gündem','Balıkesir','Kaplıca bölgesine yeni yürüyüş parkuru','','4 sa'],
+  ['Gündem','Balıkesir','Köy yollarında asfalt çalışması başladı','','5 sa'],
+  ['Balıkesir','Balıkesir','Hayvan pazarında kış hazırlığı','','6 sa'],
+  ['Balıkesir','Balıkesir','Sağlık ocaklarına yeni doktor ataması','','7 sa'],
+  ['Sağlık','Türkiye','Grip aşısı randevuları başladı: kimler öncelikli?','Aile sağlığı merkezlerinde aşı takvimi açıklandı.','3 sa'],
+  ['Sağlık','Balıkesir','Şehir hastanesine yeni MR cihazı','Bekleme sürelerinin kısalması bekleniyor.','6 sa'],
+  ['Sağlık','Türkiye','Kış öncesi uzmanlardan solunum yolu uyarısı','','1 gün'],
+  ['Eğitim','Balıkesir','Üniversitede yeni bölümler için kayıtlar sürüyor','Öğrenciler kampüse yerleşmeye başladı.','2 sa'],
+  ['Eğitim','Türkiye','Okullarda ara tatil takvimi belli oldu','','5 sa'],
+  ['Eğitim','Balıkesir','Köy okuluna gönüllü kütüphane','','1 gün'],
+  ['Teknoloji','Balıkesir','Kent merkezinde ücretsiz internet noktaları artıyor','','4 sa'],
+  ['Teknoloji','Balıkesir','Gençlerden yazılım kampı: 3 günde uygulama geliştirdiler','','1 gün'],
+  ['Teknoloji','Türkiye','Tarımda dron dönemi: ilaçlama artık havadan','','2 gün']
+];
+const N = (i) => ({ k: H[i][0], y: H[i][1], b: H[i][2], s: H[i][3], z: H[i][4] });
+
+const $ = (s) => document.querySelector(s);
+const kac = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Panelden (266 Haber Masası) yayınlanan gerçek haberler; örneklerin önüne geçer
+const SUPA = 'https://kmxhsyjtyukrxrzoowag.supabase.co', SUPA_ANAHTAR = 'sb_publishable_8FkJ2hortwsLn57lLZMEwQ_vS29JgwT';
+async function gercekHaberler(){
+  try {
+    const istek = fetch(`${SUPA}/rest/v1/haber266?durum=eq.yayinda&select=*&order=yayin_tarihi.desc&limit=60`, { headers: { apikey: SUPA_ANAHTAR } }).then((r) => (r.ok ? r.json() : []));
+    const r = await Promise.race([istek, new Promise((ok) => setTimeout(() => ok([]), 3500))]);
+    return Array.isArray(r) ? r : [];
+  } catch (e) { return []; }
+}
+const sureOnce = (t) => { const dk = Math.max(1, Math.round((Date.now() - new Date(t)) / 60000)); return dk < 60 ? `${dk} dk` : dk < 1440 ? `${Math.round(dk / 60)} sa` : `${Math.round(dk / 1440)} gün`; };
+const GERCEK = await gercekHaberler();
+const GI = GERCEK.map((r) => { const a = [r.kategori, 'Balıkesir', r.baslik, r.spot || '', sureOnce(r.yayin_tarihi)]; a.gercek = r; H.push(a); return H.length - 1; });
+const ilkler = (once, varsayilan, adet) => [...new Set([...once, ...varsayilan])].slice(0, adet);
+const katGercek = (ad) => GI.filter((i) => H[i][0] === ad);
+
+function g(i, etiket = ''){
+  const kapak = H[i] && H[i].gercek && H[i].gercek.kapak;
+  if (kapak) return `<span class="g"><img class="z" src="${kac(kapak)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover"></span>`;
+  const [a, b] = RENK[i % RENK.length], aci = (i * 53) % 360;
+  return `<span class="g"><span class="z" style="background:linear-gradient(${aci}deg,${a},${b})"></span><span class="d"></span>${etiket ? `<span class="y">${kac(etiket)}</span>` : ''}</span>`;
+}
+
+$('#tarih').textContent = new Date().toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric', weekday:'long' });
+$('#yil').textContent = new Date().getFullYear();
+
+// Son dakika
+const sd = ilkler([...GI.filter((i) => H[i].gercek.son_dakika), ...GI.slice(0, 3)], [0,19,1,5,12,9,21], 8).map((i) => `<a href="#" data-haber="${i}">${kac(N(i).y)}: ${kac(N(i).b)}</a>`).join('');
+$('#kayan').innerHTML = sd + sd;
+
+// Manşet (numaralı)
+const MANSET = ilkler([...GI.filter((i) => H[i].gercek.manset), ...GI.slice(0, 2)], [0,19,12,5,9,20,1,13,15,6], 10);
+$('#manset').innerHTML = MANSET.map((i, n) => { const h = N(i); return `<a href="#" class="slayt${n ? '' : ' aktif'}" data-haber="${i}">${g(i, 'Fotoğraf')}<span class="karart"></span><span class="yazi"><span class="etk kutu">${kac(h.k)}</span><h1>${kac(h.b)}</h1>${h.s ? `<p>${kac(h.s)}</p>` : ''}</span></a>`; }).join('') +
+  `<span class="tumu">${MANSET.length} manşet</span><div class="numaralar">${MANSET.map((_, n) => `<button data-no="${n}" class="${n ? '' : 'aktif'}">${n + 1}</button>`).join('')}</div>`;
+let mansetNo = 0, mansetZaman;
+function mansetGit(n){
+  mansetNo = (n + MANSET.length) % MANSET.length;
+  document.querySelectorAll('#manset .slayt').forEach((s, k) => s.classList.toggle('aktif', k === mansetNo));
+  document.querySelectorAll('#manset .numaralar button').forEach((s, k) => s.classList.toggle('aktif', k === mansetNo));
+}
+function mansetBaslat(){ clearInterval(mansetZaman); mansetZaman = setInterval(() => mansetGit(mansetNo + 1), 5000); }
+document.querySelectorAll('#manset .numaralar button').forEach((b) => {
+  b.addEventListener('mouseenter', () => { mansetGit(+b.dataset.no); mansetBaslat(); });
+  b.addEventListener('click', () => { mansetGit(+b.dataset.no); mansetBaslat(); });
+});
+mansetBaslat();
+
+$('#surmanset').innerHTML = [3, 4, 2].map((i) => { const h = N(i); return `<a href="#" class="sm" data-haber="${i}">${g(i)}<span class="karart"></span><span class="yazi"><span class="etk kutu">${kac(h.k)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
+$('#oneCikan').innerHTML = ilkler(GI.filter((i) => !MANSET.includes(i)), [21, 7, 10, 16], 4).map((i) => { const h = N(i); return `<a href="#" class="oc" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
+
+// Kategori blokları
+function katBlok(ana, liste){
+  const h = N(ana);
+  return `<a href="#" class="buyuk" data-haber="${ana}">${g(ana)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3>${h.s ? `<p>${kac(h.s)}</p>` : ''}<span class="saat">${h.z} önce</span></span></a>` +
+    `<div class="liste">${liste.map((i) => { const x = N(i); return `<a href="#" class="yatay" data-haber="${i}">${g(i)}<span><span class="etk">${kac(x.y)}</span><h4>${kac(x.b)}</h4><span class="saat">${x.z} önce</span></span></a>`; }).join('')}</div>`;
+}
+const dortlu = (liste) => liste.map((i) => { const h = N(i); return `<a href="#" class="kart" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('');
+function blokCiz(kat, varsayilan, blokId, dortluId){
+  const l = ilkler(katGercek(kat), varsayilan, dortluId ? 9 : 5);
+  $(blokId).innerHTML = katBlok(l[0], l.slice(1, 5));
+  if (dortluId) $(dortluId).innerHTML = dortlu(l.slice(5, 9));
+}
+blokCiz('Gündem', [19, 21, 22, 23, 0, 1, 24, 25, 7], '#gundemBlok', '#gundemDortlu');
+blokCiz('Balıkesir', [5, 6, 7, 8, 24, 25, 22, 23, 21], '#balikesirBlok', '#balikesirDortlu');
+blokCiz('Ekonomi', [12, 13, 14, 2, 5], '#ekonomiBlok');
+blokCiz('Spor', [9, 10, 11, 3, 0, 3, 10, 11, 9], '#sporBlok', '#sporDortlu');
+$('#yasamDortlu').innerHTML = dortlu(ilkler(katGercek('Yaşam'), [15, 16, 17, 18], 4));
+const coklar = [13, 0, 15, 1, 9, 20, 5].map((i) => `<li><a href="#" data-haber="${i}">${kac(N(i).b)}</a></li>`).join('');
+$('#cokOkunan').innerHTML = coklar; $('#cokOkunan2').innerHTML = coklar;
+
+// Video bandı
+const vb = N(20);
+$('#videoBuyuk').innerHTML = `${g(13)}<span class="karart"></span><span class="sure">2:14</span><span class="oynat"><svg width="30" height="30" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span><span class="yazi"><span class="etk kutu">266 Sokakta</span><h3>${kac(vb.b)}</h3></span>`;
+const VK = [['Zeytin işçisiyle bir gün','3:40'],['"Turist gidince sahil nasıl?"','1:48'],['Kaplıcada sabah 6\'da kimler var?','2:02'],['Balıkçılar ağlarını topladı','2:31']];
+$('#videoKucuk').innerHTML = VK.map(([b, s], i) => `<a href="#" class="vk" data-haber="20">${g(i + 4)}<span class="karart"></span><span class="sure">${s}</span><span class="oynat"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg></span><h4>${kac(b)}</h4></a>`).join('');
+const RL = ['Öğrencilere sorduk: en iyi tost nerede?','"Bu kış doğalgaz faturası ne gelir?"','Pazarcı esnafı ne diyor?','Gençler Balıkesir\'de kalmak istiyor mu?','Emekliye sorduk: geçinebiliyor musun?','Sahilde akşam yürüyüşü'];
+$('#reels').innerHTML = RL.map((b, i) => `<a href="#" class="reel" data-haber="20">${g(i + 2)}<span class="karart"></span><span class="rozet">REELS</span><b>${kac(b)}</b></a>`).join('');
+
+// Foto galeri
+const FG = [['Kuş Cenneti\'nde sonbahar','24'],['Kıyıda gün batımı','18'],['Balıkesir havadan','12'],['Kazdağları\'nda sis','30']];
+$('#fotoGaleri').innerHTML = FG.map(([b, a], i) => `<a href="#" class="foto" data-haber="17">${g(i + 6)}<span class="karart"></span><span class="adet">${a} fotoğraf</span><h4>${kac(b)}</h4></a>`).join('');
+
+// Yazarlar (örnek)
+const YZ = [['Yazar Adı 1','Balıkesir\'in ulaşım sorunu nasıl çözülür?','#0f2a4a'],['Yazar Adı 2','Zeytinde emeğin karşılığı','#5a0a0e'],['Yazar Adı 3','Gençler neden gidiyor?','#123d26'],['Yazar Adı 4','Spor kulüplerimiz ve gelecek','#2a1d5c']];
+$('#yazarListe').innerHTML = YZ.map(([a, b, r], i) => `<a href="#" class="yazar"><span class="avatar" style="background:${r}">Y${i + 1}</span><span><b>${a}</b><span class="yb">${kac(b)}</span></span></a>`).join('');
+
+// Nöbetçi eczane ve puan durumu (örnek; gerçekte günlük güncellenecek)
+$('#eczane').innerHTML = [['Örnek Eczanesi','Atatürk Cad. No: 1'],['Merkez Eczanesi','Milli Kuvvetler Cad. No: 2'],['Sağlık Eczanesi','Hal Sok. No: 3']].map(([a, b]) => `<li><b>${a}</b><span>${b}</span></li>`).join('');
+$('#puan').innerHTML = '<tr><th></th><th>Takım</th><th>O</th><th>Av</th><th>P</th></tr>' + [['Takım A',10,12,24],['Takım B',10,8,21],['Balıkesir takımı',10,6,19],['Takım D',10,3,17],['Takım E',10,1,15],['Takım F',10,-2,13]].map(([t, o, a, p], i) => `<tr class="${/Balıkesir/.test(t) ? 'biz' : ''}"><td>${i + 1}</td><td>${t}</td><td>${o}</td><td>${a > 0 ? '+' + a : a}</td><td>${p}</td></tr>`).join('');
+
+// Canlı veriler: hava (Open-Meteo), döviz (Frankfurter / Avrupa Merkez Bankası), namaz vakitleri (Aladhan, Diyanet yöntemi)
+const HAVA_KOD = (k) => k === 0 ? ['☀️','Açık'] : k <= 2 ? ['🌤️','Az bulutlu'] : k === 3 ? ['☁️','Bulutlu'] : k <= 48 ? ['🌫️','Sisli'] : k <= 67 ? ['🌧️','Yağmurlu'] : k <= 77 ? ['🌨️','Karlı'] : k <= 82 ? ['🌦️','Sağanak'] : ['⛈️','Gök gürültülü'];
+async function havaGetir(){
+  const [lat, lon] = [39.65, 27.88];
+  try {
+    const v = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FIstanbul&forecast_days=5`).then((r) => r.json());
+    const [ikon, ad] = HAVA_KOD(v.current.weather_code);
+    $('#hava').innerHTML = `<div class="hava-simdi"><span class="ikon">${ikon}</span><span class="derece">${Math.round(v.current.temperature_2m)}°</span><span><b>${ad}</b><small>Rüzgâr ${Math.round(v.current.wind_speed_10m)} km/s · Nem %${v.current.relative_humidity_2m}</small></span></div>` +
+      `<div class="hava-gunler">${v.daily.time.map((t, i) => `<div><b>${i ? new Date(t).toLocaleDateString('tr-TR', { weekday: 'short' }) : 'Bugün'}</b><span>${HAVA_KOD(v.daily.weather_code[i])[0]}</span>${Math.round(v.daily.temperature_2m_max[i])}° / ${Math.round(v.daily.temperature_2m_min[i])}°</div>`).join('')}</div>`;
+    bandHava(ikon, v.current.temperature_2m);
+  } catch (e) { $('#hava').innerHTML = '<p class="saat" style="margin-top:10px">Hava durumu şu an alınamadı.</p>'; }
+}
+
+let bandHavaHtml = '';
+function bandHava(ikon, derece){ bandHavaHtml = `<span>BALIKESİR<b>${ikon} ${Math.round(derece)}°</b></span>`; const b = $('#bandHavaYer'); if (b) b.innerHTML = bandHavaHtml; }
+const yaz2 = (n) => n.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+async function piyasaGetir(){
+  try {
+    const gecmis = new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 10);
+    const [bugun, dun] = await Promise.all([
+      fetch('https://api.frankfurter.dev/v1/latest?base=TRY&symbols=USD,EUR,GBP').then((r) => r.json()),
+      fetch(`https://api.frankfurter.dev/v1/${gecmis}?base=TRY&symbols=USD,EUR,GBP`).then((r) => r.json())
+    ]);
+    const satir = [['Dolar','USD'],['Euro','EUR'],['Sterlin','GBP']].map(([ad, k]) => { const d = 1 / bugun.rates[k], o = 1 / dun.rates[k]; return { ad, d, f: ((d - o) / o) * 100 }; });
+    $('#piyasaTablo').innerHTML = satir.map((s) => `<tr><td>${s.ad}</td><td>${yaz2(s.d)} ₺</td><td style="color:${s.f >= 0 ? '#16a34a' : '#dc2626'}">${s.f >= 0 ? '▲' : '▼'} %${yaz2(Math.abs(s.f))}</td></tr>`).join('');
+    $('#piyasaSaat').textContent = 'Avrupa Merkez Bankası';
+    $('#piyasaBand').innerHTML = satir.map((s) => `<span>${s.ad.toLocaleUpperCase('tr')}<b>${yaz2(s.d)}</b> <span class="${s.f >= 0 ? 'yuk' : 'dus'}">${s.f >= 0 ? '▲' : '▼'}</span></span>`).join('') + `<span id="bandHavaYer">${bandHavaHtml}</span>`;
+  } catch (e) { $('#piyasaTablo').innerHTML = '<tr><td>Kurlar şu an alınamadı.</td></tr>'; $('#piyasaBand').innerHTML = `<span id="bandHavaYer">${bandHavaHtml}</span>`; }
+}
+havaGetir();
+piyasaGetir();
+
+async function namazGetir(){
+  try {
+    const v = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Balikesir&country=Turkey&method=13').then((r) => r.json());
+    const t = v.data.timings, adlar = [['İmsak','Fajr'],['Güneş','Sunrise'],['Öğle','Dhuhr'],['İkindi','Asr'],['Akşam','Maghrib'],['Yatsı','Isha']];
+    const simdi = new Date().toTimeString().slice(0, 5);
+    const siradaki = adlar.findIndex(([, k]) => t[k] > simdi);
+    $('#vakitler').innerHTML = adlar.map(([ad, k], i) => `<div class="${i === siradaki ? 'simdi' : ''}"><small>${ad}</small><b>${t[k]}</b></div>`).join('');
+  } catch (e) { $('#vakitler').innerHTML = '<div>Vakitler şu an alınamadı.</div>'; }
+}
+namazGetir();
+
+// Haber detayı
+function videoGom(url){
+  const u = String(url || '').trim(); let m;
+  if ((m = u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/))) return `<div style="margin:6px 0 20px;border-radius:4px;overflow:hidden;background:#000;${/shorts\//.test(u) ? 'max-width:360px;margin-left:auto;margin-right:auto' : ''}"><iframe src="https://www.youtube.com/embed/${m[1]}" style="width:100%;border:0;display:block;aspect-ratio:${/shorts\//.test(u) ? '9/16' : '16/9'}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+  if ((m = u.match(/instagram\.com\/(?:reel|p|tv)\/([\w-]+)/))) return `<div style="margin:6px auto 20px;max-width:400px"><iframe src="https://www.instagram.com/p/${m[1]}/embed" style="width:100%;height:720px;border:0;display:block" loading="lazy"></iframe></div>`;
+  if ((m = u.match(/tiktok\.com\/.*\/video\/(\d+)/))) return `<div style="margin:6px auto 20px;max-width:340px"><iframe src="https://www.tiktok.com/embed/v2/${m[1]}" style="width:100%;height:740px;border:0;display:block" loading="lazy"></iframe></div>`;
+  return '';
+}
+function gercekGovde(r){
+  let videoKondu = false;
+  const html = String(r.metin || '').replace(/\r/g, '').split(/\n{2,}/).map((b) => b.trim()).filter(Boolean).map((b) => {
+    if (b === '[VİDEO]') { videoKondu = true; return videoGom(r.video); }
+    if (b.startsWith('## ')) return `<h2>${kac(b.slice(3))}</h2>`;
+    if (b.startsWith('> ')) return `<blockquote>${kac(b.slice(2))}</blockquote>`;
+    const f = b.match(/^!\[([^\]]*)\]\((https:\/\/[^\s)]+)\)$/);
+    if (f) return `<figure style="margin:6px 0 20px"><img src="${kac(f[2])}" alt="${kac(f[1])}" loading="lazy" data-buyut style="width:100%;border-radius:4px;display:block;cursor:zoom-in">${f[1] ? `<figcaption>${kac(f[1])}</figcaption>` : ''}</figure>`;
+    return `<p>${kac(b).replace(/\n/g, '<br>')}</p>`;
+  });
+  if (html.length > 2) html.splice(2, 0, '<div class="reklam" data-yer="haber_ici" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>');
+  let son = html.join('');
+  if (!videoKondu && r.video) son += videoGom(r.video);
+  const galeri = Array.isArray(r.galeri) ? r.galeri : [];
+  if (galeri.length) son += `<h2>Fotoğraf galerisi</h2><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">${galeri.map((u) => `<img src="${kac(u)}" alt="" loading="lazy" data-buyut style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:4px;display:block;cursor:zoom-in">`).join('')}</div>`;
+  return son;
+}
+function haberAc(i){
+  const h = N(i), r = H[i].gercek;
+  if (r) {
+    const tarih = new Date(r.yayin_tarihi).toLocaleString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const adres = `${location.origin}${location.pathname}#/haber/${r.slug}`;
+    $('#makale').innerHTML = `
+      <div class="kirinti"><a href="#/">Ana sayfa</a> › <a href="#/${SAYFA_YOLU[r.kategori] || ''}">${kac(r.kategori)}</a></div>
+      <span class="etk kutu">${r.son_dakika ? 'Son dakika' : kac(r.kategori)}</span>
+      <h1>${kac(r.baslik)}</h1>
+      ${r.spot ? `<p class="spot">${kac(r.spot)}</p>` : ''}
+      <div class="kunye"><span><b>${kac(r.yazar_ad || '266digitale Haber Merkezi')}</b></span><span>${tarih}</span>
+        <span class="paylas"><a href="https://wa.me/?text=${encodeURIComponent(r.baslik + ' ' + adres)}" target="_blank" rel="noopener" style="background:#25d366">W</a><a href="https://x.com/intent/post?text=${encodeURIComponent(r.baslik)}&url=${encodeURIComponent(adres)}" target="_blank" rel="noopener" style="background:#111">X</a><a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(adres)}" target="_blank" rel="noopener" style="background:#1877f2">f</a></span></div>
+      ${r.kapak ? `<img src="${kac(r.kapak)}" alt="" data-buyut style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:4px;display:block;cursor:zoom-in"><figcaption>Fotoğraf: 266digitale</figcaption>` : ''}
+      <div class="govde">${gercekGovde(r)}</div>
+      <div class="etiketler"><a href="#/${SAYFA_YOLU[r.kategori] || ''}">${kac(r.kategori)}</a><a href="#/balikesir">Balıkesir</a></div>`;
+    document.title = `${r.baslik} — 266digitale`;
+    if (location.hash !== `#/haber/${r.slug}`) history.replaceState(null, '', `#/haber/${r.slug}`);
+    $('#ilgili').innerHTML = dortlu(ilkler(katGercek(r.kategori).filter((x) => x !== i), [5, 6, 7], 3));
+    const d = $('#detay'); d.classList.add('acik'); d.scrollTop = 0; d.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+  $('#makale').innerHTML = `
+    <div class="kirinti"><a href="#">Ana sayfa</a> › <a href="#">${kac(h.k)}</a> › ${kac(h.y)}</div>
+    <span class="etk kutu">${kac(h.k)}</span>
+    <h1>${kac(h.b)}</h1>
+    <p class="spot">${kac(h.s || 'Haberin özeti burada yer alacak: ne, nerede, ne zaman sorularını cevaplayan kısa bir giriş.')}</p>
+    <div class="kunye"><span><b>266digitale Haber Merkezi</b></span><span>${kac(h.y)}</span><span>${new Date().toLocaleDateString('tr-TR')} · ${h.z} önce</span>
+      <span class="paylas"><a href="#" style="background:#25d366">W</a><a href="#" style="background:#111">X</a><a href="#" style="background:#1877f2">f</a><a href="#" style="background:#666">⧉</a></span></div>
+    ${g(i, 'Fotoğraf')}
+    <figcaption>Fotoğraf: 266digitale</figcaption>
+    <div class="govde">
+      <p>Bu bir örnek haber metnidir. Gerçek haberler yayına girdiğinde bu alanda muhabirin yazdığı metin, röportajlar ve fotoğraflar yer alacak.</p>
+      <p>Haber sayfaları telefonda rahat okunacak şekilde hazırlandı. Her haber Google Haberler'e uygun işaretlenir, böylece "Balıkesir haberleri" arayan biri haberi doğrudan bulur.</p>
+      <div class="reklam" data-yer="haber_ici" style="height:250px;margin:6px 0 20px">Reklam alanı · haber içi</div>
+      <blockquote>"Sokaktaki insanın sesini duyurmak için buradayız."</blockquote>
+      <h2>Ara başlık</h2>
+      <p>Videolu haberlerde Instagram ya da YouTube videosu metnin içine yerleşir ve sayfadan çıkmadan izlenir. Galerili haberlerde fotoğraflar kaydırılarak gezilir.</p>
+    </div>
+    <div class="etiketler"><a href="#">${kac(h.y)}</a><a href="#">${kac(h.k)}</a><a href="#">Balıkesir</a><a href="#">Son dakika</a></div>`;
+  $('#ilgili').innerHTML = dortlu([5, 6, 7].map((x) => (x + i) % H.length));
+  const d = $('#detay'); d.classList.add('acik'); d.scrollTop = 0; d.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+function haberKapat(){ const d = $('#detay'); d.classList.remove('acik'); d.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (location.hash.startsWith('#/haber/')) history.replaceState(null, '', location.pathname); document.title = '266digitale — Balıkesir\'in haber sitesi | Son dakika Balıkesir haberleri'; }
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-kapat]')) { e.preventDefault(); haberKapat(); return; }
+  const a = e.target.closest('[data-haber]');
+  if (a) { e.preventDefault(); haberAc(+a.dataset.haber); }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') haberKapat(); });
+$('#detay').addEventListener('scroll', (e) => { const d = e.target; $('#ilerleme').style.width = (d.scrollTop / (d.scrollHeight - d.clientHeight || 1) * 100) + '%'; });
+
+// Menü yapışınca mini logo; mobil menü
+const kat = $('#kategoriler');
+new IntersectionObserver(([x]) => kat.classList.toggle('yapisik', !x.isIntersecting)).observe(document.querySelector('.baslik-alani'));
+$('#hamburger').addEventListener('click', () => $('#mobilMenu').classList.add('acik'));
+$('#mobilKapat').addEventListener('click', () => $('#mobilMenu').classList.remove('acik'));
+$('#mobilMenu').addEventListener('click', (e) => { if (e.target.classList.contains('m')) $('#mobilMenu').classList.remove('acik'); });
+
+// Sayfalar: her menü sekmesi kendi sayfasında açılır (#/gundem gibi)
+const SAYFA_YOLU = { 'Gündem': 'gundem', 'Balıkesir': 'balikesir', 'Ekonomi': 'ekonomi', 'Spor': 'spor', '266 Sokakta': '266-sokakta', 'Yaşam': 'yasam', 'Sağlık': 'saglik', 'Eğitim': 'egitim', 'Teknoloji': 'teknoloji' };
+const SAYFALAR = [
+  ['son-dakika','Son Dakika'],['gundem','Gündem'],['balikesir','Balıkesir'],['ekonomi','Ekonomi'],['spor','Spor'],
+  ['266-sokakta','266 Sokakta'],['foto-galeri','Foto Galeri'],['yazarlar','Yazarlar'],['yasam','Yaşam'],['saglik','Sağlık'],['egitim','Eğitim'],['teknoloji','Teknoloji']
+];
+$('#navLinkler').outerHTML = SAYFALAR.map(([y, a]) => `<a href="#/${y}" data-sayfa="${y}">${a}</a>`).join('');
+$('#mobilLinkler').outerHTML = `<a class="m" href="#/">Ana sayfa</a>` + SAYFALAR.map(([y, a]) => `<a class="m" href="#/${y}">${a}</a>`).join('');
+$('#cokOkunan3').innerHTML = coklar;
+const kartUc = (liste) => `<div class="uclu">${liste.map((i) => { const h = N(i); return `<a href="#" class="kart" data-haber="${i}">${g(i)}<span class="metin"><span class="etk">${kac(h.y)}</span><h3>${kac(h.b)}</h3>${h.s ? `<p>${kac(h.s)}</p>` : ''}<span class="saat">${h.z} önce</span></span></a>`; }).join('')}</div>`;
+const tumHaberler = H.map((_, i) => i);
+function sayfaGoster(){
+  const yol = location.hash.replace(/^#\/?/, '');
+  if (yol.startsWith('haber/')) { const i = GI.find((x) => H[x].gercek.slug === decodeURIComponent(yol.slice(6))); if (i !== undefined) { haberAc(i); return; } }
+  const bulunan = SAYFALAR.find(([y]) => y === yol.split('/')[0]);
+  document.querySelectorAll('nav.kategoriler a[data-sayfa]').forEach((a) => a.classList.toggle('aktif', bulunan && a.dataset.sayfa === bulunan[0]));
+  if (!bulunan) { $('#anasayfa').hidden = false; $('#katSayfa').hidden = true; document.title = '266digitale — Balıkesir\'in haber sitesi | Son dakika Balıkesir haberleri'; return; }
+  const [slug, ad] = bulunan;
+  $('#anasayfa').hidden = true; $('#katSayfa').hidden = false;
+  $('#katAd').textContent = ad; $('#katKirinti').textContent = ad;
+  document.title = `${ad} Haberleri — 266digitale`;
+  $('#katAlt').innerHTML = '';
+  let html = '';
+  if (slug === 'son-dakika') {
+    html = `<div class="sd-liste">${ilkler(GI, tumHaberler.filter((i) => !H[i].gercek), 20).map((i) => { const h = N(i); return `<a href="#" class="sd-satir" data-haber="${i}"><span class="zaman">${h.z}</span>${g(i)}<span><span class="etk">${kac(h.k)} · ${kac(h.y)}</span><h3>${kac(h.b)}</h3></span></a>`; }).join('')}</div><button class="daha">Daha fazla haber</button>`;
+  } else if (slug === '266-sokakta') {
+    html = `<a href="#" class="video-buyuk" data-haber="20" style="margin-bottom:14px">${$('#videoBuyuk').innerHTML}</a><div class="video-sayfa">${$('#videoKucuk').innerHTML}${$('#videoKucuk').innerHTML.replace(/class="vk"/g, 'class="vk"')}</div><div class="bb" style="margin-top:26px"><h2>Reels</h2></div><div class="reel-izgara">${$('#reels').innerHTML}</div>`;
+  } else if (slug === 'foto-galeri') {
+    html = `<div class="foto-izgara" style="grid-template-columns:repeat(2,minmax(0,1fr))">${$('#fotoGaleri').innerHTML}${$('#fotoGaleri').innerHTML}</div><button class="daha">Daha fazla galeri</button>`;
+  } else if (slug === 'yazarlar') {
+    html = `<div class="yazar-sayfa">${$('#yazarListe').innerHTML}</div>`;
+  } else {
+    const KAT = { gundem: 'Gündem', balikesir: 'Balıkesir', ekonomi: 'Ekonomi', spor: 'Spor', yasam: 'Yaşam', saglik: 'Sağlık', egitim: 'Eğitim', teknoloji: 'Teknoloji' }[slug];
+    const liste = [...katGercek(KAT), ...tumHaberler.filter((i) => H[i][0] === KAT && !H[i].gercek)];
+    const diger = tumHaberler.filter((i) => !liste.includes(i)).slice(0, 6);
+    html = !liste.length ? '<div class="kutu">Bu bölümde henüz haber yok.</div>'
+      : `<div class="kat-blok">${katBlok(liste[0], liste.slice(1, 5))}</div>` + (liste.length > 5 ? kartUc(liste.slice(5)) : '');
+    html += `<div class="reklam" data-yer="ara" style="height:110px;margin-top:22px">Reklam alanı · 728×90</div><div class="bb" style="margin-top:26px"><h2>Diğer haberler</h2></div>` + kartUc(diger) + '<button class="daha">Daha fazla haber</button>';
+  }
+  $('#katIcerik').innerHTML = html;
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', sayfaGoster);
+document.addEventListener('click', (e) => { if (e.target.classList.contains('daha')) bildirDaha(e.target); });
+function bildirDaha(b){ b.textContent = 'Örnek sayfa — gerçek sitede daha eski haberler yüklenir'; }
+sayfaGoster();
+
+// Haber fotoğraflarını sayfada büyüt: oklarla, klavyeyle ve kaydırarak ilerle
+let buyutecListe = [], buyutecNo = 0;
+function buyutecGoster(){
+  $('#buyutecResim').src = buyutecListe[buyutecNo];
+  $('#buyutecSayac').textContent = `${buyutecNo + 1} / ${buyutecListe.length}`;
+  const tek = buyutecListe.length < 2;
+  $('#buyutecSol').hidden = tek; $('#buyutecSag').hidden = tek; $('#buyutecSayac').hidden = tek;
+}
+function buyutecAc(liste, no){ buyutecListe = liste; buyutecNo = no; buyutecGoster(); $('#buyutec').classList.add('acik'); $('#buyutec').setAttribute('aria-hidden', 'false'); }
+function buyutecKapat(){ $('#buyutec').classList.remove('acik'); $('#buyutec').setAttribute('aria-hidden', 'true'); }
+const buyutecGit = (y) => { buyutecNo = (buyutecNo + y + buyutecListe.length) % buyutecListe.length; buyutecGoster(); };
+document.addEventListener('click', (e) => {
+  const r = e.target.closest('img[data-buyut]');
+  if (r) { e.preventDefault(); const hepsi = [...document.querySelectorAll('#makale img[data-buyut]')]; buyutecAc(hepsi.map((x) => x.src), Math.max(0, hepsi.indexOf(r))); return; }
+  if (e.target.id === 'buyutecSol') buyutecGit(-1);
+  else if (e.target.id === 'buyutecSag') buyutecGit(1);
+  else if (e.target.id === 'buyutecKapa' || e.target.id === 'buyutec') buyutecKapat();
+});
+document.addEventListener('keydown', (e) => {
+  if (!$('#buyutec').classList.contains('acik')) return;
+  if (e.key === 'ArrowLeft') buyutecGit(-1); else if (e.key === 'ArrowRight') buyutecGit(1); else if (e.key === 'Escape') { e.stopImmediatePropagation(); buyutecKapat(); }
+}, true);
+let dokunX = null;
+$('#buyutec').addEventListener('touchstart', (e) => { dokunX = e.touches[0].clientX; }, { passive: true });
+$('#buyutec').addEventListener('touchend', (e) => { if (dokunX == null) return; const fark = e.changedTouches[0].clientX - dokunX; if (Math.abs(fark) > 40 && buyutecListe.length > 1) buyutecGit(fark < 0 ? 1 : -1); dokunX = null; });
+
+// Reklamlar: panelden (266 Haber Masası → Reklamlar) yüklenen görseller yerlerine konur
+let REKLAMLAR = {};
+function reklamUygula(kok = document){
+  kok.querySelectorAll('.reklam[data-yer]:not(.dolu)').forEach((el) => {
+    const r = REKLAMLAR[el.dataset.yer];
+    if (!r || !r.gorsel) return;
+    const resim = `<img src="${kac(r.gorsel)}" alt="Reklam" loading="lazy">`;
+    el.classList.add('dolu');
+    el.innerHTML = `<span class="rk-etiket">Reklam</span>` + (r.baglanti ? `<a href="${kac(r.baglanti)}" target="_blank" rel="sponsored noopener">${resim}</a>` : resim);
+  });
+}
+(async () => {
+  try {
+    const liste = await fetch(`${SUPA}/rest/v1/reklam266?aktif=eq.true&select=yer,gorsel,baglanti`, { headers: { apikey: SUPA_ANAHTAR } }).then((r) => (r.ok ? r.json() : []));
+    REKLAMLAR = Object.fromEntries((Array.isArray(liste) ? liste : []).map((r) => [r.yer, r]));
+    reklamUygula();
+    new MutationObserver(() => reklamUygula()).observe(document.body, { childList: true, subtree: true });
+  } catch (e) { /* reklam alınamazsa yer tutucular kalır */ }
+})();
+</script>
+</body>
+</html>

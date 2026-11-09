@@ -8,9 +8,9 @@
 // ai/<is>/sonuc.json dosyasında tutulur, panel bunu sorar. Üretilen dosyalar ai/<is>/ altına yazılır ve
 // planlı paylaşıma doğrudan eklenebilir (aynı depo).
 const crypto = require("crypto");
-const { imzaliBaglanti } = require("./planlayici.cjs");
 
-const DEPO = "planlayici";
+const DEPO = "planlayici";          // iş durumu (ai/<is>/sonuc.json) ve planlayıcıdan üretilenler
+const MUSTERI_DEPO = "client-media"; // müşteri sayfasından üretilenler: müşterinin Medya'sına gider
 const ORANLAR = ["1:1", "4:5", "9:16", "16:9"];
 
 function depoAyar() {
@@ -21,18 +21,27 @@ function depoAyar() {
 }
 const kodluYol = (yol) => yol.split("/").map(encodeURIComponent).join("/");
 
-async function depoyaYaz(yol, govde, tip) {
+async function depoyaYaz(yol, govde, tip, depo = DEPO) {
   const { ADRES, basliklar } = depoAyar();
-  const r = await fetch(`${ADRES}/storage/v1/object/${DEPO}/${kodluYol(yol)}`, { method: "POST", headers: { ...basliklar, "Content-Type": tip, "x-upsert": "true" }, body: govde });
+  const r = await fetch(`${ADRES}/storage/v1/object/${depo}/${kodluYol(yol)}`, { method: "POST", headers: { ...basliklar, "Content-Type": tip, "x-upsert": "true" }, body: govde });
   if (!r.ok) throw new Error(`Depoya yazılamadı (${r.status}): ${(await r.text()).slice(0, 200)}`);
 }
-async function depodanOku(yol) {
+async function depodanOku(yol, depo = DEPO) {
   const { ADRES, basliklar } = depoAyar();
-  const r = await fetch(`${ADRES}/storage/v1/object/${DEPO}/${kodluYol(yol)}`, { headers: basliklar });
+  const r = await fetch(`${ADRES}/storage/v1/object/${depo}/${kodluYol(yol)}`, { headers: basliklar });
   if (r.status === 404 || r.status === 400) return null;
   if (!r.ok) throw new Error(`Depodan okunamadı (${r.status})`);
   return r;
 }
+// 3 saatlik imzalı bağlantı (önizleme ve Higgsfield'ın dosyayı indirmesi için)
+async function imzaliBaglanti(yol, depo = DEPO) {
+  const { ADRES, basliklar } = depoAyar();
+  const r = await fetch(`${ADRES}/storage/v1/object/sign/${depo}/${kodluYol(yol)}`, { method: "POST", headers: { ...basliklar, "Content-Type": "application/json" }, body: JSON.stringify({ expiresIn: 3 * 3600 }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.signedURL) throw new Error("Dosya bağlantısı oluşturulamadı: " + (j.message || r.status));
+  return `${ADRES}/storage/v1${j.signedURL}`;
+}
+const depoSec = (d) => d === MUSTERI_DEPO ? MUSTERI_DEPO : DEPO;
 
 // İş durumu: ai/<is>/sonuc.json
 const durumYolu = (is) => `ai/${is}/sonuc.json`;
@@ -187,30 +196,37 @@ async function higgsfieldKling({ istem, oran, baslangicUrl, sure, ilerleme }) {
 const uzanti = (tip) => tip.includes("png") ? "png" : tip.includes("webp") ? "webp" : tip.includes("mp4") ? "mp4" : tip.includes("quicktime") ? "mov" : tip.includes("video") ? "mp4" : "jpg";
 
 async function uret(is, istek) {
-  const { saglayici, istem, oran = "1:1", sure = 5, referansYolu = null, musteriAd = "" } = istek;
+  const { saglayici, istem, oran = "1:1", sure = 5, musteriAd = "", clientId = null } = istek;
+  // Referans görseller: [{ yol, depo }] — Gemini hepsini (en çok 6), Soul ve Kling ilkini kullanır
+  const referanslar = (Array.isArray(istek.referanslar) ? istek.referanslar : (istek.referansYolu ? [{ yol: istek.referansYolu, depo: istek.referansDepo }] : [])).slice(0, 6).map(r => ({ yol: r.yol, depo: depoSec(r.depo) }));
+  const ilkRef = referanslar[0] || null;
   if (!ORANLAR.includes(oran)) throw new Error("Geçersiz oran");
   const ilerleme = async (asama) => { try { await durumYaz(is, { durum: "calisiyor", asama }); } catch (e) { /* önemsiz */ } };
   await durumYaz(is, { durum: "calisiyor", asama: "başladı", saglayici });
   let ciktilar;
   if (saglayici === "gemini") {
-    const referanslar = [];
-    if (referansYolu) { const r = await depodanOku(referansYolu); if (r) referanslar.push({ veri: Buffer.from(await r.arrayBuffer()), tip: r.headers.get("content-type") || "image/jpeg" }); }
-    ciktilar = await geminiGorsel({ istem, oran, referanslar });
+    const gorseller = [];
+    for (const ref of referanslar) { const r = await depodanOku(ref.yol, ref.depo); if (r) gorseller.push({ veri: Buffer.from(await r.arrayBuffer()), tip: r.headers.get("content-type") || "image/jpeg" }); }
+    ciktilar = await geminiGorsel({ istem, oran, referanslar: gorseller });
   } else if (saglayici === "openai") {
     ciktilar = await openaiGorsel({ istem, oran });
   } else if (saglayici === "higgsfield_soul") {
-    ciktilar = await higgsfieldSoul({ istem, oran, referansUrl: referansYolu ? await imzaliBaglanti(referansYolu) : null, ilerleme });
+    ciktilar = await higgsfieldSoul({ istem, oran, referansUrl: ilkRef ? await imzaliBaglanti(ilkRef.yol, ilkRef.depo) : null, ilerleme });
   } else if (saglayici === "higgsfield_kling") {
-    ciktilar = await higgsfieldKling({ istem, oran, sure, baslangicUrl: referansYolu ? await imzaliBaglanti(referansYolu) : null, ilerleme });
+    ciktilar = await higgsfieldKling({ istem, oran, sure, baslangicUrl: ilkRef ? await imzaliBaglanti(ilkRef.yol, ilkRef.depo) : null, ilerleme });
   } else throw new Error("Bilinmeyen sağlayıcı");
 
+  // Müşteri sayfasından üretildiyse dosya müşterinin Medya deposuna (client-media) gider; planlayıcıdan üretildiyse planlayici deposuna
   const dosyalar = [];
   for (let i = 0; i < ciktilar.length; i++) {
     const c = ciktilar[i];
     const video = /^video\//.test(c.tip);
-    const yol = `ai/${is}/${i + 1}.${uzanti(c.tip)}`;
-    await depoyaYaz(yol, c.veri, c.tip);
-    dosyalar.push({ yol, tur: video ? "video" : "resim", ad: `${(musteriAd || "yapay-zeka").slice(0, 30)} ${video ? "video" : "görsel"} ${i + 1}.${uzanti(c.tip)}` });
+    const ext = uzanti(c.tip);
+    const ad = `${(musteriAd || "yapay-zeka").slice(0, 30)} ${video ? "video" : "görsel"} ${new Date().toLocaleDateString("tr-TR")}${ciktilar.length > 1 ? ` ${i + 1}` : ""}.${ext}`;
+    const depo = clientId ? MUSTERI_DEPO : DEPO;
+    const yol = clientId ? `${clientId}-ai-${Date.now()}-${i + 1}.${ext}` : `ai/${is}/${i + 1}.${ext}`;
+    await depoyaYaz(yol, c.veri, c.tip, depo);
+    dosyalar.push({ yol, depo, tur: video ? "video" : "resim", ad, boyut: c.veri.length, tip: c.tip });
   }
   await durumYaz(is, { durum: "tamam", saglayici, dosyalar });
   return dosyalar;
@@ -234,4 +250,4 @@ async function aciklamaOner({ musteriAd, sektor, tur, konu, istem }) {
   return metin;
 }
 
-module.exports = { saglayicilar, metinHazir, uret, durumOku, durumYaz, isImzasi, istemOner, aciklamaOner, ORANLAR };
+module.exports = { saglayicilar, metinHazir, uret, durumOku, durumYaz, isImzasi, istemOner, aciklamaOner, imzaliBaglanti, ORANLAR, DEPO, MUSTERI_DEPO };

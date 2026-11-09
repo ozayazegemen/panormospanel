@@ -1,7 +1,7 @@
 import Site, { BlogSayfasi, QrMenuSayfasi } from "./Site.jsx";
 import QrMenu from "./QrMenu.jsx";
 import QrMenuPage from "./QrMenuPanel.jsx";
-import PlanlayiciPage, { InstagramIstatistik } from "./Planlayici.jsx";
+import PlanlayiciPage, { InstagramIstatistik, GorselStudyosu } from "./Planlayici.jsx";
 import ReklamlarPage from "./Reklamlar.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
 import EmlakSms from "./EmlakSms.jsx";
@@ -1953,7 +1953,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
   const [mailModal, setMailModal] = useState(false);
   
   // Faturalar sekmesi sadece finansal yetkisi olana görünür
-  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"insta",lbl:"📈 Instagram"},{id:"ai",lbl:"✨ Asistan"}];
+  const baseTabs=[{id:"overview",lbl:"Özet"},{id:"posts",lbl:"Paylaşımlar"},{id:"calendar",lbl:"Takvim"},{id:"media",lbl:"Medya"},{id:"insta",lbl:"📈 Instagram"},{id:"ai",lbl:"✨ Asistan"},{id:"studyo",lbl:"🎨 Stüdyo"}];
   const tabs = perms.finance ? [...baseTabs, {id:"invoices",lbl:"Faturalar"}, {id:"contract",lbl:"📜 Sözleşme"}] : baseTabs;
 
   // Yetkisi olmayan biri faturalar sekmesindeyse özete al
@@ -2059,6 +2059,7 @@ function ClientDetail({client,currentTab,setTab,clients,setClients,setModal,setF
       {safeTab==="media"&&<ClientMedia client={client}/>}
       {safeTab==="insta"&&<InstagramIstatistik client={client}/>}
       {safeTab==="ai"&&<ClientAI client={client}/>}
+      {safeTab==="studyo"&&<GorselStudyosu client={client} currentStaff={currentStaff} setClients={setClients}/>}
       {safeTab==="invoices"&&perms.finance&&<ClientInvoices client={client}/>}
       {safeTab==="contract"&&perms.finance&&<ClientContractTab client={client} currentStaff={currentStaff}/>}
     </div>

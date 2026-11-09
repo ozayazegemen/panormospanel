@@ -6,8 +6,7 @@
 //   POST { islem:"aciklama", musteriAd, sektor, tur, konu, istem } → Instagram açıklaması önerisi (Gemini)
 const crypto = require("crypto");
 const { yetkili } = require("../lib/auth.cjs");
-const { saglayicilar, metinHazir, durumOku, durumYaz, isImzasi, istemOner, aciklamaOner, ORANLAR } = require("../lib/yapay-zeka.cjs");
-const { imzaliBaglanti } = require("../lib/planlayici.cjs");
+const { saglayicilar, metinHazir, durumOku, durumYaz, isImzasi, istemOner, aciklamaOner, imzaliBaglanti, ORANLAR, MUSTERI_DEPO } = require("../lib/yapay-zeka.cjs");
 
 const YANIT = (statusCode, govde) => ({ statusCode, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }, body: JSON.stringify(govde) });
 const guvenliYol = (y) => typeof y === "string" && /^[A-Za-z0-9_./-]{1,300}$/.test(y) && !y.includes("..") ? y : null;
@@ -25,7 +24,7 @@ exports.handler = async (event) => {
         if (!d) return YANIT(200, { durum: "bekliyor" });
         if (d.durum === "tamam") {
           const onizleme = [];
-          for (const f of d.dosyalar || []) { try { onizleme.push(await imzaliBaglanti(f.yol)); } catch (e) { onizleme.push(null); } }
+          for (const f of d.dosyalar || []) { try { onizleme.push(await imzaliBaglanti(f.yol, f.depo)); } catch (e) { onizleme.push(null); } }
           return YANIT(200, { ...d, onizleme });
         }
         return YANIT(200, d);
@@ -45,11 +44,13 @@ exports.handler = async (event) => {
       const istem = String(g.istem || "").trim().slice(0, 2000);
       if (!istem && s.id !== "higgsfield_kling") return YANIT(400, { error: "Ne üretileceğini yazın." });
       const oran = ORANLAR.includes(g.oran) ? g.oran : "1:1";
-      const referansYolu = g.referansYolu ? guvenliYol(g.referansYolu) : null;
-      if (g.referansYolu && !referansYolu) return YANIT(400, { error: "Geçersiz dosya yolu" });
-      if (s.id === "higgsfield_kling" && !referansYolu) return YANIT(400, { error: "Video için başlangıç görseli seçin." });
+      const hamRef = Array.isArray(g.referanslar) ? g.referanslar : (g.referansYolu ? [{ yol: g.referansYolu, depo: g.referansDepo }] : []);
+      const referanslar = [];
+      for (const r of hamRef.slice(0, 6)) { const yol = guvenliYol(r?.yol); if (!yol) return YANIT(400, { error: "Geçersiz dosya yolu" }); referanslar.push({ yol, depo: r.depo === MUSTERI_DEPO ? MUSTERI_DEPO : undefined }); }
+      if (s.id === "higgsfield_kling" && !referanslar.length) return YANIT(400, { error: "Video için başlangıç görseli seçin." });
       const is = crypto.randomUUID();
-      const istek = { saglayici: s.id, istem, oran, sure: Number(g.sure) === 10 ? 10 : 5, referansYolu, musteriAd: String(g.musteriAd || "").slice(0, 60) };
+      const clientId = /^[0-9a-f-]{36}$/i.test(String(g.clientId || "")) ? String(g.clientId) : null;
+      const istek = { saglayici: s.id, istem, oran, sure: Number(g.sure) === 10 ? 10 : 5, referanslar, musteriAd: String(g.musteriAd || "").slice(0, 60), clientId };
       await durumYaz(is, { durum: "bekliyor", asama: "sıraya alındı", saglayici: s.id });
       // Arka plan işlevi: uzun sürebilir, hemen 202 döner. Çağrı iş kimliğiyle imzalanır.
       const kok = (process.env.URL || "https://panormosmedya.com").replace(/\/+$/, "");

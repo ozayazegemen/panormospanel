@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /f/
+
+Sitemap: https://panormosmedya.com/sitemap.xml
