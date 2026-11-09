@@ -39,6 +39,37 @@ const musteriHesaplari = (bag) => {
   for (const h of (Array.isArray(bag?.ig_ek_hesaplar) ? bag.ig_ek_hesaplar : [])) if (h?.ig_user_id && !l.find(x => x.id === String(h.ig_user_id))) l.push({ id: String(h.ig_user_id), kullanici: h.ig_kullanici_adi || null, birincil: false });
   return l;
 };
+// Depoya yüzde göstererek yükler. supabase-js'in upload() çağrısı ilerleme bildirmediği için
+// doğrudan depolama adresine XMLHttpRequest ile gönderilir; oturum anahtarı ve anon anahtar başlığa konur.
+const DEPO_ADRESI = "https://kmxhsyjtyukrxrzoowag.supabase.co";
+const DEPO_ANON = "sb_publishable_8FkJ2hortwsLn57lLZMEwQ_vS29JgwT";
+async function depoyaYukleIlerlemeli(depo, yol, dosya, ilerleme) {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  if (!token) throw new Error("Oturum bulunamadı, sayfayı yenileyip tekrar giriş yapın.");
+  const hedef = `${DEPO_ADRESI}/storage/v1/object/${depo}/${yol.split("/").map(encodeURIComponent).join("/")}`;
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", hedef);
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.setRequestHeader("apikey", DEPO_ANON);
+    xhr.setRequestHeader("Content-Type", dosya.type || "application/octet-stream");
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.setRequestHeader("cache-control", "max-age=3600");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && ilerleme) ilerleme(e.loaded / e.total, e.loaded, e.total); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let mesaj = ""; try { const j = JSON.parse(xhr.responseText); mesaj = j.message || j.error || ""; } catch (e) { mesaj = xhr.responseText; }
+      if (xhr.status === 413 || /maximum allowed size|too large|exceed/i.test(mesaj)) mesaj = "Dosya, depolamanın izin verdiği boyuttan büyük.";
+      reject(new Error(mesaj || `Sunucu hatası (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error("İnternet bağlantısı koptu."));
+    xhr.ontimeout = () => reject(new Error("Yükleme zaman aşımına uğradı."));
+    xhr.send(dosya);
+  });
+}
+const mbYaz = (b) => (b / 1048576).toFixed(b >= 10485760 ? 0 : 1) + " MB";
+
 const hesapAdi = (bag, igId) => { const l = musteriHesaplari(bag); const h = igId ? l.find(x => x.id === String(igId)) : l[0]; return h ? `@${h.kullanici || h.id}` : ""; };
 
 // Müşterinin seçilen aydaki Instagram hakkı: anlaşma, paylaşılan, planlanan, kalan
@@ -212,6 +243,7 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
 
 function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, onKaydedildi }) {
   const [kaydediyor, setKaydediyor] = useState(false);
+  const [yukleme, setYukleme] = useState(null); // { sira, toplam, ad, yuzde, yuklenen, boyut, genelYuzde }
   const client = musteriler.find(c => c.id === form.client_id);
   const hesaplar = musteriHesaplari(igBag[form.client_id]);
   const tarih = form.gun && form.saat ? new Date(`${form.gun}T${form.saat}`) : new Date();
@@ -246,12 +278,19 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
     setKaydediyor(true);
     try {
       const yuklenen = [];
-      for (const f of form.yeniDosyalar) {
+      const toplamBoyut = form.yeniDosyalar.reduce((t, f) => t + f.size, 0);
+      let bitenBoyut = 0;
+      for (let i = 0; i < form.yeniDosyalar.length; i++) {
+        const f = form.yeniDosyalar[i];
         const yol = `${form.client_id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${guvenliAd(f.name)}`;
-        const { error } = await supabase.storage.from("planlayici").upload(yol, f, { contentType: f.type || undefined, upsert: false });
-        if (error) throw new Error(`${f.name} yüklenemedi: ${error.message}${/size|large|exceed/i.test(error.message) ? " (dosya, depolama planının izin verdiği boyuttan büyük)" : ""}`);
+        setYukleme({ sira: i + 1, toplam: form.yeniDosyalar.length, ad: f.name, yuzde: 0, yuklenen: 0, boyut: f.size, genelYuzde: Math.round(bitenBoyut / Math.max(1, toplamBoyut) * 100) });
+        try {
+          await depoyaYukleIlerlemeli("planlayici", yol, f, (oran, yuklenenB) => setYukleme(y => y && ({ ...y, yuzde: Math.round(oran * 100), yuklenen: yuklenenB, genelYuzde: Math.round((bitenBoyut + yuklenenB) / Math.max(1, toplamBoyut) * 100) })));
+        } catch (e) { throw new Error(`${f.name} yüklenemedi: ${e.message}`); }
+        bitenBoyut += f.size;
         yuklenen.push({ yol, tur: f.type.startsWith("video") ? "video" : "resim", ad: f.name });
       }
+      setYukleme(null);
       const kayit = {
         client_id: form.client_id, icerik_turu: form.icerik_turu, aciklama: form.icerik_turu === "story" ? "" : (form.aciklama || ""),
         dosyalar: [...(form.dosyalar || []), ...yuklenen], zaman: tarih.toISOString(), durum: "bekliyor", hata: null, meta: {}, updated_at: new Date().toISOString(),
@@ -265,6 +304,7 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
       if (error) throw new Error(error.message);
       onKaydedildi();
     } catch (e) {
+      setYukleme(null);
       swalAlert("Kaydedilemedi: " + e.message);
     }
     setKaydediyor(false);
@@ -298,9 +338,20 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
       <FormField label="Saat"><Input type="time" value={form.saat} onChange={e => setForm(f => ({ ...f, saat: e.target.value }))} /></FormField>
     </div>
     <div style={{ fontSize: 11.5, color: T.textMuted, marginBottom: 6 }}>Paylaşım seçilen saatten sonraki 5 dakika içinde gönderilir. Paylaşılınca müşterinin aylık hakkından 1 {turAdi(form.icerik_turu)} düşer.</div>
+    {yukleme && <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: T.bgInput }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: T.textPrimary, marginBottom: 6 }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: 10 }}>{yukleme.toplam > 1 ? `${yukleme.sira}/${yukleme.toplam} · ` : ""}{yukleme.ad}</span>
+        <b style={{ flexShrink: 0 }}>%{yukleme.yuzde}</b>
+      </div>
+      <div style={{ height: 8, borderRadius: 6, background: T.border, overflow: "hidden" }}><div style={{ width: `${yukleme.yuzde}%`, height: "100%", background: T.amber, transition: "width .2s" }} /></div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: T.textMuted, marginTop: 4 }}>
+        <span>{mbYaz(yukleme.yuklenen)} / {mbYaz(yukleme.boyut)}</span>
+        {yukleme.toplam > 1 && <span>Toplam %{yukleme.genelYuzde}</span>}
+      </div>
+    </div>}
     <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
       <Btn onClick={() => setForm(null)} disabled={kaydediyor}>Vazgeç</Btn>
-      <Btn variant="primary" onClick={kaydet} disabled={kaydediyor}>{kaydediyor ? "Yükleniyor…" : (form.id ? "Kaydet" : "Planla")}</Btn>
+      <Btn variant="primary" onClick={kaydet} disabled={kaydediyor}>{kaydediyor ? (yukleme ? `Yükleniyor… %${yukleme.yuzde}` : "Kaydediliyor…") : (form.id ? "Kaydet" : "Planla")}</Btn>
     </div>
   </Modal>;
 }
@@ -329,6 +380,7 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
   const [sure, setSure] = useState(5);
   const [referanslar, setReferanslar] = useState([]); // [{ yol, depo, ad, onizleme }]
   const [yukleniyor, setYukleniyor] = useState(false);
+  const [yuklemeYuzde, setYuklemeYuzde] = useState(null);
   const [is, setIs] = useState(null);
   const [durum, setDurum] = useState(null);
   const [mesgul, setMesgul] = useState(false);
@@ -382,10 +434,13 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
     for (const f of dosyalar.slice(0, 6)) {
       if (!f.type.startsWith("image/")) { setHata(`${f.name}: yalnızca görsel yüklenebilir.`); continue; }
       const yol = `${client.id}-ref-${Date.now()}-${guvenliAd(f.name)}`;
-      const { data, error } = await supabase.storage.from(MUSTERI_DEPO).upload(yol, f, { contentType: f.type, upsert: false });
-      if (error) { setHata(`${f.name} yüklenemedi: ${error.message}`); continue; }
-      setReferanslar(r => [...r, { yol: data.path, depo: MUSTERI_DEPO, ad: f.name, onizleme: URL.createObjectURL(f) }]);
+      try {
+        setYuklemeYuzde(0);
+        await depoyaYukleIlerlemeli(MUSTERI_DEPO, yol, f, (oran) => setYuklemeYuzde(Math.round(oran * 100)));
+      } catch (e) { setHata(`${f.name} yüklenemedi: ${e.message}`); continue; }
+      setReferanslar(r => [...r, { yol, depo: MUSTERI_DEPO, ad: f.name, onizleme: URL.createObjectURL(f) }]);
     }
+    setYuklemeYuzde(null);
     setYukleniyor(false);
   };
   const medyadanEkle = async (storagePath) => {
@@ -466,7 +521,7 @@ export function GorselStudyosu({ client, currentStaff, setClients }) {
         <div style={{ fontSize: 11.5, color: T.textMuted, marginBottom: 8 }}>Yüklediğiniz logo ya da ürün fotoğrafı görselin içinde kullanılır; "Canlandır" seçili ilk görseli videoya çevirir.</div>
         <input ref={dosyaRef} type="file" accept="image/*" multiple onChange={dosyaYukle} style={{ display: "none" }} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <Btn onClick={() => dosyaRef.current?.click()} disabled={yukleniyor}>{yukleniyor ? "Yükleniyor…" : "⬆ Logo / fotoğraf yükle"}</Btn>
+          <Btn onClick={() => dosyaRef.current?.click()} disabled={yukleniyor}>{yukleniyor ? `Yükleniyor… ${yuklemeYuzde != null ? `%${yuklemeYuzde}` : ""}` : "⬆ Logo / fotoğraf yükle"}</Btn>
           {medyaGorselleri.length > 0 && <div style={{ minWidth: 200 }}><Select value="" onChange={e => medyadanEkle(e.target.value)}><option value="">+ Medya'dan seç</option>{medyaGorselleri.map(m => <option key={m.id} value={m.storagePath}>{m.name}</option>)}</Select></div>}
         </div>
         {referanslar.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
