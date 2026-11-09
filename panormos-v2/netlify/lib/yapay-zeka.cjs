@@ -58,7 +58,25 @@ function saglayicilar() {
     { id: "higgsfield_kling", ad: "Higgsfield Kling 2.6 (görselden video)", tur: "video", hazir: hf, anahtar: "HIGGSFIELD_KEY_ID + HIGGSFIELD_KEY_SECRET" },
   ];
 }
-const metinHazir = () => !!process.env.GEMINI_API_KEY;
+// Metin önerileri (istem, açıklama): Gemini varsa o, yoksa Panormos'ta zaten tanımlı Anthropic anahtarı
+const metinHazir = () => !!(process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY);
+async function anthropicMetin(istem) {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({ model: process.env.ANTHROPIC_METIN_MODEL || "claude-haiku-5-5", max_tokens: 600, messages: [{ role: "user", content: istem }] }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error?.message || `Anthropic ${r.status}`);
+  return (j.content || []).map(c => c.text || "").join("").trim();
+}
+async function metinUret(istem) {
+  if (process.env.GEMINI_API_KEY) {
+    try { return await geminiMetin(istem); } catch (e) { if (!process.env.ANTHROPIC_API_KEY) throw e; }
+  }
+  if (process.env.ANTHROPIC_API_KEY) return anthropicMetin(istem);
+  throw new Error("Metin önerisi için GEMINI_API_KEY ya da ANTHROPIC_API_KEY gerekli.");
+}
 
 // ───────────── Gemini ─────────────
 const GEMINI = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -200,7 +218,7 @@ async function uret(is, istek) {
 
 // İstem ve açıklama önerileri (Gemini metin)
 async function istemOner({ musteriAd, sektor, tur, konu, kanal }) {
-  const metin = await geminiMetin([
+  const metin = await metinUret([
     "Sen bir sosyal medya görsel yönetmenisin. Aşağıdaki bilgilerle, görsel üreten yapay zekâya verilecek TEK bir istem (prompt) yaz.",
     "İstem İngilizce olsun (görsel modelleri İngilizce istemle daha iyi çalışır), 2-4 cümle, somut: sahne, ışık, kamera açısı, renk paleti, atmosfer. Metin ve logo isteme. Sadece istemi yaz, başka bir şey yazma.",
     `Marka / işletme: ${musteriAd || "-"}`, `Sektör: ${sektor || "-"}`, `İçerik türü: ${tur || "-"} (${kanal || "Instagram"})`, `Konu / istenen: ${konu || "markaya uygun dikkat çekici bir paylaşım görseli"}`,
@@ -208,7 +226,7 @@ async function istemOner({ musteriAd, sektor, tur, konu, kanal }) {
   return metin.replace(/^["'`]+|["'`]+$/g, "");
 }
 async function aciklamaOner({ musteriAd, sektor, tur, konu, istem }) {
-  const metin = await geminiMetin([
+  const metin = await metinUret([
     "Sen Türkçe yazan bir sosyal medya metin yazarısın. Aşağıdaki paylaşım için Instagram açıklaması yaz.",
     "Kurallar: TDK yazımına uy, samimi ama profesyonel, 2-4 kısa cümle, sonunda 5-8 ilgili #etiket. Emoji kullanma. Sadece açıklamayı yaz.",
     `Marka / işletme: ${musteriAd || "-"}`, `Sektör: ${sektor || "-"}`, `İçerik türü: ${tur || "-"}`, `Konu: ${konu || "-"}`, istem ? `Görselin tarifi: ${istem}` : "",
