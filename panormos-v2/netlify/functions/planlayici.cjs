@@ -1,11 +1,12 @@
 // Paylaşım Planlayıcı: panelden çağrılır (oturumlu çalışan)
 //   GET  ?islem=hesaplar         → bağlı Instagram işletme hesapları
-//   GET  ?islem=istatistik&client=<id>&ay=YYYY-MM → müşterinin Instagram istatistikleri
-//   GET  ?islem=ozet&client=<id>&ay=YYYY-MM&adet=6 → son aylar özeti (grafik, önceki aya göre değişim)
+//   GET  ?islem=istatistik&client=<id>&ay=YYYY-MM[&ig=<hesap>] → müşterinin Instagram istatistikleri (ig: müşterinin ek hesaplarından biri; boşsa birincil)
+//   GET  ?islem=ozet&client=<id>&ay=YYYY-MM&adet=6[&ig=<hesap>] → son aylar özeti (grafik, önceki aya göre değişim)
+//   GET  ?islem=musteri-hesaplar&client=<id> → müşterinin bağlı hesapları (birincil + ek)
 //   GET  ?islem=gorsel&url=<instagram görseli> → görseli base64 döndürür (PDF rapor için)
 //   POST { islem: "simdi", id }  → bir paylaşımı beklemeden ilerletir (Şimdi paylaş / Tekrar dene)
 const { yetkili } = require("../lib/auth.cjs");
-const { calistir, hesaplar, istatistikOnbellekli, aylikOzet } = require("../lib/planlayici.cjs");
+const { calistir, hesaplar, istatistikOnbellekli, aylikOzet, musteriHesaplari, musterileriOku } = require("../lib/planlayici.cjs");
 const { veritabani } = require("../lib/qr-abonelik.cjs");
 
 const YANIT = (statusCode, govde) => ({ statusCode, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }, body: JSON.stringify(govde) });
@@ -31,13 +32,23 @@ exports.handler = async (event) => {
         if (buf.length > 3 * 1024 * 1024) return YANIT(413, { error: "Görsel çok büyük" });
         return YANIT(200, { veri: `data:${tip};base64,${buf.toString("base64")}` });
       }
+      if (islem === "musteri-hesaplar") {
+        const q = event.queryStringParameters || {};
+        if (!/^[0-9a-f-]{36}$/i.test(q.client || "")) return YANIT(400, { error: "Eksik bilgi" });
+        const [m] = await musterileriOku(veritabani(), `id=eq.${q.client}`);
+        return YANIT(200, { hesaplar: musteriHesaplari(m) });
+      }
       if (islem === "istatistik" || islem === "ozet") {
         const q = event.queryStringParameters || {};
         if (!/^[0-9a-f-]{36}$/i.test(q.client || "") || !/^\d{4}-\d{2}$/.test(q.ay || "")) return YANIT(400, { error: "Eksik bilgi" });
-        const [m] = await veritabani().oku(`clients?id=eq.${q.client}&select=ig_user_id`);
-        if (!m?.ig_user_id) return YANIT(200, { bagli: false });
-        if (islem === "ozet") return YANIT(200, { bagli: true, ...(await aylikOzet(q.client, m.ig_user_id, q.ay, Math.min(12, parseInt(q.adet) || 6))) });
-        return YANIT(200, { bagli: true, ...(await istatistikOnbellekli(q.client, m.ig_user_id, q.ay, q.yenile === "1")) });
+        const [m] = await musterileriOku(veritabani(), `id=eq.${q.client}`);
+        const liste = musteriHesaplari(m);
+        if (!liste.length) return YANIT(200, { bagli: false });
+        // İstenen hesap müşteriye bağlı olmalı; verilmediyse birincil
+        const secilen = q.ig ? liste.find(h => h.id === String(q.ig)) : liste[0];
+        if (!secilen) return YANIT(400, { error: "Bu Instagram hesabı müşteriye bağlı değil." });
+        if (islem === "ozet") return YANIT(200, { bagli: true, hesap_id: secilen.id, ...(await aylikOzet(q.client, secilen.id, q.ay, Math.min(12, parseInt(q.adet) || 6), !!secilen.birincil)) });
+        return YANIT(200, { bagli: true, hesap_id: secilen.id, ...(await istatistikOnbellekli(q.client, secilen.id, q.ay, q.yenile === "1", !!secilen.birincil)) });
       }
       return YANIT(400, { error: "Bilinmeyen işlem" });
     }

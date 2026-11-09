@@ -32,6 +32,15 @@ const yerelSaat = (d) => { const x = new Date(d); return `${ikiHane(x.getHours()
 const zamanYaz = (d) => { const x = new Date(d); return `${x.getDate()} ${AYLAR[x.getMonth()]} ${GUNLER[x.getDay()]} · ${yerelSaat(x)}`; };
 const guvenliAd = (ad) => ad.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-80);
 
+// Müşterinin bağlı Instagram hesapları: birincil (clients.ig_user_id) + ek hesaplar (clients.ig_ek_hesaplar)
+const musteriHesaplari = (bag) => {
+  const l = [];
+  if (bag?.ig_user_id) l.push({ id: String(bag.ig_user_id), kullanici: bag.ig_kullanici_adi || null, birincil: true });
+  for (const h of (Array.isArray(bag?.ig_ek_hesaplar) ? bag.ig_ek_hesaplar : [])) if (h?.ig_user_id && !l.find(x => x.id === String(h.ig_user_id))) l.push({ id: String(h.ig_user_id), kullanici: h.ig_kullanici_adi || null, birincil: false });
+  return l;
+};
+const hesapAdi = (bag, igId) => { const l = musteriHesaplari(bag); const h = igId ? l.find(x => x.id === String(igId)) : l[0]; return h ? `@${h.kullanici || h.id}` : ""; };
+
 // Müşterinin seçilen aydaki Instagram hakkı: anlaşma, paylaşılan, planlanan, kalan
 function hakHesapla(client, tur, tarih, planlar, haricId = null) {
   const hak = parseInt(client?.quotaDetail?.instagram?.[tur]) || 0;
@@ -59,7 +68,8 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
     const once = new Date(); once.setDate(once.getDate() - 75);
     const [{ data: p, error }, { data: c }] = await Promise.all([
       supabase.from("planli_paylasimlar").select("*").gte("zaman", once.toISOString()).order("zaman", { ascending: true }),
-      supabase.from("clients").select("id,ig_user_id,ig_kullanici_adi"),
+      // Ek hesap sütunu henüz yoksa (planlayici-coklu-hesap.sql çalıştırılmadıysa) eski alanlarla devam eder
+      supabase.from("clients").select("id,ig_user_id,ig_kullanici_adi,ig_ek_hesaplar").then(r => r.error ? supabase.from("clients").select("id,ig_user_id,ig_kullanici_adi") : r),
     ]);
     if (error) { setYukleniyor(false); swalAlert("Planlayıcı açılamadı: " + error.message + "\n\nSupabase'de supabase/planlayici-kurulum.sql dosyası çalıştırılmalı."); return; }
     setPlanlar(p || []);
@@ -79,9 +89,9 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
 
   const yeniAc = (gun) => {
     const d = gun ? new Date(gun) : new Date(Date.now() + 3600000);
-    setForm({ id: null, client_id: musteriFiltre || "", icerik_turu: "reels", aciklama: "", gun: yerelGun(d), saat: gun ? "19:00" : yerelSaat(d), dosyalar: [], yeniDosyalar: [] });
+    setForm({ id: null, client_id: musteriFiltre || "", ig_user_id: "", icerik_turu: "reels", aciklama: "", gun: yerelGun(d), saat: gun ? "19:00" : yerelSaat(d), dosyalar: [], yeniDosyalar: [] });
   };
-  const duzenle = (p) => setForm({ id: p.id, client_id: p.client_id, icerik_turu: p.icerik_turu, aciklama: p.aciklama || "", gun: yerelGun(p.zaman), saat: yerelSaat(p.zaman), dosyalar: p.dosyalar || [], yeniDosyalar: [], durum: p.durum });
+  const duzenle = (p) => setForm({ id: p.id, client_id: p.client_id, ig_user_id: p.ig_user_id || "", icerik_turu: p.icerik_turu, aciklama: p.aciklama || "", gun: yerelGun(p.zaman), saat: yerelSaat(p.zaman), dosyalar: p.dosyalar || [], yeniDosyalar: [], durum: p.durum });
 
   const simdiPaylas = async (p) => {
     if (!(await swalConfirm(`${musteriAdi(p.client_id)} için bu ${turAdi(p.icerik_turu)} şimdi Instagram'a gönderilsin mi?`))) return;
@@ -109,7 +119,7 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
     const ilk = (p.dosyalar || [])[0];
     return <div key={p.id} style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 12, padding: "10px 12px", marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 4 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.textPrimary }}>{TURLER.find(t => t.id === p.icerik_turu)?.ikon} {musteriAdi(p.client_id)}</div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: T.textPrimary }}>{TURLER.find(t => t.id === p.icerik_turu)?.ikon} {musteriAdi(p.client_id)}{musteriHesaplari(igBag[p.client_id]).length > 1 && <span style={{ color: T.textMuted, fontWeight: 500 }}> · {hesapAdi(igBag[p.client_id], p.ig_user_id)}</span>}</div>
         <Rozet durum={p.durum} />
       </div>
       <div style={{ fontSize: 11.5, color: T.textSecondary }}>{yerelSaat(p.zaman)} · {turAdi(p.icerik_turu)} · {(p.dosyalar || []).length} dosya{ilk?.tur === "video" ? " (video)" : ""}</div>
@@ -158,7 +168,7 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
     </div>
 
     {secili && <div style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 14, padding: 14, marginBottom: 16 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary, marginBottom: 10 }}>{secili.name} · {AYLAR[new Date().getMonth()]} ayı Instagram hakları {igBag[secili.id]?.ig_kullanici_adi ? `· @${igBag[secili.id].ig_kullanici_adi}` : "· Instagram hesabı bağlı değil"}</div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: T.textSecondary, marginBottom: 10 }}>{secili.name} · {AYLAR[new Date().getMonth()]} ayı Instagram hakları {musteriHesaplari(igBag[secili.id]).length ? `· ${musteriHesaplari(igBag[secili.id]).map(h => "@" + (h.kullanici || h.id)).join(", ")}` : "· Instagram hesabı bağlı değil"}</div>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {TURLER.map(t => { const h = hakHesapla(secili, t.id, new Date(), planlar); if (!h.hak && !h.paylasilan && !h.planlanan) return null;
           return <div key={t.id} style={{ padding: "8px 12px", borderRadius: 10, background: T.bgInput, fontSize: 12, color: T.textPrimary }}>
@@ -203,6 +213,7 @@ export default function PlanlayiciPage({ clients, currentStaff }) {
 function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, onKaydedildi }) {
   const [kaydediyor, setKaydediyor] = useState(false);
   const client = musteriler.find(c => c.id === form.client_id);
+  const hesaplar = musteriHesaplari(igBag[form.client_id]);
   const tarih = form.gun && form.saat ? new Date(`${form.gun}T${form.saat}`) : new Date();
   const h = client ? hakHesapla(client, form.icerik_turu, tarih, planlar, form.id) : null;
   const tumDosyalar = [...(form.dosyalar || []).map(d => ({ ...d, eski: true })), ...form.yeniDosyalar.map(f => ({ ad: f.name, tur: f.type.startsWith("video") ? "video" : "resim", dosya: f }))];
@@ -244,6 +255,8 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
       const kayit = {
         client_id: form.client_id, icerik_turu: form.icerik_turu, aciklama: form.icerik_turu === "story" ? "" : (form.aciklama || ""),
         dosyalar: [...(form.dosyalar || []), ...yuklenen], zaman: tarih.toISOString(), durum: "bekliyor", hata: null, meta: {}, updated_at: new Date().toISOString(),
+        // Birden fazla hesabı olan müşteride seçilen hesap kaydedilir (tek hesapta sütuna dokunulmaz)
+        ...(hesaplar.length > 1 ? { ig_user_id: hesaplar.find(h => h.id === form.ig_user_id)?.id || hesaplar[0].id } : {}),
       };
       const sorgu = form.id
         ? supabase.from("planli_paylasimlar").update(kayit).eq("id", form.id)
@@ -258,7 +271,12 @@ function PlanFormu({ form, setForm, musteriler, planlar, igBag, currentStaff, on
   };
 
   return <Modal title={form.id ? "Planlı paylaşımı düzenle" : "Yeni paylaşım planla"} onClose={() => !kaydediyor && setForm(null)} width={560}>
-    <FormField label="Müşteri"><Select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}><option value="">Seçin</option>{musteriler.map(c => <option key={c.id} value={c.id}>{c.name}{igBag[c.id]?.ig_kullanici_adi ? ` (@${igBag[c.id].ig_kullanici_adi})` : ""}</option>)}</Select></FormField>
+    <FormField label="Müşteri"><Select value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value, ig_user_id: "" }))}><option value="">Seçin</option>{musteriler.map(c => { const l = musteriHesaplari(igBag[c.id]); return <option key={c.id} value={c.id}>{c.name}{l.length ? ` (${l.map(h => "@" + (h.kullanici || h.id)).join(", ")})` : ""}</option>; })}</Select></FormField>
+    {hesaplar.length > 1 && <FormField label="Instagram hesabı">
+      <Select value={hesaplar.find(h => h.id === form.ig_user_id)?.id || hesaplar[0].id} onChange={e => setForm(f => ({ ...f, ig_user_id: e.target.value }))}>
+        {hesaplar.map(h => <option key={h.id} value={h.id}>@{h.kullanici || h.id}{h.birincil ? " (birincil)" : ""}</option>)}
+      </Select>
+    </FormField>}
     <FormField label="İçerik türü">
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         {TURLER.map(t => <Btn key={t.id} variant={form.icerik_turu === t.id ? "primary" : "ghost"} onClick={() => setForm(f => ({ ...f, icerik_turu: t.id, yeniDosyalar: t.id === "carousel" ? f.yeniDosyalar : f.yeniDosyalar.slice(0, 1), dosyalar: t.id === "carousel" ? f.dosyalar : (f.dosyalar || []).slice(0, 1) }))}>{t.ikon} {t.label}</Btn>)}
@@ -304,23 +322,45 @@ function HesapEslestir({ musteriler, igBag, onDegisti }) {
     if (error) return swalAlert("Kaydedilemedi: " + error.message);
     onDegisti();
   };
+  // Ek hesaplar (aynı müşterinin ikinci, üçüncü Instagram'ı): clients.ig_ek_hesaplar
+  const ekKaydet = async (clientId, liste) => {
+    const { error } = await supabase.from("clients").update({ ig_ek_hesaplar: liste }).eq("id", clientId);
+    if (error) return swalAlert(/ig_ek_hesaplar/i.test(error.message) ? "Bir müşteriye birden fazla hesap bağlamak için Supabase'de supabase/planlayici-coklu-hesap.sql dosyası çalıştırılmalı." : "Kaydedilemedi: " + error.message);
+    onDegisti();
+  };
+  const ekEkle = (clientId, hesapId) => {
+    const h = (hesaplar || []).find(x => x.id === hesapId); if (!h) return;
+    const mevcut = Array.isArray(igBag[clientId]?.ig_ek_hesaplar) ? igBag[clientId].ig_ek_hesaplar : [];
+    if (igBag[clientId]?.ig_user_id === h.id || mevcut.find(x => String(x.ig_user_id) === h.id)) return;
+    ekKaydet(clientId, [...mevcut, { ig_user_id: h.id, ig_kullanici_adi: h.kullanici }]);
+  };
+  const ekCikar = (clientId, hesapId) => ekKaydet(clientId, (Array.isArray(igBag[clientId]?.ig_ek_hesaplar) ? igBag[clientId].ig_ek_hesaplar : []).filter(x => String(x.ig_user_id) !== String(hesapId)));
   return <div>
     <div style={{ fontSize: 12.5, color: T.textSecondary, marginBottom: 12, lineHeight: 1.6 }}>
       Her müşteriyi kendi Instagram işletme hesabıyla eşleştirin. Listede yalnızca Panormos Business portföyüne eklenmiş (Facebook sayfasına bağlı) Instagram işletme hesapları görünür.
+      Bir müşterinin birden fazla Instagram'ı varsa ilkini seçtikten sonra "+ Ek hesap bağla" ile diğerlerini ekleyin; planlarken hangi hesaba gideceği sorulur.
     </div>
     {hata && <div style={{ fontSize: 12.5, color: T.redText, background: T.redDim || "rgba(229,72,77,.12)", padding: "10px 12px", borderRadius: 10, marginBottom: 12 }}>Instagram hesapları alınamadı: {hata}</div>}
     <Btn onClick={getir} style={{ marginBottom: 12 }}>Hesapları yenile</Btn>
     {hesaplar === null && !hata && <div style={{ fontSize: 12, color: T.textMuted }}>Hesaplar alınıyor…</div>}
-    {musteriler.map(c => <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${T.border}` }}>
-      <div style={{ flex: 1, fontSize: 13, color: T.textPrimary }}>{c.name}</div>
+    {musteriler.map(c => { const ek = Array.isArray(igBag[c.id]?.ig_ek_hesaplar) ? igBag[c.id].ig_ek_hesaplar : []; const bagli = new Set([igBag[c.id]?.ig_user_id, ...ek.map(x => String(x.ig_user_id))].filter(Boolean));
+      return <div key={c.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: `1px solid ${T.border}`, flexWrap: "wrap" }}>
+      <div style={{ flex: 1, minWidth: 160, fontSize: 13, color: T.textPrimary, paddingTop: 8 }}>{c.name}</div>
       <div style={{ width: 300 }}>
         <Select value={igBag[c.id]?.ig_user_id || ""} onChange={e => bagla(c.id, e.target.value)}>
           <option value="">{igBag[c.id]?.ig_user_id ? "Bağlantıyı kaldır" : "Instagram hesabı seçin"}</option>
           {igBag[c.id]?.ig_user_id && !(hesaplar || []).find(h => h.id === igBag[c.id].ig_user_id) && <option value={igBag[c.id].ig_user_id}>@{igBag[c.id].ig_kullanici_adi || igBag[c.id].ig_user_id}</option>}
           {(hesaplar || []).map(h => <option key={h.id} value={h.id}>@{h.kullanici} ({h.sayfa})</option>)}
         </Select>
+        {igBag[c.id]?.ig_user_id && <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+          {ek.map(h => <span key={h.ig_user_id} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, padding: "3px 8px", borderRadius: 8, background: T.bgInput, color: T.textPrimary }}>@{h.ig_kullanici_adi || h.ig_user_id}<button title="Ek hesabı kaldır" onClick={() => ekCikar(c.id, h.ig_user_id)} style={{ border: "none", background: "transparent", color: T.textMuted, cursor: "pointer", padding: 0, fontSize: 12 }}>✕</button></span>)}
+          <div style={{ minWidth: 170, flex: 1 }}><Select value="" onChange={e => e.target.value && ekEkle(c.id, e.target.value)}>
+            <option value="">+ Ek hesap bağla</option>
+            {(hesaplar || []).filter(h => !bagli.has(h.id)).map(h => <option key={h.id} value={h.id}>@{h.kullanici} ({h.sayfa})</option>)}
+          </Select></div>
+        </div>}
       </div>
-    </div>)}
+    </div>; })}
   </div>;
 }
 
@@ -340,25 +380,34 @@ export function InstagramIstatistik({ client }) {
   const [reklamlar, setReklamlar] = useState([]); // o ayki reklamlar (PDF'e de girer)
   const [ozet, setOzet] = useState(null); // son 6 ayın özeti (grafik + önceki aya göre değişim)
   const [ozetEksik, setOzetEksik] = useState(0);
+  // Müşterinin bağlı hesapları; birden fazlaysa seçim kutusu çıkar ("" = birincil)
+  const [hesaplar, setHesaplar] = useState([]);
+  const [hesap, setHesap] = useState("");
+  useEffect(() => {
+    let iptal = false; setHesaplar([]); setHesap("");
+    panelFetch(`/.netlify/functions/planlayici?islem=musteri-hesaplar&client=${client.id}`).then(r => r.json()).then(j => { if (!iptal) setHesaplar(j.hesaplar || []); }).catch(() => {});
+    return () => { iptal = true; };
+  }, [client.id]);
+  const hesapParam = hesap ? `&ig=${hesap}` : "";
 
   const getir = async (yenile = false) => {
     setYukleniyor(true); setHata("");
     try {
-      const r = await panelFetch(`/.netlify/functions/planlayici?islem=istatistik&client=${client.id}&ay=${ay}${yenile ? "&yenile=1" : ""}`);
+      const r = await panelFetch(`/.netlify/functions/planlayici?islem=istatistik&client=${client.id}&ay=${ay}${hesapParam}${yenile ? "&yenile=1" : ""}`);
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || `Hata ${r.status}`);
       setVeri(j);
     } catch (e) { setHata(e.message); setVeri(null); }
     setYukleniyor(false);
   };
-  useEffect(() => { getir(); }, [client.id, ay]);
+  useEffect(() => { getir(); }, [client.id, ay, hesap]);
   // Son 6 ay: önbellekte olmayan aylar sunucuda teker teker hesaplanır, bitene kadar tekrar sorulur
   useEffect(() => {
     let iptal = false, sayac = 0;
     setOzet(null); setOzetEksik(0);
     const sor = async () => {
       try {
-        const r = await panelFetch(`/.netlify/functions/planlayici?islem=ozet&client=${client.id}&ay=${ay}&adet=6`);
+        const r = await panelFetch(`/.netlify/functions/planlayici?islem=ozet&client=${client.id}&ay=${ay}&adet=6${hesapParam}`);
         const j = await r.json().catch(() => ({}));
         if (iptal || !r.ok || !j.bagli) return;
         setOzet(j.aylar || []); setOzetEksik(j.eksik || 0);
@@ -367,7 +416,7 @@ export function InstagramIstatistik({ client }) {
     };
     sor();
     return () => { iptal = true; };
-  }, [client.id, ay]);
+  }, [client.id, ay, hesap]);
 
   const medya = veri?.medya || [];
   const top = (k) => medya.reduce((s, x) => s + (Number(x[k]) || 0), 0);
@@ -471,6 +520,7 @@ export function InstagramIstatistik({ client }) {
   return <div>
     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
       <div style={{ width: 180 }}><Select value={ay} onChange={e => setAy(e.target.value)}>{Array.from({ length: 12 }, (_, i) => kacay(i)).map(a => <option key={a} value={a}>{ayYaz(a)}</option>)}</Select></div>
+      {hesaplar.length > 1 && <div style={{ width: 220 }}><Select value={hesap} onChange={e => setHesap(e.target.value)}>{hesaplar.map(h => <option key={h.id} value={h.birincil ? "" : h.id}>@{h.kullanici || h.id}</option>)}</Select></div>}
       <Btn onClick={() => getir(true)} disabled={yukleniyor}>{yukleniyor ? "Alınıyor… (20-30 sn sürebilir)" : "Yenile"}</Btn>
       {veri?.onbellek && <span style={{ fontSize: 11, color: T.textMuted }}>Son güncelleme {new Date(veri.onbellek).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}</span>}
       <div style={{ flex: 1 }} />

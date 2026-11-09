@@ -10,6 +10,21 @@ const GRAPH = "https://graph.facebook.com/v23.0";
 const ZAMAN_ASIMI_DK = 45; // video bu süre içinde işlenmezse hata sayılır
 const ON_HAZIRLIK_DK = 10; // dosya, plan saatinden bu kadar önce Instagram'a yüklenip hazırlatılır; yayın tam saatinde yapılır
 
+// Müşterinin bağlı Instagram hesapları: birincil (clients.ig_user_id) + ek hesaplar (clients.ig_ek_hesaplar)
+function musteriHesaplari(m) {
+  const liste = [];
+  if (m?.ig_user_id) liste.push({ id: String(m.ig_user_id), kullanici: m.ig_kullanici_adi || null, birincil: true });
+  const ek = Array.isArray(m?.ig_ek_hesaplar) ? m.ig_ek_hesaplar : [];
+  for (const h of ek) if (h?.ig_user_id && !liste.find(x => x.id === String(h.ig_user_id))) liste.push({ id: String(h.ig_user_id), kullanici: h.ig_kullanici_adi || null, birincil: false });
+  return liste;
+}
+
+// Müşteri satırlarını ek hesap sütunuyla okur; sütun henüz yoksa (SQL çalıştırılmadıysa) onsuz okur
+async function musterileriOku(db, filtre) {
+  try { return await db.oku(`clients?${filtre}&select=id,name,ig_user_id,ig_kullanici_adi,fb_sayfa_id,ig_ek_hesaplar`); }
+  catch (e) { return db.oku(`clients?${filtre}&select=id,name,ig_user_id,ig_kullanici_adi,fb_sayfa_id`); }
+}
+
 function metaAnahtari() {
   const a = process.env.META_ERISIM_ANAHTARI || "";
   if (!a) throw new Error("Instagram bağlantısı kurulmamış (META_ERISIM_ANAHTARI eksik).");
@@ -79,7 +94,13 @@ async function guncelle(db, id, alanlar) {
 // Bir paylaşımı bir adım ilerletir. Dönen metin günlük içindir.
 // zorla: "Şimdi paylaş" — plan saatini beklemeden yayınla
 async function ilerlet(db, p, musteri, zorla = false) {
-  const igId = musteri?.ig_user_id;
+  // Paylaşım hangi hesaba gidecek: planda seçilen hesap (müşteriye bağlı olmalı), yoksa müşterinin birincil hesabı
+  const hesaplarim = musteriHesaplari(musteri);
+  let igId = null;
+  if (p.ig_user_id) {
+    if (!hesaplarim.find(h => h.id === String(p.ig_user_id))) { await guncelle(db, p.id, { durum: "hata", hata: "Planda seçilen Instagram hesabı artık bu müşteriye bağlı değil (Planlayıcı → Instagram hesapları)." }); return "hesap uyuşmuyor"; }
+    igId = String(p.ig_user_id);
+  } else igId = musteri?.ig_user_id;
   if (!igId) { await guncelle(db, p.id, { durum: "hata", hata: "Müşterinin Instagram hesabı bağlı değil (Planlayıcı → Hesaplar)." }); return "hesap yok"; }
   const dosyalar = Array.isArray(p.dosyalar) ? p.dosyalar : [];
   if (!dosyalar.length) { await guncelle(db, p.id, { durum: "hata", hata: "Yüklenmiş dosya yok." }); return "dosya yok"; }
@@ -163,7 +184,7 @@ async function calistir({ id = null } = {}) {
   if (!id) console.log(`planlayıcı kontrol ${simdi}: ${liste.length} paylaşım sırada`);
   if (!liste.length) return [];
   const idler = [...new Set(liste.map(p => p.client_id))];
-  const musteriler = await db.oku(`clients?id=in.(${idler.join(",")})&select=id,name,ig_user_id`);
+  const musteriler = await musterileriOku(db, `id=in.(${idler.join(",")})`);
   const sonuc = [];
   const bekle = (ms) => new Promise(r => setTimeout(r, ms));
   for (const p of liste) {
@@ -284,19 +305,22 @@ async function takipciArsivle() {
 }
 
 // Önbellekli istatistik: 1 saat içinde tekrar sorulursa Instagram'a gitmez (zorla=true ile yenilenir)
-async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
+// birincil=false: müşterinin ek hesabı → önbellek anahtarı "YYYY-MM#<hesap>" olur, takipçi arşivi (yalnız birincil hesap için tutulur) eklenmez
+async function istatistikOnbellekli(clientId, igId, ay, zorla = false, birincil = true) {
   const db = veritabani();
+  const anahtar = birincil ? ay : `${ay}#${igId}`;
   if (!zorla) {
     try {
-      const [c] = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=eq.${ay}&select=veri,guncellendi_at`);
+      const [c] = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=eq.${encodeURIComponent(anahtar)}&select=veri,guncellendi_at`);
       // İçinde bulunulan ay 1 saat, geçmiş aylar 30 gün saklanır (geçmiş ayın sayıları artık pek değişmez)
       const gecmisAy = ay < new Date().toISOString().slice(0, 7);
       if (c && Date.now() - new Date(c.guncellendi_at).getTime() < (gecmisAy ? 30 * 24 : 1) * 60 * 60 * 1000) return { ...c.veri, onbellek: c.guncellendi_at };
     } catch (e) { /* tablo yoksa doğrudan çek */ }
   }
   const veri = await istatistik(igId, ay);
-  // Takipçi arşivinden o ayın hareketi
+  // Takipçi arşivinden o ayın hareketi (yalnız birincil hesap arşivlenir)
   try {
+    if (!birincil) throw new Error("ek hesap");
     const [y, mo] = ay.split("-").map(Number);
     const bas = `${y}-${String(mo).padStart(2, "0")}-01`, son = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10);
     const g = await db.oku(`ig_takipci_gunluk?client_id=eq.${clientId}&gun=gte.${bas}&gun=lte.${son}&select=gun,takipci,yeni,ayrilan&order=gun.asc`);
@@ -307,7 +331,7 @@ async function istatistikOnbellekli(clientId, igId, ay, zorla = false) {
   try {
     // jsonb, \u0000 ve tek başına kalmış vekil (surrogate) karakterleri kabul etmez; açıklamalardaki emojileri temizle
     const temiz = JSON.parse(JSON.stringify(veri).replace(/\\u0000/g, "").replace(/[\ud800-\udbff](?![\udc00-\udfff])|(^|[^\ud800-\udbff])[\udc00-\udfff]/g, "$1"));
-    await yazVeyaGuncelle(db, "ig_istatistik_onbellek", `client_id=eq.${clientId}&ay=eq.${ay}`, { client_id: clientId, ay, veri: temiz, guncellendi_at: new Date().toISOString() });
+    await yazVeyaGuncelle(db, "ig_istatistik_onbellek", `client_id=eq.${clientId}&ay=eq.${encodeURIComponent(anahtar)}`, { client_id: clientId, ay: anahtar, veri: temiz, guncellendi_at: new Date().toISOString() });
   } catch (e) { veri.onbellekHatasi = String(e.message || e).slice(0, 300); }
   return veri;
 }
@@ -329,18 +353,22 @@ function ayOzeti(ay, v) {
 
 // Son N ayın özeti. Önbellekte olmayan aylardan her çağrıda en çok 1 tanesi hesaplanır (işlev süresi kısa);
 // eksik kalan varsa "eksik" sayısı döner, panel tekrar çağırır.
-async function aylikOzet(clientId, igId, ay, adet = 6) {
+async function aylikOzet(clientId, igId, ay, adet = 6, birincil = true) {
   const db = veritabani();
   const [y, m] = ay.split("-").map(Number);
   const aylar = Array.from({ length: adet }, (_, i) => { const d = new Date(Date.UTC(y, m - 1 - i, 1)); return d.toISOString().slice(0, 7); }).reverse();
+  const anahtar = (a) => birincil ? a : `${a}#${igId}`;
   let onbellek = [];
-  try { onbellek = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=in.(${aylar.join(",")})&select=ay,veri,guncellendi_at`); } catch (e) { /* tablo yok */ }
+  try {
+    const ham = await db.oku(`ig_istatistik_onbellek?client_id=eq.${clientId}&ay=in.(${aylar.map(a => encodeURIComponent(anahtar(a))).join(",")})&select=ay,veri,guncellendi_at`);
+    onbellek = ham.map(c => ({ ...c, ay: String(c.ay).split("#")[0] })); // anahtarı aya indirge
+  } catch (e) { /* tablo yok */ }
   const buAy = new Date().toISOString().slice(0, 7);
   const bul = (a) => onbellek.find(c => c.ay === a && (a < buAy ? Date.now() - new Date(c.guncellendi_at).getTime() < 30 * 24 * 3600e3 : Date.now() - new Date(c.guncellendi_at).getTime() < 3600e3 * 6));
   const eksikler = aylar.filter(a => !bul(a)).reverse(); // en yeniden eskiye
   let hesaplanan = null;
-  if (eksikler.length) { hesaplanan = eksikler[0]; try { const v = await istatistikOnbellekli(clientId, igId, hesaplanan); onbellek.push({ ay: hesaplanan, veri: v, guncellendi_at: new Date().toISOString() }); } catch (e) { /* bir sonraki çağrıda */ } }
+  if (eksikler.length) { hesaplanan = eksikler[0]; try { const v = await istatistikOnbellekli(clientId, igId, hesaplanan, false, birincil); onbellek.push({ ay: hesaplanan, veri: v, guncellendi_at: new Date().toISOString() }); } catch (e) { /* bir sonraki çağrıda */ } }
   return { aylar: aylar.map(a => ayOzeti(a, (onbellek.find(c => c.ay === a) || {}).veri || null)), eksik: Math.max(0, eksikler.length - (hesaplanan ? 1 : 0)) };
 }
 
-module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, aylikOzet, takipciArsivle, imzaliBaglanti, graph };
+module.exports = { calistir, hesaplar, istatistik, istatistikOnbellekli, aylikOzet, takipciArsivle, imzaliBaglanti, graph, musteriHesaplari, musterileriOku };
