@@ -21,14 +21,16 @@ function depoAyar() {
 }
 const kodluYol = (yol) => yol.split("/").map(encodeURIComponent).join("/");
 
-async function depoyaYaz(yol, govde, tip, depo = DEPO) {
+async function depoyaYaz(yol, govde, tip, depo = DEPO, onbellekSn = 3600) {
   const { ADRES, basliklar } = depoAyar();
-  const r = await fetch(`${ADRES}/storage/v1/object/${depo}/${kodluYol(yol)}`, { method: "POST", headers: { ...basliklar, "Content-Type": tip, "x-upsert": "true" }, body: govde });
+  // cache-control: durum dosyası (sonuc.json) sık değişir, önbelleğe alınmasın; üretilen dosyalar 1 saat önbelleklenebilir
+  const r = await fetch(`${ADRES}/storage/v1/object/${depo}/${kodluYol(yol)}`, { method: "POST", headers: { ...basliklar, "Content-Type": tip, "x-upsert": "true", "cache-control": `max-age=${onbellekSn}` }, body: govde });
   if (!r.ok) throw new Error(`Depoya yazılamadı (${r.status}): ${(await r.text()).slice(0, 200)}`);
 }
-async function depodanOku(yol, depo = DEPO) {
+async function depodanOku(yol, depo = DEPO, taze = false) {
   const { ADRES, basliklar } = depoAyar();
-  const r = await fetch(`${ADRES}/storage/v1/object/${depo}/${kodluYol(yol)}`, { headers: basliklar });
+  // taze: önbelleği atlamak için her seferinde farklı sorgu + no-cache başlığı
+  const r = await fetch(`${ADRES}/storage/v1/object/${depo}/${kodluYol(yol)}${taze ? `?t=${Date.now()}` : ""}`, { headers: taze ? { ...basliklar, "Cache-Control": "no-cache", Pragma: "no-cache" } : basliklar });
   if (r.status === 404 || r.status === 400) return null;
   if (!r.ok) throw new Error(`Depodan okunamadı (${r.status})`);
   return r;
@@ -45,9 +47,9 @@ const depoSec = (d) => d === MUSTERI_DEPO ? MUSTERI_DEPO : DEPO;
 
 // İş durumu: ai/<is>/sonuc.json
 const durumYolu = (is) => `ai/${is}/sonuc.json`;
-async function durumYaz(is, durum) { await depoyaYaz(durumYolu(is), Buffer.from(JSON.stringify({ ...durum, guncellendi: new Date().toISOString() })), "application/json"); }
+async function durumYaz(is, durum) { await depoyaYaz(durumYolu(is), Buffer.from(JSON.stringify({ ...durum, guncellendi: new Date().toISOString() })), "application/json", DEPO, 0); }
 async function durumOku(is) {
-  const r = await depodanOku(durumYolu(is));
+  const r = await depodanOku(durumYolu(is), DEPO, true);
   if (!r) return null;
   try { return await r.json(); } catch (e) { return null; }
 }
