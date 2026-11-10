@@ -33,9 +33,14 @@ const ISLER = [
     maddeler: ["Otomatik kira artış oranı", "Bankaların güncel kredi oranları", "Canlı altın ve döviz", "Panelden yönetilen blog"],
   },
   {
-    renk: "mavi", etiket: "İnşaat projesine özel site", baslik: "Koru Villaları", adres: "https://panormosmedya.com/ornek/villa/", adresYazi: "Örnek siteyi aç", gorsel: "/isler/villa.jpg?v=1",
+    renk: "mavi", etiket: "İnşaat projesine özel site", baslik: "Koru Villaları", adres: "https://panormosmedya.com/ornek/villa/", adresYazi: "Örnek siteyi aç", gorsel: "/isler/villa.jpg?v=2",
     metin: "Erdek'te müstakil villa projesi satan bir inşaat firması için hazırladığımız tanıtım sitesi. Alıcı satış ofisine gelmeden projeyi geziyor: korunun içindeki konum, villa tipleri, galeri ve randevu tek sayfada.",
     maddeler: ["4+1 ve 5+1 villa tipleri, metrekareleriyle", "Konum ve denize yürüme mesafesi", "Fotoğraf ve render galerisi", "Randevu formu ve WhatsApp düğmesi"],
+  },
+  {
+    renk: "sari", etiket: "Online mağaza", baslik: "Veteriner Market", adres: "https://panormosmedya.com/veteriner/", adresYazi: "Örnek mağazayı aç", gorsel: "/isler/veteriner.jpg?v=1",
+    metin: "Büyükbaş, küçükbaş ve kanatlı hayvan ürünleri satan bir veteriner market için kurduğumuz online mağaza. Ürünleri ve fiyatları firma kendi panelinden yönetiyor; müşteri sepetten sipariş veriyor, ilaç ve aşıyı WhatsApp'tan soruyor.",
+    maddeler: ["Hayvan türüne ve ürün grubuna göre arama", "Sepet, havale ve kapıda ödeme", "Firmanın kendi ürün ve sipariş paneli", "Her üründe WhatsApp'tan sorma"],
   },
   {
     renk: "zumrut", etiket: "Restoran ve barlara özel", baslik: "QR Menü", adres: "https://panormosmedya.com/m/restoran", adresYazi: "Örnek menüyü aç", gorsel: "/isler/qr-menu.jpg?v=1",
