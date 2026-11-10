@@ -33,6 +33,11 @@ const ISLER = [
     maddeler: ["Otomatik kira artış oranı", "Bankaların güncel kredi oranları", "Canlı altın ve döviz", "Panelden yönetilen blog"],
   },
   {
+    renk: "zumrut", etiket: "Kendi yazılımımız", baslik: "Adisyon ve kasa", adres: "https://adisyon.panormosmedya.com", adresYazi: "adisyon.panormosmedya.com", gorsel: "/isler/adisyon.jpg?v=1",
+    metin: "Kafe, restoran ve kahveciler için geliştirdiğimiz adisyon sistemi. Garson telefondan sipariş alır, mutfak ve bar kendi ekranında görür, kasa hesabı kapatır; vardiya, gün sonu, stok ve gelir-gider aynı yerde tutulur.",
+    maddeler: ["Masa planı, garson telefonu, mutfak ve bar ekranı", "Vardiya X / Z ve gün sonu raporu", "Stok takibi ve azalan ürün uyarısı", "Gelir-gider, KDV dökümü, Excel ve PDF rapor"],
+  },
+  {
     renk: "mavi", etiket: "İnşaat projesine özel site", baslik: "Koru Villaları", adres: "https://panormosmedya.com/ornek/villa/", adresYazi: "Örnek siteyi aç", gorsel: "/isler/villa.jpg?v=2",
     metin: "Erdek'te müstakil villa projesi satan bir inşaat firması için hazırladığımız tanıtım sitesi. Alıcı satış ofisine gelmeden projeyi geziyor: korunun içindeki konum, villa tipleri, galeri ve randevu tek sayfada.",
     maddeler: ["4+1 ve 5+1 villa tipleri, metrekareleriyle", "Konum ve denize yürüme mesafesi", "Fotoğraf ve render galerisi", "Randevu formu ve WhatsApp düğmesi"],
