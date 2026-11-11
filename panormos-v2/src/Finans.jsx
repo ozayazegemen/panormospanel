@@ -1071,8 +1071,23 @@ function KasaTanimlari({ d, yukle }) {
     if (r.error) { swalAlert("Kaydedilemedi: " + r.error.message + (/acilis|kind/.test(r.error.message) ? "\n\nfinans-kurulum.sql çalıştırılmalı." : "")); return; }
     setForm(null); yukle();
   };
+  // Eski banka ekstrelerinden ve elle girilen banka satırlarından gelen kayıtlar; panelin kendi yazdığı tahsilat/gider hareketleri değil
+  const ekstre = d.hareketler.filter(t => t.source_file !== "panel");
+  const ekstreSifirla = async () => {
+    if (!await swalConfirm(`Yüklenmiş banka ekstrelerinden gelen ${ekstre.length} hareket (${fmtMoney(sumAmount(ekstre))}) silinecek.\n\nTahsilatlar, giderler, faturalar ve panelden girdiğiniz hiçbir kayıt silinmez. Kasa bakiyeleri bundan sonra yalnızca açılış bakiyesi + panele girdiklerinizden oluşur.\n\nGeri alınamaz. Onaylıyor musunuz?`)) return;
+    const ids = ekstre.map(t => t.id);
+    for (let i = 0; i < ids.length; i += 500) {
+      const r = await supabase.from('bank_transactions').delete().in('id', ids.slice(i, i + 500));
+      if (r.error) { swalAlert("Silinemedi: " + r.error.message); yukle(); return; }
+    }
+    await yukle();
+    swalAlert(`${ids.length} ekstre hareketi silindi. Şimdi her hesabın açılış bakiyesini bugünkü banka bakiyesine, açılış tarihini bugüne çekin.`);
+  };
   return (
-    <Kart baslik="Kasa ve Banka Tanımları" sag={<Btn variant="primary" onClick={() => setForm({ name: "", bank: "", kind: "nakit", owner: "sirket", iban: "", acilis_bakiye: "", acilis_tarihi: todayStr() })}>+ Yeni Kasa / Hesap</Btn>}>
+    <Kart baslik="Kasa ve Banka Tanımları" sag={<>
+      {ekstre.length > 0 && <Btn onClick={ekstreSifirla} style={{ color: T.redText }}>Ekstre kayıtlarını sıfırla ({ekstre.length})</Btn>}
+      <Btn variant="primary" onClick={() => setForm({ name: "", bank: "", kind: "nakit", owner: "sirket", iban: "", acilis_bakiye: "", acilis_tarihi: todayStr() })}>+ Yeni Kasa / Hesap</Btn>
+    </>}>
       <Tablo>
         <thead><tr><th style={th}>Ad</th><th style={th}>Tip</th><th style={th}>Banka</th><th style={th}>Sahibi</th><th style={th}>IBAN</th><th style={sagTh}>Açılış Bakiyesi</th><th style={th}></th></tr></thead>
         <tbody>
