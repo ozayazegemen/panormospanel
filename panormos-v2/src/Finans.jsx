@@ -251,9 +251,20 @@ const dagilim = (rows, alan = "type") => {
 
 // ═══════════════ ÖZET (Apsiyon düzeni) ═══════════════
 export function FinansOzet({ goTab }) {
-  const { d, err, kurulumYok } = useFinVeri();
+  const { d, err, kurulumYok, yukle } = useFinVeri();
   const [yil, setYil] = useState(String(new Date().getFullYear()));
   const [sahip, setSahip] = useState("sirket");
+  const [kaydediliyor, setKaydediliyor] = useState(null);
+  // Kasaya bağlanmamış tahsilatı Özet'ten çıkmadan bağla: ödemeye hesabı yaz, kasa defterine işle, veriyi yenile
+  const tahsilatBagla = async (p, hesapId) => {
+    if (!hesapId) return;
+    setKaydediliyor(p.id);
+    const r = await supabase.from("client_payments").update({ bank_account_id: Number(hesapId) }).eq("id", p.id);
+    if (r.error) { swalAlert("Kaydedilemedi: " + r.error.message); setKaydediliyor(null); return; }
+    const yontem = { havale: "EFT / Havale", nakit: "Nakit", "kredi kartı": "Kredi Kartı", "çek": "Çek" }[p.method] || p.method || "";
+    await kasaDefteriYaz(`odeme:${p.id}`, hesapId, p.payment_date, Number(p.amount), `Tahsilat · ${musteriAdi(d, p.client_id)} · ${yontem}`, { client_payment_id: p.id });
+    await yukle(); setKaydediliyor(null);
+  };
   if (!d) return <Yukleniyor />;
   const bugun = todayStr(), buAy = bugun.slice(0, 7);
   const bas = `${yil}-01-01`, son = `${yil}-12-31`;
@@ -295,8 +306,22 @@ export function FinansOzet({ goTab }) {
       </div>
 
       {bagsiz.length > 0 && <div style={{ background: T.amberDim, color: T.amberText, padding: "12px 16px", borderRadius: 12, fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
-        <b>{bagsiz.length} tahsilat ({fmtMoney(sumAmount(bagsiz))}) hiçbir kasaya bağlı değil</b>, bu yüzden kasada görünmüyor. Tahsilat ve Müşteri Cari'de ödemenin "hangi hesaba geldi" kısmını seçin (nakitse Nakit Kasa).
-        <Btn onClick={() => goTab("finans", "cari")} style={{ display: "inline-flex", marginLeft: 10, padding: "3px 10px", fontSize: 12 }}>Düzelt</Btn>
+        <b>{bagsiz.length} tahsilat ({fmtMoney(sumAmount(bagsiz))}) hiçbir kasaya bağlı değil</b>, bu yüzden kasada görünmüyor. Her satırda paranın geldiği hesabı seçin, anında kasaya işlenir.
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, background: T.bgCard, borderRadius: 10, overflow: "hidden" }}>
+          <tbody>
+            {[...bagsiz].sort((a, b) => String(b.payment_date || "").localeCompare(String(a.payment_date || ""))).map(p => <tr key={p.id} style={{ borderTop: `1px solid ${T.borderLight}` }}>
+              <td style={{ ...td, whiteSpace: "nowrap", color: T.textSecondary }}>{gunTR(p.payment_date)}</td>
+              <td style={{ ...td, color: T.textPrimary, fontWeight: 600 }}>{musteriAdi(d, p.client_id)}<div style={{ fontSize: 11, color: T.textMuted, fontWeight: 400 }}>{{ havale: "EFT / Havale", nakit: "Nakit", "kredi kartı": "Kredi Kartı", "çek": "Çek" }[p.method] || p.method || ""}{p.notes ? " · " + p.notes : ""}</div></td>
+              <td style={{ ...sagTd, color: T.greenText, fontWeight: 700, whiteSpace: "nowrap" }}>{fmtMoney(p.amount)}</td>
+              <td style={{ ...td, width: 220 }}>
+                <select value="" disabled={kaydediliyor === p.id} onChange={e => tahsilatBagla(p, e.target.value)} style={{ width: "100%", background: T.bgCard, color: T.textPrimary, border: `1px solid ${T.borderLight}`, borderRadius: 8, padding: "6px 8px", fontSize: 12 }}>
+                  <option value="">{kaydediliyor === p.id ? "Kaydediliyor..." : "Hangi hesaba geldi?"}</option>
+                  {d.hesaplar.filter(a => a.is_active !== false).map(a => <option key={a.id} value={a.id}>{a.name}{a.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
+                </select>
+              </td>
+            </tr>)}
+          </tbody>
+        </table>
       </div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
