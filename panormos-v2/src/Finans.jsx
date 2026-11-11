@@ -659,6 +659,8 @@ export async function kasaDefteriYaz(anahtar, kasaId, tarih, tutar, aciklama, ek
   await supabase.from('bank_transactions').delete().eq('eslesme', anahtar);
   const id = Number(kasaId), t = Math.round(Number(tutar) * 100) / 100;
   if (!id || !t) return;
+  // Eski banka eşleştirmesi bu tahsilatı bir ekstre satırına bağlamış olabilir; bağı çöz ki aynı ödeme ikinci kez yazılabilsin
+  if (ek.client_payment_id) await supabase.from('bank_transactions').update({ client_payment_id: null }).eq('client_payment_id', ek.client_payment_id);
   const r = await supabase.from('bank_transactions').insert({ account_id: id, tx_date: tarih || todayStr(), description: aciklama, amount: t, category: t < 0 ? "diger" : "gelir", source_file: "panel", eslesme: anahtar, ...ek });
   if (r.error) swalAlert("Kasa hareketi yazılamadı: " + r.error.message);
 }
