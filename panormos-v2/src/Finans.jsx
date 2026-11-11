@@ -1,8 +1,9 @@
 // ═══════════════ MUHASEBE: ÖZET / FİNANS / RAPORLAR / TANIMLAR ═══════════════
 // Apsiyon'un finans düzeni örnek alınarak (27.10.2026) eklenen bölümler. Tablolar: supabase/finans-kurulum.sql
 //  - Kasalar: bank_accounts (banka, kredi kartı, nakit kasa). Bakiye = açılış bakiyesi + bank_transactions.
-//    Banka ve kart hesaplarının hareketleri ekstreden gelir; nakit kasanın hareketlerini panel kendisi yazar
-//    (gider faturası ödemesi, kasa transferi). Böylece hiçbir para iki kez sayılmaz.
+//    11.11.2026'dan itibaren KASA DEFTERİ düzeni: her tahsilat, gider ödemesi, maaş/SGK ödemesi ve transfer,
+//    seçilen hesaba panel tarafından yazılır (kasaDefteriYaz, eslesme anahtarıyla). Ekstre ve banka eşleştirme
+//    kaldırıldı. Açılış tarihinden önceki hareketler sayılmaz (hesap o günkü bakiyeyle başlar).
 //  - Gider faturaları: kapalı (peşin) fatura işlem tarihinde, açık (vadeli) fatura ödeme planı satırı
 //    "ödendi" işaretlenince gider olur (nakit esası). Tahakkuk esasında fatura tarihine yazılır.
 import { useState, useEffect, Fragment } from "react";
@@ -116,12 +117,14 @@ const musteriAdi = (d, id) => d.musteriler.find(c => c.id === id)?.name || "Mü�
 // para yalnızca yer değiştirdiği için gelir-gider sayılmaz. Müşteri tahsilatı, gider faturası ödemesi gibi bağlı
 // hareketler kendi adıyla gösterilir. sahip: "sirket" | "sahsi" | "hepsi"
 const HARIC_KATEGORI = new Set(["kart_odeme", "transfer"]);
+// Hesabın açılış tarihinden önceki hareketler sayılmaz: hesap, açılış günündeki bakiyeyle sıfırdan başlar
+const acilistanSonra = (a, t) => !a?.acilis_tarihi || String(t.tx_date).slice(0, 10) >= String(a.acilis_tarihi).slice(0, 10);
 function kasaHareketleri(d, sahip = "sirket") {
   const hesap = Object.fromEntries(d.hesaplar.map(a => [a.id, a]));
   const odeme = Object.fromEntries(d.odemeler.map(p => [p.id, p]));
   const planFatura = (pid) => d.gFaturalar.find(f => f.id === d.plan.find(p => p.id === pid)?.fatura_id);
   return d.hareketler
-    .filter(t => hesap[t.account_id] && (sahip === "hepsi" || (hesap[t.account_id].owner || "sirket") === sahip) && !HARIC_KATEGORI.has(t.category) && !/^transfer-/.test(t.eslesme || "") && Number(t.amount))
+    .filter(t => hesap[t.account_id] && acilistanSonra(hesap[t.account_id], t) && (sahip === "hepsi" || (hesap[t.account_id].owner || "sirket") === sahip) && !HARIC_KATEGORI.has(t.category) && !/^transfer-/.test(t.eslesme || "") && Number(t.amount))
     .map(t => {
       const a = Number(t.amount);
       let type = bankCatLabel(t.category), grup = type, title = t.description || type;
@@ -154,17 +157,13 @@ function tahakkukHareketleri(d) {
 // Kasa durumu: Devir (dönem öncesi) + Giren − Çıkan = Kalan
 function kasaDurumu(d, bas, son, sahip = "hepsi") {
   return d.hesaplar.filter(a => sahip === "hepsi" || (a.owner || "sirket") === sahip).map(a => {
-    const hs = d.hareketler.filter(t => t.account_id === a.id);
+    const hs = d.hareketler.filter(t => t.account_id === a.id && acilistanSonra(a, t));
     const acilis = Number(a.acilis_bakiye || 0);
     const devir = acilis + sumAmount(hs.filter(t => t.tx_date < bas));
     const donem = hs.filter(t => t.tx_date >= bas && t.tx_date <= son);
     const giren = sumAmount(donem.filter(t => Number(t.amount) > 0));
     const cikan = -sumAmount(donem.filter(t => Number(t.amount) < 0));
-    // Bankadaki gerçek bakiye (ekstreden ya da elle) ile panelin o güne kadarki bakiyesi karşılaştırılır
-    const bankaVar = a.kind !== "nakit" && a.banka_bakiyesi != null && a.banka_bakiye_tarihi;
-    const paneldeki = bankaVar ? acilis + sumAmount(hs.filter(t => t.tx_date <= a.banka_bakiye_tarihi)) : null;
-    const fark = bankaVar ? Math.round((paneldeki - Number(a.banka_bakiyesi)) * 100) / 100 : null;
-    return { hesap: a, devir, giren, cikan, kalan: devir + giren - cikan, bugun: acilis + sumAmount(hs.filter(t => t.tx_date <= todayStr())), fark };
+    return { hesap: a, devir, giren, cikan, kalan: devir + giren - cikan, bugun: acilis + sumAmount(hs.filter(t => t.tx_date <= todayStr())) };
   });
 }
 
@@ -262,7 +261,6 @@ export function FinansOzet({ goTab }) {
   const toplamKasa = { devir: sumAmount(kasalar, "devir"), giren: sumAmount(kasalar, "giren"), cikan: sumAmount(kasalar, "cikan"), kalan: sumAmount(kasalar, "kalan"), bugun: sumAmount(kasalar, "bugun") };
   const hareket = kasaHareketleri(d, sahip).filter(r => r.date >= bas && r.date <= son);
   const gelir = hareket.filter(r => r.kind === "gelir"), gider = hareket.filter(r => r.kind === "gider");
-  const farkli = kasalar.filter(k => k.fark != null && Math.abs(k.fark) >= 0.01);
   // Kasaya bağlanmamış tahsilat: hangi hesaba geldiği seçilmemiş ödeme kasada görünmez
   const bagsiz = d.odemeler.filter(p => !p.bank_account_id);
   // Müşteri cari durumu: aylık borçlandırma (fatura ya da otomatik borç) ve tahsilat
@@ -294,19 +292,15 @@ export function FinansOzet({ goTab }) {
         <Btn variant="primary" onClick={() => goTab("finans", "cari", true)}>+ Tahsilat</Btn>
         <Btn onClick={() => goTab("finans", "gfatura", true)}>+ Gider Faturası</Btn>
         <Btn onClick={() => goTab("finans", "transfer", true)}>+ Kasa Transferi</Btn>
-        <Btn onClick={() => goTab("banka")}>Ekstre Yükle</Btn>
       </div>
 
-      {farkli.length > 0 && <div style={{ background: T.redDim, color: T.redText, padding: "12px 16px", borderRadius: 12, fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
-        <b>Kasa ile banka tutmuyor:</b> {farkli.map(k => `${k.hesap.name} (fark ${fmtMoney(k.fark)})`).join(", ")}. Son ekstreyi yükleyin ve Banka Eşleştirme'de bekleyen hareketleri işleyin; fark kapanınca bu uyarı kalkar.
-      </div>}
       {bagsiz.length > 0 && <div style={{ background: T.amberDim, color: T.amberText, padding: "12px 16px", borderRadius: 12, fontSize: 13, marginBottom: 14, lineHeight: 1.6 }}>
         <b>{bagsiz.length} tahsilat ({fmtMoney(sumAmount(bagsiz))}) hiçbir kasaya bağlı değil</b>, bu yüzden kasada görünmüyor. Tahsilat ve Müşteri Cari'de ödemenin "hangi hesaba geldi" kısmını seçin (nakitse Nakit Kasa).
         <Btn onClick={() => goTab("finans", "cari")} style={{ display: "inline-flex", marginLeft: 10, padding: "3px 10px", fontSize: 12 }}>Düzelt</Btn>
       </div>}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 12, marginBottom: 18 }}>
-        <StatCard label="Kasalarda Bugün" value={fmtMoney(toplamKasa.bugun)} color={T.indigoText || T.textPrimary} sub={farkli.length ? "Banka ile fark var" : "Banka ile tutuyor"} />
+        <StatCard label="Kasalarda Bugün" value={fmtMoney(toplamKasa.bugun)} color={T.indigoText || T.textPrimary} sub="Açılış + giren − çıkan" />
         <StatCard label={`Gelir · ${yil}`} value={fmtMoney(sumAmount(gelir))} color={T.greenText} sub="Kasalara giren" />
         <StatCard label={`Gider · ${yil}`} value={fmtMoney(sumAmount(gider))} color={T.redText} sub="Kasalardan çıkan" />
         <StatCard label={net >= 0 ? "Net Kâr" : "Net Zarar"} value={fmtMoney(net)} color={net >= 0 ? T.greenText : T.redText} sub="Gelir − gider" />
@@ -316,19 +310,17 @@ export function FinansOzet({ goTab }) {
 
       <Kart baslik={`Kasalar · ${gunTR(bas)} – ${gunTR(son)}`} sag={<Btn onClick={() => goTab("tanimlar", "kasa")}>Kasa ve Banka Tanımları</Btn>}>
         <Tablo>
-          <thead><tr><th style={th}>Kasa / Banka</th><th style={sagTh}>Devir</th><th style={sagTh}>Giren</th><th style={sagTh}>Çıkan</th><th style={sagTh}>Kalan</th><th style={sagTh}>Bankadaki Bakiye</th></tr></thead>
+          <thead><tr><th style={th}>Kasa / Banka</th><th style={sagTh}>Devir</th><th style={sagTh}>Giren</th><th style={sagTh}>Çıkan</th><th style={sagTh}>Kalan</th></tr></thead>
           <tbody>
-            <tr style={{ background: T.bgSurface }}><td style={{ ...td, fontWeight: 800 }}>₺ Toplam</td><td style={{ ...sagTd, fontWeight: 700 }}>{fmtMoney(toplamKasa.devir)}</td><td style={{ ...sagTd, color: T.greenText, fontWeight: 700 }}>+ {fmtMoney(toplamKasa.giren)}</td><td style={{ ...sagTd, color: T.redText, fontWeight: 700 }}>− {fmtMoney(toplamKasa.cikan)}</td><td style={{ ...sagTd, fontWeight: 800 }}>= {fmtMoney(toplamKasa.kalan)}</td><td style={sagTd} /></tr>
-            {kasalar.length === 0 && <BosSatir n={6} metin="Henüz kasa ya da banka hesabı yok. Tanımlar > Kasa ve Banka'dan ekleyin." />}
+            <tr style={{ background: T.bgSurface }}><td style={{ ...td, fontWeight: 800 }}>₺ Toplam</td><td style={{ ...sagTd, fontWeight: 700 }}>{fmtMoney(toplamKasa.devir)}</td><td style={{ ...sagTd, color: T.greenText, fontWeight: 700 }}>+ {fmtMoney(toplamKasa.giren)}</td><td style={{ ...sagTd, color: T.redText, fontWeight: 700 }}>− {fmtMoney(toplamKasa.cikan)}</td><td style={{ ...sagTd, fontWeight: 800 }}>= {fmtMoney(toplamKasa.kalan)}</td></tr>
+            {kasalar.length === 0 && <BosSatir n={5} metin="Henüz kasa ya da banka hesabı yok. Tanımlar > Kasa ve Banka'dan ekleyin." />}
             {kasalar.map(k => <tr key={k.hesap.id}>
               <td style={td}>{k.hesap.name}<div style={{ fontSize: 11, color: T.textMuted }}>{KASA_TURLERI[k.hesap.kind] || k.hesap.kind}{k.hesap.owner === "sahsi" ? " · Şahsi" : ""}</div></td>
               <td style={sagTd}>{fmtMoney(k.devir)}</td><td style={{ ...sagTd, color: T.greenText }}>+ {fmtMoney(k.giren)}</td><td style={{ ...sagTd, color: T.redText }}>− {fmtMoney(k.cikan)}</td><td style={{ ...sagTd, fontWeight: 700 }}>= {fmtMoney(k.kalan)}</td>
-              <td style={sagTd}>{k.hesap.kind === "nakit" ? <span style={{ color: T.textMuted }}>—</span> : k.fark == null ? <span style={{ color: T.textMuted, fontSize: 12 }}>ekstre bekleniyor</span>
-                : <>{fmtMoney(k.hesap.banka_bakiyesi)}<div style={{ fontSize: 11, color: Math.abs(k.fark) < 0.01 ? T.greenText : T.redText, fontWeight: 700 }}>{Math.abs(k.fark) < 0.01 ? "✓ tutuyor" : `fark ${fmtMoney(k.fark)}`} · {gunTR(k.hesap.banka_bakiye_tarihi)}</div></>}</td>
             </tr>)}
           </tbody>
         </Tablo>
-        <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 8, lineHeight: 1.55 }}>Kasa bakiyesi = açılış bakiyesi + bütün giriş ve çıkışlar. Bankadaki bakiye son yüklenen ekstreden kendiliğinden alınır (ya da Tanımlar'dan elle girilir); panelin aynı tarihteki bakiyesiyle karşılaştırılır.</div>
+        <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 8, lineHeight: 1.55 }}>Kasa bakiyesi = açılış bakiyesi + panele girdiğiniz bütün tahsilat, ödeme ve transferler. Her tahsilat ve ödemede "hangi hesap" seçtiğiniz sürece bakiyeler bankanızla aynı kalır. Bankadaki gerçek bakiye farklıysa Tanımlar > Kasa ve Banka'dan açılış bakiyesini ve tarihini bugüne çekin.</div>
       </Kart>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(340px,1fr))", gap: 18 }}>
@@ -517,7 +509,7 @@ export function GiderFaturalari({ autoAdd = false }) {
     const yeniPlan = plan.filter(p => !p.odendi).map(p => ({ fatura_id: id, vade: p.vade, tutar: sayi(p.tutar), aciklama: p.aciklama || "" }));
     if (yeniPlan.length) { const e = await supabase.from('fin_odeme_plani').insert(yeniPlan); if (e.error) swalAlert("Ödeme planı kaydedilemedi: " + e.error.message); }
     if (form.odeme_tipi === "kapali") await supabase.from('fin_odeme_plani').delete().eq('fatura_id', id);
-    // Peşin faturanın parası nakit kasadan çıktıysa kasa hareketi yazılır (banka/kart ekstreden gelir)
+    // Peşin faturanın parası seçilen kasadan düşülür (nakit, banka ya da kart)
     await kasaHareketiYaz(d, `fatura:${id}`, form.odeme_tipi === "kapali" ? form.kasa_id : null, form.tarih, -toplam, `Gider faturası · ${cariAdi(d, kayit.cari_id)}${kayit.belge_no ? " · " + kayit.belge_no : ""}`);
     setBusy(false); setForm(null); yukle();
   };
@@ -628,21 +620,24 @@ export function GiderFaturalari({ autoAdd = false }) {
         <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12 }}>{fmtMoney(odeme.plan.tutar)} · vade {gunTR(odeme.plan.vade)}</div>
         <FormField label="Ödeme tarihi"><Input type="date" value={odeme.tarih} onChange={e => setOdeme({ ...odeme, tarih: e.target.value })} /></FormField>
         <FormField label="Hangi kasadan"><Select value={odeme.kasa_id} onChange={e => setOdeme({ ...odeme, kasa_id: e.target.value })}><option value="">Belirtilmedi</option>{d.hesaplar.map(a => <option key={a.id} value={a.id}>{a.name} ({KASA_TURLERI[a.kind] || a.kind})</option>)}</Select></FormField>
-        <div style={{ fontSize: 11.5, color: T.textMuted }}>Banka ya da karttan ödendiyse hareket ekstreyle gelir; Banka Eşleştirme'den bu taksitle eşleştirebilirsiniz.</div>
+        <div style={{ fontSize: 11.5, color: T.textMuted }}>Ödendi işaretlerken hangi hesaptan çıktığını seçin; o hesaptan düşülür.</div>
         <ModalActions onClose={() => setOdeme(null)} onSave={odemeKaydet} />
       </Modal>}
     </div>
   );
 }
 
-// Nakit kasanın hareketini yazar (banka ve kartlar ekstreden geldiği için onlara yazılmaz); anahtar ile eskisi silinir
-async function kasaHareketiYaz(d, anahtar, kasaId, tarih, tutar, aciklama) {
+// KASA DEFTERİ: seçilen hesaba (nakit, banka ya da kart) giriş/çıkış yazar; aynı anahtarla eskisi silinir.
+// Tahsilat (odeme:), gider faturası (fatura:, nakitplan:), diğer gider (harcama:), diğer gelir (gelir:),
+// SGK/vergi/maaş (kayit:) ve transfer (transfer-c:/transfer-g:) hep buradan geçer. Hesap seçilmediyse yazılmaz.
+export async function kasaDefteriYaz(anahtar, kasaId, tarih, tutar, aciklama, ek = {}) {
   await supabase.from('bank_transactions').delete().eq('eslesme', anahtar);
-  const kasa = d.hesaplar.find(a => String(a.id) === String(kasaId));
-  if (!kasa || kasa.kind !== "nakit" || !tutar) return;
-  const r = await supabase.from('bank_transactions').insert({ account_id: kasa.id, tx_date: tarih, description: aciklama, amount: Math.round(tutar * 100) / 100, category: tutar < 0 ? "diger" : "gelir", source_file: "panel", eslesme: anahtar });
+  const id = Number(kasaId), t = Math.round(Number(tutar) * 100) / 100;
+  if (!id || !t) return;
+  const r = await supabase.from('bank_transactions').insert({ account_id: id, tx_date: tarih || todayStr(), description: aciklama, amount: t, category: t < 0 ? "diger" : "gelir", source_file: "panel", eslesme: anahtar, ...ek });
   if (r.error) swalAlert("Kasa hareketi yazılamadı: " + r.error.message);
 }
+async function kasaHareketiYaz(d, anahtar, kasaId, tarih, tutar, aciklama) { return kasaDefteriYaz(anahtar, kasaId, tarih, tutar, aciklama); }
 
 // ═══════════════ TEKRARLANAN GİDERLER ═══════════════
 // Her ayın belirlenen gününde açık gider faturası kendiliğinden oluşur (Muhasebe her açıldığında eksik aylar tamamlanır)
@@ -849,7 +844,7 @@ export function KasaTransfer({ autoAdd = false }) {
     setForm(null); yukle();
   };
   const sil = async (t) => {
-    if (!await swalConfirm("Bu transfer silinsin mi? Nakit kasaya yazılan hareketleri de silinir.")) return;
+    if (!await swalConfirm("Bu transfer silinsin mi? İki kasaya yazılan hareketler de silinir.")) return;
     await supabase.from('fin_transferler').delete().eq('id', t.id);
     await supabase.from('bank_transactions').delete().in('eslesme', [`transfer-c:${t.id}`, `transfer-g:${t.id}`]);
     yukle();
@@ -858,7 +853,7 @@ export function KasaTransfer({ autoAdd = false }) {
     <div>
       <Uyarilar err={err} kurulumYok={kurulumYok} />
       <Kart baslik="Kasa Transferi ve Virman" sag={<Btn variant="primary" disabled={kurulumYok} onClick={() => setForm({ tarih: todayStr(), kaynak_id: "", hedef_id: "", tutar: "", aciklama: "" })}>+ Yeni Transfer</Btn>}>
-        <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 10 }}>Bankadan nakit çekme, kasadaki nakdi bankaya yatırma ya da hesaplar arası para aktarma. Nakit kasanın bakiyesi buradan güncellenir; banka tarafı ekstreyle gelir (çift sayılmaz).</div>
+        <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 10 }}>Bankadan nakit çekme, kasadaki nakdi bankaya yatırma, kredi kartı borcu ödeme ya da hesaplar arası aktarma. Para çıkan kasadan düşer, giren kasaya eklenir; gelir-gider sayılmaz.</div>
         <Tablo>
           <thead><tr><th style={th}>Tarih</th><th style={th}>Kaynak</th><th style={th}>Hedef</th><th style={th}>Açıklama</th><th style={sagTh}>Tutar</th><th style={th}></th></tr></thead>
           <tbody>
@@ -878,102 +873,6 @@ export function KasaTransfer({ autoAdd = false }) {
     </div>
   );
 }
-
-// ═══════════════ BANKA HAREKETİ EŞLEŞTİRME ═══════════════
-// Ekstreden gelen hareketlere öneri: giren para → müşteri tahsilatı, çıkan para → gider faturası taksiti
-export function BankaEslestirme() {
-  const { d, err, kurulumYok, yukle } = useFinVeri();
-  const [gun, setGun] = useState("90");
-  const [busy, setBusy] = useState(null);
-  if (!d) return <Yukleniyor />;
-  const sinir = gunEkle(todayStr(), -Number(gun));
-  const hesap = (id) => d.hesaplar.find(a => a.id === id);
-  const bekleyen = d.hareketler.filter(t => !t.eslesme && t.client_payment_id == null && t.tx_date >= sinir && hesap(t.account_id)?.kind !== "nakit" && !["kart_odeme", "transfer"].includes(t.category))
-    .sort((a, b) => String(b.tx_date).localeCompare(String(a.tx_date)));
-  const durum = musteriDurumlari(d);
-  const adParcalari = (ad) => bankNorm(ad).split(/\s+/).filter(p => p.length >= 3 && !/^(LTD|STI|SAN|TIC|VE|AS|A\.S\.|LIMITED|SIRKETI|EMLAK|GAYRIMENKUL)$/.test(p));
-  const oneriler = (t) => {
-    const a = Number(t.amount), ac = bankNorm(t.description);
-    if (a > 0) {
-      return durum.map(s => {
-        const parca = adParcalari(s.musteri.name); const isim = parca.filter(p => ac.includes(p)).length;
-        const tutarUyar = s.acik.some(i => Math.abs(Number(i.total) - a) < 1) || Math.abs(s.borc - a) < 1 || (s.musteri.monthlyFee && Math.abs(s.musteri.monthlyFee - a) < 1);
-        return { tur: "odeme", s, puan: isim * 3 + (tutarUyar ? 2 : 0) + (s.borc > 0 ? 1 : 0) };
-      }).filter(o => o.puan >= 3).sort((x, y) => y.puan - x.puan).slice(0, 3);
-    }
-    return d.plan.filter(p => !p.odendi).map(p => {
-      const f = d.gFaturalar.find(x => x.id === p.fatura_id); const cari = d.cariler.find(c => c.id === f?.cari_id);
-      const isim = cari ? adParcalari(cari.ad).filter(x => ac.includes(x)).length : 0;
-      const tutarUyar = Math.abs(Number(p.tutar) + a) < 1;
-      return { tur: "plan", p, f, puan: isim * 3 + (tutarUyar ? 3 : 0) };
-    }).filter(o => o.puan >= 3).sort((x, y) => y.puan - x.puan).slice(0, 3);
-  };
-  const tahsilatYaz = async (t, s) => {
-    setBusy(t.id);
-    // Ödeme, borcu olan en eski faturalı aya yazılır; borç yoksa hareketin ayına
-    const h = cariHesapla(s.pay, s.inv); const ay = h.months.find(m => m.debt > 0 && m.m)?.m || String(t.tx_date).slice(0, 7);
-    // Tahsilat ekstredeki hesaba bağlanır; veritabanı (cari_odeme_bankaya) o hesaba bağlı kasa hareketini kendisi yazar.
-    // Ekstredeki satır aynı parayı ikinci kez saymasın diye silinir, açıklaması bağlı harekete taşınır.
-    const r = await supabase.from('client_payments').insert({ client_id: s.musteri.id, amount: Number(t.amount), payment_date: t.tx_date, month_ref: ay, method: "havale", notes: `Banka: ${String(t.description).slice(0, 120)}`, bank_account_id: t.account_id }).select().single();
-    if (r.error) { setBusy(null); swalAlert("Tahsilat kaydedilemedi: " + r.error.message); return; }
-    const { data: bagli } = await supabase.from('bank_transactions').select('id').eq('client_payment_id', r.data.id);
-    if (bagli?.length) {
-      await supabase.from('bank_transactions').update({ description: t.description, tx_date: t.tx_date, eslesme: `odeme:${r.data.id}` }).eq('id', bagli[0].id);
-      await supabase.from('bank_transactions').delete().eq('id', t.id);
-    } else {
-      await supabase.from('bank_transactions').update({ eslesme: `odeme:${r.data.id}`, category: "gelir", client_payment_id: r.data.id }).eq('id', t.id);
-    }
-    setBusy(null); yukle();
-  };
-  const taksitOde = async (t, p) => {
-    setBusy(t.id);
-    const e = await supabase.from('fin_odeme_plani').update({ odendi: true, odeme_tarihi: t.tx_date, kasa_id: t.account_id }).eq('id', p.id);
-    if (e.error) { setBusy(null); swalAlert("Kaydedilemedi: " + e.error.message); return; }
-    await supabase.from('bank_transactions').update({ eslesme: `plan:${p.id}` }).eq('id', t.id);
-    setBusy(null); yukle();
-  };
-  const yoksay = async (t) => { await supabase.from('bank_transactions').update({ eslesme: "yok" }).eq('id', t.id); yukle(); };
-  const eslesen = d.hareketler.filter(t => t.eslesme && t.eslesme !== "yok" && /^(odeme|plan):/.test(t.eslesme) && t.tx_date >= sinir).length;
-  return (
-    <div>
-      <Uyarilar err={err} kurulumYok={kurulumYok} />
-      <Kart baslik={`Banka Hareketleri · eşleşmeyi bekleyen ${bekleyen.length}`} sag={<>
-        <span style={{ fontSize: 12, color: T.textMuted }}>{eslesen} eşleşmiş</span>
-        <div style={{ width: 150 }}><Select value={gun} onChange={e => setGun(e.target.value)}><option value="30">Son 30 gün</option><option value="90">Son 90 gün</option><option value="365">Son 1 yıl</option></Select></div>
-      </>}>
-        <div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 12 }}>Yüklediğiniz ekstrelerdeki hareketler. Giren para için müşteri, çıkan para için ödenmemiş gider faturası önerilir; tek tıkla tahsilat ya da ödeme olarak işlenir. Ekstre "Banka ve Ekstre" sekmesinden yüklenir.</div>
-        {bekleyen.length === 0 && <div style={{ textAlign: "center", color: T.textMuted, padding: 24, fontSize: 13 }}>Eşleşmeyi bekleyen hareket yok.</div>}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {bekleyen.slice(0, 60).map(t => {
-            const o = kurulumYok && Number(t.amount) < 0 ? [] : oneriler(t);
-            return <div key={t.id} style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: "12px 14px", background: T.bgSurface }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 220 }}>
-                  <div style={{ fontSize: 11.5, color: T.textMuted }}>{gunTR(t.tx_date)} · {kasaAdi(d, t.account_id)} · {bankCatLabel(t.category)}</div>
-                  <div style={{ fontSize: 13, color: T.textPrimary, marginTop: 2 }}>{t.description || "—"}</div>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: Number(t.amount) > 0 ? T.greenText : T.redText, whiteSpace: "nowrap" }}>{Number(t.amount) > 0 ? "+" : "−"}{fmtMoney(Math.abs(Number(t.amount)))}</div>
-                <Btn onClick={() => yoksay(t)} title="Bu hareket bir kayıtla eşleşmeyecek" disabled={kurulumYok} style={{ padding: "4px 9px", fontSize: 11.5 }}>Eşleşmesin</Btn>
-              </div>
-              {o.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-                <span style={{ fontSize: 11.5, color: T.textMuted, alignSelf: "center" }}>Öneri:</span>
-                {o.map(x => x.tur === "odeme"
-                  ? <Btn key={"o" + x.s.musteri.id} disabled={busy === t.id || kurulumYok} onClick={() => tahsilatYaz(t, x.s)} style={{ background: T.greenDim, color: T.greenText, fontSize: 12 }}>Tahsilat · {x.s.musteri.name}{x.s.borc > 0 ? ` (borç ${fmtMoney(x.s.borc)})` : ""}</Btn>
-                  : <Btn key={"p" + x.p.id} disabled={busy === t.id} onClick={() => taksitOde(t, x.p)} style={{ background: T.redDim, color: T.redText, fontSize: 12 }}>Ödeme · {x.f ? cariAdi(d, x.f.cari_id) : "Fatura"} · vade {gunTR(x.p.vade)} · {fmtMoney(x.p.tutar)}</Btn>)}
-              </div>}
-            </div>;
-          })}
-        </div>
-        {bekleyen.length > 60 && <div style={{ fontSize: 12, color: T.textMuted, marginTop: 10 }}>İlk 60 hareket gösteriliyor; eşleştirdikçe sıradakiler gelir.</div>}
-      </Kart>
-    </div>
-  );
-}
-
-// ═══════════════ RAPORLAR ═══════════════
-const raporPdf = (baslik, alt, govde, dosya) => downloadPdfFromHTML(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(baslik)}</title><style>${PRINT_STYLES} td.r, th.r { text-align:right; white-space:nowrap; } tr.toplam td { font-weight:800; background:#EEF1F5 !important; border-top:2px solid #1A2B3F; } table { page-break-inside:auto; } tr { page-break-inside:avoid; } h2.g { font-size:13px; margin-top:16px; }</style></head><body>
-  <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><h1>${esc(baslik)}</h1><div class="sub">${esc(alt)} · Rapor tarihi: ${gunTR(todayStr())}</div></div>
-  ${govde}${footerHTML("Panormos Medya", "Bu rapor panel kayıtlarından otomatik oluşturulmuştur.")}</body></html>`, dosya);
 
 function GelirGiderRaporu({ d }) {
   const yilBasi = `${new Date().getFullYear()}-01-01`;
@@ -1143,14 +1042,12 @@ function KasaTanimlari({ d, yukle }) {
   const kaydet = async () => {
     if (!form.name?.trim()) { swalAlert("Ad zorunlu."); return; }
     const kayit = { name: form.name.trim(), bank: form.bank || "", kind: form.kind || "banka", owner: form.owner || "sirket", iban: form.iban || "", note: form.note || "", acilis_bakiye: sayi(form.acilis_bakiye), acilis_tarihi: form.acilis_tarihi || null };
-    // Bankadaki güncel bakiye elle girildiyse (ekstre yüklenince kendiliğinden de güncellenir)
-    if (String(form.banka_bakiyesi ?? "").trim() !== "") { kayit.banka_bakiyesi = sayi(form.banka_bakiyesi); kayit.banka_bakiye_tarihi = form.banka_bakiye_tarihi || todayStr(); }
     const r = form.id ? await supabase.from('bank_accounts').update(kayit).eq('id', form.id) : await supabase.from('bank_accounts').insert(kayit);
     if (r.error) { swalAlert("Kaydedilemedi: " + r.error.message + (/acilis|kind/.test(r.error.message) ? "\n\nfinans-kurulum.sql çalıştırılmalı." : "")); return; }
     setForm(null); yukle();
   };
   return (
-    <Kart baslik="Kasa ve Banka Tanımları" sag={<Btn variant="primary" onClick={() => setForm({ name: "", bank: "", kind: "nakit", owner: "sirket", iban: "", acilis_bakiye: "", acilis_tarihi: "" })}>+ Yeni Kasa / Hesap</Btn>}>
+    <Kart baslik="Kasa ve Banka Tanımları" sag={<Btn variant="primary" onClick={() => setForm({ name: "", bank: "", kind: "nakit", owner: "sirket", iban: "", acilis_bakiye: "", acilis_tarihi: todayStr() })}>+ Yeni Kasa / Hesap</Btn>}>
       <Tablo>
         <thead><tr><th style={th}>Ad</th><th style={th}>Tip</th><th style={th}>Banka</th><th style={th}>Sahibi</th><th style={th}>IBAN</th><th style={sagTh}>Açılış Bakiyesi</th><th style={th}></th></tr></thead>
         <tbody>
@@ -1158,7 +1055,7 @@ function KasaTanimlari({ d, yukle }) {
           {d.hesaplar.map(a => <tr key={a.id}><td style={{ ...td, fontWeight: 600 }}>{a.name}</td><td style={td}>{KASA_TURLERI[a.kind] || a.kind}</td><td style={td}>{a.bank || "—"}</td><td style={td}>{a.owner === "sahsi" ? "Şahsi" : "Şirket"}</td><td style={{ ...td, fontSize: 12 }}>{a.iban || "—"}</td><td style={sagTd}>{fmtMoney(a.acilis_bakiye || 0)}{a.acilis_tarihi ? <div style={{ fontSize: 11, color: T.textMuted }}>{gunTR(a.acilis_tarihi)}</div> : ""}</td><td style={td}><Btn onClick={() => setForm({ ...a, acilis_bakiye: String(a.acilis_bakiye || ""), acilis_tarihi: a.acilis_tarihi || "", banka_bakiyesi: a.banka_bakiyesi == null ? "" : String(a.banka_bakiyesi), banka_bakiye_tarihi: a.banka_bakiye_tarihi || "" })} style={{ padding: "4px 9px", fontSize: 11.5 }}>Düzenle</Btn></td></tr>)}
         </tbody>
       </Tablo>
-      <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 8 }}>Hesap silme ve ekstre yükleme "Banka ve Ekstre" sekmesinde. Açılış bakiyesi: hesabın panele ilk ekstreden önceki bakiyesi (nakit kasada kasadaki para).</div>
+      <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 8, lineHeight: 1.55 }}>Açılış bakiyesi: hesabın açılış tarihindeki gerçek bakiyesi (bankadaki para, kasadaki nakit; kredi kartında borç eksi yazılır). Açılış tarihinden önceki hareketler sayılmaz; bakiye bankayla tutmuyorsa bugünkü bakiyeyi ve bugünün tarihini yazın, hesap o günden temiz başlar.</div>
       {form && <Modal title={form.id ? "Kasa / Hesap Düzenle" : "Yeni Kasa / Hesap"} onClose={() => setForm(null)} width={520}>
         <FormField label="Ad *"><Input placeholder="Ör: Ofis Kasası" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></FormField>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
@@ -1166,10 +1063,8 @@ function KasaTanimlari({ d, yukle }) {
           <FormField label="Sahibi"><Select value={form.owner} onChange={e => setForm({ ...form, owner: e.target.value })}><option value="sirket">Şirket</option><option value="sahsi">Şahsi</option></Select></FormField>
           <FormField label="Banka"><Input value={form.bank || ""} onChange={e => setForm({ ...form, bank: e.target.value })} /></FormField>
           <FormField label="IBAN"><Input value={form.iban || ""} onChange={e => setForm({ ...form, iban: e.target.value })} /></FormField>
-          <FormField label="Açılış bakiyesi (₺)"><Input value={form.acilis_bakiye} onChange={e => setForm({ ...form, acilis_bakiye: e.target.value })} /></FormField>
+          <FormField label="Açılış bakiyesi (₺)"><Input placeholder={form.kind === "kredi_karti" ? "Borç varsa eksi: -12500" : "Örn: 48.350,00"} value={form.acilis_bakiye} onChange={e => setForm({ ...form, acilis_bakiye: e.target.value })} /></FormField>
           <FormField label="Açılış tarihi"><Input type="date" value={form.acilis_tarihi} onChange={e => setForm({ ...form, acilis_tarihi: e.target.value })} /></FormField>
-          {form.kind !== "nakit" && <FormField label="Bankadaki güncel bakiye (₺)"><Input placeholder="Ekstreden otomatik gelir" value={form.banka_bakiyesi ?? ""} onChange={e => setForm({ ...form, banka_bakiyesi: e.target.value })} /></FormField>}
-          {form.kind !== "nakit" && <FormField label="Bu bakiyenin tarihi"><Input type="date" value={form.banka_bakiye_tarihi || ""} onChange={e => setForm({ ...form, banka_bakiye_tarihi: e.target.value })} /></FormField>}
         </div>
         <ModalActions onClose={() => setForm(null)} onSave={kaydet} />
       </Modal>}

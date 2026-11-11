@@ -5,7 +5,7 @@ import PlanlayiciPage, { InstagramIstatistik, GorselStudyosu } from "./Planlayic
 import ReklamlarPage from "./Reklamlar.jsx";
 import { QrMusteriGiris, QrMusteriPanelSayfa, QrMusteriKayit } from "./QrMusteri.jsx";
 import EmlakSms from "./EmlakSms.jsx";
-import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, BankaEslestirme, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur, OtomatikBorclandirma, borclandirmalariOlustur } from "./Finans.jsx";
+import { FinansOzet, FinansDurum, GiderFaturalari, Tekrarlananlar, KasaTransfer, kasaDefteriYaz, FinansRaporlar, FinansTanimlar, tekrarlananlariOlustur, OtomatikBorclandirma, borclandirmalariOlustur } from "./Finans.jsx";
 import { useState, useRef, useEffect, useMemo, Fragment } from "react";
 import { supabase, LOGIN_DAY_STORE, loginDayKey } from "./supabaseClient";
 import Login from "./Login";
@@ -9578,8 +9578,7 @@ function AgreementDatesModal({ clients, onClose }) {
 // Yeni bölümler Finans.jsx'te; eski sekmeler (cari, giderler, gelirler, SGK, banka, izin, takvim, belgeler) aynen kullanılır.
 const MUHASEBE_GRUPLARI = [
   { id: "ozet", lbl: "📊 Özet" },
-  { id: "finans", lbl: "💼 Finans", alt: [["durum", "Müşterilere Göre Durum"], ["borc", "Otomatik Borçlandırma"], ["cari", "Tahsilat ve Müşteri Cari"], ["gfatura", "Gider Faturaları"], ["harcamalar", "Diğer Giderler"], ["gelirler", "Diğer Gelirler"], ["giderler", "SGK / Vergi / Maaş"], ["tekrar", "Tekrarlanan Giderler"], ["transfer", "Kasa Transferi"], ["eslestir", "Banka Eşleştirme"], ["hareketler", "Tüm Hareketler"]] },
-  { id: "banka", lbl: "🏦 Banka ve Ekstre" },
+  { id: "finans", lbl: "💼 Finans", alt: [["durum", "Müşterilere Göre Durum"], ["borc", "Otomatik Borçlandırma"], ["cari", "Tahsilat ve Müşteri Cari"], ["gfatura", "Gider Faturaları"], ["harcamalar", "Diğer Giderler"], ["gelirler", "Diğer Gelirler"], ["giderler", "SGK / Vergi / Maaş"], ["tekrar", "Tekrarlanan Giderler"], ["transfer", "Kasa Transferi"], ["hareketler", "Tüm Hareketler"]] },
   { id: "raporlar", lbl: "📈 Raporlar" },
   { id: "tanimlar", lbl: "🗂️ Tanımlar", alt: [["kasa", "Kasa ve Banka"], ["cari", "Tedarikçiler"], ["kalem", "Gelir / Gider Kalemleri"]] },
   { id: "personel", lbl: "👥 Personel", alt: [["izin", "Personel İzinleri"], ["takvim", "Ödeme Takvimi"]] },
@@ -9644,7 +9643,6 @@ function AccountingPage({ clients, staff, perms }) {
         {alt === "giderler" && <AccountingExpenses staff={staff} autoAdd={ekle("giderler")} />}
         {alt === "tekrar" && <Tekrarlananlar />}
         {alt === "transfer" && <KasaTransfer autoAdd={ekle("transfer")} />}
-        {alt === "eslestir" && <BankaEslestirme />}
         {alt === "hareketler" && <AccountingOverview clients={clients} goTab={eskiGoTab} />}
       </>}
       {grup === "banka" && <AccountingBank staff={staff} />}
@@ -10711,13 +10709,13 @@ function useBankMovements() {
     const { data: accounts } = await supabase.from('bank_accounts').select('*');
     const txs = [];
     for (let from = 0; ; from += 1000) {
-      const { data, error } = await supabase.from('bank_transactions').select('id,account_id,tx_date,description,amount,category').order('tx_date', { ascending: false }).order('id', { ascending: false }).range(from, from + 999);
+      const { data, error } = await supabase.from('bank_transactions').select('id,account_id,tx_date,description,amount,category,source_file').order('tx_date', { ascending: false }).order('id', { ascending: false }).range(from, from + 999);
       if (error || !data) break;
       txs.push(...data);
       if (data.length < 1000) break;
     }
     const acc = Object.fromEntries((accounts || []).map(a => [a.id, a]));
-    setVeri({ accounts: accounts || [], txs: txs.filter(t => !bankCat(t.category).excluded).map(t => ({ ...t, hesap: acc[t.account_id]?.name || "Hesap", owner: acc[t.account_id]?.owner === "sahsi" ? "sahsi" : "sirket" })) });
+    setVeri({ accounts: accounts || [], txs: txs.filter(t => t.source_file !== "panel" && !bankCat(t.category).excluded).map(t => ({ ...t, hesap: acc[t.account_id]?.name || "Hesap", owner: acc[t.account_id]?.owner === "sahsi" ? "sahsi" : "sirket" })) });
   })(); }, []);
   return veri;
 }
@@ -10780,7 +10778,7 @@ function AccountingSpending({ autoAdd = false }) {
   };
   useEffect(() => { load(); }, []);
   // Özet'ten "+ Gider" ile gelindiyse ekleme penceresini aç
-  useEffect(() => { if (autoAdd) { setForm({ category: "yakit", expense_date: todayStr() }); setFile(null); setModal(true); } }, []);
+  useEffect(() => { if (autoAdd) { setForm({ category: "yakit", expense_date: todayStr(), kasa_id: "" }); setFile(null); setModal(true); } }, []);
 
   const save = async () => {
     if (uploading) return;
@@ -10798,11 +10796,13 @@ function AccountingSpending({ autoAdd = false }) {
     };
     // Düzenlemede yeni belge seçilmediyse eski belge korunur
     if (doc || !form.id) { row.document_url = doc?.url || ""; row.document_name = doc?.name || ""; }
-    const { error } = form.id
-      ? await supabase.from('company_expenses').update(row).eq('id', form.id)
-      : await supabase.from('company_expenses').insert(row);
+    const { data: kayit, error } = form.id
+      ? await supabase.from('company_expenses').update(row).eq('id', form.id).select('id').single()
+      : await supabase.from('company_expenses').insert(row).select('id').single();
     setUploading(false);
     if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    // Kasa defteri: gider seçilen hesaptan düşülür
+    await kasaDefteriYaz(`harcama:${kayit.id}`, form.kasa_id, row.expense_date, -row.amount, `${catLabel(row.category)} · ${row.title || row.vendor || ""}`.replace(/ · $/, ""));
     // Yeni kayıt, seçili dönem ya da kategori süzgeci yüzünden listede gizli kalmasın
     setPeriod(pr => (pr === "all" || pr === row.expense_date.slice(0, 7) ? pr : "all"));
     setFilterCat(fc => (fc === "all" || fc === row.category ? fc : "all"));
@@ -10810,7 +10810,12 @@ function AccountingSpending({ autoAdd = false }) {
     load();
   };
 
-  const del = async (id) => { if (!await swalConfirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); load(); };
+  const del = async (id) => { if (!await swalConfirm("Bu gider silinsin mi?")) return; await supabase.from('company_expenses').delete().eq('id', id); await supabase.from('bank_transactions').delete().eq('eslesme', `harcama:${id}`); load(); };
+  // Düzenlerken kaydın daha önce hangi hesaptan ödendiği bulunur
+  const duzenle = async (i) => {
+    const { data } = await supabase.from('bank_transactions').select('account_id').eq('eslesme', `harcama:${i.id}`).maybeSingle();
+    setForm({ ...i, kasa_id: data?.account_id ? String(data.account_id) : "" }); setFile(null); setModal(true);
+  };
 
   const now = new Date();
   // Elle girilen giderler şirketindir; ekstre giderleri hesabın sahibine göre şirket ya da şahsi
@@ -10895,7 +10900,7 @@ function AccountingSpending({ autoAdd = false }) {
                 <OwnerPill owner="sirket" />
                 {i.document_url && <a {...storedFileLink(i.document_url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.amberText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
-                <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
+                <button onClick={() => duzenle(i)} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
@@ -10913,6 +10918,13 @@ function AccountingSpending({ autoAdd = false }) {
           <FormField label="Açıklama"><Input placeholder="Örn: Benzin - Shell" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
           <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
           <FormField label="Tarih"><Input type="date" value={form.expense_date || ""} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))} /></FormField>
+          <FormField label="Hangi hesaptan ödendi?">
+            <Select value={form.kasa_id || ""} onChange={e => setForm(f => ({ ...f, kasa_id: e.target.value }))}>
+              <option value="">Hiçbir kasadan düşülmesin</option>
+              {banka.accounts.map(a => <option key={a.id} value={a.id}>{a.name}{a.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
+            </Select>
+            <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>Nakit, banka ya da kredi kartı; seçilen hesabın bakiyesinden düşer.</div>
+          </FormField>
           <FormField label="📄 Belge (PDF/Görsel — fatura, fiş vb.)">
             <input type="file" accept=".pdf,image/*" onChange={e => setFile(e.target.files[0])} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
             {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
@@ -10968,16 +10980,22 @@ function AccountingIncome({ autoAdd = false }) {
     };
     // Düzenlemede yeni belge seçilmediyse eski belge korunur
     if (doc || !form.id) { row.document_url = doc?.url || ""; row.document_name = doc?.name || ""; }
-    const { error } = form.id
-      ? await supabase.from('company_incomes').update(row).eq('id', form.id)
-      : await supabase.from('company_incomes').insert(row);
+    const { data: kayit, error } = form.id
+      ? await supabase.from('company_incomes').update(row).eq('id', form.id).select('id').single()
+      : await supabase.from('company_incomes').insert(row).select('id').single();
     setUploading(false);
     if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    // Kasa defteri: gelir seçilen hesaba eklenir
+    await kasaDefteriYaz(`gelir:${kayit.id}`, form.kasa_id, row.income_date, row.amount, `Diğer gelir · ${row.source || row.title || ""}`.replace(/ · $/, ""));
     setModal(false); setForm({}); setFile(null);
     load();
   };
 
-  const del = async (id) => { if (!await swalConfirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); load(); };
+  const del = async (id) => { if (!await swalConfirm("Bu gelir silinsin mi?")) return; await supabase.from('company_incomes').delete().eq('id', id); await supabase.from('bank_transactions').delete().eq('eslesme', `gelir:${id}`); load(); };
+  const duzenle = async (i) => {
+    const { data } = await supabase.from('bank_transactions').select('account_id').eq('eslesme', `gelir:${i.id}`).maybeSingle();
+    setForm({ ...i, kasa_id: data?.account_id ? String(data.account_id) : "" }); setFile(null); setModal(true);
+  };
 
   const now = new Date();
   // Elle girilen gelirler şirketindir; ekstreye giren para hesabın sahibine göre şirket ya da şahsi
@@ -11043,7 +11061,7 @@ function AccountingIncome({ autoAdd = false }) {
                 <OwnerPill owner="sirket" />
                 {i.document_url && <a {...storedFileLink(i.document_url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, background: T.indigoDim, color: T.indigoText, textDecoration: "none" }}>📄 Belge</a>}
                 <div style={{ fontSize: 15, fontWeight: 700, color: T.greenText, whiteSpace: "nowrap" }}>{fmtMoney(Number(i.amount))}</div>
-                <button onClick={() => { setForm({ ...i }); setFile(null); setModal(true); }} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
+                <button onClick={() => duzenle(i)} title="Düzenle" style={{ background: "none", border: "none", color: T.textSecondary, cursor: "pointer", fontSize: 14 }}>✎</button>
                 <button onClick={() => del(i.id)} style={{ background: "none", border: "none", color: T.redText, cursor: "pointer", fontSize: 14 }}>✕</button>
               </div>
             ))}
@@ -11057,6 +11075,12 @@ function AccountingIncome({ autoAdd = false }) {
           <FormField label="Açıklama"><Input placeholder="Detay" value={form.title || ""} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} /></FormField>
           <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
           <FormField label="Tarih"><Input type="date" value={form.income_date || ""} onChange={e => setForm(f => ({ ...f, income_date: e.target.value }))} /></FormField>
+          <FormField label="Hangi hesaba girdi?">
+            <Select value={form.kasa_id || ""} onChange={e => setForm(f => ({ ...f, kasa_id: e.target.value }))}>
+              <option value="">Hiçbir kasaya işlenmesin</option>
+              {banka.accounts.map(a => <option key={a.id} value={a.id}>{a.name}{a.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
+            </Select>
+          </FormField>
           <FormField label="📄 Belge (PDF/Görsel — dekont, fatura vb.)">
             <input type="file" accept=".pdf,image/*" onChange={e => setFile(e.target.files[0])} style={{ width: "100%", fontSize: 12, color: T.textSecondary, padding: "8px", background: T.bgInput, border: `1px solid ${T.border}`, borderRadius: 8 }} />
             {file && <div style={{ fontSize: 11, color: T.greenText, marginTop: 4 }}>✓ {file.name}</div>}
@@ -11225,7 +11249,7 @@ function AccountingCari({ clients, autoAdd = false }) {
     if (saving) return;
     if (!form.client_id || !form.amount) { swalAlert("Müşteri ve tutar zorunlu"); return; }
     setSaving(true);
-    const { error } = await supabase.from('client_payments').insert({
+    const yeni = {
       client_id: form.client_id,
       amount: parseFloat(form.amount) || 0,
       payment_date: form.payment_date || todayStr(),
@@ -11233,9 +11257,12 @@ function AccountingCari({ clients, autoAdd = false }) {
       method: form.method || "havale",
       notes: form.notes || "",
       bank_account_id: form.bank_account_id ? Number(form.bank_account_id) : null,
-    });
+    };
+    const { data: kayit, error } = await supabase.from('client_payments').insert(yeni).select('id').single();
     setSaving(false);
     if (error) { swalAlert("Ödeme kaydedilemedi: " + error.message); return; }
+    // Kasa defteri: tahsilat seçilen hesaba giriş olarak yazılır
+    await kasaDefteriYaz(`odeme:${kayit.id}`, yeni.bank_account_id, yeni.payment_date, yeni.amount, `Tahsilat · ${musteriAdiBul(yeni.client_id)} · ${YONTEM_AD[yeni.method] || yeni.method}`, { client_payment_id: kayit.id });
     try { localStorage.setItem("cari_banka_hesabi", form.bank_account_id ? String(form.bank_account_id) : "yok"); } catch (e) { /* önemli değil */ }
     // Kaydedilen ödeme hemen görünsün diye müşterinin kartı açılır
     setExpanded(mergedClients.find(c => String(c.id) === String(form.client_id))?.id ?? form.client_id);
@@ -11243,10 +11270,13 @@ function AccountingCari({ clients, autoAdd = false }) {
     load();
   };
 
-  // Eski ödemenin hangi hesaba geldiği sonradan da seçilebilir; banka hareketi kendiliğinden eklenir / taşınır / silinir
+  const YONTEM_AD = { "havale": "EFT / Havale", "nakit": "Nakit", "kredi kartı": "Kredi Kartı", "çek": "Çek" };
+  const musteriAdiBul = (id) => allClientsRaw.find(c => String(c.id) === String(id))?.name || clients.find(c => String(c.id) === String(id))?.name || "";
+  // Eski ödemenin hangi hesaba geldiği sonradan da seçilebilir; kasa defterindeki hareket taşınır / silinir
   const bankaDegistir = async (p, hesapId) => {
     const { error } = await supabase.from('client_payments').update({ bank_account_id: hesapId ? Number(hesapId) : null }).eq('id', p.id);
     if (error) { swalAlert("Banka hesabı kaydedilemedi: " + error.message); return; }
+    await kasaDefteriYaz(`odeme:${p.id}`, hesapId, p.payment_date, Number(p.amount), `Tahsilat · ${musteriAdiBul(p.client_id)} · ${YONTEM_AD[p.method] || p.method || ""}`, { client_payment_id: p.id });
     load();
   };
 
@@ -11255,6 +11285,7 @@ function AccountingCari({ clients, autoAdd = false }) {
     if (!ids.length) return;
     const { error } = await supabase.from('client_payments').delete().in('id', ids);
     if (error) { swalAlert("Ödeme silinemedi: " + error.message); return; }
+    await supabase.from('bank_transactions').delete().in('eslesme', ids.map(i => `odeme:${i}`));
     await supabase.from('client_invoices').update({ status: "pending", paid_at: null, payment_id: null }).in('payment_id', ids);
     load();
   };
@@ -11472,19 +11503,19 @@ function AccountingCari({ clients, autoAdd = false }) {
           </FormField>
           <FormField label="Ödeme Tarihi"><Input type="date" value={form.payment_date || ""} onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))} /></FormField>
           <FormField label="Ödeme Yöntemi">
-            <Select value={form.method || "havale"} onChange={e => { const m = e.target.value; setForm(f => ({ ...f, method: m, bank_account_id: m === "nakit" ? "" : (f.bank_account_id || varsayilanBanka()) })); }}>
-              <option value="havale">Havale / EFT</option>
+            <Select value={form.method || "havale"} onChange={e => { const m = e.target.value; const nakit = bankalar.find(b => b.kind === "nakit"); setForm(f => ({ ...f, method: m, bank_account_id: m === "nakit" ? (nakit ? String(nakit.id) : "") : (f.bank_account_id || varsayilanBanka()) })); }}>
               <option value="nakit">Nakit</option>
               <option value="kredi kartı">Kredi Kartı</option>
+              <option value="havale">EFT / Havale</option>
               <option value="çek">Çek</option>
             </Select>
           </FormField>
           <FormField label="Hangi hesaba geldi?">
             <Select value={form.bank_account_id || ""} onChange={e => setForm(f => ({ ...f, bank_account_id: e.target.value }))}>
-              <option value="">Bankaya işlenmesin (nakit vb.)</option>
+              <option value="">Hiçbir kasaya işlenmesin</option>
               {bankalar.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </Select>
-            {form.bank_account_id && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>Ödeme kaydedilince {bankaAdi(form.bank_account_id)} hesabına giriş olarak da işlenir. Bu hesabın ekstresini yüklediğinizde aynı tahsilat ikinci kez eklenmez.</div>}
+            {form.bank_account_id && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>Ödeme kaydedilince {bankaAdi(form.bank_account_id)} hesabına giriş olarak işlenir; Özet'teki kasa bakiyesi o anda güncellenir.</div>}
           </FormField>
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => setModal(false)} onSave={savePayment} saveLabel={saving ? "Kaydediliyor..." : "Kaydet"} />
@@ -11520,6 +11551,10 @@ function AccountingExpenses({ staff, autoAdd = false }) {
   // Çalışanın ödeme günü; kendi günü girilmemişse (varsa) eski ortak gün
   const payDayOf = (staffId) => staffDays[staffId] === "yok" ? 0 : (parseInt(staffDays[staffId]) || parseInt(payDay.gun) || 0);
   const [tasima, setTasima] = useState(null);   // ayı değiştirilen avans: { e, ay }
+  const [hesaplar, setHesaplar] = useState([]);  // kasa defteri için hesaplar
+  const [odemeSec, setOdemeSec] = useState(null); // ödendi işaretlenen kayıt: { entry, kasa_id, tarih }
+  useEffect(() => { supabase.from('bank_accounts').select('id,name,kind,owner').order('id').then(({ data }) => setHesaplar(data || [])); }, []);
+  const kayitBasligi = (e) => `${{ sgk: "SGK", tax: "Vergi", salary: "Maaş" }[e.entry_type] || "Gider"} · ${e.title || ""}${e.month_ref ? " · " + monthRefLabel(e.month_ref) : ""}`;
 
   const load = async () => {
     const { data, error } = await supabase.from('accounting_entries').select('*').order('due_date', { ascending: false });
@@ -11584,8 +11619,10 @@ function AccountingExpenses({ staff, autoAdd = false }) {
     } else {
       kayit = { entry_type: form.entry_type, title: form.title, amount: tutar, due_date: form.due_date || null, month_ref: month, staff_id: null, is_paid: false, notes: form.notes || "" };
     }
-    const { error } = await supabase.from('accounting_entries').insert(kayit);
+    const { data: eklenen, error } = await supabase.from('accounting_entries').insert(kayit).select('id').single();
     if (error) { swalAlert("Kaydedilemedi: " + error.message); return; }
+    // Avans anında ödenmiştir: seçilen kasadan düşülür
+    if (form.entry_type === "advance") await kasaDefteriYaz(`kayit:${eklenen.id}`, form.kasa_id, kayit.paid_date, -tutar, kayitBasligi(kayit));
     if (form.entry_type === "advance") {
       const maas = unpaidSalaryOf(form.staff_id, month);
       if (maas) {
@@ -11602,9 +11639,18 @@ function AccountingExpenses({ staff, autoAdd = false }) {
     load();
   };
 
+  // Ödendi işaretlenirken hangi hesaptan çıktığı sorulur; geri alınınca kasa hareketi silinir
   const togglePaid = async (entry) => {
-    await supabase.from('accounting_entries').update({ is_paid: !entry.is_paid, paid_date: !entry.is_paid ? todayStr() : null }).eq('id', entry.id);
+    if (!entry.is_paid) { setOdemeSec({ entry, kasa_id: hesaplar.find(h => h.kind === "banka" && h.owner !== "sahsi")?.id || "", tarih: todayStr() }); return; }
+    await supabase.from('accounting_entries').update({ is_paid: false, paid_date: null }).eq('id', entry.id);
+    await supabase.from('bank_transactions').delete().eq('eslesme', `kayit:${entry.id}`);
     load();
+  };
+  const odemeyiKaydet = async () => {
+    const { entry, kasa_id, tarih } = odemeSec;
+    await supabase.from('accounting_entries').update({ is_paid: true, paid_date: tarih || todayStr() }).eq('id', entry.id);
+    await kasaDefteriYaz(`kayit:${entry.id}`, kasa_id, tarih || todayStr(), -Number(entry.amount || 0), kayitBasligi(entry));
+    setOdemeSec(null); load();
   };
   const deleteEntry = async (id) => {
     const e = entries.find(x => x.id === id);
@@ -11612,6 +11658,7 @@ function AccountingExpenses({ staff, autoAdd = false }) {
     const maas = e && isAdvanceEntry(e) ? unpaidSalaryOf(e.staff_id, e.month_ref) : null;
     if (!await swalConfirm(maas ? "Bu avans kaydı silinsin mi?\n\nTutarı, aynı ayın bekleyen maaşına geri eklenecek." : "Bu kayıt silinsin mi?")) return;
     await supabase.from('accounting_entries').delete().eq('id', id);
+    await supabase.from('bank_transactions').delete().eq('eslesme', `kayit:${id}`);
     if (maas) await supabase.from('accounting_entries').update({ amount: Number(maas.amount || 0) + Number(e.amount || 0), notes: [maas.notes || "", `silinen avans ${fmtMoney(Number(e.amount || 0))} geri eklendi`].filter(Boolean).join(" · ") }).eq('id', maas.id);
     load();
   };
@@ -11728,6 +11775,19 @@ function AccountingExpenses({ staff, autoAdd = false }) {
             </div>
           )}
 
+      {odemeSec && (
+        <Modal title="Ödendi olarak işaretle" onClose={() => setOdemeSec(null)}>
+          <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12 }}>{kayitBasligi(odemeSec.entry)} · <b>{fmtMoney(Number(odemeSec.entry.amount || 0))}</b></div>
+          <FormField label="Ödeme tarihi"><Input type="date" value={odemeSec.tarih} onChange={e => setOdemeSec(o => ({ ...o, tarih: e.target.value }))} /></FormField>
+          <FormField label="Hangi hesaptan ödendi?">
+            <Select value={odemeSec.kasa_id || ""} onChange={e => setOdemeSec(o => ({ ...o, kasa_id: e.target.value }))}>
+              <option value="">Hiçbir kasadan düşülmesin</option>
+              {hesaplar.map(a => <option key={a.id} value={a.id}>{a.name}{a.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
+            </Select>
+          </FormField>
+          <ModalActions onClose={() => setOdemeSec(null)} onSave={odemeyiKaydet} saveLabel="Ödendi" />
+        </Modal>
+      )}
       {tasima && (
         <Modal title="Avansın Ayını Değiştir" onClose={() => setTasima(null)}>
           <div style={{ fontSize: 12.5, color: T.textMuted, lineHeight: 1.55, marginBottom: 14 }}>{tasima.e.title} · {fmtMoney(Number(tasima.e.amount || 0))}. Şu an {monthRefLabel(tasima.e.month_ref)} maaşından düşülüyor.</div>
@@ -11767,6 +11827,12 @@ function AccountingExpenses({ staff, autoAdd = false }) {
           </FormField>
           <FormField label={form.entry_type === "advance" ? "Avansın Ödendiği Tarih" : "Son Ödeme Tarihi"}><Input type="date" value={form.due_date || ""} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} /></FormField>
           {form.entry_type === "salary" && !form.due_date && salaryDue(form.month_ref || currentMonthRef(), form.staff_id) && <div style={{ fontSize: 12, color: T.textMuted, marginTop: -8, marginBottom: 14 }}>Boş bırakırsanız çalışanın maaş ödeme gününe göre {trDate(salaryDue(form.month_ref || currentMonthRef(), form.staff_id))} yazılır.</div>}
+          {form.entry_type === "advance" && <FormField label="Hangi hesaptan ödendi?">
+            <Select value={form.kasa_id || ""} onChange={e => setForm(f => ({ ...f, kasa_id: e.target.value }))}>
+              <option value="">Hiçbir kasadan düşülmesin</option>
+              {hesaplar.map(a => <option key={a.id} value={a.id}>{a.name}{a.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
+            </Select>
+          </FormField>}
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => setModal(false)} onSave={saveEntry} />
         </Modal>
