@@ -175,10 +175,19 @@ function musteriDurumlari(d) {
     const inv = d.faturalar.filter(i => i.client_id === c.id);
     const pay = d.odemeler.filter(p => p.client_id === c.id);
     const h = cariHesapla(pay, inv);
-    const ayBorcu = Object.fromEntries(h.months.map(m => [m.m, m.debt]));
-    const acik = inv.filter(i => i.status !== "paid" && (ayBorcu[i.month_ref || ""] || 0) > 0);
+    // Ayın tahsilatı o ayın faturalarına en eskisinden başlayarak düşülür; her faturanın "kalan"ı çıkar.
+    // Böylece aynı aya iki fatura kesildiğinde ödeme ikisine birden sayılmaz, vadesi geçen tutar borcu aşamaz.
+    const ayOdeme = Object.fromEntries(h.months.map(m => [m.m, m.paid]));
+    const kalanlar = new Map();
+    [...inv].sort((a, b) => (invoiceDueDate(a) || "").localeCompare(invoiceDueDate(b) || "") || a.id - b.id).forEach(i => {
+      const ay = i.month_ref || "", tutar = Number(i.total || 0);
+      const dusen = Math.min(tutar, ayOdeme[ay] || 0);
+      ayOdeme[ay] = (ayOdeme[ay] || 0) - dusen;
+      kalanlar.set(i.id, i.status === "paid" ? 0 : Math.max(0, tutar - dusen));
+    });
+    const acik = inv.filter(i => (kalanlar.get(i.id) || 0) > 0).map(i => ({ ...i, kalan: kalanlar.get(i.id) }));
     const geciken = acik.filter(i => { const v = invoiceDueDate(i); return v && v < bugun; });
-    const gecikmeTutari = geciken.reduce((s, i) => s + Math.min(Number(i.total || 0), ayBorcu[i.month_ref || ""] || 0), 0);
+    const gecikmeTutari = Math.min(h.balance, geciken.reduce((s, i) => s + i.kalan, 0));
     const enEskiVade = geciken.map(invoiceDueDate).sort()[0] || "";
     const sonOdeme = pay.map(p => p.payment_date).filter(Boolean).sort().reverse()[0] || "";
     return { musteri: c, inv, pay, faturalanan: h.invoiced, odenen: h.paid, borc: h.balance, acik, geciken, gecikmeTutari, enEskiVade, sonOdeme, gecikmeGun: enEskiVade ? Math.round((new Date(bugun + "T00:00:00") - new Date(enEskiVade + "T00:00:00")) / 86400000) : 0 };
@@ -412,7 +421,7 @@ export function FinansOzet({ goTab }) {
 
 // ═══════════════ MÜŞTERİLERE GÖRE FİNANSAL DURUM ═══════════════
 function ihtarYazisi(s) {
-  const satir = s.geciken.map(i => `<tr><td>${esc(i.invoice_no || i.parasut_invoice_no || "—")}</td><td>${gunTR(i.invoice_date || i.uploaded_at)}</td><td>${monthRefLabel(i.month_ref)}</td><td>${gunTR(invoiceDueDate(i))}</td><td style="text-align:right">${fmtMoney(i.total)}</td></tr>`).join("");
+  const satir = s.geciken.map(i => `<tr><td>${esc(i.invoice_no || i.parasut_invoice_no || "—")}</td><td>${gunTR(i.invoice_date || i.uploaded_at)}</td><td>${monthRefLabel(i.month_ref)}</td><td>${gunTR(invoiceDueDate(i))}</td><td style="text-align:right">${fmtMoney(i.kalan ?? i.total)}</td></tr>`).join("");
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>İhtar</title><style>${PRINT_STYLES} p.m { font-size:12px; line-height:1.7; margin:10px 0; } .imza { margin-top:40px; font-size:12px; }</style></head><body>
     <div class="head"><div class="logo">panormos <span class="m">medya.</span></div><h1>Ödeme İhtarı</h1><div class="sub">Tarih: ${gunTR(todayStr())}</div></div>
     <p class="m"><b>Sayın ${esc(s.musteri.name)},</b></p>
@@ -961,14 +970,14 @@ function VadesiGecmisRaporu({ d }) {
   const satirlar = liste.flatMap(s => s.geciken.map(i => ({ s, i, vade: invoiceDueDate(i) })));
   const bugun = todayStr();
   const gecGun = (v) => Math.round((new Date(bugun + "T00:00:00") - new Date(v + "T00:00:00")) / 86400000);
-  const pdf = () => raporPdf("Vadesi Geçmiş Borçlar", `${liste.length} müşteri · ${fmtMoney(sumAmount(liste, "gecikmeTutari"))}`, `<table><tr><th>Müşteri</th><th>Fatura No</th><th>Fatura Tarihi</th><th>Vade</th><th class="r">Gecikme</th><th class="r">Tutar</th></tr>${satirlar.map(x => `<tr><td>${esc(x.s.musteri.name)}</td><td>${esc(x.i.invoice_no || "—")}</td><td>${gunTR(x.i.invoice_date || x.i.uploaded_at)}</td><td>${gunTR(x.vade)}</td><td class="r">${gecGun(x.vade)} gün</td><td class="r">${fmtMoney(x.i.total)}</td></tr>`).join("")}<tr class="toplam"><td colspan="5">Toplam vadesi geçen</td><td class="r">${fmtMoney(sumAmount(liste, "gecikmeTutari"))}</td></tr></table>`, `Vadesi-Gecmis-Borclar-${bugun}.pdf`);
+  const pdf = () => raporPdf("Vadesi Geçmiş Borçlar", `${liste.length} müşteri · ${fmtMoney(sumAmount(liste, "gecikmeTutari"))}`, `<table><tr><th>Müşteri</th><th>Fatura No</th><th>Fatura Tarihi</th><th>Vade</th><th class="r">Gecikme</th><th class="r">Tutar</th></tr>${satirlar.map(x => `<tr><td>${esc(x.s.musteri.name)}</td><td>${esc(x.i.invoice_no || "—")}</td><td>${gunTR(x.i.invoice_date || x.i.uploaded_at)}</td><td>${gunTR(x.vade)}</td><td class="r">${gecGun(x.vade)} gün</td><td class="r">${fmtMoney((x.i.kalan ?? x.i.total))}</td></tr>`).join("")}<tr class="toplam"><td colspan="5">Toplam vadesi geçen</td><td class="r">${fmtMoney(sumAmount(liste, "gecikmeTutari"))}</td></tr></table>`, `Vadesi-Gecmis-Borclar-${bugun}.pdf`);
   return (
-    <Kart baslik={`Vadesi Geçmiş Borçlar · ${fmtMoney(sumAmount(liste, "gecikmeTutari"))}`} sag={<><Btn onClick={pdf}>PDF</Btn><Btn onClick={() => exportPerfectExcel([{ name: "Vadesi Geçmiş", title: "VADESİ GEÇMİŞ BORÇLAR", rows: satirlar.map(x => ({ "Müşteri": x.s.musteri.name, "Fatura No": x.i.invoice_no || "", "Fatura Tarihi": gunTR(x.i.invoice_date || x.i.uploaded_at), "Vade": gunTR(x.vade), "Gecikme (gün)": gecGun(x.vade), "Tutar": Number(x.i.total) })) }], `vadesi-gecmis-${bugun}.xlsx`)} style={{ background: T.greenDim, color: T.greenText }}>Excel</Btn></>}>
+    <Kart baslik={`Vadesi Geçmiş Borçlar · ${fmtMoney(sumAmount(liste, "gecikmeTutari"))}`} sag={<><Btn onClick={pdf}>PDF</Btn><Btn onClick={() => exportPerfectExcel([{ name: "Vadesi Geçmiş", title: "VADESİ GEÇMİŞ BORÇLAR", rows: satirlar.map(x => ({ "Müşteri": x.s.musteri.name, "Fatura No": x.i.invoice_no || "", "Fatura Tarihi": gunTR(x.i.invoice_date || x.i.uploaded_at), "Vade": gunTR(x.vade), "Gecikme (gün)": gecGun(x.vade), "Tutar": Number((x.i.kalan ?? x.i.total)) })) }], `vadesi-gecmis-${bugun}.xlsx`)} style={{ background: T.greenDim, color: T.greenText }}>Excel</Btn></>}>
       <Tablo>
         <thead><tr><th style={th}>Müşteri</th><th style={th}>Fatura</th><th style={th}>Vade</th><th style={sagTh}>Gecikme</th><th style={sagTh}>Tutar</th><th style={th}></th></tr></thead>
         <tbody>
           {satirlar.length === 0 && <BosSatir n={6} metin="Vadesi geçmiş borç yok." />}
-          {satirlar.map(x => <tr key={x.i.id}><td style={{ ...td, fontWeight: 600 }}>{x.s.musteri.name}</td><td style={td}>{x.i.invoice_no || "—"}<div style={{ fontSize: 11, color: T.textMuted }}>{gunTR(x.i.invoice_date || x.i.uploaded_at)}</div></td><td style={{ ...td, whiteSpace: "nowrap" }}>{gunTR(x.vade)}</td><td style={{ ...sagTd, color: T.redText, fontWeight: 700 }}>{gecGun(x.vade)} gün</td><td style={sagTd}>{fmtMoney(x.i.total)}</td><td style={td}><Btn onClick={() => ihtarYazisi(x.s)} style={{ padding: "4px 9px", fontSize: 11.5 }}>İhtar</Btn></td></tr>)}
+          {satirlar.map(x => <tr key={x.i.id}><td style={{ ...td, fontWeight: 600 }}>{x.s.musteri.name}</td><td style={td}>{x.i.invoice_no || "—"}<div style={{ fontSize: 11, color: T.textMuted }}>{gunTR(x.i.invoice_date || x.i.uploaded_at)}</div></td><td style={{ ...td, whiteSpace: "nowrap" }}>{gunTR(x.vade)}</td><td style={{ ...sagTd, color: T.redText, fontWeight: 700 }}>{gecGun(x.vade)} gün</td><td style={sagTd}>{fmtMoney((x.i.kalan ?? x.i.total))}</td><td style={td}><Btn onClick={() => ihtarYazisi(x.s)} style={{ padding: "4px 9px", fontSize: 11.5 }}>İhtar</Btn></td></tr>)}
         </tbody>
       </Tablo>
     </Kart>
