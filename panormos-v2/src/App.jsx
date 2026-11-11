@@ -9388,6 +9388,21 @@ function cariHesapla(cPayments, cInvoices) {
   return { months, invoiced: sumAmount(months, "invoiced"), paid: sumAmount(months, "paid"), balance: sumAmount(months, "debt") };
 }
 
+// Her faturanın kalanı: ayın tahsilatı o ayın faturalarına en eskisinden başlayarak düşülür.
+// Tahsilat formunda "hangi borç ödeniyor" listesi ve ödendi işareti bunu kullanır.
+function faturaKalanlari(cInvoices, cPayments) {
+  const ayOdeme = {};
+  cPayments.forEach(p => { ayOdeme[p.month_ref || ""] = (ayOdeme[p.month_ref || ""] || 0) + Number(p.amount || 0); });
+  return [...cInvoices].sort((a, b) => (invoiceDueDate(a) || "").localeCompare(invoiceDueDate(b) || "") || a.id - b.id).map(i => {
+    const ay = i.month_ref || "", tutar = Number(i.total || 0);
+    const dusen = Math.min(tutar, ayOdeme[ay] || 0);
+    ayOdeme[ay] = (ayOdeme[ay] || 0) - dusen;
+    return { ...i, kalan: i.status === "paid" ? 0 : Math.max(0, Math.round((tutar - dusen) * 100) / 100) };
+  });
+}
+const faturaEtiketi = (i) => [i.month_ref ? monthRefLabel(i.month_ref) : "", i.otomatik ? "aylık ücret" : `Fatura ${i.invoice_no || i.parasut_invoice_no || "—"}`, i.invoice_date ? gunKisa(i.invoice_date) : ""].filter(Boolean).join(" · ");
+const gunKisa = (d) => { const p = String(d || "").slice(0, 10).split("-"); return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : ""; };
+
 // Bütün para hareketleri tek listede. Para hangi gün girdi/çıktıysa o tarihle sayılır;
 // SGK/vergi/maaş kayıtları ancak "ödendi" işaretlenince gider olur. Özet sekmesi ve Ana Sayfa grafiği bunu kullanır.
 function muhasebeHareketleri({ payments = [], incomes = [], expenses = [], entries = [], pieceJobs = [], clientName = () => "Müşteri" }) {
@@ -10615,24 +10630,37 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
   const odemeyleKapali = (inv) => { const x = ayBilgisi(inv); return !!x && x.invoiced > 0 && x.debt === 0; };
   const odendi = (inv) => inv.status === "paid" || odemeyleKapali(inv);
 
+  // "Ödendi işaretle": önce paranın nasıl ve hangi hesaba geldiği sorulur; seçilmeden kayıt yapılmaz
+  const [odemeModal, setOdemeModal] = useState(null); // { inv, tutar, method, bank_account_id, payment_date }
+  const [hesaplar, setHesaplar] = useState([]);
   const markPaid = async (inv) => {
     // O aya daha önce kısmi ödeme girildiyse yalnızca kalan tutar için ödeme kaydı açılır
     const x = ayBilgisi(inv);
     const tutar = x ? Math.min(Number(inv.total || 0), x.debt) : Number(inv.total || 0);
-    if (!await swalConfirm(`${inv.invoice_no || inv.file_name} — ${fmtMoney(tutar)} ödendi olarak işaretlensin ve cariye ödeme kaydı düşülsün mü?`)) return;
-    const today = todayStr();
+    const { data } = await supabase.from('bank_accounts').select('id,name,kind,owner').order('id');
+    const liste = (data || []).filter(b => b.kind !== "kredi_karti");
+    setHesaplar(liste);
+    setOdemeModal({ inv, tutar, method: "havale", bank_account_id: "", payment_date: todayStr() });
+  };
+  const odemeyiKaydet = async () => {
+    const m = odemeModal; if (!m) return;
+    if (!m.method) { swalAlert("Ödeme yöntemini seçin."); return; }
+    if (!m.bank_account_id) { swalAlert("Paranın hangi hesaba geldiğini seçmeden ödendi işaretlenemez."); return; }
+    const tarih = m.payment_date || todayStr();
     const { data: pay, error: e1 } = await supabase.from('client_payments').insert({
-      client_id: clientId, amount: tutar, payment_date: today,
-      month_ref: inv.month_ref || today.slice(0, 7), method: "havale", notes: `Fatura ${inv.invoice_no || ""}`.trim(),
+      client_id: clientId, amount: m.tutar, payment_date: tarih,
+      month_ref: m.inv.month_ref || tarih.slice(0, 7), method: m.method, notes: `Fatura ${m.inv.invoice_no || ""}`.trim(), bank_account_id: Number(m.bank_account_id),
     }).select().single();
     if (e1) { swalAlert("Ödeme kaydı oluşturulamadı: " + e1.message); return; }
-    const { error: e2 } = await supabase.from('client_invoices').update({ status: "paid", paid_at: today, payment_id: pay?.id || null }).eq('id', inv.id);
+    const { error: e2 } = await supabase.from('client_invoices').update({ status: "paid", paid_at: tarih, payment_id: pay?.id || null }).eq('id', m.inv.id);
     if (e2) {
       if (pay?.id != null) await supabase.from('client_payments').delete().eq('id', pay.id);
       swalAlert("Fatura güncellenemedi: " + e2.message);
       return;
     }
-    load(); onPaid && onPaid();
+    const yontem = { havale: "EFT / Havale", nakit: "Nakit", "kredi kartı": "Kredi Kartı", "çek": "Çek" }[m.method] || m.method;
+    await kasaDefteriYaz(`odeme:${pay.id}`, m.bank_account_id, tarih, m.tutar, `Tahsilat · ${clientName || "Müşteri"} · ${yontem}`, { client_payment_id: pay.id });
+    setOdemeModal(null); load(); onPaid && onPaid();
   };
 
   const markUnpaid = async (inv) => {
@@ -10653,8 +10681,30 @@ function ClientInvoiceUpload({ clientId, clientName, onPaid, monthInfo = {} }) {
   const F = draft?.fields;
   const setF = (k, v) => setDraft(d => ({ ...d, fields: { ...d.fields, [k]: v } }));
 
+  const odemeModalJsx = odemeModal && <Modal title="Ödendi İşaretle" onClose={() => setOdemeModal(null)}>
+    <div style={{ fontSize: 13, color: T.textSecondary, marginBottom: 12 }}>{faturaEtiketi(odemeModal.inv)} · <b style={{ color: T.textPrimary }}>{fmtMoney(odemeModal.tutar)}</b> tahsilat kaydı açılır ve fatura kapanır.</div>
+    <FormField label="Ödeme Tarihi"><Input type="date" value={odemeModal.payment_date} onChange={e => setOdemeModal(m => ({ ...m, payment_date: e.target.value }))} /></FormField>
+    <FormField label="Nasıl alındı?">
+      <Select value={odemeModal.method} onChange={e => { const v = e.target.value; const nakit = hesaplar.find(b => b.kind === "nakit"); setOdemeModal(m => ({ ...m, method: v, bank_account_id: v === "nakit" && nakit ? String(nakit.id) : m.bank_account_id })); }}>
+        <option value="nakit">Nakit</option>
+        <option value="kredi kartı">Kredi Kartı</option>
+        <option value="havale">EFT / Havale</option>
+        <option value="çek">Çek</option>
+      </Select>
+    </FormField>
+    <FormField label="Hangi hesaba geldi?">
+      <Select value={odemeModal.bank_account_id} onChange={e => setOdemeModal(m => ({ ...m, bank_account_id: e.target.value }))}>
+        <option value="">Seçin (zorunlu)</option>
+        {hesaplar.map(b => <option key={b.id} value={b.id}>{b.name}{b.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
+      </Select>
+      {!odemeModal.bank_account_id && <div style={{ fontSize: 11.5, color: T.redText, marginTop: 6 }}>Hesap seçilmeden ödendi işaretlenmez.</div>}
+    </FormField>
+    <ModalActions onClose={() => setOdemeModal(null)} onSave={odemeyiKaydet} saveLabel="Ödendi olarak kaydet" />
+  </Modal>;
+
   return (
     <div style={{ marginTop: 12, padding: "12px", background: T.bgInput, borderRadius: 10 }}>
+      {odemeModalJsx}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: invoices.length ? 10 : 0, flexWrap: "wrap", gap: 8 }}>
         <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, textTransform: "uppercase" }}>🧾 Faturalar ({invoices.length}){pending > 0 && <span style={{ color: T.amberText, marginLeft: 8 }}>· Bekleyen {fmtMoney(pending)}</span>}</div>
         <div>
@@ -11236,10 +11286,20 @@ function AccountingCari({ clients, autoAdd = false }) {
   const visibleStats = showAll ? clientStats : clientStats.filter((cs, i) => i < 6 || cs.client.id === expanded);
 
   // Ödeme penceresi: müşterinin en eski ödenmemiş faturalı ayı ve kalan borcu hazır gelir
+  // Müşterinin ödenmemiş borçları (en eski önce); tahsilat formunda "hangi borç ödeniyor" listesi
+  const acikFaturalar = (clientId) => {
+    const cs = clientStats.find(x => String(x.client.id) === String(clientId));
+    return cs ? faturaKalanlari(cs.cInvoices, cs.cPayments).filter(i => i.kalan > 0) : [];
+  };
   const payDefaults = (clientId) => {
     const cs = clientStats.find(x => String(x.client.id) === String(clientId));
-    const borc = cs?.months.find(x => x.debt > 0 && x.m);
-    return { client_id: clientId || "", amount: borc ? borc.debt : (cs?.client.monthlyFee || ""), month_ref: borc?.m || nowRef };
+    const ilk = acikFaturalar(clientId)[0];
+    if (ilk) return { client_id: clientId || "", invoice_id: String(ilk.id), amount: ilk.kalan, month_ref: ilk.month_ref || nowRef };
+    return { client_id: clientId || "", invoice_id: "", amount: cs?.client.monthlyFee || "", month_ref: nowRef };
+  };
+  const faturaSec = (id) => {
+    const inv = acikFaturalar(form.client_id).find(i => String(i.id) === String(id));
+    setForm(f => ({ ...f, invoice_id: id, ...(inv ? { amount: inv.kalan, month_ref: inv.month_ref || f.month_ref } : {}) }));
   };
   const openPay = (clientId) => { setForm({ ...payDefaults(clientId), payment_date: todayStr(), method: "havale", bank_account_id: varsayilanBanka() }); setModal(true); };
   // Son seçilen banka hesabı hatırlanır; yoksa şirket hesabı gelir
@@ -11248,6 +11308,9 @@ function AccountingCari({ clients, autoAdd = false }) {
   const savePayment = async () => {
     if (saving) return;
     if (!form.client_id || !form.amount) { swalAlert("Müşteri ve tutar zorunlu"); return; }
+    if (!form.method) { swalAlert("Ödeme yöntemini seçin: nakit, kredi kartı, EFT / havale ya da çek."); return; }
+    if (!form.bank_account_id) { swalAlert("Paranın hangi hesaba geldiğini seçmeden tahsilat kaydedilemez.\n\n\"Hangi hesaba geldi?\" kısmından kasayı ya da bankayı seçin. Nakit aldıysanız Nakit Kasa; listede yoksa Tanımlar > Kasa ve Banka'dan ekleyin."); return; }
+    const secilenFatura = form.invoice_id ? acikFaturalar(form.client_id).find(i => String(i.id) === String(form.invoice_id)) : null;
     setSaving(true);
     const yeni = {
       client_id: form.client_id,
@@ -11263,6 +11326,10 @@ function AccountingCari({ clients, autoAdd = false }) {
     if (error) { swalAlert("Ödeme kaydedilemedi: " + error.message); return; }
     // Kasa defteri: tahsilat seçilen hesaba giriş olarak yazılır
     await kasaDefteriYaz(`odeme:${kayit.id}`, yeni.bank_account_id, yeni.payment_date, yeni.amount, `Tahsilat · ${musteriAdiBul(yeni.client_id)} · ${YONTEM_AD[yeni.method] || yeni.method}`, { client_payment_id: kayit.id });
+    // Seçilen borcun tamamı ödendiyse fatura "ödendi" olur ve bu tahsilata bağlanır; kısmi ödemede açık kalır, kalan düşer
+    if (secilenFatura && yeni.amount + 0.005 >= secilenFatura.kalan) {
+      await supabase.from('client_invoices').update({ status: "paid", paid_at: yeni.payment_date, payment_id: kayit.id }).eq('id', secilenFatura.id);
+    }
     try { localStorage.setItem("cari_banka_hesabi", form.bank_account_id ? String(form.bank_account_id) : "yok"); } catch (e) { /* önemli değil */ }
     // Kaydedilen ödeme hemen görünsün diye müşterinin kartı açılır
     setExpanded(mergedClients.find(c => String(c.id) === String(form.client_id))?.id ?? form.client_id);
@@ -11495,6 +11562,15 @@ function AccountingCari({ clients, autoAdd = false }) {
               {mergedClients.map(c => <option key={c.id} value={c.id}>{c.name}{c._departed ? " (ayrıldı)" : ""}</option>)}
             </Select>
           </FormField>
+          {form.client_id && (() => { const acik = acikFaturalar(form.client_id); return (
+            <FormField label="Hangi borç ödeniyor?">
+              <Select value={form.invoice_id || ""} onChange={e => faturaSec(e.target.value)}>
+                <option value="">{acik.length ? "Faturaya bağlı değil (avans / genel ödeme)" : "Açık borç yok · avans / genel ödeme"}</option>
+                {acik.map(i => <option key={i.id} value={i.id}>{faturaEtiketi(i)} · kalan {fmtMoney(i.kalan)}</option>)}
+              </Select>
+              {form.invoice_id && (() => { const inv = acik.find(i => String(i.id) === String(form.invoice_id)); const t = parseFloat(form.amount) || 0; return inv ? <div style={{ fontSize: 11.5, color: t + 0.005 >= inv.kalan ? T.greenText : T.amberText, marginTop: 6 }}>{t + 0.005 >= inv.kalan ? "Bu borç tamamen kapanacak, fatura ödendi olarak işaretlenir." : `Kısmi ödeme: ${fmtMoney(inv.kalan - t)} açık kalır.`}</div> : null; })()}
+            </FormField>
+          ); })()}
           <FormField label="Tutar (₺)"><Input type="number" placeholder="0" value={form.amount || ""} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></FormField>
           <FormField label="Hangi Aya Ait">
             <Select value={form.month_ref || nowRef} onChange={e => setForm(f => ({ ...f, month_ref: e.target.value }))}>
@@ -11512,10 +11588,12 @@ function AccountingCari({ clients, autoAdd = false }) {
           </FormField>
           <FormField label="Hangi hesaba geldi?">
             <Select value={form.bank_account_id || ""} onChange={e => setForm(f => ({ ...f, bank_account_id: e.target.value }))}>
-              <option value="">Hiçbir kasaya işlenmesin</option>
-              {bankalar.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              <option value="">Seçin (zorunlu)</option>
+              {bankalar.map(b => <option key={b.id} value={b.id}>{b.name}{b.owner === "sahsi" ? " (şahsi)" : ""}</option>)}
             </Select>
-            {form.bank_account_id && <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>Ödeme kaydedilince {bankaAdi(form.bank_account_id)} hesabına giriş olarak işlenir; Özet'teki kasa bakiyesi o anda güncellenir.</div>}
+            {form.bank_account_id
+              ? <div style={{ fontSize: 11.5, color: T.textMuted, marginTop: 6 }}>Ödeme kaydedilince {bankaAdi(form.bank_account_id)} hesabına giriş olarak işlenir; Özet'teki kasa bakiyesi o anda güncellenir.</div>
+              : <div style={{ fontSize: 11.5, color: T.redText, marginTop: 6 }}>Hesap seçilmeden tahsilat kaydedilmez. {form.method === "nakit" && !bankalar.some(b => b.kind === "nakit") ? "Nakit kasa tanımlı değil: Tanımlar > Kasa ve Banka'dan \"Nakit Kasa\" ekleyin." : ""}</div>}
           </FormField>
           <FormField label="Not"><Input placeholder="İsteğe bağlı" value={form.notes || ""} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></FormField>
           <ModalActions onClose={() => setModal(false)} onSave={savePayment} saveLabel={saving ? "Kaydediliyor..." : "Kaydet"} />
